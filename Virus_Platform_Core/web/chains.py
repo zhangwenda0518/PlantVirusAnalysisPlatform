@@ -159,7 +159,13 @@ def _tool_job_virchain(ctx):
     do_verify = ctx.p.get('do_verify')
     do_verify = True if do_verify is None else bool(do_verify)
     asm_mode = (ctx.p.get('mode') or 'rnaviral').strip()
-    mem = int(ctx.p.get('memory') or 64)
+    # 组装引擎与 MEGAHIT 模式：③ 卡选什么这里就传什么（缺省 auto）
+    asm_assembler = (ctx.p.get('assembler') or 'auto').strip().lower()
+    asm_megahit_mode = (ctx.p.get('megahit_mode') or 'default').strip().lower()
+    mem = int(ctx.p.get('memory') or 0)
+    if not mem:
+        from Virus_Platform_Core.assembly import default_assembler_memory_gb
+        mem = default_assembler_memory_gb()
     min_len = int(ctx.p.get('min_len') or 200)
     conf = float(ctx.p.get('confidence') or 0)
     host = (ctx.p.get('host') or 'all').strip() or 'all'
@@ -233,7 +239,8 @@ def _tool_job_virchain(ctx):
         # ---- ② 提取序列组装（输入 = 去宿主序列 或 ① 的提取序列） ----
         lo, hi = _band(cur, w_asm)
         p2 = {'r1': asm_in1, 'mode': asm_mode, 'memory': mem,
-              'min_len': min_len}
+              'min_len': min_len, 'assembler': asm_assembler,
+              'megahit_mode': asm_megahit_mode}
         if asm_in2:
             p2['r2'] = asm_in2
         run2, res2, _ = _chain_run_step(
@@ -304,6 +311,16 @@ def _tool_job_kvchain(ctx):
     kvsuite 卡里的 stage 下拉默认已是 all，本 job 把「一次跑完并收拢产物」
     做成显式入口：建汇总目录 + 链接 kvsuite run_dir + 关键产物。
     """
+    # 2026-11-02：kvchain 是 kvsuite 的 stage=all 封装，参数 schema 直接复用
+    # kvsuite（agent_catalog 里 TOOL_PARAM_SCHEMAS['kvchain'] = kvsuite 的那份），
+    # 所以「三选一」的输入校验也该由 kvsuite 负责。但 stage=all 走的
+    # samples/reads/sample_sheet 分支在**任务线程内**才 abort，且 JobCtx 只在
+    # 有 Flask 请求上下文时才转成真正的 HTTP 400——结果就是空提交照样建任务、
+    # 最后 failed，文案埋在 error 里。这里在提交时先做一次与 kvsuite 同款的
+    # 互斥校验，让一键入口的表现和其它工具箱工具一致。
+    if not any((ctx.p.get(k) or '').strip()
+               for k in ('samples', 'reads', 'sample_sheet')):
+        abort(400, '请选择样品、直接输入测序数据（FASTQ），或提供样本表 TSV')
     root = _tool_runs_root()
 
     def job(log, prog, cancel):

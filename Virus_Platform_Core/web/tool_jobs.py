@@ -456,35 +456,102 @@ def _tool_job_identify(ctx):
     return job
 
 
+def _default_asm_mem():
+    """组装内存默认值 = 物理内存的一半（见 assembly.default_assembler_memory_gb）。"""
+    from Virus_Platform_Core.assembly import default_assembler_memory_gb
+    return default_assembler_memory_gb()
+
+
 def _tool_job_assemble(ctx):
-    """③ 病毒组装（SPAdes，可选模式）。"""
+    """③ 病毒组装（引擎可选：MEGAHIT / SPAdes）。"""
     r1 = ctx.req('r1', 'R1 FASTQ')
     mode = ctx.p.get('mode') or 'rnaviral'
-    # srna（小RNA）模式按单端 -s 组装，R2 可选；其余模式仍必填
-    r2 = ctx.opt('r2') if mode == 'srna' else ctx.req('r2', 'R2 FASTQ')
-    mem = int(ctx.p.get('memory') or 64)
+    # 组装引擎：auto（默认，有 MEGAHIT 就用）/ spades / megahit
+    assembler = (ctx.p.get('assembler') or 'auto').strip().lower()
+    # MEGAHIT 自己的模式（default/sensitive/large），SPAdes 模式对它不适用
+    megahit_mode = (ctx.p.get('megahit_mode') or 'default').strip().lower()
+
+    def _tool_or_none(name):
+        """cfg.tool() 缺工具时抛 FileNotFoundError，这里取"有/没有"。"""
+        try:
+            return cfg.tool(name)
+        except FileNotFoundError:
+            return None
+
+    # srna（小RNA）按单端组装，R2 可选；MEGAHIT 支持单端（-r）；
+    # SPAdes 的 rnaviral/metaviral/rna/meta 仍要求双端。
+    from Virus_Platform_Core.assembly import choose_assembler as _choose
+    _engine = _choose(assembler, mode, _tool_or_none('megahit'))
+    r2 = (ctx.opt('r2')
+          if (mode == 'srna' or _engine == 'megahit')
+          else ctx.req('r2', 'R2 FASTQ'))
+    # 内存默认值 = 物理内存的一半（2026-10-29）：写死 64 在 32GB/16GB 机器上
+    # 要么白占、要么直接被钳制，默认一半更稳。
+    mem = int(ctx.p.get('memory') or 0) or _default_asm_mem()
     min_len = int(ctx.p.get('min_len') or 200)
 
     def job(log, prog, cancel):
         logger = TaskLogger(callback=log)
-        from Virus_Platform_Core.assembly import run_spades, filter_contigs
+        from Virus_Platform_Core.assembly import (choose_assembler,
+                                                  filter_contigs,
+                                                  run_megahit, run_spades)
         out = os.path.join(ctx.run_dir, 'assembly')
-        prog('spades', 0.05, 'SPAdes 组装中（耗时主要步骤）')
-        spades_out = run_spades(r1, r2, out, mode=mode, threads=ctx.threads,
-                                memory_gb=mem, logger=logger,
-                                progress=lambda pp, mm: prog(
-                                    'spades', 0.05 + pp * 0.85, mm))
+        me = _tool_or_none('megahit')
+        engine = choose_assembler(assembler, mode, me)
+        if assembler == 'megahit' and not me:
+            raise RuntimeError('未检测到 MEGAHIT（3rd/tools/megahit*/megahit.bat）；'
+                               '请改用 SPAdes，或把 MEGAHIT 放进 3rd/tools/')
+        asm_info = {}
+
+        def _run_engine(fn):
+            """执行组装；内存不够时把原始报错换成人话（含建议值）。"""
+            from Virus_Platform_Core.assembly import oom_hint
+            try:
+                return fn()
+            except RuntimeError as e:
+                hint = oom_hint(e, mem)
+                if hint is not e:
+                    raise RuntimeError(hint) from e
+                raise
+
+        if engine == 'megahit':
+            if logger:
+                logger.log('组装引擎：MEGAHIT'
+                           + ('（auto：已检测到 MEGAHIT，比 SPAdes 快）'
+                              if assembler == 'auto' else '')
+                           + (f'；模式参数 {mode} 对 MEGAHIT 不适用，'
+                              f'使用其默认 k 阶梯' if mode != 'rnaviral' else ''))
+            prog('megahit', 0.05, 'MEGAHIT 组装中（耗时主要步骤）')
+            asm_out = _run_engine(lambda: run_megahit(
+                r1, r2, out, threads=ctx.threads, memory_gb=mem,
+                min_len=min_len, logger=logger,
+                progress=lambda pp, mm: prog('megahit', 0.05 + pp * 0.85, mm),
+                info=asm_info, preset=megahit_mode))
+        else:
+            if logger:
+                logger.log('组装引擎：SPAdes'
+                           + ('（未检测到 MEGAHIT，auto 退回 SPAdes）'
+                              if assembler == 'auto' and not me else '')
+                           + ('（srna 小RNA 固定用 SPAdes）'
+                              if mode == 'srna' and assembler != 'auto' else ''))
+            prog('spades', 0.05, 'SPAdes 组装中（耗时主要步骤）')
+            asm_out = _run_engine(lambda: run_spades(
+                r1, r2, out, mode=mode, threads=ctx.threads, memory_gb=mem,
+                logger=logger,
+                progress=lambda pp, mm: prog('spades', 0.05 + pp * 0.85, mm),
+                info=asm_info))
         # 组装产物可能是 contigs.fasta（常规/rnaviral/metaviral-meta）或
         # transcripts.fasta（低覆盖自动降级 rna 模式），以 run_spades 实际
         # 返回的路径为准，不能硬编码 contigs.fasta（否则降级时找不到文件）。
         prog('filter', 0.92, 'contig 长度过滤')
         filtered, n_c, total_bp = filter_contigs(
-            spades_out,
+            asm_out,
             os.path.join(ctx.run_dir, 'contigs.filtered.fasta'),
             min_len=min_len, logger=logger)
         prog('filter', 1.0, '完成')
         logger.close()
         return {'n_contigs': n_c, 'total_bp': total_bp,
+                'assembler': asm_info.get('engine', 'spades'),
                 'contigs': filtered}
     return job
 
@@ -676,6 +743,12 @@ def _tool_job_verify(ctx):
         abort(400, '无效的运行名')
     if combine not in ('union', 'intersection'):
         combine = 'union'
+    # 2026-11-02：run 与 fasta 是互斥二选一，但两者都为空时之前会建出一个
+    # 必然失败的任务（终态 failed，文案「请选择 contigs 运行或输入 FASTA」只
+    # 躺在任务 error 里）。同批实测的 mirna/kvsuite/genoplot/orfa/phylodyn 都在
+    # 提交时就 abort(400)，这里补齐，让空提交当场被拒、错误直接呈现给用户。
+    if not run_ref and not fasta:
+        abort(400, '请选择 contigs 运行或输入 FASTA')
 
     def job(log, prog, cancel):
         logger = TaskLogger(callback=log)
@@ -757,6 +830,11 @@ def _tool_job_consensus(ctx):
     for _r in kv_refs:
         if not re.fullmatch(r'[A-Za-z0-9_.\-]+', _r):
             abort(400, '无效的 accession: %s' % _r)
+    # 2026-11-02：参考三条来源（run / kv_run+kv_refs / fasta）全空时之前会建出
+    # 必然失败的任务；与 verify / mirna 等同批工具口径统一，提交时就拒绝。
+    # 注意 kv_refs 依赖 kv_run，故只要 kv_run 给了就不算空（job 体里会再校验）。
+    if not run_ref and not fasta and not kv_run:
+        abort(400, '请选择 contigs 运行、kvsuite 参考或输入参考 FASTA')
 
     def job(log, prog, cancel):
         logger = TaskLogger(callback=log)
@@ -2443,6 +2521,23 @@ def _tool_job_pdprep(ctx):
             """
     source = (ctx.p.get('source') or 'manual').strip()
     strict = (ctx.p.get('strict') or '0') == '1'
+    # 2026-11-02：四种来源各自有必填输入，全空提交之前会建一个必然失败的
+    # 任务（manual 分支里才抛「请粘贴 FASTA 序列」）。这里在提交时按 source
+    # 校验，口径与其它工具一致：缺输入 → 400 当场报中文原因。
+    # genbank 的合理组合较多（accessions / term / species / gateway+species /
+    # gb_files），判定放宽为「至少给了一个」，不误伤合法用法。
+    if source == 'files':
+        if not ((ctx.p.get('fasta') or '').strip()
+                and (ctx.p.get('meta') or '').strip()):
+            abort(400, '请选择序列 FASTA 与元数据 CSV/TSV')
+    elif source == 'manual':
+        if not ((ctx.p.get('fasta_text') or '').strip()
+                and (ctx.p.get('meta_text') or '').strip()):
+            abort(400, '请粘贴 FASTA 序列与元数据表')
+    elif source == 'genbank':
+        keys = ('accessions', 'term', 'species', 'taxid', 'gb_files')
+        if not any((ctx.p.get(k) or '').strip() for k in keys):
+            abort(400, '请至少提供 accession、检索式、物种/taxid 或本地 GenBank 文件')
 
     def job(log, prog, cancel):
         logger = TaskLogger(callback=log)
@@ -2470,6 +2565,66 @@ def _tool_job_pdprep(ctx):
             prog('import', 0.2, '获取 GenBank 记录（在线下载需网络）')
             # species/taxid/date_from/date_to/collection 都是**普通字符串参数**，
             # 不能走 ctx.opt（那会把它们当文件路径做 must_exist 校验 → 400）。
+            # 2026-10-30 在线库圈定（gateway=1）：先在自建库（39.106.101.94）
+            # 按物种/taxid 圈定 accession 清单，再走既有 accessions → Entrez
+            # efetch 管道取正文与完整特征表（collection_date / geo_loc_name）。
+            # 自建库只有元数据没有序列正文，所以它当「圈定器」而非数据源。
+            gw_on = (ctx.p.get('gateway') or '0') == '1'
+            gw_accs = None
+            if gw_on and not (ctx.p.get('accessions') or '').strip():
+                from Virus_Platform_Core import gateway_client as gwcli
+                accs, _info = gwcli.resolve_accessions(
+                    species=(ctx.p.get('species') or '').strip() or None,
+                    taxid=(ctx.p.get('taxid') or '').strip() or None,
+                    full_only=(ctx.p.get('full_only') or '0') == '1',
+                    max_records=int(ctx.p.get('max_records') or 200),
+                    log=logger.log)
+                gw_accs = ','.join(accs)
+            # 2026-11-02 两步导入的第一步：`mode=preview` 只出**清单**（不建数据集），
+            # 让人先看「检索到哪些记录、哪几条日期+地点齐全」，再勾选导入。
+            # 之前把 accession/检索式/日期区间/全长/在线库/条数一次性摆出来，
+            # 用户得先猜条件能捞到什么 —— 对齐 VirPhyKit SeqHarvester 的节奏。
+            if (ctx.p.get('mode') or '').strip() == 'preview':
+                prog('preview', 0.35, 'GenBank 检索预览（只列清单，不建数据集）')
+                pv = pk.preview_from_genbank(
+                    species=(ctx.p.get('species') or '').strip() or None,
+                    taxid=(ctx.p.get('taxid') or '').strip() or None,
+                    full_length=(ctx.p.get('full_only') or '0') == '1',
+                    date_from=(ctx.p.get('date_from') or '').strip() or None,
+                    date_to=(ctx.p.get('date_to') or '').strip() or None,
+                    accessions=(gw_accs
+                                or ((ctx.p.get('accessions') or '').strip()
+                                    or None)),
+                    collection=(ctx.p.get('collection') or '').strip() or None,
+                    term=(ctx.p.get('term') or '').strip() or None,
+                    max_records=int(ctx.p.get('max_records') or 200),
+                    logger=logger)
+                summary = {'tool': 'pdprep', 'mode': 'preview',
+                           'source': 'genbank',
+                           'n_input': pv['n_shown'], 'n_kept': 0,
+                           'n_issues': pv['n_shown'] - pv['n_usable'],
+                           'issues': [{'row': '-', 'name': r['accession'],
+                                       'problems': [r['reason']]}
+                                      for r in pv['rows'] if not r['usable']],
+                           'warnings': [], 'abs': {},
+                           'preview': {k: v for k, v in pv.items()
+                                       if k != 'rows'},
+                           'out_dir': out_dir}
+                _pd_save_summary(out_dir, summary)
+                with open(os.path.join(out_dir, 'preview.json'), 'w',
+                          encoding='utf-8') as f:
+                    json.dump(pv, f, ensure_ascii=False, indent=1)
+                prog('done', 1.0, f"检索 {pv['n_shown']} 条，"
+                                  f"可用 {pv['n_usable']} 条")
+                logger.close()
+                # 返回**薄**结果：任务卡的「关键数字」是把返回 dict 展平成
+                # chips 的，把整份 summary 摊回去会变成 `issues_n=0mode=preview…`
+                # 那样一串裸键（2026-11-02 实测）。清单本身在 preview.json 里，
+                # 详情在 summary.json 里，这里只留两个可读字段。
+                return {'tool': 'pdprep', 'mode': 'preview',
+                        'n_shown': pv['n_shown'], 'n_usable': pv['n_usable']}
+            _coll = (ctx.p.get('collection') or '').strip() or None
+            _accs = gw_accs or ((ctx.p.get('accessions') or '').strip() or None)
             res = pk.import_from_genbank(
                 out_dir,
                 species=(ctx.p.get('species') or '').strip() or None,
@@ -2479,9 +2634,13 @@ def _tool_job_pdprep(ctx):
                 date_mode=(ctx.p.get('date_mode') or 'mid'),
                 date_from=(ctx.p.get('date_from') or '').strip() or None,
                 date_to=(ctx.p.get('date_to') or '').strip() or None,
-                collection=(ctx.p.get('collection') or '').strip() or None,
+                collection=_coll,
                 files=ctx.opt('gb_files'),
-                accessions=(ctx.p.get('accessions') or '').strip() or None,
+                accessions=_accs,
+                # 两步导入的第二步：集合 + 勾选清单一起给 → 本地集合按勾选过滤，
+                # 不重打 NCBI（预览下过的正文直接用）。只给集合/只给 accession 时
+                # only 为空，行为与旧链路一致。
+                only=(_accs if (_coll and not gw_accs) else None),
                 term=(ctx.p.get('term') or '').strip() or None,
                 max_records=int(ctx.p.get('max_records') or 200),
                 strict=strict)

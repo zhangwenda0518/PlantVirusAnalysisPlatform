@@ -32,7 +32,7 @@
       <div style="display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:16px;align-items:start">
 
         <!-- 左栏：参数配置（sticky 固定 + 内部独立滚动，右侧预览始终可见） -->
-        <div class="card" style="padding:14px;position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto">
+        <div class="card" style="padding:14px;position:sticky;top:calc(var(--head-h) + 14px);max-height:calc(100vh - var(--head-h) - 28px);overflow-y:auto">
           <!-- Input -->
           <div style="font-size:12.5px;font-weight:700;margin-bottom:8px;color:#1a5276" data-i18n="gn.secInput">📥 输入</div>
           <label data-i18n="gn.faLbl">基因组 / contigs FASTA</label>
@@ -147,7 +147,7 @@
         </div>
 
         <!-- 右栏：实时预览大屏 -->
-        <div class="card" style="padding:14px;min-height:520px;position:sticky;top:14px">
+        <div class="card" style="padding:14px;min-height:520px;position:sticky;top:calc(var(--head-h) + 14px)">
           <div style="font-size:12.5px;font-weight:700;margin-bottom:8px;color:#1a5276" data-i18n="gn.secPreview">🔍 实时预览大屏</div>
           <div id="gp_preview" style="display:none">
             <!-- linear 图原始宽可达 2000+px（gbdraw canvas.linear.width 固定 2000），

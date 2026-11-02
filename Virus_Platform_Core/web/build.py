@@ -63,14 +63,120 @@ def api_tools():
     return jsonify({'threads': cfg.threads, 'tools': cfg.tool_status()})
 
 
+# ── 库元信息（规模 / 参考条数 / 构建时间）──────────────────────────────
+# 总览页的库卡原来只有「就绪 / 未就绪」，看不出"多大的库、什么时候建的"。
+# 这里补三项，并带 5 分钟进程内缓存：库是 GB 级（virusref_db 4.0 GB /
+# 106 个文件），每次进总览都全量 stat 一遍没必要 —— 库内容不会在 5 分钟内变。
+_DB_META_TTL = 300.0
+_DB_META = {}          # normpath -> (ts, {'bytes': int|None, 'n_refs': int|None})
+
+
+def _dir_bytes(path, cap_files=50000):
+    """目录总字节数（递归）。文件数封顶，防止误指到超大目录时拖住请求。"""
+    total = n = 0
+    for dp, _dn, fn in os.walk(path):
+        for f in fn:
+            try:
+                total += os.path.getsize(os.path.join(dp, f))
+            except OSError:
+                pass
+            n += 1
+            if n >= cap_files:
+                return total, n
+    return total, n
+
+
+def _count_lines(path, cap=2_000_000):
+    n = 0
+    try:
+        with open(path, 'rb') as f:
+            for _ in f:
+                n += 1
+                if n >= cap:
+                    break
+    except OSError:
+        return None
+    return n or None
+
+
+def _db_n_refs(path):
+    """库里的参考序列条数。
+
+    kunpeng 库自带 seqid2taxid.map（一行一条序列），数行数比解析 k2d 便宜
+    几个数量级；其它库退到 manifest.json / db_info.json 里的计数字段。"""
+    m = os.path.join(path, 'seqid2taxid.map')
+    if os.path.isfile(m):
+        return _count_lines(m)
+    for name in ('manifest.json', 'db_info.json'):
+        p = os.path.join(path, name)
+        if not os.path.isfile(p):
+            continue
+        try:
+            with open(p, encoding='utf-8') as f:
+                d = json.load(f)
+        except (OSError, ValueError):
+            continue
+        for k in ('n_refs', 'n_seqs', 'n_sequences', 'count'):
+            if isinstance(d.get(k), int):
+                return d[k]
+    return None
+
+
+def _db_meta(path):
+    """单库元信息（带缓存）。目录不存在时返回全 None，前端据此不显示。"""
+    if not path or not os.path.isdir(path):
+        return {'bytes': None, 'n_refs': None}
+    key = os.path.normpath(path)
+    now = time.time()
+    hit = _DB_META.get(key)
+    if hit and now - hit[0] < _DB_META_TTL:
+        return hit[1]
+    meta = {'bytes': None, 'n_refs': None}
+    try:
+        meta['bytes'] = _dir_bytes(path)[0]
+    except OSError:
+        pass
+    meta['n_refs'] = _db_n_refs(path)
+    _DB_META[key] = (now, meta)
+    return meta
+
+
+def _db_package_meta():
+    """数据库包的构建信息（打包时写进 build_info.json）。
+
+    源码树里 databases/ 就在平台根下、没有这份文件；分发包里库是独立的
+    VirusPlatform-Database/ 目录，build_info.json 与 databases/ 同级。"""
+    root = os.path.dirname(os.path.normpath(DIRS['databases']))
+    out = {'built_at': None, 'git_rev': None, 'root': root}
+    for cand in (os.path.join(root, 'build_info.json'),
+                 os.path.join(DIRS['databases'], 'build_info.json')):
+        if not os.path.isfile(cand):
+            continue
+        try:
+            with open(cand, encoding='utf-8') as f:
+                d = json.load(f)
+        except (OSError, ValueError):
+            continue
+        out['built_at'] = d.get('built_at_utc') or out['built_at']
+        out['git_rev'] = (d.get('git_rev') or '')[:10] or None
+        break
+    return out
+
+
+def _db_entry(path, ready):
+    """{path, ready} + 元信息，供总览库卡展示规模与条数。"""
+    e = {'path': path, 'ready': ready}
+    e.update(_db_meta(path))
+    return e
+
+
 @bp.route('/api/dbs')
 def api_dbs():
     from Virus_Platform_Core.kunpeng import db_ready
     out = {}
     for key in ('host', 'virus'):
         d = cfg.databases[key]
-        out[key] = {'path': d,
-                    'ready': db_ready(d) if os.path.isdir(d) else False}
+        out[key] = _db_entry(d, db_ready(d) if os.path.isdir(d) else False)
     # 通用参考库（refvirus / 其它 kunpeng 库目录自动探测）；RVDB 已于 2026-09-10 移除
     for key, mapping in (('refvirus', ('virus', 'ref')),
                          ('k2viral', None)):
@@ -78,10 +184,9 @@ def api_dbs():
             d = db_path(*mapping)
         else:
             d = os.path.join(DIRS['databases'], 'k2viral_db')
-        out[key] = {'path': d,
-                    'ready': db_ready(d) if os.path.isdir(d) else False}
+        out[key] = _db_entry(d, db_ready(d) if os.path.isdir(d) else False)
     from Virus_Platform_Core.taxonomy import taxonomy_ready
-    out['taxonomy'] = {'ready': taxonomy_ready(), 'path': DIRS['taxonomy']}
+    out['taxonomy'] = _db_entry(DIRS['taxonomy'], taxonomy_ready())
     # 病毒分类库统一为「自备预构建」：扫描 databases/ 下的 kunpeng 库目录
     # （宿主库除外）。使用者把库目录放进来即自动识别，工具②/④的病毒库
     # 下拉与构建页列表都以此为准。准入只看 db_ready（结构完整可用），
@@ -108,7 +213,8 @@ def api_dbs():
         # 的分发版下会被解析成 <程序目录>\databases\... —— 那里并不存在，
         # 于是选库即报「病毒库不存在」；而开发机上源码树恰好也有 databases/，
         # 会静默解析到**另一份**库，问题被完全掩盖。
-        libs.append({'name': rel, 'path': os.path.normpath(dp)})
+        libs.append({'name': rel, 'path': os.path.normpath(dp),
+                     'n_refs': _db_n_refs(dp)})
     # 外部登记的自备库（platform.json extra_virus_libs，可为平台外任意位置）
     seen = {os.path.normpath(l['path']) for l in libs}
     for p in cfg.extra_virus_libs:
@@ -116,8 +222,9 @@ def api_dbs():
         if n in seen or not _db_dir_ready(n):
             continue
         libs.append({'name': os.path.basename(n), 'path': p,
-                     'external': True})
+                     'external': True, 'n_refs': _db_n_refs(n)})
     out['virus_libs'] = libs
+    out['meta'] = _db_package_meta()
     return jsonify(out)
 
 
@@ -393,12 +500,17 @@ def api_build_taxonomy():
     return jsonify({'task': tid})
 
 
-@bp.route('/api/build_host_db', methods=['POST'])
-def api_build_host_db():
-    body = request.get_json(force=True) or {}
+def start_host_db_build(body):
+    """校验并启动宿主基因组库构建 —— 路由与 AI 执行单共用同一条路径。
+
+    返回 (tid, out_dir)；参数不合法抛 ValueError（路由转 400，AI 执行单
+    转成可读的 failed 原因）。2026-10-29：AI 的 build_host_db 动作需要
+    与「数据库构建」页完全一致的校验与任务启动，抽出来避免两套。
+    """
+    body = dict(body or {})
     for k in ('genome', 'taxid'):
         if not body.get(k):
-            abort(400, f'缺少参数 {k}')
+            raise ValueError(f'缺少参数 {k}')
     check_path(body['genome'], must_exist=True)
     # 输出目录：留空 = 按物种自动命名 host-db/<TaxID>_<源目录名>_host_db/
     # （多宿主可共存；库内会写 host_db.json 清单记录它是谁）
@@ -407,18 +519,28 @@ def api_build_host_db():
     if raw:
         d = _abs_arg(raw)
         if not _within_allowed_roots(d):
-            abort(400, '输出目录须位于平台目录内（或先在「设置 → 数据库目录」'
-                       '配置自定义数据库根）')
+            raise ValueError('输出目录须位于平台目录内（或先在「设置 → 数据库目录」'
+                             '配置自定义数据库根）')
     else:
         try:
             d = os.path.join(DIRS['host_src'],
                              host_db_name(int(body['taxid']), body['genome']))
         except (TypeError, ValueError):
-            abort(400, f"TaxID 必须是数字，收到: {body['taxid']!r}")
+            raise ValueError(f"TaxID 必须是数字，收到: {body['taxid']!r}")
     body['out_dir'] = d
     tid = tm.start(cfg.tr(f"宿主库构建 (taxid={body['taxid']})",
                          f"Host DB build (taxid={body['taxid']})"),
                    _job_build_host_db(body))
+    return tid, d
+
+
+@bp.route('/api/build_host_db', methods=['POST'])
+def api_build_host_db():
+    body = request.get_json(force=True) or {}
+    try:
+        tid, d = start_host_db_build(body)
+    except ValueError as e:
+        abort(400, str(e))
     return jsonify({'task': tid, 'out_dir': d})
 
 

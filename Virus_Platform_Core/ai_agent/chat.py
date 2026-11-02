@@ -14,13 +14,88 @@
 结论须附证据出处（阶段目录/表名）；超出数据范围时明说"数据不支持"。
 """
 import json
+import os
+import re
 import time
 
 from . import digest, tools as ai_tools
 from .provider import AIConfigError, AIProviderError, ai_ready, chat_stream
 
-# 工具循环上限：防"工具→再工具"失控；结果指导类问题 2 轮内基本收敛
-MAX_TOOL_ROUNDS = 3
+# 2026-10-30 DSML 泄漏防护：个别异常场景（如请求被上游 422 后降级、或供应商
+# 偶发故障）会让模型把**内部工具调用标记**（<|DSML|invoke name="…"> 等）
+# 当正文吐出来——正常情况这些走结构化 tool_calls 通道，不会出现在 content。
+# 入库前剥离，防止污染对话历史形成"越聊越多"的自我强化。
+DSML_RE = re.compile(r'</?\|DSML\|[^>]{0,160}>')
+
+
+def _strip_dsml(text):
+    if not text or '<|DSML|' not in text:
+        return text
+    return DSML_RE.sub('', text)
+
+
+class _DsmlStreamGuard:
+    """正文**流式出口**的 DSML 兜底（2026-11-02）。
+
+    2026-10-30 加的 _strip_dsml 只覆盖了「入库」的三个出口，**没覆盖 delta
+    流**：模型一旦把内部标记当正文吐出来，前端逐字渲染，用户看到的就是原始
+    `<|DSML|invoke name="propose_action">`（用户截图）。这里在流式出口做同款
+    清洗，并把「跨 chunk 的半个标记」先扣住，凑齐再决定剥掉还是放行——
+    逐片 strip 会把 `<|DSML|inv` 这种半截直接漏到前端。
+    """
+
+    PREFIX = '<|DSML|'                     # 开始标记；闭合形式另算
+    MARKERS = ('<|DSML|', '</|DSML|')
+
+    def __init__(self):
+        self.buf = ''
+        self.stripped = False
+
+    def _holds(self, tail):
+        """tail 是否是「可能是标记开头」的半截（含 '</|DSML|' 的闭合形式）。"""
+        for p in self.MARKERS:
+            if tail.startswith(p) or p.startswith(tail):
+                return True
+        return False
+
+    def feed(self, piece):
+        if not piece:
+            return ''
+        self.buf += piece
+        text = DSML_RE.sub('', self.buf)
+        if text != self.buf:
+            self.stripped = True
+        i = text.rfind('<')
+        if i >= 0:
+            tail = text[i:]
+            # 可能是半个标记：要么是标记的前缀（"<"、"</|DS"…），要么已带
+            # 前缀但 '>' 还没到（'<|DSML|invoke name="x"' / '</|DSML|'）
+            if self._holds(tail):
+                if tail.startswith(self.MARKERS):
+                    self.stripped = True
+                self.buf = tail
+                return text[:i]
+        self.buf = ''
+        return text
+
+    def flush(self):
+        """本轮结束：扣住的尾巴按原样吐出（真半截标记直接丢弃）。"""
+        tail, self.buf = self.buf, ''
+        if not tail:
+            return ''
+        if tail.startswith(self.MARKERS):
+            self.stripped = True
+            return ''
+        return tail
+
+
+# 工具循环上限：防"工具→再工具"失控。
+# 2026-10-30：3 轮太紧 —— 模型查两次状态、准备提交预筛时就被截断（用户截图
+# 里的「工具调用轮次超限」）。长任务排查常要"列项目→读结果→再查一次→提交"，
+# 预算放到 10 轮；真正的失控由「重复调用检测」和轮次上限双保险。
+MAX_TOOL_ROUNDS = max(1, min(30, int(os.environ.get('VP_AI_MAX_TOOL_ROUNDS', '10'))))
+# 同一工具+参数重复到该次数后不再执行，用工具结果提醒模型停止轮询
+MAX_SAME_CALL = 2
 # 随请求携带的历史条数上限（服务端无状态，前端传全量，这里裁剪）
 MAX_HISTORY = 12
 MAX_MSG_CHARS = 6000
@@ -75,6 +150,21 @@ _SYSTEM_RULES_ZH = """你是「植物病毒分析平台」的内置 AI 助手，
    用户追问进度再轮询，不要在对话里空转等待。例外：vp_delete_tool_run
    已禁用；db-migrate 落盘迁移、tool-runs clean 等不可逆操作先向用户
    确认再执行；propose_action 继续用于样品创建与下载批次等原生流程。
+
+12. **计划 ≠ 已执行（反幻觉红线）**：propose_action 返回成功只代表「已起草
+    待批」，不代表已开始、更不代表已完成；任务提交成功 ≠ 有结果。
+    只有三种情况可以对用户说「已开始/已完成」：① 任务中心出现真实任务 id
+    且终态 done（get_task_overview / wait_task 可见）；② 你亲自读到了落盘
+    产物（read_result_table / read_tool_run_file 等）；③ 同步动作
+    create_sample 在执行单 done 后。禁止由计划推断结果、禁止编造检测数字；
+    用户催进度时照实说「还在后台跑」或「执行单还没批准」。
+
+13. **长任务两条路**（mcp_call / 执行单提交任务成功后）：
+    ① 预计 ≤4 分钟或已接近完成 → 调 wait_task(tid, timeout_sec≤240) 有界等待，
+       等到终态直接给结果与解读；
+    ② 可能更久 → 立即收尾：告知用户"已提交、在后台运行、完成后会播报"，
+       本轮结束。不要空转轮询；用户问进度时用 get_task_overview 查一次，
+       并可给用户链接 /tasks?focus=<tid> 直达该任务卡。
 
 平台能力清单（本平台**自带**以下模块，回答"平台能不能做 X"以此为准）：
 {capabilities}
@@ -157,6 +247,24 @@ Hard rules:
    the user first; propose_action remains for native flows (sample
    creation, download batches).
 
+12. **A plan is not an execution (anti-hallucination red line)**: a successful
+    propose_action only means "drafted, awaiting approval" — not started,
+    let alone finished; a successful task submission is not a result. Say
+    "started/finished" only when: (a) a real task id exists in the task
+    center and reached done (get_task_overview / wait_task); (b) you read
+    the on-disk artifacts yourself (read_result_table / read_tool_run_file);
+    (c) the synchronous create_sample action finished (order done). Never
+    infer results from a plan; never invent numbers; if the user pushes for
+    progress, say honestly "still running in background" or "not approved yet".
+
+13. **Long tasks, two routes** (after a task-submitting mcp_call / action):
+    (a) if it should finish within ~4 minutes or is nearly done → call
+    wait_task(tid, timeout_sec<=240) and report the final state directly;
+    (b) if it may take longer → stop immediately: tell the user it is
+    submitted, running in the background, and the platform will broadcast
+    when it finishes. Do not idle-poll; on progress questions use
+    get_task_overview once, and link the user to /tasks?focus=<tid>.
+
 Platform capability map (the platform ships all of the following modules —
 use this to answer "can the platform do X"):
 {capabilities}
@@ -174,6 +282,20 @@ def build_context(sample=None):
         d = digest.sample_digest(sample)
         if d is not None:
             ctx['selected_sample'] = d
+    # 样品锚（2026-10-30）：让模型知道"哪些样品已锚定、输入有没有被动过"。
+    # 只读 anchor.json 的摘要，很便宜；不复算 sha256（核对是显式动作）。
+    try:
+        from Virus_Platform_Core.anchor import samples_meta
+        meta = samples_meta()
+        if meta:
+            ctx['anchors'] = {
+                slug: {'sample': v.get('sample') or slug,
+                       'status': v.get('status'),
+                       'seq': v.get('seq'),
+                       'finished': v.get('finished')}
+                for slug, v in meta.items()}
+    except Exception:
+        pass
     return ctx
 
 
@@ -211,11 +333,94 @@ def _capability_map():
         return f'（能力清单生成失败: {e}）'
 
 
-def _system_prompt(sample):
+_ATTACH_TEXT_EXT = {'.txt', '.tsv', '.csv', '.tab', '.json', '.log', '.md',
+                    '.fa', '.fasta', '.fna', '.fas', '.fq', '.fastq',
+                    '.nwk', '.tree', '.gff', '.gtf', '.yaml', '.yml',
+                    '.py', '.sh', '.r', '.tab'}
+_ATTACH_MAX = 8                       # 一次最多带 8 个附件
+_ATTACH_PREVIEW_CHARS = 2000          # 每个文本附件给模型的预览长度
+
+
+def _attach_digest(paths):
+    """把用户附加的文件整理成给模型的清单：名字 / 绝对路径 / 大小 / 文本预览。
+
+    只读用户显式附加的文件（不遍历目录、不扩大权限）；二进制附件只报
+    名字与大小，文本附件给前 2000 字符，够模型判断"这是什么、能不能直接
+    喂给某个工具"，又不至于把上下文撑爆。
+    """
+    out = []
+    for raw in (paths or [])[:_ATTACH_MAX]:
+        p = str(raw or '').strip()
+        if not p:
+            continue
+        try:
+            ap = os.path.abspath(p)
+            if not os.path.isfile(ap):
+                out.append({'path': p, 'error': '文件不存在'})
+                continue
+            size = os.path.getsize(ap)
+            item = {'name': os.path.basename(ap), 'path': ap, 'size': size}
+            ext = os.path.splitext(ap)[1].lower()
+            if ext in _ATTACH_TEXT_EXT and size <= 8 * 1024 * 1024:
+                with open(ap, 'r', encoding='utf-8', errors='replace') as fh:
+                    item['preview'] = fh.read(_ATTACH_PREVIEW_CHARS)
+            out.append(item)
+        except OSError as e:
+            out.append({'path': p, 'error': f'{type(e).__name__}: {e}'})
+    return out
+
+
+_WORKSPACE_MAX_ENTRIES = 200
+
+
+def _workspace_digest(path):
+    """把用户选中的「工作空间」目录整理成给模型的清单。
+
+    2026-10-30：右侧文件面板选了目录后，模型原本完全不知道它存在
+    （list_samples 为空 → 只会让用户重报路径）。这里列一层目录内容
+    （名字/类型/大小/绝对路径），模型据此直接起草 create_sample 或
+    run_tool。只列一层、不递归：用户选的工作空间通常就是"一批 FASTQ"
+    或"一次工具运行目录"。
+    """
+    p = str(path or '').strip()
+    if not p:
+        return None
+    if not os.path.isdir(p):
+        return {'path': p, 'error': '目录不存在或不是文件夹'}
+    try:
+        names = sorted(os.listdir(p))
+    except OSError as e:
+        return {'path': p, 'error': f'{type(e).__name__}: {e}'}
+    entries = []
+    for name in names:
+        if len(entries) >= _WORKSPACE_MAX_ENTRIES:
+            break
+        full = os.path.join(p, name)
+        try:
+            if os.path.isdir(full):
+                entries.append({'name': name, 'type': 'dir'})
+            elif os.path.isfile(full):
+                entries.append({'name': name, 'type': 'file',
+                                'size': os.path.getsize(full), 'path': full})
+        except OSError:
+            continue
+    return {'path': p, 'entries': entries, 'total': len(names),
+            'truncated': len(names) > len(entries)}
+
+
+def _system_prompt(sample, attachments=None, workspace=None):
     from Virus_Platform_Core.config import get_config
     lang = get_config().lang
     try:
         ctx = build_context(sample)
+        if attachments:
+            # 用户在本轮附加的文件（2026-10-30）：路径可直接用于 run_tool 等动作
+            ctx['attachments'] = _attach_digest(attachments)
+        ws = _workspace_digest(workspace)
+        if ws:
+            # 用户在总览右侧选的工作空间目录（2026-10-30）：列出内容，
+            # 模型可以直接从这些文件路径起草 create_sample / run_tool
+            ctx['workspace'] = ws
         ctx_json = json.dumps(ctx, ensure_ascii=False)
     except Exception as e:                     # 上下文失败不拦对话
         ctx_json = json.dumps({'error': f'context unavailable: {e}'},
@@ -227,15 +432,25 @@ def _system_prompt(sample):
                       lang_name='简体中文' if lang == 'zh' else 'English')
 
 
-def run_chat(ai_cfg, messages, sample=None):
+def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
     """跑一轮对话，yield SSE 事件 dict（调用方逐个 `_sse()` 下发）。
 
     事件：delta（正文增量）/ tool（告知前端的工具活动）/ error（可读错误）/
     done（结束标记，附带本次是否降级过工具）。
+
+    attachments：用户在本轮附加的本地文件绝对路径（2026-10-30）。只注入
+    上下文（名字/大小/文本预览），不改变工具权限。
     """
-    sys_prompt = _system_prompt(sample)
+    sys_prompt = _system_prompt(sample, attachments, workspace)
     convo = [{'role': 'system', 'content': sys_prompt}]
     convo += _clip_history(messages)
+    # 长对话静默丢记忆是"AI 变傻"的常见抱怨源：坞里存 30 条、服务端只带
+    # 最近 MAX_HISTORY 条，用户以为它还记得开头。这里明说一句。
+    dropped_n = max(0, len(messages or []) - MAX_HISTORY)
+    if dropped_n > 0:
+        yield _sse({'type': 'notice', 'level': 'info',
+                    'message': f'更早的 {dropped_n} 条对话未带入本轮上下文'
+                               f'（只带最近 {MAX_HISTORY} 条）'})
     if not convo or convo[-1]['role'] != 'user':
         yield _sse({'type': 'error',
                     'message': '消息为空，请先输入问题'})
@@ -244,38 +459,101 @@ def run_chat(ai_cfg, messages, sample=None):
 
     degraded = False
     use_tools = True
+    call_sigs = []          # 本轮出现过的 (工具, 参数) 签名，用于拦重复轮询
+    # 生成长度预算：推理型模型（deepseek-reasoner/flash 等）会把预算先花在
+    # reasoning_content 上，2048 常常只够"想一想"，正文为空或半截。这里给
+    # 一个可自动加倍的预算游标，并在触顶时明确告知用户。
+    _BUDGET_MAX = 8192
+    budget = int(ai_cfg.get('max_tokens') or 2048)
+    budget_bumped = False
     for _round in range(MAX_TOOL_ROUNDS + 1):
         emit_parts = []
         tool_called = False
         tries = 0
+        guard = _DsmlStreamGuard()   # 本轮正文的流式 DSML 兜底
+        finish = ''
+        reasoning_chars = 0
         while True:
             tries += 1
             hit_tools = False
             try:
                 for ev in chat_stream(
                         ai_cfg, convo,
-                        tools=ai_tools.TOOLS_SPEC if use_tools else None):
-                    if ev['type'] == 'delta':
-                        emit_parts.append(ev['content'])
-                        yield _sse({'type': 'delta', 'content': ev['content']})
+                        tools=ai_tools.TOOLS_SPEC if use_tools else None,
+                        max_tokens=budget):
+                    if ev['type'] == 'reasoning':
+                        # 思维链单独下发：前端放在可折叠的「思考过程」里，
+                        # 不计入正文（也不进对话历史）
+                        yield _sse({'type': 'reasoning',
+                                    'content': ev['content']})
+                    elif ev['type'] == 'delta':
+                        piece = guard.feed(ev['content'])
+                        if piece:
+                            emit_parts.append(piece)
+                            yield _sse({'type': 'delta', 'content': piece})
+                    elif ev['type'] == 'finish':
+                        finish = ev.get('reason') or ''
+                        reasoning_chars = int(ev.get('reasoning_chars') or 0)
                     elif ev['type'] == 'tool_calls':
                         hit_tools = True
                         tcs = ev['tool_calls']
+                        tail = guard.flush()
+                        if tail:
+                            emit_parts.append(tail)
+                            yield _sse({'type': 'delta', 'content': tail})
                         # 协议要求工具调用轮的 assistant 消息带上已流出正文
                         # （content 用空串而非 null——部分国产端点不收 null）
                         convo.append({'role': 'assistant',
-                                      'content': ''.join(emit_parts),
+                                      'content': _strip_dsml(''.join(emit_parts)),
                                       'tool_calls': tcs})
                         for tc in tcs:
                             fn = (tc.get('function') or {})
                             name = fn.get('name') or ''
+                            raw_args = fn.get('arguments') or ''
+                            arg_err = ''
                             try:
-                                fargs = json.loads(fn.get('arguments') or '{}')
-                            except ValueError:
+                                fargs = json.loads(raw_args or '{}')
+                                if not isinstance(fargs, dict):
+                                    raise ValueError('arguments 不是 JSON 对象')
+                            except ValueError as _e:
+                                # 2026-11-02：以前直接把它当空参数执行，模型
+                                # 收到「缺少必填参数」却不知道是自己的 JSON
+                                # 坏了，往往原地重试同一个坏串。这里把解析
+                                # 失败原文回给它，便于修正。
                                 fargs = {}
+                                arg_err = str(_e)
+                            # 重复调用拦截（2026-10-30）：模型查任务状态时容易
+                            # 反复调同一工具同一参数，把轮次预算烧光。第 3 次起
+                            # 不再执行，直接把"别再轮询"作为工具结果回给它。
+                            sig = json.dumps([name, fargs], sort_keys=True,
+                                             ensure_ascii=False)
+                            seen = call_sigs.count(sig)
+                            call_sigs.append(sig)
+                            if seen >= MAX_SAME_CALL:
+                                yield _sse({'type': 'tool', 'name': name,
+                                            'args': fargs, 'skipped': True})
+                                convo.append({
+                                    'role': 'tool',
+                                    'tool_call_id': tc.get('id') or '',
+                                    'content': (
+                                        'STOP: 相同工具与参数已调用 %d 次，结果不会变化。'
+                                        '请停止轮询，基于已有结果直接给出结论；'
+                                        '若要启动长任务，调用一次提交类工具'
+                                        '（propose_action / mcp_call）后立即结束本轮，'
+                                        '由平台后台在完成后播报。' % (seen + 1))})
+                                continue
                             yield _sse({'type': 'tool', 'name': name,
                                         'args': fargs})
-                            result = ai_tools.dispatch(name, fargs)
+                            if arg_err:
+                                result = json.dumps({
+                                    'error': '工具参数不是合法 JSON：'
+                                             f'{arg_err}。请重新生成**紧凑的'
+                                             '合法 JSON**（字符串里的引号要'
+                                             '转义，不要带注释/尾逗号）',
+                                    'raw_arguments_head': raw_args[:200]},
+                                    ensure_ascii=False)
+                            else:
+                                result = ai_tools.dispatch(name, fargs)
                             convo.append({'role': 'tool',
                                           'tool_call_id': tc.get('id') or '',
                                           'content': result[:8000]})
@@ -283,7 +561,7 @@ def run_chat(ai_cfg, messages, sample=None):
                     elif ev['type'] == 'message':
                         msg = ev.get('message') or {}
                         if msg and msg.get('tool_calls') is None:
-                            text = msg.get('content')
+                            text = _strip_dsml(msg.get('content'))
                             if text and not emit_parts:
                                 emit_parts.append(text)
                                 yield _sse({'type': 'delta', 'content': text})
@@ -292,11 +570,50 @@ def run_chat(ai_cfg, messages, sample=None):
                 if hit_tools:
                     tool_called = True
                     break                    # → 下一轮（带工具结果）
+                # 思考吃光预算、正文一个字都没出来：先把预算加倍重试一次
+                # （推理型模型在 max_tokens=2048 时很常见），而不是直接告诉
+                # 用户「模型未返回内容」。
+                if (not emit_parts and finish == 'length'
+                        and budget < _BUDGET_MAX and tries < 3):
+                    budget = min(_BUDGET_MAX, max(budget * 2, 2048))
+                    if not budget_bumped:
+                        budget_bumped = True
+                        yield _sse({'type': 'notice', 'level': 'info',
+                                    'message': f'思考过程占满了生成长度上限，'
+                                               f'已自动把预算调到 {budget} '
+                                               f'tokens 重试一次（可在 设置 → '
+                                               f'AI 助手 里调大「最大生成长度」）'})
+                    guard = _DsmlStreamGuard()   # 上一轮没有任何正文吐出
+                    continue
                 # 没遇到工具调用：正常结束
+                tail = guard.flush()
+                if tail:
+                    emit_parts.append(tail)
+                    yield _sse({'type': 'delta', 'content': tail})
                 if not emit_parts:
-                    yield _sse({'type': 'error',
-                                'message': '模型未返回内容，请稍后重试'})
-                yield _sse({'type': 'done', 'tools_degraded': degraded})
+                    msg = '模型未返回内容'
+                    if finish == 'length':
+                        msg += ('（思考占满了 max_tokens，正文没能生成）——'
+                                '请在 设置 → AI 助手 把「最大生成长度」调到 '
+                                '4096 以上，或换用非推理型模型')
+                    elif reasoning_chars:
+                        msg += (f'（只输出了 {reasoning_chars} 字符思考过程，'
+                                f'正文为空）——把「最大生成长度」调大再试')
+                    else:
+                        msg += '，请稍后重试'
+                    yield _sse({'type': 'error', 'message': msg})
+                elif finish == 'length':
+                    # 有正文但触顶：把"被截断"说清楚，别让用户以为答完了
+                    yield _sse({'type': 'delta', 'content':
+                                '\n\n_（回答触到「最大生成长度」上限被截断：'
+                                '可在 设置 → AI 助手 调大 max_tokens，'
+                                '或说「继续」让我接着写。）_'})
+                    yield _sse({'type': 'notice', 'level': 'warn',
+                                'message': '本次回答达到长度上限，内容可能不完整'})
+                yield _sse({'type': 'done', 'tools_degraded': degraded,
+                            'dsml_stripped': guard.stripped,
+                            'truncated': finish == 'length',
+                            'max_tokens': budget})
                 return
             except AIConfigError as e:
                 yield _sse({'type': 'error',
@@ -313,10 +630,18 @@ def run_chat(ai_cfg, messages, sample=None):
                 if not emit_parts and transient and tries < 2:
                     time.sleep(1.5)
                     continue
-                # tools 参数不被支持是各家端点最常见差异：降级重试一次
+                # tools 参数不被支持是各家端点最常见差异：降级重试一次。
+                # 2026-11-02：降级必须**告诉用户**（以前只放在 done 事件里，
+                # 前端没渲染，用户只看到模型"变笨、不干活"，不知道该修什么）。
                 if use_tools and e.status in (400, 404, 422) and tries < 2:
                     use_tools = False
                     degraded = True
+                    yield _sse({'type': 'notice', 'level': 'warn',
+                                'message': (
+                                    f'上游拒绝了 tools 参数（HTTP {e.status}），'
+                                    f'本轮已降级为「纯上下文」模式：我不能调用'
+                                    f'工具、也不能起草执行单。原文：'
+                                    f'{str(e)[:240]}')})
                     continue
                 yield _sse({'type': 'error', 'message': str(e)})
                 yield _sse({'type': 'done', 'tools_degraded': degraded})
@@ -329,8 +654,32 @@ def run_chat(ai_cfg, messages, sample=None):
         if not tool_called:                  # 理论不可达，保险丝
             break
 
-    yield _sse({'type': 'error',
-                'message': '工具调用轮次超限，已截断本次回答'})
+    # 轮次用完：强制一次「不带工具」的收尾，让模型把已查到的东西讲清楚，
+    # 而不是只丢一句"已截断"（2026-10-30 用户截图）。
+    final_note = ('（工具调用轮次已用完）请不要再调用工具。基于上面的工具结果，'
+                  '用简洁中文给出：已确认的事实、当前结论、建议的下一步'
+                  '（需要执行的动作写成"建议提交 X"，不要假装已执行）。')
+    try:
+        emitted = False
+        guard = _DsmlStreamGuard()
+        for ev in chat_stream(ai_cfg,
+                              convo + [{'role': 'user', 'content': final_note}],
+                              tools=None):
+            if ev.get('type') == 'delta' and ev.get('content'):
+                piece = guard.feed(ev['content'])
+                if piece:
+                    emitted = True
+                    yield _sse({'type': 'delta', 'content': piece})
+        tail = guard.flush()
+        if tail:
+            emitted = True
+            yield _sse({'type': 'delta', 'content': tail})
+        if not emitted:
+            yield _sse({'type': 'error',
+                        'message': '工具调用轮次超限，且未能生成收尾总结；请换个更具体的问法重试'})
+    except Exception as e:
+        yield _sse({'type': 'error',
+                    'message': f'工具调用轮次超限，收尾总结失败: {type(e).__name__}: {e}'})
     yield _sse({'type': 'done', 'tools_degraded': degraded})
 
 

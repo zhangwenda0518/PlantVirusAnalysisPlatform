@@ -24,7 +24,7 @@ import threading
 import time
 from pathlib import Path
 
-from .config import db_asset
+from .config import db_asset, PLATFORM_ROOT
 from . import dsrna_scoring as dscore
 from .utils import decode_output, safe_open, task_register_proc
 

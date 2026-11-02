@@ -18,6 +18,9 @@
   "/api/align/file": "tool_results.api_align_file",
   "/api/align/save": "tool_results.api_align_save",
   "/api/analyze": "samples.api_analyze",
+  "/api/anchor/<slug>": "anchor.api_anchor_detail",
+  "/api/anchor/<slug>/verify": "anchor.api_anchor_verify",
+  "/api/anchor/active": "anchor.api_anchor_active",
   "/api/browse": "build.api_browse",
   "/api/build_host_db": "build.api_build_host_db",
   "/api/build_kv_index": "build.api_build_kv_index",
@@ -45,6 +48,9 @@
   "/api/examples": "examples.api_examples",
   "/api/examples/<module>": "examples.api_example",
   "/api/examples/<module>/<path:filename>": "examples.api_example_file",
+  "/api/fs/raw": "pages.api_fs_raw",
+  "/api/fs/read": "pages.api_fs_read",
+  "/api/fs/roots": "pages.api_fs_roots",
   "/api/gb/collections": "refs.api_gb_collections",
   "/api/gb/download": "refs.api_gb_download",
   "/api/gb/extract": "refs.api_gb_extract",
@@ -175,10 +181,12 @@
   "/api/submit/tables": "submit.api_submit_tables",
   "/api/submit/upload": "submit.api_submit_upload",
   "/api/task/<tid>": "tasks_api.api_task",
+  "/api/task/<tid>/archive": "tasks_api.api_task_archive",
   "/api/task/<tid>/cancel": "tasks_api.api_task_cancel",
   "/api/task/<tid>/delete": "tasks_api.api_task_delete",
   "/api/task/<tid>/log": "tasks_api.api_task_log",
   "/api/task/<tid>/stream": "tasks_api.api_task_stream",
+  "/api/task/<tid>/unarchive": "tasks_api.api_task_unarchive",
   "/api/tasks": "tasks_api.api_tasks",
   "/api/tasks/clear_finished": "tasks_api.api_tasks_clear_finished",
   "/api/tasks/stop_all": "tasks_api.api_tasks_stop_all",
@@ -204,7 +212,12 @@
   "/api/tool/report_data": "tool_results.api_tool_report_data",
   "/api/tool/run": "tools.api_tool_run",
   "/api/tool/runs": "tools.api_tool_runs",
+  "/api/tool/runs/<run>/archive": "tools.api_tool_run_archive",
   "/api/tool/runs/<run>/delete": "tools.api_tool_run_delete",
+  "/api/tool/runs/<run>/unarchive": "tools.api_tool_run_unarchive",
+  "/api/tool/runs/archive": "tools.api_tool_runs_archive",
+  "/api/tool/runs/archived": "tools.api_tool_runs_archived",
+  "/api/tool/runs/archived/purge": "tools.api_tool_runs_archive_purge",
   "/api/tool/structcmp_data": "tool_results.api_tool_structcmp_data",
   "/api/tool/verify_export": "tool_results.api_tool_verify_export",
   "/api/tool/verify_result": "tool_results.api_tool_verify_result",
@@ -305,6 +318,15 @@
   "/api/analyze": [
    "POST"
   ],
+  "/api/anchor/<slug>": [
+   "GET"
+  ],
+  "/api/anchor/<slug>/verify": [
+   "GET"
+  ],
+  "/api/anchor/active": [
+   "GET"
+  ],
   "/api/browse": [
    "GET"
   ],
@@ -384,6 +406,15 @@
    "GET"
   ],
   "/api/examples/<module>/<path:filename>": [
+   "GET"
+  ],
+  "/api/fs/raw": [
+   "GET"
+  ],
+  "/api/fs/read": [
+   "GET"
+  ],
+  "/api/fs/roots": [
    "GET"
   ],
   "/api/gb/collections": [
@@ -777,6 +808,9 @@
   "/api/task/<tid>": [
    "GET"
   ],
+  "/api/task/<tid>/archive": [
+   "POST"
+  ],
   "/api/task/<tid>/cancel": [
    "POST"
   ],
@@ -788,6 +822,9 @@
   ],
   "/api/task/<tid>/stream": [
    "GET"
+  ],
+  "/api/task/<tid>/unarchive": [
+   "POST"
   ],
   "/api/tasks": [
    "GET"
@@ -865,7 +902,22 @@
   "/api/tool/runs": [
    "GET"
   ],
+  "/api/tool/runs/<run>/archive": [
+   "POST"
+  ],
   "/api/tool/runs/<run>/delete": [
+   "POST"
+  ],
+  "/api/tool/runs/<run>/unarchive": [
+   "POST"
+  ],
+  "/api/tool/runs/archive": [
+   "POST"
+  ],
+  "/api/tool/runs/archived": [
+   "GET"
+  ],
+  "/api/tool/runs/archived/purge": [
    "POST"
   ],
   "/api/tool/structcmp_data": [

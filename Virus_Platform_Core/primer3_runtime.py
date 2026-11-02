@@ -58,7 +58,8 @@ def get_module():
     if not _probe_once():
         _state = 'no'
         raise RuntimeError('primer3 不可用：子进程导入探测失败（'
-                           '常见诱因：可用内存不足时 pyd 初始化失败）')
+                           '常见诱因：可用内存不足时 pyd 初始化失败）'
+                           + ('｜' + _err if _err else ''))
     import primer3 as m
     # 分发版里可能存在「半截 primer3」（只有 thermoanalysis.pyd、
     # 没有 bindings 子模块）—— 必须连 bindings 一起验才算可用。

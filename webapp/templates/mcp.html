@@ -58,17 +58,24 @@
     </div>
   </section>
 
-  <!-- 外部 agent 接入说明：把 MCP 契约提供给别的 agent 用的第一步 -->
-  <section class="card">
+  <!-- 外部 agent 接入片段：路径由服务端在页尾注入 #mcpCfg 的 data-*
+       （浏览器拿不到平台绝对路径）。2026-11-02：MCPC._cfg() 一直在找
+       #mcpCfg，但模板里从没有这个节点——复制配置的入口此前根本不存在。 -->
+  <section class="card" id="mcpExt">
     <h2 data-i18n="mcp.page.externalTitle">外部 agent 接入</h2>
     <p class="hint" data-i18n="mcp.page.externalHint">同一套 vp_* 工具可以被外部 agent 直接调用（本机 stdio，不开放网络端口）。把下面这段加到客户端的 MCP 配置里即可；路径请按本机实际安装位置替换。</p>
-    <pre id="mcpCfg" style="white-space:pre-wrap;font-family:Consolas,monospace;
-                            font-size:12px;background:var(--surface-2);border:1px solid var(--line-200);
+    <pre id="mcpCfg" style="max-height:220px;overflow:auto;white-space:pre-wrap;
+                            font-family:Consolas,monospace;font-size:12px;
+                            background:var(--input-bg,#f7f7f5);border:1px solid var(--line-200);
                             border-radius:8px;padding:10px;margin:8px 0"></pre>
-    <button class="btn small" onclick="MCPC.copyCfg()"
-            data-i18n="mcp.page.copyCfg">复制配置</button>
+    <div class="qs-bar" style="flex-wrap:wrap">
+      <button class="btn" onclick="MCPC.copyCfg()" data-i18n="mcp.page.copyCfg">复制配置</button>
+      <a class="btn" href="/help#mcp-external">使用手册 → MCP 外部接入</a>
+    </div>
     <p class="hint" data-i18n="mcp.page.externalNote">破坏面工具（如 vp_delete_tool_run）在网页控制台与内置对话中不开放；外部 agent 是否受同样限制取决于它自身的权限策略，请自行把关。</p>
   </section>
+
+  <p class="hint" style="margin-top:12px">外部 agent（Claude Desktop / Cursor / VS Code 等）的接入配置见 <a href="/help#mcp-external">使用手册 → MCP 外部接入</a>。</p>
 </div>
 
 <script src="/static/i18n.js?v={{ asset_v }}"></script>
@@ -113,6 +120,9 @@ const MCPC = {
       this.pick();                    // 值变更不触发 onchange，须显式渲染
       MCPC._cfg();
       if (st) st.textContent = '';
+      // 连上就自动跑一次默认工具：页面一打开就有真实结果，不需要点「运行」。
+      // 只跑只读的 DEFAULT_TOOL（秒回），不自动跑有副作用的工具。
+      if ($('mcpTool').value === this.DEFAULT_TOOL) this.run();
     } catch (e) {
       // 自动连接失败时不要弹 alert（用户没主动点，弹窗很突兀）；
       // 留在 idle 态把原因写在行内，按钮仍可点重试。
@@ -169,7 +179,17 @@ const MCPC = {
     const req = sch.required || [];
     const obj = {};
     req.forEach(k => { obj[k] = ''; });
-    $('mcpArgs').value = JSON.stringify(obj, null, 2);
+    // 无必填参数时不留一个孤零零的 "{}"（看起来像报错）：写清楚"该工具
+    // 不需要参数"，输入框保持空；有必填参数才给骨架。
+    const ta = $('mcpArgs');
+    if (req.length) {
+      ta.value = JSON.stringify(obj, null, 2);
+      ta.placeholder = '';
+    } else {
+      ta.value = '';
+      ta.placeholder = t('mcp.con.noArgs',
+        '该工具无需参数，可直接运行（留空即等价于 {}）');
+    }
     const opt = Object.keys(props).filter(k => !req.includes(k));
     $('mcpOut').textContent = t('mcp.con.optional', '可选键') + ': '
       + (opt.join(', ') || '—');
@@ -178,7 +198,11 @@ const MCPC = {
   async run() {
     const name = $('mcpTool').value;
     let args;
-    try { args = JSON.parse($('mcpArgs').value || '{}'); }
+    try {
+      // 空框 = 无参数工具，等价于 {}
+      const raw = ($('mcpArgs').value || '').trim();
+      args = raw ? JSON.parse(raw) : {};
+    }
     catch (e) { return alert(t('mcp.con.badjson', '参数不是合法 JSON：') + e.message); }
     const out = $('mcpOut');
     out.style.color = '';

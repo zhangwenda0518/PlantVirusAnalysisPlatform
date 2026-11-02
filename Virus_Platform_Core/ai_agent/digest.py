@@ -22,7 +22,10 @@ from Virus_Platform_Core.utils import safe_open
 
 # 单表最多带给 LLM 的行/列/单元格字符数（token 预算控制）
 MAX_ROWS = 12
-MAX_COLS = 8
+# 2026-11-02：原来只给 8 列，而 kvsuite 的 all_viruses.summary.tsv 有 22 列
+# （Coverage(%)/MeanDepth/Uniq_Reads/Avg_Read_ANI 都在第 10 列之后）——
+# 模型被问「检出病毒的覆盖度/深度」时手里根本没有这些数字，只能含糊或编。
+MAX_COLS = 24
 MAX_CELL = 80
 
 
@@ -125,23 +128,44 @@ def samples_brief(limit=50):
 
 
 def _tsv_head(path, max_rows=MAX_ROWS, max_cols=MAX_COLS):
-    """TSV/CSV 表头 + 前 N 行的通用安全读取（列/单元格截断）。"""
+    """表头 + 前 N 行的通用安全读取（列/单元格截断，且**显式声明截断**）。
+
+    2026-11-02 两处修正：
+      * 列上限 8 → 24：kvsuite 汇总表 22 列，覆盖率/深度/reads 全在被砍掉
+        的后半段，模型答不出关键数字只能编；
+      * 截断必须自述：给出 columns_total / dropped_columns，让模型知道
+        「还有这些列没给我」，而不是以为表就这么宽；
+      * .csv 按逗号解析（原先一律按 \\t split，csv 会把整行塞进第 1 列）。
+    """
     if not os.path.isfile(path):
         return None
+    sep = ',' if str(path).lower().endswith('.csv') else '\t'
     rows = []
+    header_all = None
+    i = 0
     try:
         with open(path, encoding='utf-8', errors='replace') as f:
             for i, line in enumerate(f):
                 if i > max_rows:
                     break
-                cols = line.rstrip('\n').split('\t')[:max_cols]
-                rows.append([c[:MAX_CELL] for c in cols])
+                cols = line.rstrip('\r\n').split(sep)
+                if i == 0:
+                    header_all = cols
+                rows.append([c[:MAX_CELL] for c in cols[:max_cols]])
     except OSError:
         return None
     if not rows:
         return None
-    return {'file': os.path.basename(path), 'header': rows[0],
-            'rows': rows[1:], 'truncated': i >= max_rows}
+    out = {'file': os.path.basename(path), 'header': rows[0],
+           'rows': rows[1:], 'truncated': i >= max_rows}
+    if header_all and len(header_all) > max_cols:
+        out['columns_total'] = len(header_all)
+        out['dropped_columns'] = [str(c) for c in header_all[max_cols:]]
+        out['note'] = ('只给了前 %d 列；被省略的列见 dropped_columns。'
+                       '需要别的列时用 read_result_table / '
+                       'read_tool_run_file 指定读取，或直接说明要哪一列。'
+                       % max_cols)
+    return out
 
 
 def _json_at(sd, relpath):
@@ -388,7 +412,8 @@ def task_overview(limit=12):
         return []
     out = []
     for t in items[:limit]:
-        out.append({'name': (t.get('name') or '')[:60],
+        out.append({'tid': t.get('id') or '',
+                    'name': (t.get('name') or '')[:60],
                     'status': t.get('status') or '',
                     'stage': t.get('stage') or '',
                     'pct': t.get('pct')})

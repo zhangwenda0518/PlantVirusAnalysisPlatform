@@ -20,6 +20,9 @@ _ENGINES = {
     'unified_metadata.py': 'Virus_Platform_Core.ncbi_submit.unified_metadata',
     'known_virus_suite.py':
         'Virus_Platform_Core.known_virus_suite.known_virus_suite',
+    # MEGAHIT 组装（2026-10-29）：冻结分发没有 3rd/python，
+    # megahit.bat 找不到解释器；这里用平台自己的解释器跑它的驱动。
+    'megahit_engine.py': 'Virus_Platform_Core.megahit_engine',
 }
 
 

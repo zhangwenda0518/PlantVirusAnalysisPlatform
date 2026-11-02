@@ -111,7 +111,7 @@ class TaskManager:
             files = files[:100]
             for name in files:
                 p = check_path(os.path.join(DIRS['tasks'], name),
-                               must_exist=False, in_platform=True)
+                               must_exist=False, in_platform='tasks')
                 try:
                     with safe_open(p) as f:
                         d = json.load(f)
@@ -129,8 +129,11 @@ class TaskManager:
             print(f'[tasks] 启动时中断任务恢复失败: {e}', file=sys.stderr)
 
     def start(self, name, fn, log_file=None, weight='heavy', link=None,
-              out_dir=None, on_finish=None):
+              out_dir=None, on_finish=None, origin=None):
         """创建任务。log_file: 任务日志持久化文件（缺省落 logs/tasks/）。
+
+        origin: 任务来源标签（如 'ai' = AI 工作台执行单发起）。只用于展示与
+        并发归类，不参与调度；缺省 None（人工在界面发起的任务）。
 
         weight: 'heavy'（吃多核/大内存，受 heavy 闸门限流）或 'light'
         （网络 IO / 轻量计算，受 light 闸门限流）。缺省 heavy——宁可多排队，
@@ -179,7 +182,7 @@ class TaskManager:
                'procs': [],          # 本任务启动的子进程（硬停止用）
                'weight': weight if weight in ('heavy', 'light') else 'heavy',
                'log_file': log_file, 'link': link, 'restart': restart,
-               'out_dir': out_dir}
+               'out_dir': out_dir, 'origin': origin}
         with self.lock:
             self.tasks[tid] = rec
             self.order.insert(0, tid)
@@ -312,34 +315,148 @@ class TaskManager:
         self._persist(rec)
         return tid
 
+    @staticmethod
+    def _rec_json(rec):
+        """内存记录 → 落盘 JSON（tasks/<tid>.json 与归档区共用同一结构）。"""
+        data = {'id': rec['id'], 'name': rec['name'],
+                'status': rec['status'], 'stage': rec['stage'],
+                'pct': rec['pct'], 'msg': rec['msg'],
+                'log_file': rec.get('log_file'),
+                'error': rec['error'],
+                'log_tail': list(rec['log'])[-40:],
+                'started': rec['started'], 'finished': rec['finished'],
+                'eta': rec.get('eta'), 'link': rec.get('link'),
+                'out_dir': rec.get('out_dir'), 'origin': rec.get('origin')}
+        if rec.get('result') is not None:
+            try:
+                json.dumps(rec['result'], ensure_ascii=False)
+                data['result'] = rec['result']
+            except (TypeError, ValueError):
+                data['result'] = str(rec['result'])
+        return data
+
     def _persist(self, rec):
         # 外部任务不落盘：它们的真身在别的子系统（如 downloads/<批次>/
         # batch.json），再写一份会被 _recover_interrupted 当成幽灵任务。
         if rec.get('external'):
             return
         try:
+            # in_platform='tasks'（而非 True）：DIRS['tasks'] 是运行时可变目录，
+            # 自测/临时实例会把它指到 %TEMP%，硬按平台根校验会让每次落盘都静默
+            # 失败（只留一句 warning，刷新后进度全丢）。
             p = check_path(os.path.join(DIRS['tasks'], rec['id'] + '.json'),
-                           must_exist=False, in_platform=True)
-            data = {'id': rec['id'], 'name': rec['name'],
-                    'status': rec['status'], 'stage': rec['stage'],
-                    'pct': rec['pct'], 'msg': rec['msg'],
-                    'log_file': rec.get('log_file'),
-                    'error': rec['error'],
-                    'log_tail': list(rec['log'])[-40:],
-                    'started': rec['started'], 'finished': rec['finished'],
-                    'eta': rec.get('eta'), 'link': rec.get('link'),
-                    'out_dir': rec.get('out_dir')}
-            if rec.get('result') is not None:
-                try:
-                    json.dumps(rec['result'], ensure_ascii=False)
-                    data['result'] = rec['result']
-                except (TypeError, ValueError):
-                    data['result'] = str(rec['result'])
-            with safe_open(p, 'wt') as f:
+                           must_exist=False, in_platform='tasks')
+            data = self._rec_json(rec)
+            # allow_outside：路径已在上面按「任务目录」校验过，safe_open 的写模式
+            # 再按平台根判一次会把自定义/临时任务目录整片拒掉。
+            with safe_open(p, 'wt', allow_outside=True) as f:
                 json.dump(data, f, ensure_ascii=False)
         except Exception as e:
             # 状态落盘失败不影响内存态，但会让刷新后丢进度：留痕便于排查
             _log.warning('任务状态保存失败 %s: %s', rec.get('id'), e)
+
+    # ------------------------------------------------------------------
+    # 手动归档（2026-11-02 用户定案）
+    #
+    # 口径：**切换模块 / 切功能 / 整页刷新一律不归档任务** —— 任务跑在
+    # 服务端线程里，页面只是重新接上；跑完的任务也继续留在运行列表里。
+    # 只有用户点「📦 归档」，才把任务状态记录移进 tasks/_archive/。
+    #
+    # 归档只挪「状态记录」，logs/tasks/ 的日志与结果目录原样保留；
+    # 归档可恢复（unarchive），删除归档记录才真正丢弃。
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _archive_dir():
+        # 同 _persist：归档区就在 DIRS['tasks'] 下面，跟随它而不是写死平台根
+        p = check_path(os.path.join(DIRS['tasks'], '_archive'),
+                       must_exist=False, in_platform='tasks')
+        os.makedirs(p, exist_ok=True)
+        return p
+
+    @classmethod
+    def _archive_rec_path(cls, tid):
+        return check_path(os.path.join(cls._archive_dir(), tid + '.json'),
+                          must_exist=False, in_platform='tasks')
+
+    def archive(self, tid):
+        """把终态任务记录移入归档区，返回 (ok, msg)。"""
+        if not self._tid_ok(tid):
+            return False, '非法任务 ID'
+        with self.lock:
+            rec = self.tasks.get(tid)
+            if rec is None:
+                return False, '任务不存在或已归档'
+            if rec.get('external'):
+                return False, '外部任务请在来源模块处理'
+            if rec['status'] in ('running', 'queued'):
+                return False, '运行中的任务请先停止再归档'
+            data = self._rec_json(rec)
+        data['archived'] = True
+        data['archived_at'] = time.time()
+        try:
+            with safe_open(self._archive_rec_path(tid), 'wt',
+                           allow_outside=True) as f:
+                json.dump(data, f, ensure_ascii=False)
+        except Exception as e:
+            return False, f'归档失败：{e}'
+        with self.lock:
+            self.tasks.pop(tid, None)
+            if tid in self.order:
+                self.order.remove(tid)
+        # 顶层 tasks/<tid>.json 删掉，避免同一任务在归档列表里出现两次
+        try:
+            p = check_path(os.path.join(DIRS['tasks'], tid + '.json'),
+                           must_exist=False, in_platform='tasks')
+            if os.path.isfile(p):
+                os.remove(p)
+        except (OSError, ValueError):
+            pass
+        return True, 'ok'
+
+    def unarchive(self, tid):
+        """把归档记录恢复回运行列表（内存 + tasks/<tid>.json）。"""
+        if not self._tid_ok(tid):
+            return False, '非法任务 ID'
+        p = self._archive_rec_path(tid)
+        if not os.path.isfile(p):
+            return False, '归档记录不存在'
+        try:
+            with safe_open(p) as f:
+                d = json.load(f)
+        except (OSError, ValueError):
+            return False, '归档记录损坏，无法恢复'
+        if not isinstance(d, dict):
+            return False, '归档记录损坏，无法恢复'
+        rec = {'id': tid, 'name': d.get('name') or tid,
+               'status': d.get('status') or 'done',
+               'stage': d.get('stage') or '', 'pct': d.get('pct') or 0.0,
+               'msg': d.get('msg') or '', 'error': d.get('error') or '',
+               'log': deque(d.get('log_tail') or [], maxlen=500),
+               'started': d.get('started') or time.time(),
+               'finished': d.get('finished'), 'result': d.get('result'),
+               'result_preview': d.get('result'), 'eta': d.get('eta'),
+               'cancel': threading.Event(), 'procs': [],
+               'weight': d.get('weight') or 'heavy',
+               'log_file': d.get('log_file'), 'link': d.get('link'),
+               'restart': None, 'out_dir': d.get('out_dir'),
+               'origin': d.get('origin')}
+        with self.lock:
+            if tid in self.tasks:
+                return False, '任务已在运行列表中'
+            self.tasks[tid] = rec
+            # 恢复后按开始时间插回顺序（新→旧），免得排在列表最前头
+            idx = 0
+            for i, other in enumerate(self.order):
+                o = self.tasks.get(other) or {}
+                if (o.get('started') or 0) > (rec['started'] or 0):
+                    idx = i + 1
+            self.order.insert(idx, tid)
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+        self._persist(rec)
+        return True, 'ok'
 
     def _queue_msg(self, rec):
         """排队提示：统计同档位里排在自己前面的任务数。"""
@@ -535,7 +652,7 @@ class TaskManager:
                 'error': str(st.get('error') or ''),
                 'started': st.get('started'), 'finished': st.get('finished'),
                 'eta': st.get('eta'), 'link': st.get('link') or link,
-                'restart': None,
+                'restart': None, 'external': True,
                 'log': [str(x) for x in log][-log_lines:] if log_lines else []}
 
     def snapshot(self, tid, log_lines=80, include_result=True):
@@ -575,10 +692,46 @@ class TaskManager:
                    'finished': rec['finished'], 'eta': rec.get('eta'),
                    'link': rec.get('link'), 'restart': rec.get('restart'),
                    'out_dir': rec.get('out_dir'),
+                   'origin': rec.get('origin'),
+                   'external': bool(rec.get('external')),
                    'log': list(rec['log'])[-log_lines:]}
             if include_result:
                 out['result'] = rec.get('result_preview')
         return out
+
+    def archived_snapshot(self, tid, log_lines=80):
+        """内存外的任务快照（手动归档 / 服务重启前留下的记录）。
+
+        `/api/task/<tid>` 在内存里查不到时会回落到这里：否则对话坞里挂着的
+        任务卡、以及任务中心里刚归档的卡片，一刷新就只能 404，前端那句
+        「任务不存在或已清理」会把「还在历史归档里、随时能恢复」说成「没了」。
+        """
+        if not self._tid_ok(tid):
+            return None
+        for path in (self._archive_rec_path(tid),
+                     os.path.join(DIRS['tasks'], tid + '.json')):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    d = json.load(f)
+            except (OSError, ValueError):
+                continue
+            if not isinstance(d, dict):
+                continue
+            log = d.get('log_tail') or []
+            out = {'id': d.get('id') or tid, 'name': d.get('name') or '',
+                   'status': d.get('status') or 'done',
+                   'stage': d.get('stage') or '', 'pct': d.get('pct'),
+                   'msg': d.get('msg') or '', 'error': d.get('error') or '',
+                   'started': d.get('started'), 'finished': d.get('finished'),
+                   'eta': d.get('eta'), 'link': d.get('link'),
+                   'restart': d.get('restart'), 'out_dir': d.get('out_dir'),
+                   'origin': d.get('origin'), 'external': False,
+                   'archived': True,
+                   'log': (list(log)[-log_lines:] if log_lines else [])}
+            if d.get('result') is not None:
+                out['result'] = d.get('result')
+            return out
+        return None
 
     def list_all(self, limit=_KEEP_FULL * 2, logs=True):
         """任务列表。
@@ -721,19 +874,21 @@ class TaskManager:
                     self.order.remove(t)
         ids = set(mem)
         if include_archive:
-            try:
-                files = [f for f in os.listdir(DIRS['tasks'])
-                         if f.endswith('.json')]
-            except OSError:
-                files = []
-            for f in files:
+            files = []
+            for base in (DIRS['tasks'], os.path.join(DIRS['tasks'], '_archive')):
+                try:
+                    files.extend((base, f) for f in os.listdir(base)
+                                 if f.endswith('.json'))
+                except OSError:
+                    continue
+            for base, f in files:
                 tid = f[:-5]
                 # _tid_ok 顺带把 queue.json 这类非任务文件挡在外面
                 if not self._tid_ok(tid) or tid in active:
                     continue
                 try:
-                    p = check_path(os.path.join(DIRS['tasks'], f),
-                                   must_exist=False, in_platform=True)
+                    p = check_path(os.path.join(base, f),
+                                   must_exist=False, in_platform='tasks')
                     if os.path.isfile(p):
                         os.remove(p)
                         ids.add(tid)
@@ -746,7 +901,7 @@ class TaskManager:
         return bool(tid) and bool(re.fullmatch(r'[0-9a-f]{6,16}', str(tid)))
 
     def delete(self, tid):
-        """删除任务记录（仅终态）：移出内存 + 删 tasks/<tid>.json。
+        """删除任务记录（仅终态）：移出内存 + 删 tasks/<tid>.json + 归档副本。
 
         外部任务只「隐藏卡片」：真身（下载批次等）归各自子系统管理，
         在这里 pop 掉之后下次 attach 又会复活，反而像是删不掉。
@@ -763,13 +918,14 @@ class TaskManager:
             self.tasks.pop(tid, None)
             if tid in self.order:
                 self.order.remove(tid)
-        try:
-            p = check_path(os.path.join(DIRS['tasks'], tid + '.json'),
-                           must_exist=False, in_platform=True)
-            if os.path.isfile(p):
-                os.remove(p)
-        except (OSError, ValueError):
-            pass
+        for base in (DIRS['tasks'], os.path.join(DIRS['tasks'], '_archive')):
+            try:
+                p = check_path(os.path.join(base, tid + '.json'),
+                               must_exist=False, in_platform='tasks')
+                if os.path.isfile(p):
+                    os.remove(p)
+            except (OSError, ValueError):
+                pass
         return True, 'ok'
 
     def clear_finished(self):
@@ -800,40 +956,51 @@ class TaskManager:
         return n
 
     def list_archived(self, limit=200):
-        """归档任务（磁盘 tasks/*.json，不在内存）：平台重启后的历史回溯。"""
+        """归档任务（磁盘 tasks/*.json 与 tasks/_archive/*.json，不在内存）：
+        手动归档 + 服务重启前/内存回收的历史记录。"""
         items, total = self._read_archived(limit=limit, logs=True)
         return items
 
     def count_archived(self):
-        """磁盘归档任务总数（不受 list_archived 的 limit 截断影响）。"""
-        try:
-            return len([f for f in os.listdir(DIRS['tasks'])
-                        if f.endswith('.json') and self._tid_ok(f[:-5])])
-        except OSError:
-            return 0
+        """磁盘归档任务总数（与 list_archived 同口径：只算不在内存的记录，
+        手动归档 + 重启前/内存回收的历史；不受 limit 截断影响）。"""
+        n = 0
+        for base in (DIRS['tasks'], os.path.join(DIRS['tasks'], '_archive')):
+            try:
+                for f in os.listdir(base):
+                    tid = f[:-5]
+                    if f.endswith('.json') and self._tid_ok(tid) and tid not in self.tasks:
+                        n += 1
+            except OSError:
+                continue
+        return n
 
     def _read_archived(self, limit=200, logs=True):
         items = []
-        try:
-            files = [f for f in os.listdir(DIRS['tasks']) if f.endswith('.json')]
-        except OSError:
-            return items, 0
         total = 0
-        for f in files:
-            tid = f[:-5]
-            if tid in self.tasks or not self._tid_ok(tid):
-                continue
-            total += 1
-            if len(items) >= limit:
-                continue
+        for base in (DIRS['tasks'], os.path.join(DIRS['tasks'], '_archive')):
+            manual = base.endswith('_archive')
             try:
-                with safe_open(os.path.join(DIRS['tasks'], f)) as fh:
-                    d = json.load(fh)
-                if not logs:
-                    d.pop('log_tail', None)
-                items.append(d)
-            except (OSError, ValueError):
+                files = [f for f in os.listdir(base) if f.endswith('.json')]
+            except OSError:
                 continue
+            for f in files:
+                tid = f[:-5]
+                if tid in self.tasks or not self._tid_ok(tid):
+                    continue
+                total += 1
+                if len(items) >= limit:
+                    continue
+                try:
+                    with safe_open(os.path.join(base, f)) as fh:
+                        d = json.load(fh)
+                    if manual:
+                        d['archived'] = True
+                    if not logs:
+                        d.pop('log_tail', None)
+                    items.append(d)
+                except (OSError, ValueError):
+                    continue
         items.sort(key=lambda d: d.get('started') or 0, reverse=True)
         return items[:limit], total
 
@@ -1004,6 +1171,15 @@ def build_result_preview(result, task_name=''):
             return _sample_result_preview(rel)
         if isinstance(result, dict):
             out = {'kind': 'tool', 'stats': _flatten_stats(result)}
+            # 原结果里的**标识类标量**要原样透传：stats 是压平后的，长整型
+            # （任务 id 之外的时间戳）会被折成 _n 丢内容，而前端要靠这些字段
+            # 拼后续请求的地址。`project` 是 2026-11-02 的实例：物种名校验的
+            # 结果文件落在该项目目录下，前端只有拿到它才不会退回页面级 CUR
+            # （切模块后 CUR 失效 → 读回 400，整份校验结果丢掉）。
+            for _k in ('project', 'run', 'out_dir', 'sample'):
+                _v = result.get(_k)
+                if isinstance(_v, (str, int)) and not isinstance(_v, bool) and _v != '':
+                    out[_k] = _v
             run = result.get('run')
             if run:
                 out['run'] = str(run)          # 前端 toolrun 需顶层 run 名

@@ -241,6 +241,18 @@ def api_ai_config_set():
     body = request.get_json(silent=True)
     merged = dict(cfg.ai)
     merged.update(_validate_ai_body(body))
+    # 2026-11-02 P2：手改 model / base_url 后，active_profile 仍指着旧档案
+    # → 对话坞显示「● 档案A」而实际跑的是手改配置。档案本身不动，只把
+    # 不再匹配的 active_profile 清空（保存），坞据此不再点亮旧档案。
+    active = str(merged.get('active_profile') or '')
+    if active:
+        prof = next((p for p in (merged.get('providers') or [])
+                     if p.get('name') == active), None)
+        if (not prof
+                or str(prof.get('model') or '') != str(merged.get('model') or '')
+                or str(prof.get('base_url') or '')
+                != str(merged.get('base_url') or '')):
+            merged['active_profile'] = ''
     cfg.ai = merged
     try:
         cfg.save()
@@ -431,14 +443,62 @@ def api_ai_chat():
     if not isinstance(messages, list) or not messages:
         abort(400, '请求体须含非空 messages 数组')
     sample = str(body.get('sample') or '').strip() or None
+    # 用户在本轮附加的文件（2026-10-30）：绝对路径列表，最多 8 个。
+    # 只用于把「文件名 / 大小 / 文本预览」注入上下文，不授予任何额外权限。
+    atts = body.get('attachments')
+    if not isinstance(atts, list):
+        atts = []
+    atts = [str(a).strip() for a in atts if str(a or '').strip()][:8]
+    # 用户选中的工作空间目录（2026-10-30）：把目录清单注入上下文，
+    # 让模型知道"这一批文件在哪"，可以直接起草建样品/跑工具。
+    workspace = str(body.get('workspace') or '').strip() or None
 
     def gen():
+        # 心跳（2026-11-02）：模型排队/长推理/工具轮（mcp_call 最长 330s）
+        # 期间可能几分钟零字节，前端只有一句「思考中…」，用户判定卡死只能刷新。
+        # 把 run_chat 放到工作线程喂队列，主生成器每 5s 没数据就发一帧 tick
+        # （elapsed 秒数），前端把「思考中… 已等待 Ns」显示出来。
+        import queue as _q
+        import threading as _th
+        import time as _t
+        q = _q.Queue(maxsize=512)
+        t0 = _t.time()
+        SENTINEL = object()
+
+        def worker():
+            try:
+                for ev in ai_chat.run_chat(cfg.ai, messages, sample, atts,
+                                           workspace):
+                    q.put(ev)
+            except Exception as e:     # 编排层兜底（chat.py 已兜一层）
+                q.put("data: " + json.dumps(
+                    {'type': 'error',
+                     'message': f'{type(e).__name__}: {e}'},
+                    ensure_ascii=False) + "\n\n")
+                q.put("data: " + json.dumps({'type': 'done'}) + "\n\n")
+            finally:
+                q.put(SENTINEL)
+
+        ctx = None
         try:
-            for ev in ai_chat.run_chat(cfg.ai, messages, sample):
-                yield ev
-        except Exception as e:                 # 编排层兜底（chat.py 已兜一层）
-            yield f"data: {json.dumps({'type': 'error', 'message': f'{type(e).__name__}: {e}'}, ensure_ascii=False)}\n\n"
-            yield "data: " + json.dumps({'type': 'done'}) + "\n\n"
+            from flask import has_request_context, copy_current_request_context
+            if has_request_context():
+                ctx = copy_current_request_context(worker)
+        except Exception:
+            ctx = None
+        th = _th.Thread(target=ctx or worker, daemon=True,
+                        name='ai-chat-stream')
+        th.start()
+        while True:
+            try:
+                item = q.get(timeout=5.0)
+            except _q.Empty:
+                yield "data: " + json.dumps(
+                    {'type': 'tick', 'elapsed': int(_t.time() - t0)}) + "\n\n"
+                continue
+            if item is SENTINEL:
+                break
+            yield item
 
     return Response(stream_with_context(gen()),
                     mimetype='text/event-stream',

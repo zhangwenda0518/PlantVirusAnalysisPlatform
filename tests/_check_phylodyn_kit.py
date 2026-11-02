@@ -410,6 +410,31 @@ with open(gb1, 'w', encoding='utf-8', newline='\n') as f:
 r4 = pk.import_from_genbank(o, files=[gb1])
 chk(r4['n_kept'] == 1 and any('LC002x' in (i.get('name') or '') for i in r4['issues']),
     f"GenBank 来源：不合规 collection_date 被剔（保留 {r4['n_kept']}）")
+# 2026-11-02 两步导入的**第一步**：检索预览（只列清单，不建数据集）。
+# 用本地集合驱动，不联网；判定口径必须与 import_from_genbank 一致：
+# 缺/异 collection_date 或地点 → usable=False 且给得出原因。
+_coll = '_chk_pdprev_%d' % os.getpid()
+_cdir = gbc.gb_collection_dir(_coll)
+os.makedirs(_cdir, exist_ok=True)
+with open(os.path.join(_cdir, 'x.gb'), 'w', encoding='utf-8', newline='\n') as f:
+    f.write(gb_text[0] + gb_nodate)
+try:
+    pv = pk.preview_from_genbank(collection=_coll)
+finally:
+    shutil.rmtree(_cdir, ignore_errors=True)
+chk(pv['n_shown'] == 2 and pv['n_usable'] == 1,
+    f"检索预览：列出 {pv['n_shown']} 条、可用 {pv['n_usable']} 条（预览列出的就是"
+    "导入会保留的那批）")
+chk(pv['rows'][0]['usable'] and pv['rows'][0]['accession'] == 'LC001'
+    and pv['rows'][0]['date'] == '2019-03-01'
+    and pv['rows'][0]['location'].startswith('China'),
+    '预览：可用记录排前面，日期/地点已归一')
+_na = [r for r in pv['rows'] if not r['usable']]
+chk(len(_na) == 1 and 'collection_date' in _na[0]['reason'],
+    f"预览：不可用的记录给得出原因（{_na[0]['reason'] if _na else '—'}）")
+chk(pv['query'] == f'本地集合 {_coll}' and pv['n_usable']
+    == pk.import_from_genbank(o, files=[gb1])['n_kept'],
+    '预览与导入同口径（同一 fixture 的可用条数一致）')
 # 2026-09-18：zip 来源整条下线（explorer 不再导出 zip）→ 底层函数 `import_from_zip`
 # 也按用户要求删掉了。这里改成**防回潮**断言（原来这段测的是"非 zip 被拒"）。
 chk(not hasattr(pk, 'import_from_zip'),

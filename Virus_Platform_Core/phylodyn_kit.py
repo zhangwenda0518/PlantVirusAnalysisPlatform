@@ -1154,7 +1154,7 @@ def import_from_genbank(out_dir, collection=None, files=None, accessions=None,
                         term=None, max_records=200, strict=False,
                         species=None, taxid=None, full_length=False,
                         date_from=None, date_to=None,
-                        govern=True, date_mode='mid'):
+                        govern=True, date_mode='mid', only=None):
     """来源③：在线下载 / 本地 GenBank → **标准数据集（与我们的元数据 schema 一致）**。
 
     四种给法（按优先级）：
@@ -1165,6 +1165,11 @@ def import_from_genbank(out_dir, collection=None, files=None, accessions=None,
 
     `full_length=True` 只收完整基因组/序列（`complete genome/cds/sequence`），
     过滤片段 —— 与上游 SeqHarvester 同口径。`date_from/date_to` 拼 `[PDAT]`。
+
+    `only`（2026-11-02，两步导入的第二用）：只保留这些 accession。配合
+    `collection` 用 —— 预览时已把 GenBank 平文存进隐藏集合，第二步直接从本地
+    集合里挑用户勾选的那几条，**不再打一遍 NCBI**；两端口径因此逐字节一致
+    （预览里 usable 的，导入后必然保留）。
 
     **输出 = 我们的 metadata**：`name,date,location,lat,lon`；GenBank 里若带
     `host` 则**追加一列 host**（没有 host 时 schema 一字不变，向后兼容）——
@@ -1181,20 +1186,33 @@ def import_from_genbank(out_dir, collection=None, files=None, accessions=None,
             raise FileNotFoundError(f'集合 [{name}] 内没有 GenBank 文件')
         return '\n'.join(read_text(p) for p in paths)
 
+    def _by_accessions():
+        accs = [a.strip() for a in re.split(r'[,;\s]+', accessions) if a.strip()]
+        if not accs:
+            raise ValueError('accession 列表为空')
+        _pairs, missing = gbc._fetch_accessions_gb(accs[:max_records], logger.log)
+        if missing:
+            logger.log(f'{len(missing)} 个 accession 未取到: {missing[:10]}')
+        return _pairs
+
     if files:
         if isinstance(files, str):
             files = [p.strip() for p in re.split(r'[,\n;]+', files) if p.strip()]
         text = '\n'.join(read_text(p) for p in files)
     elif collection:
-        text = _collection_text(collection)
+        try:
+            text = _collection_text(collection)
+        except FileNotFoundError:
+            # 两步导入的第二步会带着预览时的隐藏集合来（`_pdprev_*`）：万一它已被
+            # 清理/换了机器，手里还有 accession 就回退在线取，别让人重头再点一遍。
+            if not accessions:
+                raise
+            logger.log(f'⚠️ 集合 [{collection}] 不可用 → 回退按 accession 在线取')
+            collection = None
+            records = _by_accessions()
+            text = None
     elif accessions:
-        accs = [a.strip() for a in re.split(r'[,;\s]+', accessions) if a.strip()]
-        if not accs:
-            raise ValueError('accession 列表为空')
-        pairs, missing = gbc._fetch_accessions_gb(accs[:max_records], logger.log)
-        if missing:
-            logger.log(f'{len(missing)} 个 accession 未取到: {missing[:10]}')
-        records = pairs
+        records = _by_accessions()
         text = None
     elif term or species or taxid:
         # ---- 一键采集：物种名/taxid → taxid → 检索式（2026-09-18）----
@@ -1229,6 +1247,16 @@ def import_from_genbank(out_dir, collection=None, files=None, accessions=None,
     # 「在线下载 · 按 accession」一直静默返回 0 条。
     if text is not None:
         records = gbc.parse_flatfile(text)
+    if only:
+        # 两步导入：只留勾选的那些（预览把「可用/不可用」摊开给人看了，
+        # 这一步就按人选的口径收，别再自作主张全收）。
+        want = {(a or '').strip().upper() for a in
+                (re.split(r'[,;\s]+', only) if isinstance(only, str) else only)
+                if (a or '').strip()}
+        _before = len(records)
+        records = [(c_, m_) for c_, m_ in records
+                   if (m_.get('acc') or '').strip().upper() in want]
+        logger.log(f'按勾选过滤：{_before} → {len(records)} 条')
     seqs, rows, issues = OrderedDict(), [], []
     for _chunk, m in records:
         acc = m.get('acc', '')
@@ -1292,6 +1320,139 @@ def import_from_genbank(out_dir, collection=None, files=None, accessions=None,
             'n_input': len(records), 'issues': issues,
             'govern': gov_notes,
             'summary': dataset_summary(seqs, rows)}
+
+
+def _gb_collection_text(name):
+    """集合名 → 拼接的 GenBank 平文（集合内所有 .gb/.gbk/.gbff/.genbank）。"""
+    from Virus_Platform_Core import gb_collection as gbc
+    cdir = gbc.gb_collection_dir(name)
+    if not os.path.isdir(cdir):
+        raise FileNotFoundError(f'GenBank 集合 [{name}] 不存在：{cdir}')
+    paths = [os.path.join(cdir, f) for f in sorted(os.listdir(cdir))
+             if f.lower().endswith(('.gb', '.gbk', '.gbff', '.genbank'))]
+    if not paths:
+        raise FileNotFoundError(f'集合 [{name}] 内没有 GenBank 文件')
+    return '\n'.join(read_text(p) for p in paths)
+
+
+def _preview_kind(definition):
+    """定义行 → 粗分类（**只做展示**；能不能进数据集仍看日期+地点）。"""
+    d = (definition or '').lower()
+    if 'partial' in d:
+        return '片段'
+    if ('complete genome' in d or 'complete sequence' in d
+            or 'whole genome' in d):
+        return '完整基因组'
+    if 'complete cds' in d:
+        return '完整 CDS'
+    if 'complete' in d:
+        return '完整'
+    return '其他'
+
+
+def preview_from_genbank(species=None, taxid=None, term=None, accessions=None,
+                         collection=None, full_length=False, date_from=None,
+                         date_to=None, max_records=200, logger=None, cancel=None):
+    """在线 GenBank **检索预览**：两步导入的第一步（先看清单，再勾选导入）。
+
+    为什么要有这一步：原表单把 accession / 检索式 / 日期区间 / 全长 / 在线库
+    / 条数六个旋钮一次摆出来，用户要**先猜**这些条件能捞到多少条、其中几条
+    有采集日期和地点。VirPhyKit 的 SeqHarvester 是「物种名 → 结果表 → 勾选
+    下载」，中间那步把「拿到了什么」摊开给人看。这里照同一节奏做：
+
+      物种名 / taxid / 检索式 → taxid → 检索式 → 拉 GenBank 平文 → 逐条判定
+      `collection_date` 可解析 **且** 有 `geo_loc_name`/`country` → `usable`
+
+    返回::
+
+        {'query','species','taxid','collection','total_hits','n_shown',
+         'n_usable','rows':[{accession,definition,length,kind,date,location,
+                             host,organism,usable,reason}]}
+
+    第二步按勾选的 accession 走 `import_from_genbank(accessions=...)` ——
+    两边用**同一套解析与判定**，所以预览里 usable 的记录导入后不会掉。
+
+    预览下载落在 `run/` 下的隐藏集合 `_pdprev_*`（`_` 前缀不在集合页展示），
+    同一检索式复用同一目录：重复预览不重下正文，只补新记录。
+    """
+    import zlib
+    log = logger.log if hasattr(logger, 'log') else (logger or (lambda *a, **k: None))
+    if not (species or taxid or term or accessions or collection):
+        raise ValueError('检索预览需要物种名 / taxid / 检索式 / accession / '
+                         '集合名之一')
+    from Virus_Platform_Core import gb_collection as gbc
+    q, name, total_hits = '', '', 0
+    # 条件优先级与 import_from_genbank 完全一致：collection > accessions >
+    # (term|species|taxid)。预览与导入必须同口径，否则「预览看到的」和
+    # 「导进去的」不是同一批记录。
+    if collection:
+        name = str(collection).strip()
+        text = _gb_collection_text(name)
+        q = f'本地集合 {name}'
+    elif accessions:
+        # 在线库圈定（gateway）也是这条：只按 accession 取正文，不跑开放检索
+        accs = [a for a in re.split(r'[,;\s]+', str(accessions)) if a.strip()]
+        name = '_pdprev_acc_' + _stamp()
+        res = gbc.download_gb_collection(name, accessions=accessions,
+                                         max_records=int(max_records or 200),
+                                         logger=logger, cancel=cancel)
+        total_hits = res.get('total_hits') or 0
+        q = 'accessions=' + ','.join(accs[:6]) + ('…' if len(accs) > 6 else '')
+        text = _gb_collection_text(name)
+    elif term or species or taxid:
+        q = (term or '').strip()
+        if not q:
+            if species and not taxid:
+                taxid = gbc.resolve_taxid(species=species, logger=log)
+                if taxid:
+                    log(f'物种「{species}」→ taxid {taxid}')
+                else:
+                    log(f'⚠️ 按学名查不到 taxid，退回学名检索「{species}」')
+            q = gbc.build_query(species=species, taxid=taxid, term=term,
+                                full_length=full_length,
+                                date_from=date_from, date_to=date_to)
+        log(f'预览检索式：{q}')
+        slug = re.sub(r'[^0-9A-Za-z]+', '_', q)[:32].strip('_') or 'query'
+        name = '_pdprev_%s_%08x' % (slug, zlib.crc32(q.encode('utf-8')))
+        res = gbc.download_gb_collection(name, term=q,
+                                         max_records=int(max_records or 200),
+                                         logger=logger, cancel=cancel)
+        total_hits = res.get('total_hits') or 0
+        text = _gb_collection_text(name)
+    else:                                     # pragma: no cover - 上面已拦
+        raise ValueError('检索预览：缺少检索条件')
+    records = gbc.parse_flatfile(text)
+    rows, seen = [], set()
+    for chunk, m in records:
+        acc = (m.get('acc') or '').strip()
+        if not acc or acc in seen:
+            continue
+        seen.add(acc)
+        definition = (m.get('title') or '').strip()
+        date_raw = gb_chunk_collection_date(chunk, m.get('date') or '')
+        date_ok, date_v, _err = validate_date_str(_gb_date_iso(date_raw))
+        loc = (m.get('geo_loc_name') or m.get('country') or '').strip()
+        why = []
+        if not date_ok:
+            why.append(f'缺/异 collection_date（原始值: {date_raw or "无"}）')
+        if not loc:
+            why.append('缺 country/geo_loc_name')
+        rows.append({'accession': acc, 'definition': definition,
+                     'length': int(m.get('length') or 0),
+                     'kind': _preview_kind(definition),
+                     'date': date_v if date_ok else '',
+                     'location': loc,
+                     'host': (m.get('host') or '').strip(),
+                     'organism': (m.get('organism') or '').strip(),
+                     'usable': not why,
+                     'reason': '；'.join(why)})
+    # 能用的排前面（组内保持 NCBI 命中顺序）：用户要勾的就是前面这批
+    rows.sort(key=lambda r: 0 if r['usable'] else 1)
+    n_usable = sum(1 for r in rows if r['usable'])
+    log(f'预览：{len(rows)} 条记录，其中 {n_usable} 条日期+地点齐全、可直接导入')
+    return {'query': q, 'species': species or '', 'taxid': str(taxid or ''),
+            'collection': name, 'total_hits': int(total_hits or 0),
+            'n_shown': len(rows), 'n_usable': n_usable, 'rows': rows}
 
 
 def gbc_records_sequence(gb_chunk):

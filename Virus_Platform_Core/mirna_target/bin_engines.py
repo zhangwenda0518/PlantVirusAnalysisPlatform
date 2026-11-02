@@ -128,6 +128,9 @@ def run_miranda_batch(mirnas, viruses, workdir,
     # miRanda v3.3a 的选项必须放在两个 FASTA 之后（file1 file2 [options]）
     r = _run([MIRANDA_EXE, q_fa, t_fa,
               '-sc', str(score_cutoff), '-en', str(energy_cutoff)])
+    if r.returncode != 0:
+        raise RuntimeError('miRanda 失败 (退出码 %d)：'
+                           '%s' % (r.returncode, (r.stderr or '')[-300:]))
     with open(out, 'w', encoding='utf-8', errors='replace') as f:
         f.write(r.stdout or '')
 
@@ -195,6 +198,9 @@ def run_rnahybrid_batch(mirnas, viruses, workdir,
     out = os.path.join(workdir, 'rnahybrid.out')
     r = _run([RNAHYBRID_EXE, '-t', t_fa, '-q', q_fa, '-s', '3utr_human',
               '-m', str(max_target_len), '-e', str(energy_cutoff)])
+    if r.returncode != 0:
+        raise RuntimeError('RNAhybrid 失败 (退出码 %d)：'
+                           '%s' % (r.returncode, (r.stderr or '')[-300:]))
     with open(out, 'w', encoding='utf-8', errors='replace') as f:
         f.write(r.stdout or '')
 

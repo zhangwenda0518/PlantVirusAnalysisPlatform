@@ -35,6 +35,19 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+def _log_tail(path, cap=500):
+    """读工具日志文件尾部，拼进失败异常（读不到返回空串）。
+
+    kv 套件大量命令把 stdout/stderr 落 results/logs/ 下的日志文件，
+    异常消息若只带文件名，任务日志里就看不到任何失败原因。
+    """
+    try:
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            return f.read()[-cap:].strip()
+    except OSError:
+        return ''
+
+
 @dataclass
 class AlignResult:
     """一次比对的统一返回结构"""
@@ -275,11 +288,17 @@ class SalmonEngine(VirusEngine):
         # salmon 默认折叠完全重复序列（本平台库实测 931 条被折进 192 个
         # 保留簇），被折叠的 accession 在 quant.sf 里恒为 0 —— 换库/物种名
         # 不同的重复参考（如不同病毒名共用同一条序列）会被静默漏检。
+        # 失败时把日志尾部拼进异常（原实现只留文件名，任务日志看不到原因）
+        logf = Path(index_dir) / f'salmon_index_k{kmer}.log'
         cmd = [self.exe, 'index', '-t', str(ref_fasta), '-i', str(idx_path),
                '-k', str(kmer), '-p', str(threads), '--keepDuplicates']
-        with open(index_dir / f'salmon_index_k{kmer}.log', 'w',
-                  encoding='utf-8') as fl:
-            subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+        with open(logf, 'w', encoding='utf-8') as fl:
+            try:
+                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(
+                    f"salmon index 失败（exit {e.returncode}）："
+                    f"{_log_tail(logf)}｜完整日志: {logf}") from e
         self.log(f"索引完成 {time.time()-t0:.1f}s"
                  f"（--keepDuplicates：保留全部重复参考，不折叠）")
         try:
@@ -335,7 +354,8 @@ class SalmonEngine(VirusEngine):
                                check=True)
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(
-                    f"salmon quant 失败（exit {e.returncode}，详见 {logf}）。"
+                    f"salmon quant 失败（exit {e.returncode}）："
+                    f"{_log_tail(logf)}｜完整日志: {logf}。"
                     f"若输入为小RNA reads，请确认所用索引 k < 读长"
                     f"（超短 reads 需 k={SRNA_SALMON_K} 小索引）") from e
         elapsed = time.time() - t0
@@ -514,8 +534,14 @@ class BwaEngine(VirusEngine):
         self.log(f"构建 minibwa 索引 -> {prefix}")
         t0 = time.time()
         cmd = [self.exe, 'index', str(ref_fasta), str(prefix)]
-        with open(sub / 'index.log', 'w', encoding='utf-8') as fl:
-            subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+        _ilog = sub / 'index.log'
+        with open(_ilog, 'w', encoding='utf-8') as fl:
+            try:
+                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(
+                    f"minibwa index 失败（exit {e.returncode}）："
+                    f"{_log_tail(_ilog)}｜完整日志: {_ilog}") from e
         self.log(f"索引完成 {time.time()-t0:.1f}s")
         try:
             _write_index_fingerprint(sub / 'ref_fingerprint.json',
@@ -586,9 +612,9 @@ class BwaEngine(VirusEngine):
         except (OSError, UnicodeError):
             pass
         if rc_map != 0 or rc_bam != 0:
-            raise subprocess.CalledProcessError(
-                max(rc_map, rc_bam), 'minibwa map | samtools view -b',
-                stderr=f'详见 {logf}'.encode())
+            raise RuntimeError(
+                f"minibwa 比对失败 (map rc={rc_map} / view rc={rc_bam})："
+                f"{_log_tail(logf)}｜完整日志: {logf}")
         with open(logf, 'a', encoding='utf-8') as fl:
             import shlex as _shlex
             fl.write(_shlex.join(str(x) for x in map_cmd)
@@ -649,19 +675,34 @@ class BwaEngine(VirusEngine):
         return res
 
     def _count_primary(self, bam):
-        """主记录总数（-F 0x900：去 secondary/supplementary，保留未比对主记录）"""
+        """主记录总数（-F 0x900：去 secondary/supplementary，保留未比对主记录）。
+
+        samtools 失败时抛带 stderr 尾部的异常（原实现不查退出码、丢 stderr，
+        工具故障会被静默折成 0，直接污染定量表）。
+        """
         r = subprocess.run(
             [self.samtools, 'view', '-c', '-F', '0x900', str(bam)],
             capture_output=True, text=True, encoding='utf-8',
             errors='replace')
+        if r.returncode != 0:
+            raise RuntimeError(
+                f'samtools view -c 失败 (退出码 {r.returncode})：'
+                f'{(r.stderr or "")[-300:]}')
         return int((r.stdout or '0').strip() or 0)
 
     def _count_mapped_primary(self, bam):
-        """已比对主记录数（-F 0x904：去 secondary/supplementary/unmapped）"""
+        """已比对主记录数（-F 0x904：去 secondary/supplementary/unmapped）。
+
+        同 _count_primary：失败必须炸出来，不许静默折 0。
+        """
         r = subprocess.run(
             [self.samtools, 'view', '-c', '-F', '0x904', str(bam)],
             capture_output=True, text=True, encoding='utf-8',
             errors='replace')
+        if r.returncode != 0:
+            raise RuntimeError(
+                f'samtools view -c 失败 (退出码 {r.returncode})：'
+                f'{(r.stderr or "")[-300:]}')
         return int((r.stdout or '0').strip() or 0)
 
 
@@ -733,7 +774,12 @@ class BamCoverageBackend:
             cmd = [self.samtools, 'view', '-b', '-q', str(min_mapq),
                    '-o', str(bam), str(sam_path)]
         with open(logf, 'w', encoding='utf-8') as fl:
-            subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+            try:
+                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(
+                    f"samtools view -b 失败（exit {e.returncode}）："
+                    f"{_log_tail(logf)}｜完整日志: {logf}") from e
 
         sorted_bam = out_dir / f'{name}.sorted.bam'
         # -m 512M：samtools sort 默认每线程 768MB 提交内存，病毒 BAM 通常
@@ -742,11 +788,21 @@ class BamCoverageBackend:
         cmd = [self.samtools, 'sort', '-m', '256M', '-@', str(self.threads),
                '-o', str(sorted_bam), str(bam)]
         with open(logf, 'a', encoding='utf-8') as fl:
-            subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+            try:
+                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(
+                    f"samtools sort 失败（exit {e.returncode}）："
+                    f"{_log_tail(logf)}｜完整日志: {logf}") from e
 
         cmd = [self.samtools, 'index', str(sorted_bam)]
-        with open(logf, 'a', encoding='utf-8') as fl:
-            subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+        with open(logf, 'a', encoding='utf-8') as tf2:
+            try:
+                subprocess.run(cmd, stdout=tf2, stderr=subprocess.STDOUT, check=True, timeout=7200)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(
+                    f"samtools index 失败（exit {e.returncode}）："
+                    f"{_log_tail(logf)}｜完整日志: {logf}") from e
 
         try:
             bam.unlink()
@@ -774,6 +830,9 @@ class BamCoverageBackend:
         r = subprocess.run([self.samtools, 'idxstats', str(sorted_bam)],
                            capture_output=True, text=True,
                            encoding='utf-8', errors='replace')
+        if r.returncode != 0:
+            raise RuntimeError('samtools idxstats 失败 (退出码 %d)：'
+                               '%s' % (r.returncode, (r.stderr or '')[-300:]))
         counts = {}
         for line in r.stdout.splitlines():
             p = line.split('\t')
@@ -788,6 +847,9 @@ class BamCoverageBackend:
              str(sorted_bam)],
             capture_output=True, text=True,
             encoding='utf-8', errors='replace')
+        if r.returncode != 0:
+            raise RuntimeError('samtools view -c 失败 (退出码 %d)：'
+                               '%s' % (r.returncode, (r.stderr or '')[-300:]))
         return int((r.stdout or '0').strip() or 0)
 
     def ani_by_ref(self, sorted_bam, max_reads=10000):
@@ -815,7 +877,7 @@ class BamCoverageBackend:
         acc: dict = {}
         proc = subprocess.Popen(
             [self.samtools, 'view', '-F', '0x904', str(sorted_bam)],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, encoding='utf-8', errors='replace')
         try:
             for line in proc.stdout:
@@ -851,7 +913,15 @@ class BamCoverageBackend:
                 cur[1] += aln_len
         finally:
             proc.stdout.close()
-            proc.wait()
+            _ani_rc = proc.wait()
+        if _ani_rc != 0:
+            _ani_err = ''
+            try:
+                _ani_err = (proc.stderr.read() or '').strip()
+            except OSError:
+                pass
+            raise RuntimeError('samtools view (ANI) 失败 (退出码 %d)：'
+                               '%s' % (_ani_rc, _ani_err[-300:]))
         out = {}
         no_nm_refs = []
         for ref, (num, den, n, no_nm) in acc.items():
@@ -873,7 +943,12 @@ class BamCoverageBackend:
         raw = out_dir / f'{name}.samtools_cov.tsv'
         cmd = [self.samtools, 'coverage', str(sorted_bam)]
         with open(raw, 'w', encoding='utf-8') as fl:
-            subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+            try:
+                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(
+                    f"samtools coverage 失败（exit {e.returncode}）："
+                    f"{_log_tail(raw)}｜完整日志: {raw}") from e
 
         _reset_parse_failures()
         refstats = {}
@@ -925,8 +1000,13 @@ class BamCoverageBackend:
         env['PATH'] = os.pathsep.join(
             [pd_bin, st_bin] + [env.get('PATH', '')])
         with open(logf, 'w', encoding='utf-8') as fl:
-            subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True,
-                           env=env)
+            try:
+                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True,
+                               env=env)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(
+                    f"pandepth 失败（exit {e.returncode}）："
+                    f"{_log_tail(logf)}｜完整日志: {logf}") from e
 
         stat_gz = Path(str(prefix) + '.chr.stat.gz')
         if not stat_gz.exists():

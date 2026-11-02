@@ -11,6 +11,7 @@ collect() 返回四段结构化结果，供两处共用：
 降级（warn），磁盘不足只提示。
 """
 import importlib
+import os
 import shutil
 import time
 
@@ -290,6 +291,49 @@ def _check_databases():
             'items': items}
 
 
+_USAGE_TTL = 600.0         # 目录占用缓存（结果/运行产物可能上万文件，比自检本身还慢）
+_USAGE = {'ts': 0.0, 'data': None}
+
+
+def _dir_usage(path, cap_files=200000):
+    """目录占用（递归）。文件数封顶，防止误指到超大目录时拖住自检。"""
+    total = n = 0
+    for dp, _dn, fn in os.walk(path):
+        for f in fn:
+            try:
+                total += os.path.getsize(os.path.join(dp, f))
+            except OSError:
+                pass
+            n += 1
+            if n >= cap_files:
+                return total, n
+    return total, n
+
+
+def _usage_items():
+    """按目录统计占用：数据库 / 结果 / 运行产物 / 公共下载。
+
+    总览页要回答"空间被谁吃了"，只有剩余空间不够用 —— 建库、跑分析、
+    下数据三条路径都会吃盘，得分开看。"""
+    now = time.time()
+    if _USAGE['data'] is not None and now - _USAGE['ts'] < _USAGE_TTL:
+        return _USAGE['data']
+    items = []
+    for label, key in (('数据库', 'databases'), ('结果', 'results'),
+                       ('运行产物', 'tool_runs'), ('公共下载', 'downloads')):
+        d = DIRS.get(key)
+        if not d or not os.path.isdir(d):
+            continue
+        try:
+            b, n = _dir_usage(d)
+        except OSError:
+            continue
+        items.append({'name': label, 'path': d, 'bytes': b, 'files': n})
+    _USAGE['data'] = items
+    _USAGE['ts'] = now
+    return items
+
+
 def _check_disk():
     items = []
     for key, d in (('平台根', PLATFORM_ROOT), ('结果', DIRS['results'])):
@@ -305,7 +349,9 @@ def _check_disk():
             'ok': all(i['ok'] for i in items),
             'warn': any(not i['ok'] for i in items),
             'summary': f"{sum(i['ok'] for i in items)}/{len(items)}",
-            'items': items}
+            'items': items,
+            # 按目录占用（总览页「谁吃了盘」用）；取不到就是空列表，不报错
+            'usage': _usage_items()}
 
 
 def collect(force=False):

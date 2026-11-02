@@ -53,7 +53,25 @@ ACTIONS = {
         'title': ('创建样品', 'Create sample'),
         'risk': 'confirm',        # 从已落盘的 FASTQ 建样品（不下载、不联网）
     },
+    # 2026-10-29 用户要求：宿主基因组数据库构建也要能由 AI 发起
+    #（「数据库构建」页 /api/build_host_db 的同一套校验与任务启动）。
+    'build_host_db': {
+        'title': ('构建宿主基因组数据库', 'Build host genome database'),
+        'risk': 'confirm',
+    },
+    # 多步计划：一次批准后按顺序执行，前一步任务成功结束才进入下一步。
+    # 用于「建样品 → 组装 → 建宿主库」这类跨模块链路（2026-10-29）。
+    'plan': {
+        'title': ('多步分析计划', 'Multi-step analysis plan'),
+        'risk': 'confirm',
+    },
 }
+
+# 计划里允许串起来的动作。download_runs 不在内：它归下载管理器管，没有
+# 任务中心的 tid 可等（要等下载完成再继续，请拆成两次对话）。
+PLAN_ACTIONS = ('rerun_stage', 'retry_failed', 'run_tool',
+                'create_sample', 'build_host_db')
+PLAN_MAX_STEPS = 6
 
 # 允许 AI 调参的键与边界（第三级）；之外的键一律拒绝
 TUNABLE_PARAMS = {
@@ -92,6 +110,9 @@ _order_n = 0                     # 已发出的 aid 序号（重启后从审计�
 _auto_retried = {}               # (sample, stage) -> 次数
 _auto_tuned = {}                 # sample -> 次数
 _hydrated = False                # 是否已从审计盘重建过历史
+# 语言无关的「AI 发起」标记：任务中心的任务名在英文界面是 "AI run·…"，
+# 按中文前缀 'AI执行·' 计数会漏，故在启动处登记真实任务 id。
+_AI_TIDS = set()
 
 # 内存里保留的历史条数上限（审计盘才是长期留痕，内存只为界面列表）
 MAX_KEEP_ACTIONS = 500
@@ -119,10 +140,16 @@ def _publish(rec, event='ai_action'):
     events_since 的 int 比较打成 TypeError，整条 SSE 流持续 500（实测踩过）。
     """
     from . import broadcast
+    # 2026-11-02：白名单漏了 steps/step 系列，而对话坞的执行单卡片**只从
+    # 事件里取这些字段**（app-ai.js 的 ai_action 处理器）——结果多步计划卡
+    # 不列步骤，批准后也永远没有「第 2/3 步」进度，用户看起来像卡死。
+    # 这里与 _snapshot 的字段取并集，别再各自维护一份。
     payload = {k: v for k, v in rec.items()
                if k in ('action', 'title', 'sample', 'stages', 'params',
                         'base_params', 'reason', 'status', 'source',
-                        'error', 'tid', 'runs', 'tool', 'tool_params')}
+                        'error', 'tid', 'runs', 'tool', 'tool_params',
+                        'steps', 'step', 'step_total', 'step_action',
+                        'step_title', 'result_sample')}
     if isinstance(payload.get('runs'), list):
         payload['runs'] = payload['runs'][:10]   # 事件里只带前 10 条防膨胀
         payload['runs_n'] = rec.get('params', {}).get('runs_n')
@@ -134,7 +161,13 @@ def _snapshot(rec):
     return {k: rec.get(k) for k in
             ('id', 'action', 'title', 'sample', 'stages', 'params',
              'base_params', 'reason', 'status', 'source', 'error', 'tid',
-             'ts', 'tool', 'tool_params', 'runs')}
+             'ts', 'tool', 'tool_params', 'runs',
+             # 多步计划（2026-10-29）：进度要随事件发给对话坞的执行单卡片
+             'steps', 'step', 'step_total', 'step_action', 'step_title',
+             # 2026-11-02：create_sample 是同步动作，返回值是**样品名**而不是
+             # 任务 id。这里漏了它，刷新页面（走 /api/ai/actions 对账）时
+             # 卡片就丢了「建了哪个样品」，只剩一个 ✓ 完成。
+             'result_sample')}
 
 
 def _audit(rec):
@@ -287,6 +320,10 @@ def create_action(action, sample, stages=None, params=None, reason='',
         return _create_run_tool(params, reason, source)
     if action == 'create_sample':
         return _create_sample_order(params, reason, source)
+    if action == 'build_host_db':
+        return _create_host_db_order(params, reason, source)
+    if action == 'plan':
+        return _create_plan(params, reason, source)
     sample = str(sample or '').strip()
     if not sample:
         return None, '需要 sample'
@@ -300,7 +337,15 @@ def create_action(action, sample, stages=None, params=None, reason='',
         return None, f'样品解析失败: {e}'
     if stages is not None:
         from Virus_Platform_Core.pipeline import STAGE_ORDER
-        stages = [str(s) for s in stages if str(s) in STAGE_ORDER]
+        raw = [str(s).strip() for s in stages if str(s).strip()]
+        # 2026-11-02：以前非法阶段被静默丢弃，模型说「重跑 A+B+C」实际只跑
+        # A，执行单照样 created，完成后报「全部成功」。改为明确报错并列出
+        # 合法键，模型可当场修正。
+        bad = [s for s in raw if s not in STAGE_ORDER]
+        if bad:
+            return None, (f'阶段键非法: {", ".join(bad)}（合法键见平台阶段清单: '
+                          f'{", ".join(STAGE_ORDER)}）')
+        stages = raw
         if not stages:
             return None, 'stages 为空或全部非法'
     params, err = validate_params(action, params)
@@ -319,7 +364,8 @@ def create_action(action, sample, stages=None, params=None, reason='',
                'sample': real, 'stages': stages, 'params': params,
                'base_params': base_params or {},
                'reason': str(reason or '')[:800], 'status': 'pending',
-               'source': source, 'error': '', 'tid': '', 'ts': time.time()}
+               'source': source, 'error': '', 'tid': '', 'ts': time.time(),
+               'origin': 'ai'}
         _actions[aid] = rec
     _snapshot_publish(rec, 'pending')
     return rec, None
@@ -356,7 +402,8 @@ def _create_download(params, reason, source):
                           'convert_sra': convert_sra},
                'base_params': {}, 'runs': runs,
                'reason': str(reason or '')[:800], 'status': 'pending',
-               'source': source, 'error': '', 'tid': '', 'ts': time.time()}
+               'source': source, 'error': '', 'tid': '', 'ts': time.time(),
+               'origin': 'ai'}
         _actions[aid] = rec
     _snapshot_publish(rec, 'pending')
     return rec, None
@@ -396,7 +443,8 @@ def _create_run_tool(params, reason, source):
                'tool': tool, 'tool_params': tool_params,
                'base_params': {},
                'reason': str(reason or '')[:800], 'status': 'pending',
-               'source': source, 'error': '', 'tid': '', 'ts': time.time()}
+               'source': source, 'error': '', 'tid': '', 'ts': time.time(),
+               'origin': 'ai'}
         _actions[aid] = rec
     _snapshot_publish(rec, 'pending')
     return rec, None
@@ -432,7 +480,131 @@ def _create_sample_order(params, reason, source):
                           'project': str(params.get('project') or '')},
                'base_params': {},
                'reason': str(reason or '')[:800], 'status': 'pending',
-               'source': source, 'error': '', 'tid': '', 'ts': time.time()}
+               'source': source, 'error': '', 'tid': '', 'ts': time.time(),
+               'origin': 'ai'}
+        _actions[aid] = rec
+    _snapshot_publish(rec, 'pending')
+    return rec, None
+
+
+def _create_host_db_order(params, reason, source):
+    """build_host_db 执行单：用已下载的宿主基因组 FASTA 建 kunpeng 宿主库。
+
+    参数口径与 /api/build_host_db 一致：genome（FASTA 绝对路径）、taxid
+    （数字）；out_dir / threads / rebuild / clean_mid / hash_capacity 可选。
+    真正的路径/根目录校验在执行时由 build.start_host_db_build 统一做，
+    这里只挡明显的空参，让执行单在批准前就能被看懂。
+    """
+    params = params if isinstance(params, dict) else {}
+    import os
+    genome = str(params.get('genome') or '').strip()
+    if not genome:
+        return None, 'build_host_db 需要 params.genome（宿主基因组 FASTA 绝对路径）'
+    if not os.path.isfile(genome):
+        return None, f'params.genome 文件不存在: {genome}'
+    try:
+        taxid = int(params.get('taxid'))
+    except (TypeError, ValueError):
+        return None, 'build_host_db 需要数字 params.taxid（NCBI Taxonomy ID）'
+    p = {'genome': genome, 'taxid': taxid}
+    for k in ('out_dir', 'hash_capacity'):
+        v = params.get(k)
+        if v not in (None, ''):
+            p[k] = str(v)
+    if params.get('threads') not in (None, ''):
+        # 2026-11-02：threads 直接 int(v) 没兜住 "abc"，ValueError 会逃出
+        # create_action，被工具层压成英文异常字符串给模型。
+        try:
+            p['threads'] = max(1, int(params.get('threads')))
+        except (TypeError, ValueError):
+            return None, 'params.threads 须为正整数'
+    for k in ('rebuild', 'clean_mid'):
+        if params.get(k) is not None:
+            p[k] = bool(params.get(k))
+    with _lock:
+        pending = sum(1 for r in _actions.values() if r['status'] == 'pending')
+        if pending >= MAX_PENDING:
+            return None, f'待批执行单已达上限（{MAX_PENDING}），请先处理'
+        global _order_n
+        _order_n += 1
+        aid = f'act_{_order_n}'
+        lang = get_config().lang
+        rec = {'id': aid, 'action': 'build_host_db',
+               'title': ACTIONS['build_host_db']['title'][0 if lang == 'zh'
+                                                          else 1],
+               'sample': '', 'stages': None, 'params': p,
+               'base_params': {},
+               'reason': str(reason or '')[:800], 'status': 'pending',
+               'source': source, 'error': '', 'tid': '', 'ts': time.time(),
+               'origin': 'ai'}
+        _actions[aid] = rec
+    _snapshot_publish(rec, 'pending')
+    return rec, None
+
+
+def _norm_plan_step(i, st):
+    """校验计划里的第 i 步（1-based），返回 (step, error)。"""
+    if not isinstance(st, dict):
+        return None, f'第 {i} 步不是对象'
+    act = str(st.get('action') or '').strip()
+    if act not in PLAN_ACTIONS:
+        return None, (f'第 {i} 步动作不支持: {act}'
+                      f'（计划里可用: {", ".join(PLAN_ACTIONS)}）')
+    p = st.get('params') if isinstance(st.get('params'), dict) else {}
+    step = {'action': act, 'sample': str(st.get('sample') or '').strip(),
+            'stages': st.get('stages') or None, 'params': p,
+            'tool': p.get('tool'), 'tool_params': p}
+    if act in ('rerun_stage', 'retry_failed'):
+        if not step['sample']:
+            return None, f'第 {i} 步（{act}）需要 sample'
+        if act == 'rerun_stage' and not step['stages']:
+            return None, f'第 {i} 步（rerun_stage）需要 stages'
+    elif act == 'run_tool':
+        if not str(p.get('tool') or '').strip():
+            return None, f'第 {i} 步（run_tool）需要 params.tool'
+    elif act == 'create_sample':
+        if not str(p.get('r1') or '').strip():
+            return None, f'第 {i} 步（create_sample）需要 params.r1'
+    elif act == 'build_host_db':
+        if not str(p.get('genome') or '').strip() or p.get('taxid') in (None, ''):
+            return None, f'第 {i} 步（build_host_db）需要 params.genome 与 params.taxid'
+    return step, None
+
+
+def _create_plan(params, reason, source):
+    """plan 执行单：steps 按顺序执行，前一步任务 done 才进入下一步。
+
+    计划本身不复制子动作的参数校验（那由各动作在执行时给出可读错误），
+    只在提案阶段挡住缺关键参数的步骤，避免用户批准一张注定失败的计划。
+    """
+    params = params if isinstance(params, dict) else {}
+    steps = params.get('steps')
+    if not isinstance(steps, list) or not steps:
+        return None, 'plan 需要 params.steps（1~6 步，按顺序执行）'
+    if len(steps) > PLAN_MAX_STEPS:
+        return None, f'plan 最多 {PLAN_MAX_STEPS} 步（收到 {len(steps)}）'
+    norm = []
+    for i, st in enumerate(steps, 1):
+        step, err = _norm_plan_step(i, st)
+        if err:
+            return None, err
+        norm.append(step)
+    with _lock:
+        pending = sum(1 for r in _actions.values() if r['status'] == 'pending')
+        if pending >= MAX_PENDING:
+            return None, f'待批执行单已达上限（{MAX_PENDING}），请先处理'
+        global _order_n
+        _order_n += 1
+        aid = f'act_{_order_n}'
+        lang = get_config().lang
+        rec = {'id': aid, 'action': 'plan',
+               'title': ACTIONS['plan']['title'][0 if lang == 'zh' else 1],
+               'sample': norm[0].get('sample') or '',
+               'stages': None, 'params': {}, 'base_params': {},
+               'steps': norm, 'step_total': len(norm),
+               'reason': str(reason or '')[:800], 'status': 'pending',
+               'source': source, 'error': '', 'tid': '', 'ts': time.time(),
+               'origin': 'ai'}
         _actions[aid] = rec
     _snapshot_publish(rec, 'pending')
     return rec, None
@@ -448,19 +620,27 @@ def _snapshot_publish(rec, status):
 def resolve(aid, decision):
     """批准 / 驳回。返回 (rec, error)。decision: approve | reject。"""
     _hydrate()
+    if decision not in ('approve', 'reject'):
+        return None, 'decision 只允许 approve / reject'
     with _lock:
         rec = _actions.get(aid)
         if not rec:
             return None, '执行单不存在'
         if rec['status'] != 'pending':
             return None, f'执行单已处理（{rec["status"]}）'
+        # 2026-11-02：状态翻转必须与「是不是 pending」的判定在同一把锁里。
+        # 以前校验与置 executing 分两段加锁，双击「批准」时两个请求都看到
+        # pending，各起一个执行线程 → 同一动作真的跑了两次。
+        rec['status'] = 'rejected' if decision == 'reject' else 'executing'
     if decision == 'reject':
-        _snapshot_publish(rec, 'rejected')
+        _publish(rec)
+        _audit(rec)
         return rec, None
-    if decision != 'approve':
-        return None, 'decision 只允许 approve / reject'
     # 并发闸：AI 发起的运行全平台同时最多 MAX_AI_RUNS 个
     if _ai_active_count() >= MAX_AI_RUNS:
+        with _lock:                      # 放回 pending，让用户稍后再批
+            if rec.get('status') == 'executing':
+                rec['status'] = 'pending'
         return None, (f'AI 发起的运行已达并发上限（{MAX_AI_RUNS}），'
                       f'请等当前运行结束')
     _snapshot_publish(rec, 'executing')
@@ -472,21 +652,209 @@ def resolve(aid, decision):
 def _execute(rec):
     """在后台线程把执行单落到真实任务（与界面按钮同一通道）。"""
     try:
-        act = rec.get('action')
-        if act == 'download_runs':
-            tid = _launch_download(rec)
-        elif act == 'run_tool':
-            tid = _launch_tool(rec.get('tool'), rec.get('tool_params'))
-        elif act == 'create_sample':
-            tid = _launch_create_sample(rec.get('params') or {})
-        else:
-            tid = _launch_analysis(rec['sample'], rec.get('stages'),
-                                   rec.get('params') or {})
+        if rec.get('action') == 'plan':
+            _run_plan(rec)          # 自己管状态与等待，逐步骤上报
+            return
+        tid = _dispatch(rec)
+        if rec.get('action') == 'create_sample':
+            # 同步动作：_dispatch 返回的是**样品名**而非任务 id，活已干完。
+            # 2026-11-02：以前把样品名写进 rec['tid']，AI 拿它去 wait_task
+            # 会轮空到超时并报「状态未知」。样品名单独存 result_sample。
+            rec['result_sample'] = str(tid)
+            _snapshot_publish(rec, 'done')
+            return
         rec['tid'] = str(tid)
         _snapshot_publish(rec, 'launched')
+        # 2026-11-02 关键修复：单动作执行单以前停在 launched 永不再动
+        # （前台只有计划 plan 分支会等终态），卡片永远是「已启动」，
+        # AI 只能一直说"还在跑"——这就是「AI 工作台跑不完整」的直接原因。
+        # 这里给每条任务型执行单配一个守护线程，跑到终态回写 done/failed。
+        if _watcher_kind(rec.get('action')):
+            threading.Thread(target=_watch_to_terminal, args=(rec, str(tid)),
+                             daemon=True, name=f'ai-watch-{rec.get("id")}'
+                             ).start()
     except Exception as e:
         rec['error'] = f'{type(e).__name__}: {e}'[:400]
         _snapshot_publish(rec, 'failed')
+
+
+def _watcher_kind(action):
+    """哪些动作的返回值能被守护线程跟踪到终态。
+
+    tm 任务（analysis / run_tool / build_host_db）→ 'task'；
+    下载管理器批次（download_runs）→ 'download'；
+    其余（create_sample 同步）→ None（已在上游直接收尾）。
+    """
+    if action in ('rerun_stage', 'retry_failed', 'run_analysis', 'analysis'):
+        return 'task'
+    if action in ('run_tool', 'build_host_db'):
+        return 'task'
+    if action == 'download_runs':
+        return 'download'
+    return None
+
+
+def _watch_to_terminal(rec, rid, timeout=6 * 3600, interval=3.0):
+    """守护线程：把执行单从 launched 推到真实终态（done / failed）。
+
+    以前只有 plan 会等终态，单动作永远停在 launched，任务失败也不写
+    error——卡片看着「已启动」，实际早就崩了，AI 还照旧说「还在跑」。
+    这里按动作类型选轮询源，终态必回写，并把任务失败原因带进 rec.error。
+    """
+    kind = _watcher_kind(rec.get('action'))
+    end = time.time() + timeout
+    snap = {}
+    try:
+        if kind == 'download':
+            snap = _watch_download(rid, end, interval)
+        else:
+            from Virus_Platform_Core.web.tasks import tm
+            ok = _wait_task(rid, timeout=max(1.0, end - time.time()),
+                            interval=interval)
+            try:
+                snap = tm.snapshot(rid, log_lines=0, include_result=False) or {}
+            except Exception:
+                snap = {}
+            status = str(snap.get('status') or '')
+            if ok or status == 'done':
+                _snapshot_publish(rec, 'done')
+                return
+            rec['error'] = (str(snap.get('error') or '').strip()
+                            or f'任务 {rid} 未成功（状态: {status or "未知"}）'
+                            )[:400]
+            _snapshot_publish(rec, 'failed')
+            return
+    except Exception as e:                      # 守护线程绝不能抛到无人接
+        rec['error'] = f'状态跟踪失败: {type(e).__name__}: {e}'[:400]
+        _snapshot_publish(rec, 'failed')
+        return
+    if kind == 'download':
+        status = str((snap or {}).get('status') or '').lower()
+        if status == 'completed':
+            _snapshot_publish(rec, 'done')
+        else:
+            hint = '（可到「公共数据下载」页续传）' if status == 'interrupted' else ''
+            rec['error'] = (str((snap or {}).get('error') or '').strip()
+                            or f'下载批次 {rid} 未成功（状态: '
+                               f'{status or "未知"}）{hint}')[:400]
+            _snapshot_publish(rec, 'failed')
+
+
+def _watch_download(did, end, interval):
+    """轮询下载管理器，直到批次终态（或超时）；返回末次快照。
+
+    状态口径（public_data.DownloadManager）：resolving → downloading →
+    [converting] → completed / failed / cancelled / interrupted。
+    interrupted 可续传，对执行单而言仍是「未成功」，但在 error 里说清楚。
+    """
+    from Virus_Platform_Core.web.download import get_dl_manager
+    mgr = get_dl_manager()
+    snap = {}
+    while time.time() < end:
+        try:
+            snap = mgr.snapshot(did) or {}
+        except Exception:
+            snap = {}
+        st = str(snap.get('status') or '').lower()
+        if st in ('completed', 'failed', 'cancelled', 'interrupted'):
+            return snap
+        time.sleep(interval)
+    return snap
+
+
+def _dispatch(rec):
+    """把一个动作落到真实任务，返回任务 id。计划步骤复用同一条分派。"""
+    act = rec.get('action')
+    if act == 'download_runs':
+        return _launch_download(rec)
+    if act == 'run_tool':
+        return _launch_tool(rec.get('tool'), rec.get('tool_params'))
+    if act == 'create_sample':
+        return _launch_create_sample(rec.get('params') or {})
+    if act == 'build_host_db':
+        return _launch_host_db(rec.get('params') or {})
+    # 2026-11-02：base_params 以前只写不读，于是「原参数重试」实际按设置页
+    # 默认值重跑（assembly_mode / min_contig_len 等被静默重置），AI 却说
+    # 「按原参数重试成功」——两轮结果不可比。这里把上次运行参数作底、
+    # 显式 params 覆盖（与 _analysis_kwargs「body > 设置页默认」同向）。
+    body = dict(rec.get('base_params') or {})
+    body.update(rec.get('params') or {})
+    return _launch_analysis(rec['sample'], rec.get('stages'), body)
+
+
+def _wait_task(tid, timeout=6 * 3600, interval=2.0):
+    """等一个任务中心任务结束：done → True；failed/cancelled/超时 → False。
+
+    任务 id 始终查不到时快速失败（15 秒宽限）：正常经 tm.start 提交的
+    任务文件是同步落盘的，15 秒仍无此任务 = tid 不是任务中心 id（某条
+    分派路径改成了同步动作却没在 _run_plan 里跳过等待），轮空 6 小时
+    只会把卡片冻在「运行中」。
+    """
+    from Virus_Platform_Core.web.tasks import tm
+    end = time.time() + timeout
+    deadline_missing = time.time() + 15
+    while time.time() < end:
+        try:
+            snap = tm.snapshot(tid, log_lines=0, include_result=False) or {}
+        except Exception:
+            snap = {}
+        st = str(snap.get('status') or '')
+        if st == 'done':
+            return True
+        if st in ('failed', 'cancelled'):
+            return False
+        if not st and time.time() > deadline_missing:
+            return False
+        time.sleep(interval)
+    return False
+
+
+def _run_plan(rec):
+    """按顺序执行计划：一步启动 → 等它 done → 下一步。
+
+    任何一步失败/取消/超时都立刻停下，并把「第几步、什么动作」写进 error，
+    不继续往下跑（避免在半成品上继续叠加）。每步开始都发一次事件，对话坞
+    的执行单卡片能看到进度（step / step_total）。
+    """
+    steps = rec.get('steps') or []
+    rec['step_total'] = len(steps)
+    lang = get_config().lang
+    for i, step in enumerate(steps, 1):
+        act = step.get('action')
+        rec['step'] = i
+        rec['step_action'] = act
+        rec['step_title'] = ACTIONS.get(act, {}).get(
+            'title', ('', ''))[0 if lang == 'zh' else 1]
+        rec['status'] = 'running'
+        _publish(rec)
+        _audit(rec)
+        try:
+            tid = _dispatch(step)
+        except Exception as e:
+            rec['error'] = (f'第 {i}/{len(steps)} 步（{act}）启动失败: '
+                            f'{type(e).__name__}: {e}')[:400]
+            _snapshot_publish(rec, 'failed')
+            return
+        rec['tid'] = str(tid)
+        _publish(rec)
+        if act == 'create_sample':
+            # 同步动作：_dispatch 返回样品名而非任务 id，没有可等的任务；
+            # 拿它去 _wait_task 会把样品名当 tid 轮空到 6 小时超时（事故复现：
+            # 卡片停在「运行中」、tasks/ 无新任务、审计盘无下一步记录）。
+            continue
+        if not _wait_task(str(tid)):
+            rec['error'] = (f'第 {i}/{len(steps)} 步（{act}）失败、被取消或超时'
+                            f'（任务 {tid}）')
+            _snapshot_publish(rec, 'failed')
+            return
+    _snapshot_publish(rec, 'done')
+
+
+def _launch_host_db(params):
+    """宿主基因组库构建——与「数据库构建」页 /api/build_host_db 同一条路径。"""
+    from Virus_Platform_Core.web.build import start_host_db_build
+    tid, _out = start_host_db_build(params)
+    return tid
 
 
 def _launch_download(rec):
@@ -557,6 +925,7 @@ def _launch_tool(tool, tool_params):
     base_dir = check_path(os.path.join(_tool_runs_root(), run_name),
                           must_exist=False, in_platform=True)
     run_dir = base_dir
+    created_here = not os.path.isdir(run_dir)
     os.makedirs(run_dir, exist_ok=True)
     threads = None
     if p.get('threads'):
@@ -567,7 +936,18 @@ def _launch_tool(tool, tool_params):
             threads = None
     ctx = SimpleNamespace(p=p, run_dir=run_dir, threads=threads,
                           db_virus=db_virus, req=_req, opt=_opt)
-    job = spec['job'](ctx)          # 缺参/文件缺失在这里抛错
+    try:
+        job = spec['job'](ctx)      # 缺参/文件缺失在这里抛错
+    except BaseException:
+        # 2026-11-02 P2：校验失败不能留下一个空运行目录。只回收本次
+        # 新建且仍为空的目录（os.rmdir 对非空目录直接失败，绝不动
+        # 用户已有目录）。
+        if created_here:
+            try:
+                os.rmdir(run_dir)
+            except OSError:
+                pass
+        raise
     name = get_config().tr(f'AI执行·工具·{spec["title"]} {ts}',
                            f'AI tool·{spec.get("title_en", tool)} {ts}')
 
@@ -582,10 +962,12 @@ def _launch_tool(tool, tool_params):
             pass
         return res
 
-    return tm.start(name, _job_with_run,
-                    log_file=os.path.join(run_dir, 'run.log'),
-                    weight=('light' if tool in LIGHT_TOOLS else 'heavy'),
-                    out_dir=str(run_dir))
+    tid = tm.start(name, _job_with_run,
+                   log_file=os.path.join(run_dir, 'run.log'),
+                   weight=('light' if tool in LIGHT_TOOLS else 'heavy'),
+                   out_dir=str(run_dir), origin='ai')
+    _mark_ai_task(tid)              # 英文界面任务名不再以 'AI执行·' 开头
+    return tid
 
 
 def _launch_create_sample(params):
@@ -614,12 +996,39 @@ def _launch_create_sample(params):
 # ------------------------------------------------------------------
 # 执行器：复用与界面按钮完全相同的启动路径
 # ------------------------------------------------------------------
+def _mark_ai_task(tid):
+    """登记本进程内由 AI 启动的任务 id（语言无关的并发计数依据）。"""
+    tid = str(tid or '').strip()
+    if not tid:
+        return
+    if len(_AI_TIDS) > 5000:          # 长跑进程防无界增长（只影响兜底精度）
+        _AI_TIDS.clear()
+    _AI_TIDS.add(tid)
+
+
+def _count_ai_active(tasks):
+    """数「AI 发起且进行中」的任务。
+
+    判定优先级：记录上的 origin='ai' → 本进程登记过的任务 id →
+    历史记录的中文名前缀 'AI执行·'（英文界面任务名是 "AI run·…"，
+    只靠前缀会让并发上限形同虚设）。纯函数，便于单测直接喂记录。
+    """
+    n = 0
+    for t in (tasks or []):
+        if not isinstance(t, dict) or t.get('status') != 'running':
+            continue
+        tid = str(t.get('id') or '')
+        if (t.get('origin') == 'ai'
+                or tid in _AI_TIDS
+                or str(t.get('name') or '').startswith('AI执行·')):
+            n += 1
+    return n
+
+
 def _ai_active_count():
     try:
         from Virus_Platform_Core.web.tasks import tm
-        return sum(1 for t in (tm.list_all(logs=False) or [])
-                   if t.get('status') == 'running'
-                   and str(t.get('name') or '').startswith('AI执行·'))
+        return _count_ai_active(tm.list_all(logs=False) or [])
     except Exception:
         return 0
 
@@ -670,10 +1079,12 @@ def _launch_analysis(sample, stages, body):
         tid = tm.start(get_config().tr(f'AI执行·{s}', f'AI run·{s}'), job,
                        log_file=os.path.join(
                            log_dir,
-                           f'ai_run_{time.strftime("%Y%m%d_%H%M%S")}.log'))
+                           f'ai_run_{time.strftime("%Y%m%d_%H%M%S")}.log'),
+                       origin='ai')
     except BaseException:
         _sample_busy_release(s)      # 任务没起来也要放掉占位
         raise
+    _mark_ai_task(tid)               # 英文界面是 "AI run·…"，靠登记而非前缀
     return tid
 
 

@@ -2325,6 +2325,108 @@ Python 回退路径统一走 `_norm_read_id`。
 
 ---
 
+## 切换模块不归档任务 + 全局运行条 + 手动归档（2026-11-02，用户要求）
+
+### 需求
+
+用户看着「公共检索 → ④ 运行任务」里两张已完成的卡片说：切模块 / 切功能时任务
+被自动收进历史，**希望切模块时原来的运行继续留着不归档**，只有自己手动点
+「归档」才把旧任务回收。追问后确认复现路径是 **工具页**：任务跑完 / 切到别的
+功能后，运行卡片只剩在「🕘 历史运行」盒子里；要的口径是：
+
+1. **任何模块页都能看到所有正在跑的任务**，切模块不丢；
+2. 任务跑完也留在列表里，**只有点「📦 归档」才进历史归档，且归档可恢复**。
+
+### 勘察结论（改造前）
+
+- 后端**没有**「切模块即归档」的逻辑：任务跑在服务端线程里，`tm.list_all()`
+  按内存返回；页面切换只是整页刷新，`startPolling()` 每页重新接上。
+- 真正的问题是**「在哪里看」**：各模块页各自按任务名前缀过滤（`meta.html`
+  的 `refreshTasks()` 只认 `/^(元数据|公共检索|AI 元数据补全|检索绘图)/`），
+  工具页早已移除底部任务面板（`app-jobs.js`：「工具页已移除底部任务面板」），
+  跑完的工具运行只出现在 `app-runhistory.js` 的「🕘 历史运行」盒（数据源
+  `/api/tool/runs`，与 `/api/tasks` 是两套账）。跨模块看不见 ≠ 被归档。
+- 「历史归档」的旧定义 = **磁盘 `tasks/*.json` 里不在内存的记录**（服务重启前
+  或内存回收淘汰的），任务中心小标题原本写「服务重启前的任务记录」。
+
+### 实现
+
+**后端**
+
+| 文件 | 改动 |
+|---|---|
+| `web/tasks.py` | 抽出 `_rec_json()`（`_persist` 与归档共用同一 JSON 结构）；新增 `_archive_dir()`（`run/tasks/_archive/`）、`_archive_path()`、`archive(tid)`（终态才可归档，写 `_archive/<tid>.json` 并给 `archived/archived_at`，随后从内存与顶层 `tasks/<tid>.json` 移走，避免重复计数）、`unarchive(tid)`（读归档 JSON 重建内存记录、按 `started` 插回 `order`、重新 `_persist`）；`delete` / `purge_all` / `count_archived` / `_read_archived` 同时覆盖两个目录（手动归档的记录带 `archived=True`） |
+| `web/tasks_api.py` | 新增 `POST /api/task/<tid>/archive`、`POST /api/task/<tid>/unarchive`（失败 400 + 中文原因） |
+| （不变） | `_trim_memory()` 的 60/300 稳态回收仍保留：任务只增不减会吃内存，超过 300 条的记录落到磁盘、在任务中心按归档展示；正常使用量级不会触发 |
+
+**前端**
+
+- `app.js` 新增**全局运行条** `#vpRunBar`（右下角、AI 按钮正上方，`z-index: 88`
+  低于 `ai-dock` 的 95）：`runBarMount/Render/Tick/Init`，5s 轮询
+  `/api/tasks?logs=0`（后台标签页不轮询）；运行中/排队中全列 + 进度条 + 停止，
+  已结束的按 `finished` 倒序最多 6 条，行内「📦 归档」；`gxApplyPage()` 里接线。
+- `tasks.html`：终态任务卡加「📦 归档」，归档卡加「↩ 恢复」，小标题改为
+  「（手动归档 / 重启前记录）」；`archiveTask()` / `restoreTask()` 成功后刷新
+  两块列表并调 `window.runBarTick()`。
+- `meta.html`：④ 运行任务卡片同样加「📦 归档」（`mtArchiveTask()`）。
+- `app.css`：`.runbar` / `.rb-*` 样式（收起是胶囊，展开 380px，暗色主题兼容，
+  窄屏收边）。
+- `i18n.js`：`tk.archive*` / `tk.restore*` / `tk.archNote` / `rb.*` 中英两份。
+
+### 验证
+
+- `tests/_it_task_archive.py`：`archive` → 内存移除 + `_archive/<tid>.json`
+  出现 + `list_archived()` 带 `archived=True` → 重复归档报「不存在」→
+  `unarchive` 回到 active 且归档文件删除 → 运行中拒绝归档 → `delete`/`purge_all`
+  两目录都清（只在进程内改 `DIRS['tasks']`，不碰真实 `run/tasks`）。
+- `tests/_it_task_archive_api.py`：test_client 打 archive/unarchive
+  两个接口（200/400 分支）、`/api/tasks?full=1` 的 active/archived 归属、
+  `/tasks` `/meta` `/` `/pipeline` 渲染。
+- `tests/_it_runbar_ui.py`（selenium + Edge headless，端口 8899）：真实浏览器里
+  展开运行条 → 进度条宽度 > 0 → 外部任务（下载批次）不出现「归档」按钮 →
+  点「📦 归档」并确认后行消失且 `/api/tasks?full=1` 的 archived 命中 → 任务中心
+  历史归档点「↩ 恢复」回到 active → 再从列表卡点「📦 归档」回到 archived。
+  截图写 `run/_it_runbar/`（`run/` 已被 .gitignore 忽略）。
+- `tests/_audit_routes.py`（`VP_NO_RECOVER=1`）：264 条路由 0 个 500、0 未捕获异常。
+- `tests/_route_inventory.py`：新增 2 条路由，已 `--save` 更新基线（261 条；含
+  之前未提交的 `/api/fs/{roots,read,raw}`）。
+- 渲染后抽内联 `<script>` 过 `node --check`：`/tasks`、`/meta` 全通过。
+- AI 对话坞「换模块内容没了」实为坞默认收起：历史在 `localStorage`
+  `vp_ai_msgs:<convId>`，但要 `AI.toggle(true)` → `ensureCtx` →
+  `_restoreHistory` 才会渲染。已加 `AI_OPEN_KEY='vp_ai_open'`：`AI.toggle`
+  记住开合，`boot()` 里按上次状态自动开坞（Edge headless 实测：坞开着 →
+  `/meta` 切 `/tools` → 仍是开着且历史 2 条都在）。
+- AI 对话坞「清空后切模块又冒出来」：`AI.clear()` 清的是本地消息，但换页后
+  `AI.hydratePending()` 会按 `GET /api/ai/actions` 的 `recent` 名单把「最近已决、
+  界面没渲染过」的执行单补成只读历史卡，SSE 也会按水位重放。已加
+  `AI_CLEAR_KEY='vp_ai_clear_at'`：`AI.clear()` 记下清空时刻并把事件水位推到
+  服务端当前最大 id（`AI._dropReplay`），`hydratePending` 只补 `ts > clearedAt`
+  的执行单（pending 不受影响）。实测：清空后 page1 卡 0 张 → 切 `/tools` 坞自动
+  开着、卡 0 张、消息 0 条、只剩问候语；stub 造 old1/new1 时清空后只剩 new1。
+- 同一处还有个「一直出现」的坑，最后是**把「已决执行单自动补卡」整条去掉**解决：
+  只比清空时刻的话，服务端 `recent` 里那几条老执行单会在每次开坞再补一遍；
+  加过水位（`vp_ai_act_seen`）与 6 小时时效两道闸，但用户重启成 `app.py --web`
+  后，仓库 `run/ai_audit` 里测试脚本造的 `reason=并发测试 / unit test` 记录仍是
+  「6 小时内、没渲染过」，于是又凭空冒出「AI 执行单·格式转换 / 多步分析计划」。
+  结论：这套 backfill 的收益（回头查上次批准跑没跑）远小于代价，`hydratePending`
+  只保留 ①补 pending 按钮 ②状态对账；已决的单去任务中心（`/tasks`）或运行条看，
+  那里有真任务 id、进度、产物。实测（仓库实例 8765，坞自动开）：首页/切页各
+  0 张、清空后 0 张、消息 0 条。
+- `GET /api/task/<tid>` 在内存里查不到时回落磁盘（`tm.archived_snapshot()`，
+  读 `tasks/_archive/<tid>.json` 或重启前留下的 `tasks/<tid>.json`，返回带
+  `archived: True` 的快照）：否则坞里挂着的任务卡、任务中心刚归档的卡一刷新
+  只能 404，前端写成「任务不存在或已清理」，把「能恢复」说成「没了」。
+  `tests/_it_task_archive_api.py`、`_audit_routes.py`（264 路由）复跑通过。
+  这条是 Python 侧改动，**要重打包/重启才在 8765 上生效**（静态 JS 已就地同步）。
+
+### 遗留
+
+- 工具页「🕘 历史运行」盒仍按 `/api/tool/runs` 展示最近运行（那是运行历史，
+  不是任务归档，本来就带手动 `rhArchive`/`rhClean`）；跨模块的可见性由运行条兜。
+- `count_archived()` 语义改为与 `list_archived()` 同口径（只算不在内存的记录）。
+
+---
+
 ## 阶段表治理 · 样品名归一化 · 清单回填（2026-09-11，承接上一节）
 
 用户要求「扩大改动面，做好检查，好好修复」上一节勘察出的三处独立问题。
@@ -3658,3 +3760,2791 @@ auto / mirror / gitee / github）：
 
 验证：`tests/_check_db_paths.py` rc=0（148 文件 0 命中）；程序包重建后两版
 selfcheck rc=0、dist_completeness rc=0；体积不变（1.88 / 2.57 GB）。
+
+
+### 2026-10-26 续⑥：分发版布局再简化（启动脚本上移 / 小数据并入数据库包）
+
+用户裁定两处：
+
+- `Start-Desktop.bat` / `Start-Web.bat` 从程序目录上移到**版本根目录**，双击
+  即启动 `VirusPlatform/VirusPlatform.exe`（`cd` 目标不带尾部反斜杠，避免
+  cmd 把 `\"` 当转义引号）；`--no-split` 布局仍写在程序根。
+- `databases/dsrna`（热力学查找表 + siRNA 参数）与 `databases/mirna_lib`
+  （候选 miRNA 库）从程序包移入数据库包 `VirusPlatform-Database/databases/`。
+  程序目录不再有 `databases/`，与数据库包不再同名混淆；运行时经
+  `config.db_asset()` 在数据库根下解析（数据库根优先、程序内置兜底）。
+  dsRNA 面板 `panel/` 与 `_cache/` 是用户自备的 GB 级数据，不入包。
+
+同步改动：`package.py` 的 `_DB_TREES` 增加两项、移除程序内副本、启动脚本写到
+版本根；`dist_completeness.py` 的比对项改指数据库包（`--no-split` 自动回退）；
+`help.html` 安装说明与版本列表更新为两版口径。
+
+验证：程序包 1.81 GB / 数据库包 0.71 GB（+13 MB 小数据、程序 −13 MB，总量
+不变）；两版 selfcheck rc=0、dist_completeness rc=0（dsrna 2 / mirna 6 文件
+全部就位）；taxonomy 仍只带 tar，首跑自动解包。
+
+
+### 2026-10-26 续⑦：发布目录收敛为 Release/（删除根目录中间产物）
+
+用户指出 PVAP 根目录的三件产物与 Release/ 并存，「越来越混乱」。澄清：
+根目录 `VirusPlatform / VirusPlatform-Examples / VirusPlatform-Database` 是
+package.py 的**构建中间态**；Release/ 才是对外发布目录（两版硬链接克隆）。
+
+新增 `dev_tools/finalize_release.py`：
+- 从三件中间产物组装 `Release/PlantVirusPlatform`（13 工具）与
+  `Release/PlantVirusPlatform_with_Plugin`（26 工具），写启动脚本与
+  README、按版补 build_info.edition；
+- 组装成功后默认**删除根目录三件中间产物**及根目录启动脚本/说明
+  （--keep-build 可保留）；
+- 中间产物已删时幂等退出（Release 已在则不报错）。
+
+`package.py` 文件头补「发布最终化」口径。当前 PVAP 根目录只剩 Release/
+与用户自备文件；Release 逻辑总量 4.45 GB（两版各 1.88 / 2.57 GB），
+硬链接共享后实际占盘 2.2 GB。两版 selfcheck rc=0。
+
+
+### 2026-10-26 续⑧：两版直接放 PVAP 根目录，取消 Release/
+
+用户要求去掉 `Release/` 这一层：两版直接位于 `D:\桌面\PVAP\` 下。
+
+- `finalize_release.py` 的 `REL` 改为 `DIST`（PVAP 根）；`README.txt` 写到根；
+  组装成功后顺带删除旧布局的 `Release/`；中间产物清理逻辑不变。
+- 现有两版用同卷 `shutil.move` 迁移（保留硬链接，不复制 GB 级数据），
+  删除空 `Release/`。
+- `package.py` 文件头「发布最终化」口径同步：最终只保留
+  `PlantVirusPlatform/`、`PlantVirusPlatform_with_Plugin/`、`README.txt`。
+
+验证：两版 selfcheck rc=0；体积不变（1.88 / 2.57 GB，磁盘共享后约 2.2 GB）；
+PVAP 根目录只剩两版 + README + 用户自备文件。
+
+注：从仓库目录作 cwd 启动 exe 时，宿主沙箱会让 PyInstaller 的 matplotlib
+临时目录探测失败（`No usable temporary directory`）；从版本目录启动或在
+`Start-*.bat` 下（cwd=程序目录）正常，属于测试环境沙箱行为，与产物无关。
+
+
+### 2026-10-26 续⑨：清理 PVAP 根目录的开发残留
+
+删除（约 1.7 GB）：
+- `_audit/`：历次测试结果（tests/results、_b9/_b11_results）、dist12 构建、
+  249 个一次性脚本与日志；
+- `_dbtest/`（空目录）、`_orf_root_probe/`（orfipy 探针日志）、
+  `show_left.py`、`_handoff10.py`（一次性扫描/追加脚本）。
+
+保留方式：`_audit/HANDOFF.md`（25 KB，双语 CLI/日志等交接记录）先复制为
+`docs/HANDOFF_2026-10-26.md` 再删目录，避免丢失未入库的交接信息。
+
+`package.py` 中引用 `_audit/make_launchers.py` 的注释同步去掉。PVAP 根目录
+现在只剩两版 + `README.txt` + 用户自备的 `git-backup-pre-filter-20261011.bundle`
+（592 MB，未动）。
+
+
+### 2026-10-27 样品锚（第一阶段：只读）+ 左下常驻条
+
+背景：用户提出「步骤很多，怎么固定全流程分析相关的样品是同一个？每个任务
+有独立运行空间」。诊断结论：流水线内部靠同一 `run/results/<样品>/` + `_Ctx`
+强绑定；但工具箱任务（`run/tool_runs/<tool>_<ts>_<uuid6>/`）没有样品字段，
+续跑只看 `.done` 标记，`project.json` 只记路径不记内容 —— 三处都可能悄悄
+换掉样品。方案是给「一件样品」立一个**可核对的锚**，先只做记录与显示，
+不动任何判定。
+
+新增（本阶段只读，任何异常都只写 `run/anchors/_anchor.log`，绝不外抛）：
+- `Virus_Platform_Core/anchor.py`：`run/anchors/<slug>/anchor.json`（输入
+  size/mtime/sha256、每轮 run、阶段、产物清单）+ `ledger.jsonl`（每行带
+  `prev`，hash 链可校验）。`slug_of` 确定性：`safe_sample_name` 有损折叠时
+  补原名 sha1 前 6 位，避免中文样品名塌成 `1`/`A` 互相撞目录。首次提交不阻塞
+  ——先拿 size/mtime，sha256 交给后台线程，算完回填。输入变了只记
+  `input.change`（`input_set_count++`），**不拦**。
+- `Virus_Platform_Core/web/anchor_api.py`：`/api/anchor/active`、
+  `/api/anchor/<slug>`、`/api/anchor/<slug>/verify`（三条都只读）。
+- `app.py` 注册蓝图；`web/samples.py` 每行带 `anchor` 摘要；路由基线
+  248 → 251。
+- `pipeline.py` 三处接线：`run_analysis` 起跑 `start_run`、阶段前后
+  `stage_begin/stage_done`、失败/正常收尾 `end_run`，全部 try/except。
+- 前端：`app.js` 左下常驻条（`/api/anchor/active` 6s 轮询，显示
+  `样品 · 项目 · 阶段 N/总 · 当前阶段 · R1 指纹`；「核对」直达 verify
+  接口；× 可收起且轮询不会重新弹出；接口缺失/无锚时整条静默隐藏）。
+  `app.css` `.anchorbar`（左下 `left:12px;bottom:12px`，避开右下 AI Dock）。
+  `i18n.js` 增 `anc.*` 中英词条。
+
+过程中修掉的两个真问题（都会让常驻条「停在上一阶段」）：
+1. `_hash_async` 后台线程与 `stage_begin/stage_done` 各自读改写
+   `anchor.json`，后写者用旧快照覆盖新事件 → 所有写入统一走
+   `_mut()`（RLock + 每次重新读盘）。
+2. `_write_json` 的临时文件名固定 `.tmp`，两线程并发时先替换者把 tmp
+   拿走、后写者 `os.replace` 报 FileNotFoundError → 临时名加随机后缀。
+
+验证：
+- `python tests/_check_anchor.py`（约 40 条断言：sha256 正确性、账本链、
+  篡改检测、换输入只记账、4 条 API 与 `/api/samples` 字段）；
+- `python tests/_check_anchor_ui.py`（Edge headless：条子出现/位置/阶段/
+  指纹/结束态/× 收起/删锚后静默隐藏/页面无未捕获错误）；
+- `python -m pytest tests -q` → 219 passed；
+  `tests/_check_js_syntax.py` → 59/59；`tests/_check_i18n.py` → 缺键 0。
+
+下一步（待用户拍板，本阶段刻意未做）：把锚从「记录者」升级为「判定者」——
+续跑前 `verify` 输入、阶段产物 `register` 到锚、输入不一致时按选项
+拦截/警告/另起 run。
+
+## 2026-10-28（补）：冻结版启动崩溃 —— 摘掉 `pyi_rth_mplconfig`
+
+**症状**：分发版双击后控制台打 `FileNotFoundError: [Errno 2] No usable
+temporary directory found in [...]`（`pyi_rth_mplconfig.py`），或换成新
+PyInstaller 后变成**满 CPU 空转、永不开 8765**（`py-spy dump` 栈：
+`secure_mkdtemp (tempfile.py) → _pyi_rthhook (pyi_rth_mplconfig.py:35)`）。
+
+**根因**：这条 runtime hook 是 PyInstaller 为 **onefile** 写的（每次
+`_MEIxxxx` 变化会让 matplotlib 的 `fontList.cache` 指向已删目录）。它是进程
+**第一条指令**，无条件建临时目录：
+
+- 旧版：`tempfile.mkdtemp()` → `gettempdir()` 逐个候选目录试写，`%TEMP%`
+  不可写时还能退到 exe 目录，所以「有时能起」；
+- 6.22：`_pyi_rth_utils.tempfile.secure_mkdtemp()` 直接对 `%TEMP%` 调带受限
+  DACL 的 `CreateDirectoryW`；被拒后其 `except PermissionError: continue`
+  会重试 `TMP_MAX`(1e4) 次 —— 就是那个空转。
+
+**修法**（两层，已随 2026-10-28 的包发出）：
+
+1. `dev_tools/VirusPlatform.spec` 里 `a.scripts` 过滤掉该钩子：
+   `a.scripts = [s for s in a.scripts if s[0] != 'pyi_rth_mplconfig']`。
+   onedir 的 `_MEIPASS` 固定，这条钩子本来就无收益，摘掉即根治。
+2. `dev_tools/rna_early_import_hook.py`（排在所有自带钩子之前）改成**真探测**：
+   逐个候选（`<程序目录>/run/tmp` → `%LOCALAPPDATA%/VirusPlatform/tmp` →
+   `%TEMP%/VirusPlatform` → 程序目录）做 `makedirs` + 建删探针目录，第一个
+   真能用的才写进 `tempfile.tempdir` 和 TMPDIR/TEMP/TMP；探测结果追加到
+   `run/_boot.log`（≤16KB，覆盖写）。同时保留 `secure_mkdtemp` 替换兜底。
+   RNA 预载改为 try/except：失败只降级 dsRNA/miRNA，不再拖死整个进程。
+
+**排查副作用（重要）**：本机 `D:\PVAP` 与 `%LOCALAPPDATA%` 对**工具进程**
+（受限令牌）的写权限不同 —— `run/` 能建目录、建不了文件，`%LOCALAPPDATA%`
+直接 `PermissionError 13`。所以「我这边起不来」不等于用户那边起不来：判断
+启动问题时以 `run/_boot.log` 和用户双击的结果为准，别拿沙箱里的现象当结论。
+
+**验证**：`tests/_check_frozen_build.py <安装目录>` 两个版本全绿（含
+`/api/dbs` 的 bytes/n_refs/meta、selfcheck usage、首页三块标记、webapp 六个
+文件与源码逐字节一致）。
+
+## 2026-10-28（补二）：工具结果「刷新/切页就没了」+ 手动归档
+
+**现象**：跑完一个工具、看结果，切到别的模块或刷新浏览器，结果区空了，
+只能翻「历史运行」或重跑。
+
+**两个真因**（都实测复现，不是猜）：
+
+1. 恢复逻辑只认 `/tools` 的 `section.card[id^="t-"]`。独立模块页
+   （`/hostremoval`、`/genome`、`/orf`、`/cds-export`）根本没有这种
+   section → `restoreLastResults()` 第一行 `if (!cards.length) return;`
+   直接退出，一张卡都不恢复。
+2. 它拉的是 `/api/tool/runs` 默认列表，**只有全局最近 30 条**。而
+   `run/tool_runs` 已有 372 个运行，align（14 次）、hostremoval（11 次）、
+   genoplot 这些老模块的最近一次早被新模块挤出 30 名 → 查不到就不恢复。
+   历史区用同一份数据，所以老模块展开也是空的。
+
+**改法**：
+
+- `/api/tool/runs` 新增 `per=N`（每个模块前缀只取最近 N 次）、
+  `limit`、`prefix=`；响应多一个 `prefix` 字段。恢复用 `per=1`，
+  历史区用 `per=8`，全局列表默认仍是 30 条（其余调用点行为不变）。
+  缓存键换成 `(签名, limit, per, prefix)`。
+- `restoreLastResults()` 改为按页面实际可见的 `.toolrun[id^="toolrun-"]`
+  收集目标，不再依赖 `section.card`；并给 17 个富结果卡补上
+  `TOOL_RESTORE`（kvsuite / consensus / verify / kvchain / virchain /
+  rdp / rtt / phylogeo / pdprep / phylodyn / dsrna / crispr / conan /
+  sdt / identity / mirna），刷新后**重放专用渲染函数**（表格/图/度量），
+  而不是只给一个下载列表。`cardResultFilled()` 用各自的结果容器判断
+  「眼前已有结果」，不会覆盖正在跑的内容；`pageshow`（bfcache 后退）
+  也触发一次。旧结果只在新任务开始产出时被替换。
+- 归档（新增 5 条路由）：`POST /api/tool/runs/<run>/archive`、
+  `POST /api/tool/runs/archive`（`{keep, prefixes}` 按模块保留最近 N 次）、
+  `GET /api/tool/runs/archived`、`POST /api/tool/runs/<run>/unarchive`、
+  `POST /api/tool/runs/archived/purge`。归档 = 把登记目录移进
+  `run/tool_runs/_archive/`（`_runs_signature` 只扫非下划线目录），
+  数据还在、可恢复；外移到用户目录的运行（`out_link.json`）只归档登记项，
+  产物原地不动。有 running/queued 任务占用同一目录时 409。
+  `GET /archived` 在归档区不存在/不可写时返回 `[]`（不 403）。
+- 前端历史区（`app-runhistory.js`）：每行加「📦 归档」，头部加
+  「🧹 清理…」（prompt 保留次数 → 批量归档）与「📦 归档区」（列表 +
+  恢复 + 永久删除 + 清空归档）。中英词条各 22 个键。
+
+**验证**：
+- `tests/test_run_archive.py`（5 条，pytest，临时目录 + monkeypatch，
+  不碰真实运行）：`per=1` 能带回被挤出 30 名的老模块；归档/恢复/永久
+  删除；批量 keep=1/0；非法名与运行中任务 409。
+- `tests/_check_run_restore.py`（7 条真浏览器）：`/hostremoval`、
+  `/genome`、`/tools#t-align` 刷新后都有「上次运行」；kvsuite 重放出
+  22KB 表格/图并带运行名；历史区列出 8 条且两个新按钮在。
+- `python -m pytest tests -q` → 224 passed；i18n 1387 锚点全绿；
+  JS 语法 59/59；`tests/_route_inventory.py --save` 基线更新（+5 条路由）。
+
+## 2026-10-28（补三）：组装结果 → BLASTN/BLASTX/Primer 跳转全链路
+
+接上一节「未动（留第二步）：anaJump() 跳转目标」，本次补齐。
+
+**现象**：在「④ 病毒 contig 深度分析」的分类表点 BLASTN / BLASTX / Primer，
+页面切到「病毒注释分析」组，然后什么都不发生（没有任务、没有结果）；
+有时只闪一句「启动失败: 无效的运行名」。
+
+**四个真因**（真数据 + 浏览器逐帧记录）：
+
+1. `anaJump()` 目标写死 `#t-hom`，`processAnaJump()` 却取 `#homRun` 下拉并
+   `if (!sel) return` —— `#homRun` / `#homTable` 在「同源比对卡改为序列输入」
+   时就删掉了 → **静默退出**：URL 变了、组切了、卡也显示了，什么都没运行。
+2. Primer 按钮走同一条路落在 BLAST 卡；独立模块 `/primer` 根本没被访问
+   （hom 卡自己的说明就写着「引物设计请使用独立模块 /primer」）。
+3. 「📊 分类报告」只存在于文案里：`openContigReport()` 零调用点，且
+   `loadAnaRuns(true)` 在 `anaCurRun === latest` 时提前 return —— 刷新后
+   分类表（连同那些按钮）再也回不来。
+4. 底层：直接输入序列模式用 contig 名派生缓存目录，而 `_analysis_out()`
+   的运行名白名单只允许 `[A-Za-z0-9_-]`；组装 contig 名普遍带点
+   （`NODE_15048_length_278_cov_1.892683`）→ 一律 **400「无效的运行名」**。
+   所以 1~3 修好也跑不起来。
+5. 附带：`examples.js` 的 `autoFill` 在 DOMContentLoaded 后 400ms 把
+   `/primer` 的 `#pd_fa` 改写成示例路径，覆盖刚带过去的序列。
+
+**改法**：
+
+- `anaJump` 先取 contig FASTA（`contigFastaOf()`，与「点 ID 复制序列」复用），
+  再分路：`blastn/blastx` → 切 annotate 组、填 `#homSeqText`、
+  `runCaSeqInput('hom', action)` 直接运行；`primer` →
+  `sessionStorage.vp_primerjump` + `/primer`，落页后在 `window.load` 里回填
+  `#pd_fa`（`pdRun()` 口径：含换行即 FASTA 文本）。
+- `examples.js::autoFill` 增加 `window.__vpNoAutoFill` 让路开关（仅带参跳转
+  时置位，其它页面示例填充不变）。
+- 新增「📊 分类报告」按钮；`openContigReport()` 同时 `loadViralContigs()`；
+  `loadAnaRuns` 提前返回改为 `latest === anaCurRun && !render`。
+- `_seq_cache_name()`：读写两处统一规范成 `[A-Za-z0-9_-]{1,30}`（点→下划线），
+  `api_tool_analyze` / `api_tool_analysis` 共用，缓存路径一致。
+- CDD 按钮已于 2026-09-29 随本地库下线，确认列表只剩 BLASTN / BLASTX / Primer。
+
+**验证**：
+- `tests/_check_anajump.py`（8 条真浏览器）：按钮存在 → 点它把 20 行分类表
+  拉回来 → BLASTN 切组、序列 384bp 填入、标题带 contig、结果区渲染出
+  「Local DB (offline) no hit」→ Primer 跳 `/primer` 且 `#pd_fa` 以
+  `>NODE_…` 开头（379 字符）。
+- `tests/test_seq_input_cache.py`（6 条 pytest）：带点 contig 的
+  blastn/blastx/primer 直接序列请求均 200；读路径 404 而非 400；
+  `run=..\evil` 仍被拒绝。
+- `python -m pytest tests -q` → 230 passed；i18n 1389 锚点全绿；JS 59/59。
+
+## 2026-10-28（补四）：移除单实例锁（并发保护）
+
+**起因**：启动时打印
+`[提示] 实例锁创建失败（[Errno 13] Permission denied: run\.platform.lock），跳过并发保护。`
+用户要求直接去掉并发保护。
+
+**改动**：
+
+- `app.py`：删除 `_pid_alive()` / `_acquire_instance_lock()` /
+  `_release_instance_lock()` 及 `main()` 里的抢锁与三处释放；`main()` 不再
+  因「已有实例」`SystemExit(3)`。原注释位置留了一句说明，指向本条记录。
+- `Virus_Platform_Core/i18n_cli_catalog.py`：删掉 4 条与锁相关的 CLI 译文
+  （残留锁接管 / 锁不可用 / 锁创建失败 / 已检测到平台运行）。
+- 两个分发版的 `Start-Web.bat` / `Start-Desktop.bat`（共 4 个）：去掉
+  `set "LOCK=..."`、读锁判 pid、`exit /b 3` 的「another instance already
+  running」分支，以及退出时的 `del /q "%LOCK%"`；`run\tmp*` 的启动清理保留。
+- 清掉两版 `run\.platform.lock` 残留。
+
+**行为变化（需要知道）**：
+
+- 现在可以同时开两个实例：实测第一个占 8765、第二个自动落到 8900
+  （8766/8767 落在系统保留端口段）。**代价**：两个实例共享同一份 `run/`
+  —— `queue.json`、`tasks/*.json`、`results/<样品>/` 会互相覆盖；批量
+  跑样品时不要同时开两份。
+- `启动平台-*.bat` 的退出码不再有 3（「被单实例锁拒绝」）这一种。
+
+**验证**：`tests/_check_start_modes.py` 24/24 通过；`pytest tests -q` →
+230 passed；冻结版起两个实例实测并存、无 `.platform.lock` 生成。
+
+## 2026-10-29（补五）：浏览器没自动打开 / 没看到页面
+
+用户反馈：双击启动后「没看到浏览器的启动页面」。查下来是**两条互不相干**
+的静默路径，都在这次修掉了：
+
+1. **旧的单实例锁**：`Start-Web.bat` 读到 `run\.platform.lock` 且里面的
+   pid 仍存活时，会打印一行 `[info] another instance is already running`
+   然后 `exit /b 3` —— 窗口 4 秒后自己关掉，浏览器根本不启动。锁已按用户
+   要求在补四里整体移除，这条路径不存在了。
+2. **`webbrowser.open()` 的返回值被丢掉**：Windows 下它走 `os.startfile`
+   （默认浏览器关联），失败时**只返回 False、不抛异常**。旧代码既没看返回
+   值也没有兜底，于是"没有页面"时控制台一声不响。
+
+**改法**（`app.py::_open_browser`）：默认浏览器 → `os.startfile` →
+`cmd /c start` 三级兜底；每一步结果打印到控制台并追加到
+`run/_open_browser.log`（含 URL）。全部失败时明确提示"请手动在浏览器访问
+<url>"。
+
+**验证**：
+- 用 `BROWSER` 环境变量拦截（把 `webbrowser` 换成写文件的 .cmd）跑冻结版：
+  拦截到 `http://127.0.0.1:8765` —— 证明 exe 确实调用了浏览器打开。
+- 源码模式跑 `python app.py --web`：`run/_open_browser.log` 出现
+  `opened: http://127.0.0.1:8765`。
+- 注意：`Start-Desktop.bat` 或不带参数的 exe 是**桌面窗口模式**
+  （pywebview），本来就不会开浏览器标签；要浏览器就用 `Start-Web.bat`
+  / `--web`。若已有实例占着 8765，新实例会改用 8900/8989 并在控制台打印
+  实际地址。
+
+## 2026-10-29（补六）：组装引擎增加 MEGAHIT（更快）
+
+需求：`3rd/tools/megahit-1.2.9-win64/` 已放好，让组装能选 MEGAHIT。
+
+**接线**：
+
+- `config.detect_tools()` 增 `megahit`（`3rd/tools/megahit*/megahit.bat`，
+  目录名带版本号，用 glob）。
+- `assembly.py` 新增 `choose_assembler()` / `build_megahit_args()` /
+  `run_megahit()`：
+  - `auto`（默认）有 MEGAHIT 就用，`spades` 强制 SPAdes，`srna` 小RNA
+    固定 SPAdes（MEGAHIT k 下限 15/默认 21，21-24nt 拼不出）；
+  - `-m` 传字节（MEGAHIT 只在 0~1 之间才按内存比例）、内存按物理 60% 钳制；
+  - 与 SPAdes 同款「路径含中文 → ASCII 临时目录中转」；MEGAHIT 拒绝已存在的
+    `-o` 目录，所以先 rmtree、不预建；`--tmp-dir` 放同级；
+  - 进度从 MEGAHIT 的 `log` 里数 k 阶段（8 档）。
+- `tool_jobs._tool_job_assemble` 按 `params.assembler` 分派，`result.json`
+  多一个 `assembler` 字段；选 `megahit` 但没装时给人话报错。
+- 前端组装卡加「组装引擎」下拉（auto / SPAdes / MEGAHIT），单次运行与
+  「批量组装」都带 `assembler`；勾「小RNA」自动把引擎拨回 SPAdes。
+- `dev_tools/package.py` 的 `_MAINLINE_KEEP` 增 `megahit-1.2.9-win64`，
+  否则标准版（minimal 口径）打包时会把 `3rd/tools` 里的 MEGAHIT 剔掉。
+
+**关键坑：分发包不带 `3rd/python`**。`megahit.bat` 要先找一个 python.exe
+才能跑它的驱动（找不到就 `exit /b 9009`），冻结版里必然失败。改法：
+新增 `Virus_Platform_Core/megahit_engine.py`，用平台自己的解释器
+`runpy.run_path()` 执行 `3rd/tools/megahit*/bin/megahit.py`（驱动只依赖
+标准库，真正计算在同目录 `megahit_core.exe`），经既有引擎机制调用：
+
+    冻结：VirusPlatform.exe --run-engine megahit_engine.py -1 R1 -2 R2 -o OUT ...
+    源码：python -u Virus_Platform_Core/megahit_engine.py <同样的参数>
+
+两个随之而来的坑：① 驱动里直接写 `exit(0)`（依赖 site 注入的内建名），
+PyInstaller 不跑 site → `NameError: name 'exit' is not defined`，在
+`megahit_engine` 里补 `builtins.exit/quit = sys.exit`；② 源码模式下
+engine 脚本是**直接运行**的，包内相对导入不可用，`_get_config()` 先试
+绝对导入、失败再把平台根塞进 sys.path。spec 的 hiddenimports 登记
+`Virus_Platform_Core.megahit_engine` 与 `getopt`。
+
+**验证**：
+- 单测 `tests/test_assembly_engine.py`（8 条）：引擎选择矩阵（含 srna、
+  未安装、非法值）、参数拼装（单/双端、字节内存、tmp-dir）、进度解析、
+  `--run-engine` 注册守卫。
+- 源码态 API 全链路：`POST /api/tool/run {tool:assemble, assembler:megahit}`
+  → 日志「组装引擎：MEGAHIT」→ 9 contigs / N50 283bp → 长度过滤 9 条。
+- 冻结版：`VirusPlatform.exe --run-engine megahit_engine.py --version` →
+  `MEGAHIT v1.2.9`、退出码 0；真实组装 9 contigs / 1.8s。
+- `pytest tests -q` → 238 passed；i18n 1393 锚点全绿；JS 59/59。
+- 两个分发版已拷入 `3rd/tools/megahit-1.2.9-win64`（16MB）并换新包。
+
+## 2026-10-29（补七）：控制台说"已在浏览器打开"，屏幕上看不到
+
+用户实测：`Start-Web.bat` 打印
+`已在浏览器打开: http://127.0.0.1:8765`，但浏览器里找不到页面。
+
+**取证**：枚举 Chrome 窗口标题，发现早就存在
+`功能树 - 植物病毒分析平台 - Google Chrome` —— 页面**确实打开过**，
+只是那个窗口被控制台压住（或不是当前活动窗口），看起来就像"没反应"。
+`webbrowser.open` / `os.startfile` 只是把标签投递给最近使用的窗口，
+谁在前台它不管。
+
+**改法**（`app.py`）：
+
+1. `_default_browser_exe()`：从注册表解析默认浏览器 exe
+   （`HKCU\...\UrlAssociations\http\UserChoice` 的 ProgId →
+   `HKCR\<ProgId>\shell\open\command`）。拿到路径后**直接以新窗口启动**
+   （Chromium 系 `--new-window`，Firefox `-new-window`），不再依赖 DDE 投递。
+2. `_focus_platform_window()`：打开后按窗口标题（`植物病毒分析平台` /
+   `Plant Virus Analysis Platform`）EnumWindows 找平台窗口，
+   `ShowWindow(SW_RESTORE)` + `SetForegroundWindow` 提到前台，最多等 6 秒。
+   控制台打印「已把平台窗口切到前台。」
+3. 兜底顺序：webbrowser（系统关联，历来有效，放第一位）→ 直接起浏览器新窗口
+   → startfile → `cmd start` → `explorer.exe`；每一步结果写
+   `run/_open_browser.log`（含方法名），失败时明确给出手动地址。
+   注意：新窗口方式不能放主路——受限令牌 / 浏览器处于另一完整性级别时它
+   会"启动了但没有窗口"，实测把主路改成新窗口后反而完全不开。
+
+**验证**：源码模式调用后控制台打印「已用新窗口打开 …」+「已把平台窗口切到
+前台。」，`run/_open_browser.log` 记录
+`opened (new-window: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe --new-window http://127.0.0.1:8765)`
+与 `focused existing platform window`；`pytest tests -q` → 238 passed。
+两个分发版已换包（exe md5 `f1e11935262a33e7e7f027925fc5599e`）。
+
+**续（同日）：用户机器上 `webbrowser.open` 返回 False，而"直接开新窗口"
+只是拉起了进程、窗口没出现，程序当成成功 → 既不出窗口也不兜底。**
+改为**每一步都验证窗口是否真的出现**：按 webbrowser → 新窗口 → startfile
+→ `cmd start` → **Edge + 独立 user-data-dir** → explorer 依次尝试，每步之后
+用 `_focus_platform_window(timeout=5)` 抓平台窗口；抓到就置前并停止，
+抓不到就记日志继续下一条。最后一条 Edge 独立配置不加入任何已运行实例，
+Singleton/完整性级别冲突都绕开，几乎必定出窗口。控制台会明确打印
+「XXX 已调用但没看到窗口，换下一种方式…」，`run/_open_browser.log` 记录
+每一步的返回值。
+
+**再续（同日，真凶）**：控制台已经打印「已在浏览器打开（窗口已切到前台）」，
+用户仍看不到页面。枚举窗口取证发现：机器上**唯一的匹配窗口是控制台自己** ——
+启动脚本 `title Plant Virus Analysis Platform - Web mode (browser)` 的标题里
+含 `Plant Virus Analysis Platform`，`_focus_platform_window` 按平台名匹配就
+命中了它，于是「置前」把**控制台**提到前台并返回成功，浏览器窗口留在后面。
+
+修法：
+1. 匹配条件改成「平台名 **且** 浏览器名」（`Google Chrome` / `Microsoft Edge`
+   / `Mozilla Firefox` / `Chromium` / `Brave` / `Opera` / `Vivaldi`），
+   控制台标题不含浏览器名，天然排除；
+2. 真正的置前用 `AttachThreadInput(当前线程, 前台窗口线程)` + `BringWindowToTop`
+   + `SetForegroundWindow`，否则后台进程的 `SetForegroundWindow` 常被前台锁
+   拒绝（只闪任务栏）。
+
+实测：修复前枚举到的唯一匹配是 `hwnd=0x3D0242 pid=55092 title=Plant Virus
+Analysis Platform - Web mode (browser)`（控制台）；修复后 `_focus_platform_window()`
+命中 `功能树 - 植物病毒分析平台 - Google Chrome`
+
+**补充（同日）：兜底不再写死 Edge。** 用户问"没有 Chrome 时是不是只能用 Edge"。
+实际链路：`webbrowser`（系统默认浏览器，Chrome/Edge/Firefox/360/QQ/搜狗…都行）
+→ 直接起默认浏览器新窗口（按家族选参：Chromium 系 `--new-window`、Firefox
+`-new-window`、不认识的只给 URL）→ `startfile` → `cmd start` →
+**独立配置窗口：默认浏览器 → Edge → Chrome → Firefox**（Chromium 用
+`--user-data-dir`，Firefox 用 `-profile`，都不加入已运行实例）→ `explorer`。
+窗口标题匹配同时补上国产浏览器后缀（360 / QQ浏览器 / 搜狗 / UC / 傲游 / 猎豹 / 2345）。
+。冻结版启动后 8765 在监听、
+Chrome 里存在平台窗口。`pytest tests -q` → 238 passed，两版换包
+（exe md5 `979c68a9a66482bc5fbd41fd81631738`）。
+
+## 2026-10-29（补八）：组装引擎 ↔ 组装模式联动（MEGAHIT 不再显示 SPAdes 模式）
+
+用户指出：引擎选 MEGAHIT 时，右边「组装模式」还列着 rnaviral/metaviral/rna/meta/srna
+——那些是 SPAdes 的参数，MEGAHIT 根本不认。
+
+**改法**：
+
+- 两套模式互斥，前端 `ASM_MODES` 统一维护：
+  - SPAdes：rnaviral / metaviral / rna / meta / srna；
+  - MEGAHIT：default（默认 k 21→141）/ sensitive（`--presets meta-sensitive`，
+    min-count 1，低深度更敏感）/ large（`--presets meta-large`，k 27→127）。
+- 切引擎时自动换成该引擎的默认模式（`asmSyncModes(true)`），页面加载时也同步一次；
+- `auto` 的真实含义取决于机器上有没有 MEGAHIT：`page_tools` 注入
+  `has_megahit` → 模板 `window.VP_HAS_MEGAHIT`，据此决定 auto 下显示哪套模式；
+- MEGAHIT 下隐藏「小RNA (siRNA)」勾选框（它只对 SPAdes 有意义）；勾了小RNA
+  会自动把引擎拨回 SPAdes；
+- 后端 `run_megahit(preset=...)` → `build_megahit_args` 追加 `--presets`；
+  `normalize_megahit_mode()` 把非法值（例如误传 rnaviral）收敛成 default；
+- **一键分析（②→③→④）卡**同样加了引擎下拉并按同一套模式联动，`chains.py`
+  把 `assembler` / `megahit_mode` 透传给它内部复用的那个组装 job —— 否则那张卡
+  列着 SPAdes 模式、实际却按 auto 走了 MEGAHIT，模式被静默忽略；
+- MEGAHIT 支持单端（`-r`），单端样品不再被前端/后端拦；SPAdes 的
+  rnaviral/metaviral/rna/meta 仍要求双端；
+- 顺带修一个隐患：`cfg.tool()` 缺工具时**抛 FileNotFoundError**，之前
+  `me = cfg.tool('megahit')` 会让没装 MEGAHIT 的机器直接失败，而不是回退 SPAdes。
+
+**验证**：
+- `tests/_check_assemble_engine_ui.py`（13 条真浏览器）：auto 下只出 3 档
+  MEGAHIT 模式且默认 default、SPAdes 下出 5 档且默认 rnaviral、小RNA 切回
+  SPAdes、`asmParams()` 不混入对方模式、链式卡同样联动；
+- `tests/test_assembly_engine.py` +2 条：`normalize_megahit_mode` 与
+  `--presets` 映射（含非法值收敛）；
+- 真实任务（单端 FASTA + assembler=megahit + megahit_mode=sensitive）：日志
+  `MEGAHIT 组装 (mode=sensitive, …, 单端 -r)`，k 阶梯按 meta-sensitive 走，
+  4 contigs；`final.contigs.fa` 落盘；
+- `pytest tests -q` → 240 passed；i18n 1396 锚点全绿；JS 59/59。
+
+**再补（同日，最终版）：取消"验证窗口"这一步，Chromium 系改用 `--app` 独立窗口。**
+
+- 上一版用"窗口标题是否出现"判断打开成败是错的口径：Chrome 的窗口标题反映
+  **当前活动标签**，新开的平台标签常常不是活动标签（窗口里可能是别的页面），
+  于是每一步都被判"没看到窗口"，连开 5~6 个标签、最后还打印"未能自动打开"。
+  浏览器其实一直在开，是我的判定错了。
+- 现在：**打开调用返回成功即成功，第一次成功就停**；置前只做尽力而为，
+  失败只提示"看任务栏/手动访问"，不再升级成失败。
+- Chromium 系（Chrome / Edge / 360 / QQ / 搜狗 / UC / 傲游…）第一步就用
+  `--app=<url>` 开**独立应用窗口**：标题就是页面标题，不会被塞进别的窗口，
+  置前也能准确命中；非 Chromium（Firefox 等）仍走普通标签页。
+- 置前匹配改成按**进程名**认浏览器（`chrome.exe`/`msedge.exe`/`firefox.exe`/…），
+  不再依赖窗口标题里的浏览器后缀；同时移除了误加的 `Plant Virus Explorer`
+  （那不是本平台页面的标题）。
+- `_open_browser.log` 改写到第一个**可写**位置：`<平台>/run/` 或
+  `%LOCALAPPDATA%\VirusPlatform/open_browser.log` —— 冻结版写 run/ 可能被拒，
+  之前这条日志一直没落盘，正是它缺失导致我误判。
+
+## 2026-10-29（补九）：浏览器打不开的最终结论（含两个我引入的回归）
+
+用户追问"为什么之前可以、现在不行"。逐项查清后，结论是：**浏览器一直在开**
+（页面轮询请求、Chrome 里的平台标签都能看到），打不开/看不到是我这两天三次
+改动引入的：
+
+1. **用窗口标题判定"开没开成"（回归 1）**：Chrome 的窗口标题反映**当前活动
+   标签**，新开的平台标签常常不在前台（窗口里显示别的页面）→ 每一步都被判
+   "没看到窗口" → 连开 5~6 个标签、最后打印"未能自动打开浏览器"。改动前
+   只调用一次并报成功，所以从没出现这种现象。
+2. **`--app` 用直接 `CreateProcess` 启动（回归 2）**：用 `--browser-selftest`
+   在冻结版里做对照实验，直接 `Popen([chrome, '--app=...'])` 时 Chrome 立刻
+   以 `2147483651 (0x80000003 STATUS_BREAKPOINT)` 退出（带
+   `CREATE_NO_WINDOW`、断开 std 句柄、完全不带 flags 三种都失败），而
+   `cmd /c start "" chrome --app=...` 能正常出窗口 → 改为后者
+   （`_spawn_detached()`）。
+3. **日志写不进去（放大问题）**：`run/_open_browser.log` 在冻结版里始终没
+   落盘，`%LOCALAPPDATA%` 兜底也没写成，导致前两轮缺少证据。
+
+**最终实现**（`app.py::_open_browser`）：
+- 首选 `cmd /c start "" <chromium> --app=<url>` 开独立应用窗口（标题=页面标题，
+  可被准确置前），启动后 3 秒内验证窗口；找不到就退下一条（最多两轮）；
+- 其次 `webbrowser.open`（历史路径，开标签页），**返回成功即视为成功**，
+  不再做窗口验证（否则又是误判）；
+- 其余兜底：startfile → `cmd start <url>` → 独立配置窗口 → explorer；
+- 置前按「进程名属于浏览器 + 标题含平台名」匹配，失败只提示看任务栏。
+
+**排查边界（重要，写下来免得下次再绕）**：我用计划任务以真实用户身份复现时，
+**任务本身把进程放进了一个作业对象**，Chrome 在该作业里一律自杀（0x80000003），
+所以"计划任务里测浏览器"永远是失败的，不能用它判断浏览器逻辑。对照实验：
+同一个上下文里由 .bat 直接 `start chrome --app=...` 能出窗口。
+新增 `VirusPlatform.exe --browser-selftest` 诊断开关：打印冻结态、PLATFORM_ROOT、
+默认浏览器/候选、`--app` 的四种启动方式结果，并演练一遍 `_open_browser`。
+
+`pytest tests -q` → 240 passed；两版 exe md5 `fdaac5dc2449e4b607cacbaf249c062b`。
+
+## 2026-10-29（补十）：组装内存自动检测 / 默认一半 / 超量告警 / OOM 提示
+
+用户问：内存会自动检测吗、默认一半行不行、用满会不会卡、内存类报错能不能提示。
+
+**改法**：
+
+- `assembly.py` 新增 `physical_ram_gb()` / `default_assembler_memory_gb()`
+  （= 物理内存的一半，下限 4GB）/ `assembler_memory_cap_gb()`（= 60%，下限 2GB），
+  两处钳制统一走 `assembler_memory_cap_gb()`；
+- 前端默认值由 `page_tools` 注入（`ram_gb` / `asm_mem_default` / `asm_mem_cap`，
+  同时写进 `window.VP_RAM_GB` 等）：③ 组装卡与一键分析卡的空都改成
+  「物理内存的一半」，`max` 设为物理内存；
+- 输入框下方实时提示：`物理内存约 64GB，建议不超过 38GB（60%）`；超过上限变成
+  「已超过平台上限 38GB（物理内存 60%），运行时会被自动钳制；再高会拖慢整机」；
+- 提交前若内存 > 物理内存的 75%，弹确认（默认拒绝）；
+- 后端：不传 `memory` 时用「物理内存的一半」（`_default_asm_mem()`；一键流程的
+  `chains.py` 同口径），不再写死 64；
+- 失败提示：`looks_like_oom()` 识别 `bad_alloc / out of memory / MemoryError /
+  ERROR_NOT_ENOUGH_MEMORY / cannot allocate / 页面文件太小 / (1455)` 等标记，
+  命中就把原始报错包装成：内存不足 + 建议改成一半 + 上限 60% + 附原始错误前 300 字。
+
+**验证**：`tests/_check_asm_memory.py`（9 条：注入值/默认一半/max/提示文案/
+超上限文案/确认框默认拒绝/默认值不弹确认/后端默认 32GB 实测日志）；
+`pytest tests -q` → 240 passed。本机 64GB → 默认 32GB、上限 38GB。
+
+## 2026-10-29（补十一）：左侧功能栏在中等宽度下不该覆盖内容
+
+**现象**：功能栏位置设为「左侧」时，点开/展开后侧栏盖住了总览内容。
+
+**原因**：`app.css` 里 `@media (max-width: 1024px)` 把左侧栏整体当成**抽屉**
+（`translateX(-100%)` 默认收起，点开浮在内容上 + 半透明遮罩）。窗口小于
+1024 CSS px（例如未最大化、或 150% 缩放下 1536px 的屏）就会命中这条，
+于是"打开侧栏"= 覆盖页面。
+
+**改法**：抽屉只在真正窄的窗口出现——
+- 新增 `@media (min-width: 821px) and (max-width: 1024px)`：侧栏**常驻**但收窄到
+  `--sidenav-w: 204px`，`body` 左内边距同步 204px，内容不被覆盖；
+- 抽屉断点从 1024 降到 820（含顶部形态那条 `html[data-nav="top"]` 的覆盖同步改，
+  否则 821~1024 之间顶部形态会被 `translateX(-100%)` 移出视口）。
+
+**验证**（`tests/_it_nav_responsive.py` 已按新口径加断言并全绿）：
+- 1600/1440/1200：侧栏 236 常驻，内容左边界 > 侧栏右边界（不重叠）；
+- 1000/900：侧栏 204 常驻、`body` padding 204、`pageLeft(224) > navRight(204)`；
+- 820/768/600：抽屉默认收起、☰ 可见、点开有遮罩、点遮罩收起、主区全宽；
+- 冻结版实测：`?v=1793263151`，服务出的 `app.css` 含 `max-width: 820px` 与
+  `--sidenav-w: 204px`（资源版本号按 static 目录 mtime 计算，替换文件即自动破缓存）。
+
+## 2026-10-29（补十二）：浏览器打不开的最终修法——让启动脚本去开
+
+前面几版（补七/补九）都在平台进程里折腾"怎么把浏览器拉起来"，全部失败。
+最后一轮对照实验把机制钉死了：
+
+| 做法 | 结果 |
+|---|---|
+| `Popen([chrome, '--app=…'])`（直接 CreateProcess） | Chrome 秒退 `0x80000003`，无窗口 |
+| `cmd /c start "" URL` **带** `CREATE_NO_WINDOW` | 页面加载了，**窗口不出现** |
+| `cmd /c start "" URL` **不带** flags | 页面加载 + **窗口出现并置前** |
+| 由 .bat 里的 `start "" URL`（有控制台的 cmd）发起 | 同上，稳定 |
+
+结论：**窗口能不能到前台，取决于发起进程有没有控制台 / 有没有被作业对象包住**。
+`Start-Web.bat` 在 Windows Terminal 里跑时进程被放进 ConPTY 的作业对象，平台
+再拉浏览器就永远出不来；而"有控制台的 cmd 执行 start"这条路一直有效。
+
+**改法（不再依赖平台进程）**：
+- 新增版本根目录下的 `open-browser.bat`：等端口就绪（netstat 轮询 8765/8766/
+  8900/8989…）后用 `start "" <url>` 打开页面；
+- `Start-Web.bat` 在启动 exe 前先 `start "" /min open-browser.bat`，并给 exe 加
+  `--no-open`（平台不再自己开浏览器，只打印地址）；
+- `app.py` 支持 `--no-open`；`dev_tools/package.py` 的启动模板同步生成
+  `open-browser.bat`，以后重打包不会丢。
+
+**验证**（我这边的 shell 同样带作业限制，等价 Windows Terminal 场景）：
+`cmd /c Start-Web.bat` → **第 4 秒弹出 `植物病毒分析平台 - Google Chrome` 窗口**；
+`pytest tests -q` → 240 passed；两版 exe md5 `630597679c206025cdaa30c2d14233bb`。
+
+## 2026-10-29（补十三）：拖拽上传失败——服务端没有可用临时目录
+
+**现象**：把 FASTQ 拖到输入框，弹出「上传失败 / Error: [Errno 2] No usable
+temporary directory found in [...]」。
+
+**根因**：不是拖拽没实现，而是 Werkzeug 解析 multipart 时先把上传体 spool 到
+**临时文件**；平台进程的 `tempfile.tempdir` 为空、系统 TEMP 又全不可写（这台机器
+上冻结进程访问 %LOCALAPPDATA%\Temp 被拒），于是 spool 阶段就抛错，500 原样透传
+到前端。引导钩子虽然钉过一次临时目录，但那份探测在某些环境没生效。
+
+**改法**：
+1. `config.py` 增加 `ensure_usable_tempdir()`，**导入 config 时**就校准一次：
+   依次试 `<平台>/run/tmp` → `<平台>/tmp` → `%LOCALAPPDATA%/VirusPlatform/tmp`
+   → `%TEMP%/VirusPlatform` → 平台根，用「建目录再删」验真，第一个通的写进
+   `tempfile.tempdir` 与 TMPDIR/TEMP/TMP。几乎所有入口都会 import config，
+   所以这一道覆盖源码/冻结两种模式。
+2. `web/pages.py` 的 400 处理器识别 `No usable temporary directory`，换成
+   「服务器临时目录不可用：系统 TEMP 与 <程序目录>\run\tmp 都写不进去…」的
+   中文说明，不再只丢英文原文。
+
+**验证**：冻结版 `POST /api/upload`（模拟拖拽的 multipart）——修复前直接报
+`No usable temporary directory`；修复后该错误消失（我这边的沙箱进程随后卡在
+`run\uploads` 的写入权限上，那是沙箱令牌限制，正常账号不受影响）。
+`pytest tests -q` → 240 passed；两版 exe md5 `09759aac694d855e6301a0666d66a465`。
+
+## 2026-10-29（补十四）：顶部功能栏折行时，分组下拉压住「总览」
+
+**现象**（用户两次截图）：顶部形态下点开「数据资源」，下拉浮层把「总览」盖住。
+
+**根因**：功能栏在 1280~1600px 会**折成两行**（实测栏高 82px），而 `.sn-sub`
+是按「单个分组」绝对定位的（`top: calc(100% + 6px)`），于是落在 y=46 ——
+正好压在第二行的一级项上（总览 / 结果中心 / 设置 / MCP 控制台 / 手册）。
+1920px 单行时不明显，所以之前在 1600/1280 的用例只测了"不撑高功能栏"，
+没测"不压一级项"。
+
+**改法**（`app-nav.js`）：
+- 新增 `positionTopSub(group)`：展开时按整条功能栏的 `bottom + 6` 反算
+  `.sn-sub` 的 `top`（相对分组的偏移），单行时结果与原来一致（51px），
+  折行时自动落到栏下方（88px）；
+- `resize`（沿用已有 80ms debounce）与 `vp:i18n` 事件后重新定位已展开的下拉。
+
+**验证**：
+- 实测 1600/1440/1280：栏高 82、下拉 top=88、与「总览」(y 5~40) **无交集**；
+  1920：栏高 45、下拉 top=51、同样无交集；
+- `tests/_it_nav_responsive.py` 增两条断言（`浮层挂在整条功能栏下方 6px`、
+  `浮层不压一级导航项`，后者把 `.sn-foot` 的四个底部入口也算进来），全绿；
+- 只改静态 JS，直接替换两版 `_internal/webapp/static/app-nav.js`，`?v=` 自动
+  变化，F5 即可（md5 `00445b0fc39ae39b041563bbeb210456`）。
+
+## 2026-10-29（补十五）：挂载数据目录.bat 为什么失效 + 重写
+
+**现象**：双击 `挂载数据目录.bat` 直接报「未找到分发版平台」。
+
+**两个原因**：
+1. 脚本把路径写死成 `%~dp0..\PVAP\VirusPlatform`（= `D:\桌面\PVAP\VirusPlatform`），
+   而分发版现在在 `D:\PVAP\PlantVirusPlatform\VirusPlatform`；源码平台的
+   `run\fastq` 也可能还没建。
+2. 更深一层：脚本里 `chcp 65001` 之后又用中文 `echo`，cmd 会按"打开文件时的
+   代码页"逐行读批处理，遇到多字节行会**从中间切断**——实测最后一行被拆成
+   `'…制、不占额外空间）。' is not recognized`。这和其它启动脚本坚持纯
+   ASCII 是同一个原因（`Start-Web.bat` 早年就踩过）。
+
+**重写**（源码根 + 两个分发根各一份，自定位）：
+- 程序目录候选：`<此处>\VirusPlatform.exe`（所在目录就是程序目录）→
+  `<此处>\VirusPlatform\`（版本根）→ 旧布局 `..\PVAP\VirusPlatform` →
+  `..\PVAP\PlantVirusPlatform\VirusPlatform` → 扫 C~G 盘的
+  `\PVAP\PlantVirusPlatform\VirusPlatform`；都没有就**让你粘贴路径**；
+- 数据源：`<此处>\run\fastq`，没有就让你粘贴（例如 `D:\seq\fastq`）；
+- **全文 ASCII**，不再被代码页切断；
+- 已存在时区分「是指向 X 的联接（给 rd 换挂载的提示）」与「普通目录别动」；
+- 联接判定调 `%SystemRoot%\System32\find.exe`——直接写 `find` 在装了 Git Bash
+  的机器上会被 GNU find 抢走（实测报了 `find: "<JUNCTION>": No such file`）；
+- `mklink` 的原始报错不再丢进 `>nul`，失败时直接显示。
+
+**验证**：造一个 `run\fastq` 测试目录 → 双击（源码根那份）→ 输出
+`Mounted: ...\run\fastq -> ...\run\fastq`，PowerShell 查
+`Attributes=Directory, ReparsePoint`、`Target` 正确、透过联接能列到文件；
+随后删除测试联接与测试文件，恢复原状。
+
+## 2026-10-29（补十六）：挂载数据目录改成「一次配置，启动自动」
+
+用户问：还要不要单独跑 `挂载数据目录.bat`。改成两层：
+
+- **交互层**（`挂载数据目录.bat`，仍需手动跑一次）：选分发版目录与数据目录 →
+  建 junction → **把数据目录记进版本根目录的 `mount_source.txt`**；
+- **自动层**（新增 `mount-data.bat`，纯非交互）：`Start-Web.bat` / `Start-Desktop.bat`
+  在 `cd /d "%PRG%"` 之后 `call "%ROOT%mount-data.bat"`；它读 `mount_source.txt`，
+  只在这三种情况下静默退出：没配置 / 源目录不存在 / junction 已存在（或是普通
+  目录，绝不覆盖）。确实需要重建时才 `mklink /J`，完成后打一行 `[mount] … -> …`。
+  启动流程永远不会被它卡住或打断。
+
+其它：
+- `dev_tools/package.py` 的启动模板同步生成 `mount-data.bat` 并在两个 Start
+  模板里插入调用（模板用 raw 字符串，避免 `\V` 这类无效转义告警）；
+- 端到端实测：`mount_source.txt` 记 `D:\PVAP\_mnt_src` → 删掉 junction →
+  跑 `mount-data.bat` → 输出 `[mount] …\run\fastq -> D:\PVAP\_mnt_src`，
+  PowerShell 确认 `ReparsePoint`、target 正确、透过联接能列到文件；随后清理
+  测试联接与测试目录。
+
+
+## 2026-10-29（补十七）：左侧栏展开分组时「总览」被压成一条、下面几项看不到
+
+**现象**（用户两张截图）：左侧功能栏展开「数据资源」后，顶部「总览」的高亮条
+只剩几像素高的一截，其下各分组标题也看不到（折叠态 720p 一进页面就少几项）。
+
+**实测**（selenium 真浏览器，四个窗口尺寸）：展开后 `.navlinks.sn-links`
+可视高度 483/383/303/283，而内容 575 —— `scrollTop` 始终是 0；`总览` 的
+盒子高度从 38px 掉到 2px，其余项保持原高、照旧溢出被裁。1280×720 下即使
+**不展开**，折叠内容 366 也大于可视区 303。
+
+**两层根因**：
+1. `.navlinks.sn-links` 是 `display:flex; flex-direction:column`，而
+   `.navlinks a` 为了省略号写了 `overflow:hidden` —— 这会让 flex 子项的
+   `min-height:auto` 退化成 0。内容超出容器时唯一可压缩的直接子项「总览」
+   被整条吸成残条，而不是让容器滚动。`tests/_it_nav_responsive.py` 原有的
+   `squeezed` 探针测不出来：它比较"盒子高 vs 内容高"，被压扁时两者同为 2px。
+2. `.sidenav` 自己也是 `overflow-y:auto`，与内层 `.sn-links` 形成双滚动容器，
+   整栏可被卷走（品牌头卷出视口、首项切在边沿），外观更像"被盖住"。
+
+**改法**：
+- CSS：`.navlinks.sn-links > * { flex: 0 0 auto; }` 禁止收缩；
+  `.sidenav` 改 `overflow: hidden`（滚动只留给内层链接列；顶部形态自己
+  覆盖成 `overflow: visible`，不受影响）。
+- 矮屏收紧（`@media (min-width:821px) and (max-height:800px)`）：品牌头
+  61→38px、底部区 205→173px、行高 38→32px。720p 折叠态 11 项从「必滚」
+  变成正好放得下（实测四档 `scrollHeight == clientHeight`）。
+- JS（`app-nav.js`）：新增 `revealGroup()` / `revealCurrent()` / `syncMore()`。展开分组后
+  把该组滚进 `.sn-links` 可视区（组比可视区高时以组头贴顶）；进页面时把
+  当前高亮项（或服务端标记的当前分组）带进可视区。只在这两个时机滚，
+  不接管用户自己的滚轮。
+
+**验证**：
+- 四档实测：每行高度 32px（原 2px）、折叠态 `scrollHeight == clientHeight`；
+  1100×560 展开最后一个分组后 `scrollTop=74`、子项完整在可视区。
+- `tests/_it_nav_responsive.py`：NAV_OVERLAP 增加行高下限 `thin` 断言
+  （<24px 判失败，专抓 flex 压缩），新增 `check_reveal()` 在
+  1280×600 / 1100×560 下展开最后一个分组，断言子项自动可见、确实发生滚动、
+  组标题仍在可视区、首项未被压扁；四个页面全绿。
+- `pytest tests -q`：240 passed（132.9s）。
+- 静态资源已同步两版 `_internal/webapp/static/`：
+  `app.css` sha256[:16]=0166c29d75f00c5e、`app-nav.js` = d2ce4239063e7721；
+  `?v=` 由静态文件最大 mtime 生成，F5 即生效，无需重建 exe。
+
+
+## 2026-10-29（补十八）：启动后留下一个空的黑窗口（cmd /K 没关）
+
+**现象**（用户截图）：双击 `Start-Web.bat` 后，桌面上多出一个标题为「命令提示符」、
+停在 `D:\PVAP\PlantVirusPlatform\VirusPlatform>` 的空白控制台。平台本身是好的
+（`VirusPlatform.exe --web --no-open` 在听 8765）。
+
+**根因**：`Start-Web.bat` 里写的是 `start "" /min "%ROOT%open-browser.bat"`。
+`start` 执行 `.bat` 时走的是 **`cmd /K`**（跑完保留窗口），不是 `/C`。helper 脚本
+自己 `exit /b 0` 只退出批处理，`/K` 的命令解释器还在，于是留下一个空提示符。
+实测进程：`cmd.exe /K "D:\PVAP\PlantVirusPlatform\open-browser.bat"`（PID 9204）。
+
+**改法**：
+- `Start-Web.bat`：改为 `start "" /min cmd /c ""%ROOT%open-browser.bat""`，
+  helper 跑完窗口即关；即使用旧写法启动，helper 末尾也改成 `exit`（不是
+  `exit /b`）——`exit` 会结束整个 `cmd /K`。
+- `open-browser.bat` 重写：
+  - 端口来源优先读平台落盘的 `run\.port` / `_internal
+un\.port`
+    （覆盖非默认/随机端口），没有再退回 8765/8766/… 候选表；
+  - 轮询上限 40s → **180s**（首次启动要扫库，40s 内起不来就永远不开页，
+    正是之前"没有浏览器页面"的老毛病）；
+  - 每次打开都写一行 `run\_browser_open.log`（`opened http://127.0.0.1:PORT`），
+    超时也写一行，下次排查不用猜；
+  - 全文 ASCII + CRLF（cmd 会按打开时的代码页切多字节行）。
+
+**连带修掉**（`dev_tools/package.py`）：
+- 启动脚本模板与两版实际文件早已不一致（实际文件里有 `%ROOT%`/`%PRG%` 与
+  清理循环，模板里没有）。现在模板就是实发内容，下次 `python dev_tools/package.py`
+  生成的脚本与这两版一致。
+- `_LAUNCH_MOUNT` 的注释里有中文，而 `_write_launchers` 用 `encode("ascii")`
+  落盘 —— 下次打包会在写 `mount-data.bat` 时直接 UnicodeEncodeError。已改成
+  纯 ASCII。
+- ⚠ `dev_tools/package.py` **没有 `__main__` 保护**，`import` 它会真的开始
+  一次 PyInstaller 构建（本次实测：import 后立刻出现 `Building Analysis`，
+  在仓库根留下 `build/VirusPlatform/base_library.zip`… 已删除）。要复用其中的
+  模板，用 `ast` 读常量，不要 import。
+
+**验证**：
+- 用与启动脚本完全相同的命令跑 helper：
+  `cmd /c start "" /min cmd /c "…\open-browser.bat"` → 4 秒后
+  `run/_browser_open.log` 出现 `[2026-10-29 21:07:01.36] opened http://127.0.0.1:8765`，
+  `Get-CimInstance` 查不到任何 `open-browser` 的 cmd 进程（窗口已关闭）；
+- 两版四个启动脚本逐字节一致（1906 / 1222 / 1940 / 1923 B，全 ASCII）；
+  改动前原件备份在 `%TEMP%\vp_launchers_20261029-210605\`；
+- exe 未重新打包（两版 `VirusPlatform.exe` mtime 仍是 17:13），本次只改启动脚本。
+
+
+## 2026-10-29（补十九）：把 wiki/ 的模块文档放进「组概览」
+
+用户裁定：组概览太空，把 `wiki/` 下按模块写的文档直接放进去（不做第二套手册）。
+
+**内容与映射**
+- `wiki/*.md`（28 篇）复制为 `webapp/static/wiki/*.md`：浏览器直接 fetch，静态目录
+  在 onedir 分发版里是外部数据文件，改文档不用重打 exe。`_Sidebar.md` 是 GitHub
+  wiki 的目录条，不是正文，跳过 —— 实际 27 篇。
+- `webapp/static/wiki/index.json`：`groups`（每组 1~3 篇）+ `global`（8 篇跨组
+  通用文档：Home / Quick-Start / Pipeline-Overview / Architecture / AI-Assistant /
+  CLI-Reference / Settings-Ops / FAQ）。27 篇恰好每篇一次，无重复。
+- 映射：数据资源=Public-Data+Databases；样本处理=Preprocess+Toolbox；定量=Kvsuite；
+  识别分类=Assembly+Host-Prediction；注释=ORF+Genome-Plots；检测=Primer+
+  CRISPR-Design；比较基因组=Phylo；进化动力学=Phylodynamics+Phylogeography+BEAST；
+  结果中心=Result-Interpretation+Report；溯源与提交=Logan+NCBI-Submission。
+
+**页面**
+- 组概览卡片下方新增 `#groupDocs`（`tools.html`），由新脚本 `app-wiki.js` 填充；
+  组内文档默认全展开，「平台通用文档」折叠、首次展开才 fetch。
+- Markdown 渲染器从 `help.html` 内联代码抽成 `webapp/static/app-md.js`
+  （`window.VPMD.render`），`/help` 与组概览共用同一套语法规则。抽出前后 `/help`
+  的 `#md` 文本 12090 字、text sha `797a228d7d861d91`、html sha
+  `b37f59f5abc9c97c` **完全一致**（真浏览器比对）。
+- 两处清理：① 每篇开头那行 `> 返回 Home ｜ 上一页 ｜ 下一页` 是 wiki 翻页条，
+  在应用里是死链，渲染前去掉；② 正文里 156 个 `[模块](Slug)` 互链改写成组内
+  锚点 `#gd-Slug` 或跨组 `/tools?g=<组>#gd-Slug`，未知 slug 原样交给渲染器
+  （不再出现 `href="#"` 的假链接）。跨组跳转后文档是异步渲染的，`app-wiki.js`
+  在渲染完成后按 `location.hash` 再滚一次。
+- 深色主题下容器/摘要配色已补（`html[data-theme="dark"] .gd-sec` 等）。
+
+**坑**
+- `index()` 里 `fetch(...).then(JSON.parse)` 改成 `then(function (txt) { ... })` 时
+  漏了 `JSON.parse`，`idx` 变成字符串 → `idx.groups` undefined → 静默走"没有文档"
+  分支，页面只剩卡片、控制台无报错。已修，并用 `VPWiki._index()` 直接断言返回对象。
+
+**维护与验证**
+- 改 `wiki/*.md` 后跑 `python dev_tools/sync_wiki.py`；`tests/test_wiki_docs.py`
+  校验静态副本逐字节一致、每篇恰好映射一次、每个导航组都有映射。
+- `pytest tests -q`：245 passed（新增 5 项）。
+- 冻结版实测（另起实例，端口 8900）：`/tools?g=phylodyn` 渲染 3 篇、6713 字符、
+  翻页条已去掉；两版 `_internal/webapp` 与源码同哈希
+  （`app-wiki.js=9d620abefb0a3d3b`、`tools.html=88318d043cfc1c27`）。exe 未重打包；
+  注意运行中的实例会缓存 Jinja 模板，**重启后才看到组概览的新区块**。
+
+
+## 2026-10-29（补二十）：样品创建 / 批量导入做到总览页
+
+用户追问「样品创建 / 批量导入放到总览，上次我们提的，要做什么，你做了嘛」。
+上次（2026-10-28）只把**入口按钮**提到首屏，点了仍然跳到 `/samples`，创建表单
+并不在总览 —— 这次把功能本体搬过去。
+
+**做法：一份表单，两个页面共用**
+- 从 `samples.html` 抽出创建/批量导入的标记 → `webapp/templates/_samples_new.html`；
+  逻辑（val、子采样开关、scScan/scScanRender/scScanCount/scScanAll/scScanCreate/
+  scCreate）→ `webapp/static/app-samples.js`。`/samples` 与总览都 include/加载
+  同一份，避免两套表单和校验逻辑漂移。
+- 创建完成后的刷新抽成 `scAfterCreate()`：`/samples` 刷新样品表，总览刷新
+  「最近样品」`loadHome()`（按页面元素存在与否分派）。
+- `home.html`：封面下新增 `<details id="homeNewSamplePanel">`（标题 + 一句说明 +
+  「管理样品 ›」链接），默认折叠；hero 的「➕ 新建样品 / 批量导入」按钮改为
+  展开该面板并聚焦第一个输入框（无 JS 时仍是 `/samples` 链接）。**没有样品时
+  自动展开**（/api/samples 返回空且文案是「尚无样品」），首次使用直接看到表单。
+- `home.html` 补 `{% include "_browse_dlg.html" %}`：面板里的 📂/📁 按钮依赖
+  `#dlgMask/#dlgPath/#dlgList/#dlgPickDir`，漏了就是"点了没反应"（该片段注释里
+  记着 settings/results/submit 三页的历史事故）。
+- 新增 i18n：`hm.newSamplePanel` / `hm.newSamplePanelHint`（中英）。
+
+**验证**
+- 主站实测：总览面板有 scanDir/scanProject/sample/r1/r2/s_project/subsample 等
+  全部输入与 6 个按钮；hero 点击后 `panel.open=true`；用临时目录
+  (`DemoA_R1.fastq.gz` + `DemoA_R2.fastq.gz`) 扫描 → 预览 1 行、类型 PE、
+  「已选 1 / 1 个样品」、无报错；`/samples` 表单与列表（10 个样品）仍正常。
+- 冻结版实测（另起实例，8900）：面板存在、`open=true`（该实例样品表为空，
+  自动展开生效）、扫描同样得到 DemoA。
+- `pytest tests -q`：245 passed；`tests/_check_home_dashboard.py` 24 条全绿。
+- 两版 `_internal/webapp` 已同步（home.html f4447de1dac3、
+  _samples_new.html e7cbd5baac98、app-samples.js da4d8d0eeb54），exe 未重打包；
+  运行中的实例缓存了 Jinja 模板，**重启后**可见。
+
+
+## 2026-10-29（补二十一）：总览「AI 分析台」+ 宿主库构建动作 + 多步计划
+
+用户要求三件事一起补：①总览缺一个能下命令的 AI 对话框（指定数据/样品 → 直接
+建样品、组装、建库）；②「数据库构建」特指**宿主基因组数据库**；③要能多步编排。
+并问：AI 是否自动计入 MCP 与 skills。
+
+**① 总览 AI 分析台（前端，复用现有引擎）**
+- 不复制聊天引擎：`_nav.html` 注入的 `#aiDock` 在总览被搬进
+  `home.html#aiConsoleHost`，加 `.ai-inline` 改成文档流（`position: static`、
+  1214×520），隐藏 FAB 与坞的 ✕；其它页面仍是右下角浮坞（`app-ai.js` 不动）。
+- 输入框、样品/模型选择器、快捷指令、执行单卡片全部沿用；一句话即可提案
+  建样品/组装/建库，批准后走与界面按钮相同的执行路径。
+- `tests/_check_ai_dock_ui.py` 改为双场景：总览断言「内嵌/常开/FAB 隐藏」，
+  `/samples` 断言「初始隐藏 → FAB 展开 → ✕ 收起」。
+
+**② build_host_db 动作（宿主基因组数据库）**
+- `Virus_Platform_Core/web/build.py` 抽出 `start_host_db_build(body)`：
+  校验（genome 存在、taxid 数字、输出目录在允许根内）+ `tm.start`，
+  `/api/build_host_db` 与 AI 执行单共用同一条路径（路由只负责把
+  ValueError 转 400）。
+- `executors.ACTIONS['build_host_db']`（risk=confirm），参数
+  `genome / taxid / out_dir / threads / hash_capacity / rebuild / clean_mid`；
+  提案阶段就挡缺参、文件不存在、taxid 非数字。
+- `tools.py` 的 `propose_action` 枚举与说明同步加入。
+
+**③ 多步计划 plan**
+- `ACTIONS['plan']`：`params.steps` 1~6 步，允许
+  rerun_stage / retry_failed / run_tool / create_sample / build_host_db；
+  **不允许 download_runs**（它归下载管理器管，没有任务中心 tid 可等）。
+- 执行：批准后逐步骤 `_dispatch` → `_wait_task`（`tm.snapshot` 轮询，2s 一次，
+  上限 6h）→ done 才进下一步；任何一步 failed/cancelled/超时立即停止，
+  `error` 写明「第 i/n 步（动作）」。
+- 事件与卡片：`_snapshot` 增加 steps/step/step_total/step_action/step_title；
+  `app-ai.js` 的执行单卡片按 aid **原地更新**（旧逻辑要求旧卡仍是 pending，
+  计划每步上报 running 会刷出一串重复卡片），并在标题下列出步骤清单；
+  状态显示「步骤 2/3 · 运行工具箱工具」。
+
+**MCP / skills 的结论**
+- MCP：**已经自动计入**。对话模型可调 `mcp_tool_catalog` 列全部 vp_* 工具、
+  `mcp_call` 执行；破坏面 `vp_delete_tool_run` 被硬编码挡掉。
+- skills：平台没有这一层（全仓 grep 无 skill 注册/加载）；等价能力是
+  「工具箱 32 个工具」+「插件包」，都已通过 `list_platform_tools` /
+  `run_tool` 暴露给 AI。
+
+**验证**
+- `pytest tests -q`：257 passed（新增 `tests/test_ai_actions.py` 12 项：
+  动作注册、build_host_db 参数校验、plan 步骤校验/顺序执行/失败即停/启动异常）。
+- `tests/_it_ai_actions.py` 三级执行权全绿；`_check_ai_global_ui.py` 全绿；
+  `_check_ai_dock_ui.py` 改造后 11 项全绿。
+- 浏览器实测执行单卡片：pending 显示步骤清单与批准/驳回；running 原地更新为
+  「步骤 2/3」且只有 1 张卡；failed 错误只追加一次。
+- 后端改动需要重打 exe：已用 `PyInstaller dev_tools/VirusPlatform.spec` 构建到
+  `D:/PVAP/_stage` 暂存，验证后再替换两版（见构建日志 `D:/PVAP/_build.log`）。
+
+
+**落地与实测（同日）**
+- 用 `PyInstaller dev_tools/VirusPlatform.spec` 构建到 `D:/PVAP/_stage`（2.4 分钟，
+  产物 exe 56.7MB / _internal 128 项），先在暂存目录起实例验证：`/`、`/api/selfcheck`、
+  `/api/dbs`、`/api/ai/actions` 全部 200，总览分析台 `position=static`、FAB 隐藏。
+- 停掉旧实例 → 两版 `VirusPlatform.exe` 与 `_internal` 备份后整体替换 →
+  `Start-Web.bat` 重启 → 8765 起来；验证失败会自动回滚（脚本内置）。
+- **发现并修掉一个部署缺口**：两版 `platform.json` 里 `ai.enabled=false`、
+  `base_url/model/api_key` 全空（AI 从未在分发版配置过，分析台会显示“未配置”）。
+  已把源码平台 `platform.json` 的 ai 段与 `run/ai_local.json` 的 key 同步到两版
+  （原文件备份为 `platform.json.bak_*`，验证后删除）。
+- 冻结版实测新动作：让模型起草 `build_host_db` → `act_1` 带
+  `{genome: …/example_acmv.fasta, taxid: 3702}`；起草 `plan` → `act_2` 两步
+  `['create_sample','run_tool']`；两条都 reject 掉，未执行。AI 对话实测 78 个
+  delta、回复正常。
+
+
+## 2026-10-29（补二十二）：总览版面回调——样品只留入口，AI 分析台移到数据库模块下面
+
+用户定案：①「新建样品 / 批量导入」内嵌在总览太占地方，只保留封面入口；
+②AI 分析台放到「数据库模块」下面。
+
+- `home.html` 删掉 `#homeNewSamplePanel`（含 `_samples_new.html` 的 include）、
+  页内的 `_browse_dlg.html` 与 `app-samples.js`；封面按钮恢复成普通链接
+  → `/samples`，不再拦截点击/自动展开。`_samples_new.html` + `app-samples.js`
+  仍是 `/samples` 的实现，未改动。
+- AI 分析台整段移到 `#dbCards` 之后、`#favSection` 之前；内嵌方式不变
+  （`#aiDock` 移入 `#aiConsoleHost`、`position: static`、FAB 隐藏）。
+- 清掉随之无用的 `.home-newsample` CSS（943B）与 `hm.newSamplePanel*` 两条
+  i18n 键（中英各一）。
+- 验证（源码 + 冻结版）：页面顺序 = hero → 运行中任务 → 数据库模块 →
+  AI 分析台 → 常用工具 → 最近样品；`#homeNewSamplePanel`/`#scanDir` 不存在；
+  封面按钮 href=/samples；分析台 `position=static`、无控制台错误。
+  两版 `_internal/webapp` 已同步并重启。
+
+
+## 2026-10-30：数据库模块并入封面（同底色）
+
+用户要求：把「数据库模块」放进封面那块深绿区域，卡片用同样的背景色。
+
+- `home.html`：`#dbCards` 与它的分区标题整体移进 `.hero.cover`，外面包一层
+  `.cover-db`（上边线与封面口径行同色，做分区）。DOM 契约不变——数据仍由
+  `app.js::loadHome()` 填 `#dbCards`，`_check_home_dashboard.py` 原样通过。
+- `app.css`：新增 `.cover-db` 段。卡片不再用白底，改成同色系半透明
+  `rgba(255,255,255,.07)`（悬停 .12 + 浅绿描边），文字用 `#f2fbf6` /
+  `#b9d8c8`；`st-ok` / `st-no` 药丸改成深底浅字。分区标题的竖条与分隔线
+  也换成浅色，避免在深绿上看不见。
+  ⚠ 颜色选择器必须写到 `.cover-db .module-card .mc-desc`：基础规则
+  `.module-card .mc-desc` 与本段同优先级时后者靠"定义更晚"胜出，只写
+  `.cover-db .mc-desc` 会被压回灰色（实测 rgb(123,138,153)）。
+- 布局顺序变为：封面（标题 + 口径行 + 按钮 + **数据库模块**）→ 运行中任务 →
+  AI 分析台 → 常用工具 → 最近样品。
+- 验证：1400px 下封面高 524px、4 卡一行；900px 下自动换两行、封面 759px，
+  两种宽度都无横向溢出；冻结版重启后同样生效。`pytest tests -q` 257 passed，
+  `_check_home_dashboard.py` 全绿。
+
+
+## 2026-10-30（补二）：总览收敛为 AI 工作台 + 附件/工作空间/文件预览
+
+用户定案：数据库模块不在总览展示；封面的两行说明与三个行动按钮全部去掉；
+把空间让给 AI 工作台。同时要求输入区支持"加文件 / 加工作目录"，文件可直接
+粘贴，选了目录后右侧浏览目录内容（参考 OmicoOS 的三栏布局）。
+
+**版面**
+- `home.html`：封面只留标题 + 一句定位（高 99px）；删除 `hm.heroSub` /
+  `hm.heroEng` 两行、三个 `.cover-act` 按钮、整个 `#dbCards` 区块。
+- AI 工作台两栏：左对话（坞内嵌，高度 520→640px），右「工作区文件」320px；
+  ≤1100px 自动上下堆叠。
+- `app.js`：`loadHome()` 的触发条件从 `#dbCards` 改为 `#dbCards || #homeSamples`
+  （否则移除库卡后"最近样品"永远停在"加载中…"）；库卡渲染改为存在才写，
+  避免每页一条 TypeError。`_check_home_dashboard.py` 同步改为"库卡存在才检查"，
+  并新增"总览是 AI 工作台""封面不再放行动按钮"两条。
+
+**附件（＋ / 粘贴 / 拖入）**
+- `＋` 走全站文件对话框（app-browse.js 选中后派发 `vp:filepicked`）。
+- 输入框粘贴：整段是 Windows 路径（含"复制为路径"的引号、file:///）→ 直接
+  变附件；剪贴板里是文件 → 走 `/api/upload` 落到 `run/uploads/` 再附加。
+- 拖文件进对话坞同样上传附加（`.ai-drop` 虚线高亮）。
+- 发送时 `attachments: [绝对路径]` 随 `/api/ai/chat` 提交；`chat.py` 把它们
+  整理成 `context.attachments`（名字/大小/文本前 2000 字）注入系统提示，模型
+  可直接在 `run_tool` 等动作里使用这些路径。上限 8 个、文本预览 8MB 内。
+
+**工作空间与文件面板**
+- 输入框下新增「📁 选择工作空间」（仅内嵌工作台显示）：选目录后记入
+  `localStorage.vp_ai_ws`，右侧面板插一个「工作空间」根并切过去，下次进总览沿用。
+- 右侧面板：根目录由 `/api/fs/roots` 给出（当前样品 / 工具运行 / 示例数据 /
+  下载数据），示例用 `_detect_examples_root()` 兼容三分离分发；列表走既有
+  `/api/browse?all=1`；点文件弹预览浮层：文本 `<pre>`、TSV/CSV 表格、图片
+  `<img>`、HTML `<iframe>`，其它给"打开原文件"。
+- 新增只读接口 `/api/fs/read`（文本片段，>8MB 拒绝，最多 1MB 返回）与
+  `/api/fs/raw`（原样字节）；可读根 = 平台根 + results + tool_runs + downloads
+  + 示例根，越界 400。**不提供写/删/上传**（上传只走既有的 `/api/upload`）。
+
+**验证**
+- `pytest tests -q`：264 passed（新增 `tests/test_fs_preview.py` 7 项：
+  文本读取、越界拒绝、目录拒绝、raw、roots、附件摘要与上限）。
+- 浏览器实测：封面 99px、无按钮、无库卡；坞 640px；粘贴路径 → 1 个附件芯片；
+  粘贴文件 → 上传为 `run/uploads/Paste_R1.fastq` 并附加；`AI.setWorkspace()`
+  → 面板根切到该目录并列出内容；`/api/fs/roots` 返回 4 个绝对路径。
+- 冻结版（重打 exe 后）实测同样通过；`_check_ai_dock_ui.py` 11 项全绿，
+  `_check_home_dashboard.py` 全绿。
+
+
+## 2026-10-30（补三）：工作台面板高度跟随视口
+
+承接"给 AI 工作台足够空间"：上一轮只删了封面元素，但两栏面板仍是固定
+640px —— 高分屏上删掉的空间并没有真正还给工作台。改成
+`.ai-console { --wb-h: clamp(560px, calc(100vh - 330px), 900px) }`，
+对话坞与文件面板共用 `var(--wb-h)`。实测（冻结版，纯 CSS 无需重启）：
+1100 高 → 770px；900 → 570；720 → 560（下限）。两版已同步。
+
+
+## 2026-10-30（补四）：去掉坞里的样品下拉、改名「AI 工作台」、设置卡重排
+
+**① 坞内去掉「（不指定样品）」下拉**（用户要求）
+- `_nav.html` 删除 `#aiSampleSel`，只留模型选择器。
+- `app-ai.js`：`ensureCtx()` 不再拉样品清单、不再默认选"完成度最高"的样品；
+  `AI.sample` 改为跟随顶栏全局样品胶囊（`VP_CTX.sample`），并监听 `vp-ctx`
+  事件 —— 顶栏换样品后下一轮对话自动带上，不再有两处状态打架。
+- 删除 `AI.onSampleChange` / `_selFilled`。
+
+**② 「AI 助手」→「AI 工作台」**
+- i18n：`ai.dock.title/open/notice/greeting`、`ai.se.title/enable`、
+  `se.nav.ai`、`ui.qs.noModelHint` 中英同步改名；`_nav.html` 的 FAB
+  title 兜底文案同步。设置页侧栏条目现在显示「AI 工作台」。
+- `tests/_check_ai_dock_ui.py`：原「样品下拉已填充」断言改为
+  「坞内不再有独立样品下拉」+「标题已改为 AI 工作台」。
+
+**③ 设置页 AI 卡片重排（参考 ZCode 模型设置页）**
+- 两栏：左侧「供应商档案」竖排卡片列表（圆点=激活、模型名、删除），
+  右侧「连接 / 生成 / 主动能力 / 执行权限」四个分组卡片；档案录入框在左栏底部。
+- 六个开/关下拉全部换成拨动开关（`.sw`），配套 `aiSwGet/aiSwSet` 读写；
+  `aiBody()` 的六个字段相应改为读 checkbox，保存/测连路径不变。
+- 新增 i18n：`ai.se.secConn/Gen/Proactive/Exec`（中英）。
+
+**④ 顺带修掉一个既有缺陷：设置页锚点被顶栏压住**
+- 顶部导航形态下吸顶的是「功能栏(可折行 82px) + 工具条(54px)」= 136px，
+  而设置页用 `scroll-margin-top: calc(var(--topbar-h) + 12px)`（54+12），
+  JS 跳转还写死 `const TOPBAR = 54` —— 实测所有锚点落点偏移 -68px。
+- 改为 `calc(var(--head-h) + 12px)`；JS 新增 `headOffset()`，每次滚动时
+  取 `.topbar` 实际底边（侧栏形态仍是 54）。`tests/_check_settings_nav.py`
+  由 12 项红变为全绿。
+
+**验证**：`pytest tests -q` 264 passed；`_check_settings_nav.py`、
+`_check_ai_dock_ui.py`、`_check_ai_global_ui.py` 全绿；冻结版实测设置卡
+两栏 260+694、6 个拨动开关、坞标题「AI 工作台」且无样品下拉；保存按钮
+实测返回「✔ AI 设置已保存并生效」。
+
+
+## 2026-10-30（补五）：工作空间没传给 AI —— 选了目录模型仍说"没有样品"
+
+**现象**（用户截图）：右侧选了 `G:\植物病毒分析平台
+un\fastq`（GQMIX R1/R2
+都在），问"查看目录下的样本进行已知病毒分析"，AI 回答"平台没有任何样品，
+请提供 FASTQ 路径"。也就是说工作空间只影响了**文件浏览**，模型完全不知道它。
+
+**根因**：前端把选择存在 `localStorage.vp_ai_ws` 只用于右侧列表；`/api/ai/chat`
+的请求体里没有它，`chat.py` 的上下文自然也没有。AI 的工具（list_samples 等）
+又只能看平台已建样品，于是只能说"没有"。
+
+**修法**
+- `chat.py`：新增 `_workspace_digest(path)` —— 列一层目录内容（名字/类型/
+  大小/绝对路径，最多 200 条，标 total/truncated）；`_system_prompt` 把它注入
+  `context.workspace`，`run_chat(..., workspace=...)` 透传。
+- `ai_assist.py`：`/api/ai/chat` 接受 `workspace`（字符串），传给 run_chat。
+- `app-ai.js`：新增 `AI.workspacePath()`，发送时带 `workspace: <localStorage
+  vp_ai_ws>`。模型现在能直接从这些路径起草 `create_sample` / `run_tool`。
+
+**验证**
+- 单元：`_workspace_digest` 列文件/目录、缺失目录返回 error、空路径 None
+  （`tests/test_fs_preview.py`，9 项）。
+- 端到端（源码 + 冻结版各一次，真实模型）：带 `workspace=G:\...
+un\fastq`
+  提问 → 回复列出 4 个文件（GQMIX.R1/R2 30.7MB、Trinity.fasta、
+  spades.virus.fasta），并指出 R1/R2 可成对建样品。
+- UI：设置 `vp_ai_ws` 后 `AI.send()` 的请求体确实带 `workspace`，右侧列表 4 项。
+- `pytest tests -q`：266 passed。两版已重打 exe 并替换、重启。
+
+
+## 2026-10-30（补六）：工具轮次 3 太紧 —— 查到一半被掐断，只回一句「轮次超限」
+
+**现象**（用户截图）：AI 查到新检索仍在运行、历史集合已就绪、准备提交预筛时，
+回复末尾是红字「工具调用轮次超限，已截断本次回答」。用户问"为什么没有一直
+运行到出结果"。
+
+**根因**：`chat.py` 的 `MAX_TOOL_ROUNDS = 3`。一次正常的"查状态 → 再确认 →
+提交"就要 3 轮以上；第 4 次模型调用被直接截断，且截断路径只发一条 error
+事件，模型已查到的结论全部丢掉。
+
+**修法**
+1. 预算 3 → **10**（`VP_AI_MAX_TOOL_ROUNDS` 可覆盖，上限 30）。
+2. **重复调用拦截**：同一工具+同一参数第 3 次起不再执行，改把工具结果换成
+   "STOP: 已调用 N 次，结果不会变化，请停止轮询"——查任务状态最容易烧轮次。
+3. **轮次用完也要出结论**：不再发"已截断"，而是追加一条"不要调用工具、
+   基于已有结果给结论"的用户消息，做一次无工具收尾生成；失败才报错。
+4. **系统规则第 12 条**（中英）：提交类 mcp_call 成功后立即收尾，告知用户
+   "已提交、后台运行、完成后播报"，不要原地轮询。
+5. **让"完成后播报"成立**：`tools._mcp_call` 识别返回里的 `task_id/task`，
+   起守护线程轮询任务中心，done/failed/cancelled 时 `broadcast.publish('ai_read')`
+   —— 预筛 / 检索 / CLI 建库这类 MCP 任务以前没有任何播报，模型承诺了却没
+   人通知。
+
+**验证**
+- 新增 `tests/test_ai_chat_loop.py`（3 项，脚本化 chat_stream）：重复调用只执行
+  2 次且出现 STOP；轮次用满后仍输出"收尾总结"且无"轮次超限"事件；预算 ≥6。
+- 源码 + 冻结版实测同一道三连问（样品 / 工具数量 / 预筛项目）：3 次工具调用、
+  0 错误、958 字完整回答（旧预算下必然截断）。
+- `pytest tests -q`：269 passed。两版已重打 exe 并替换、重启。
+
+
+## 2026-10-30（补七）：AI 回复里的表格 / 图片渲染
+
+**现象**（用户截图）：模型输出的 Markdown 表格（`| 文件 | 大小 | 说明 |`）
+被当成纯文本，一整行挤在气泡里；图片同理。
+
+**根因**：`app-ai.js` 的 `aiFmt()` 只处理加粗 / 行内代码 / 无序列表，是
+最早的极简版；平台里另有 `VPMD`（wiki/手册）能渲染表格，但对话没接它。
+
+**改法**：重写为按块解析的 `aiFmt()` + `aiInline()`（仍在 `app-ai.js`，
+不引入第三方库，先 esc 再放行）：
+- 表格：首行含 `|` 且下一行是 `|---|` 分隔行 → `<table class="ai-tbl">`
+  （表头、斑马纹、横向滚动容器；单元格内仍支持加粗/代码）；流式中间态
+  （分隔行未到）先按普通行显示，到位后自动变表格。
+- 图片：`![alt](url)` → `<img class="ai-img" loading="lazy">`，只允许
+  `http(s)://`、`/static/`、`/api/`；`javascript:` / `data:` / `vbscript:`
+  先整段删除（含嵌套括号残留）。链接同样只放行 http(s)、站内路径与锚点。
+- 标题 `#~####` 分四级、引用 `>`、有序列表、分隔线。
+- 渲染器同时挂到 `AI.fmt`，播报（ai_read）与消息共用同一套规则。
+- CSS：`.ai-msg .ai-tbl/.ai-img/.ai-h*/.ai-quote/.ai-hr`。
+
+**验证**：浏览器注入一段含表格+图片+引用+有序/无序列表的 Markdown——
+生成 1 张表（2 表头、2 数据行、单元格加粗生效）、1 张图、引用 1 处、
+有序 2 项、无序 2 项，`javascript:` 未进入 DOM；流式中间态不误判为表格。
+冻结版同步后同样通过；`pytest tests -q` 269 passed（仅静态改动，未重打包）。
+
+
+## 2026-10-30（补八）：思考过程可折叠 + 坞内去掉样品下拉、改名「AI 工作台」
+
+用户要求：展示思考过程，拿到结果后自动折叠；去掉坞里「（不指定样品）」下拉
+（跟随顶栏全局样品胶囊）；「AI 助手」改名「AI 工作台」。
+
+- `provider.py`：解析流里的 `reasoning_content`（deepseek-reasoner 等）→
+  `reasoning` 事件；`chat.py` 原样透传（不计入正文与历史）。
+- `app-ai.js`：答案气泡拆成「思考过程（可折叠 details）+ 正文」两块。推理
+  文字与工具轨迹芯片进思考块；第一条正文增量到达或结束时自动折叠，
+  摘要显示「思考过程（N 步）」；被跳过的重复调用芯片划线计数。
+- 换用 deepseek-reasoner 等"会思考"的模型时，思维链实时可见；deepseek-chat
+  没有思维链字段，思考块里是工具轨迹（照样折叠）。
+- 验证：脚本化事件序列（reasoning + tool×2 + delta）实测折叠行为与步数统计；
+  冻结版同步后同样通过。`pytest tests -q` 269 passed。
+
+
+## 2026-10-30（补九）：锚点「核对」不再甩裸 JSON + 锚状态注入 AI 上下文
+
+**现象**（用户截图）：点锚条的「核对」跳到 `/api/anchor/<slug>/verify`，
+浏览器里是一坨裸 JSON。用户反馈："逻辑很好，但上下游有问题，没能处理好"
+——链路（执行单批准 → 建样品 → 自动锚定 → 可复核）都在，但结果没有以
+人能读的方式呈现，AI 也不知道锚的存在。
+
+**修法**
+1. **核对结果浮层**（`app.js::anchorVerifyShow`）：点「核对」改为拉取
+   verify 结果渲染成中文报告浮层——通过 = "✔ 输入与创建时一致"，附核对
+   时间 / 账本头指纹（sha256 前 16）/ 账本条目数；problems 非空逐条红字。
+   Esc / 点遮罩关闭。裸 JSON 端点保留（程序可读），人看的入口换成浮层。
+2. **锚状态注入 AI 上下文**：`chat.build_context` 增加 `anchors`
+   （`anchor.samples_meta()` 的只读摘要：sample/status/seq/finished）。
+   模型现在能回答"GQMIX 的输入有没有被动过""哪些样品已锚定"，也能在
+   建议里把"锚定"当作链路一环。核对（复算 sha256）仍是显式动作，不随
+   每条消息自动跑。
+
+**验证**：冻结版实测——锚条显示 `GQMIX · 阶段 0/5 · fastp`；点「核对」
+浮层出「✔ 校验通过：输入与创建时一致 — GQMIX」（核对时间/指纹/条目 6）；
+问模型"GQMIX 的锚状态" → 正确回答 running；`pytest tests -q` 269 passed。
+两版 exe 已重打替换并重启。
+
+
+## 2026-10-30（补十）：wait_task（AI 可等任务完成）+ /tasks?focus= 直达任务卡
+
+用户要求：AI 工作台能**等任务完成**（直到给出结果），或者**跳转到任务进行页**。
+
+- 新增 AI 工具 `wait_task(tid, timeout_sec)`：有界阻塞等待（10~240 秒，
+  上限压在 provider 读超时 300s 之内），终态返回 status/name/stage/pct 与
+  result（预览截 2000 字）；超时返回 running + 提示。模型用法（系统规则
+  第 12 条改写为"长任务两条路"）：预计 ≤4 分钟或接近完成 → wait_task 等
+  完直接给结果；可能更久 → 提交后立即收尾（后台跑、完成播报），并可给
+  用户 `/tasks?focus=<tid>` 直达任务卡。
+- `digest.task_overview` 每条补 `tid`（模型要引用任务得先有 id）。
+- `tasks.html` 支持 `?focus=<tid>`：列表异步渲染后滚动到该任务卡并高亮
+  （3 秒渐隐）。
+- `app-ai.js` 思考块底部加「任务进度 ›」链接（新窗口开任务中心）。
+
+**验证**：`tests/test_wait_task.py` 4 项（done 返回结果、超时报运行中、
+缺 tid 报错、终态后停止轮询，tm/时钟均为脚本化替身）；源码实测
+`/tasks?focus=ab97a024687d` → 102 张任务卡中目标卡滚入视口并高亮；
+`pytest tests -q` 273 passed。两版已重打 exe 替换并重启。
+
+
+## 2026-10-30（补十一）：工作台布局重排——模型选择/清空/设置挪到底部右下
+
+用户草图：顶部只留「AI 工作台」标题；「当前配置 · deepseek-chat」整条和
+右上角 ⟲/⚙ 两个图标挪到底部右下（参考 OmicoOS：输入行右侧是模型下拉）。
+
+- `_nav.html`：坞头只剩 标题 + 就绪点 + ✕（浮坞收起用；总览内嵌态由既有
+  CSS 隐藏）。模型下拉（`.ai-model-sel`，150px 紧凑宽）移入输入行、发送键
+  左侧；新增 `.ai-dock-foot`：左侧「📁 选择工作空间」+ 工作空间芯片，右下
+  ⟲（清空对话）+ ⚙（AI 设置）。`.ai-dock-ctx` 整行删除。
+- `app.css`：`.ai-inputrow .ai-model-sel`、`.ai-dock-foot(-ops)` 样式；
+  `.ai-workspace` 内嵌进 foot 后去掉自身 padding。
+- 功能不变：模型切换/清空对话/设置入口/工作空间选择全部可用，只是位置随
+  布局变化；`AI.loadModels/onModelChange/clear/pickWorkspace` 无需改动。
+
+**验证**：`_check_ai_dock_ui.py` 11 项全绿；`pytest tests -q` 273 passed；
+冻结版实测：坞头仅标题（1 个 ✕，总览隐藏）、模型下拉在输入行右下、
+foot 左工作空间/右 ⟲⚙、无 `.ai-dock-ctx`、无 `#aiSampleSel`。
+两版 `_internal/webapp` 已同步并重启。
+
+
+## 2026-10-30（补十二）：顶栏「总览/样品/项目/全局清理」右对齐
+
+用户要求：顶栏左侧那簇（总览 + 样品胶囊 + 项目胶囊 + 全局清理）挪到右侧。
+
+实现：`.topbar { justify-content: flex-end }` + `.navctx-host { justify-content:
+flex-end }`（host 是 flex:1 的弹性容器，内部还要右对齐才能把胶囊推到边上）。
+左侧只留 `#tbTitle` 页名。EN / 📂 顺序不变，仍在其后。
+
+验证：冻结版实测 chips 右缘 1089/1191/1289（紧贴 EN 区），无横向溢出；
+`_check_home_dashboard.py` 全绿；`pytest tests -q` 273 passed。
+
+
+## 2026-10-30（补十三）：模型下拉再挪——foot 行右端、清空/设置左侧
+
+用户指定：模型下拉从输入行挪到下一行右下角，放在 ⟲/⚙ 图标左侧。
+
+- `_nav.html`：`#aiModelSel` 从 `.ai-inputrow` 移入 `.ai-dock-foot-ops`
+  （顺序：模型下拉 → ⟲ 清空 → ⚙ 设置）。输入行现在只有
+  ＋ / 输入框 / 发送键，更清爽。
+- `app.css`：`.ai-dock-foot-ops .ai-model-sel` 紧凑样式（200px、12px），
+  原 `.ai-inputrow .ai-model-sel` 规则删除。
+- 功能零变化：`AI.loadModels/onModelChange` 引用的还是同一个 id。
+
+**验证**：DOM 断言（foot-ops 子元素顺序 = aiModelSel → ⟲ → ⚙；输入行内
+无残留）；`_check_ai_dock_ui.py` 全绿；两版已同步并重启标准版。
+
+
+## 2026-10-30（补十三）：标语进侧栏品牌位 + 环境状态进顶栏 + 封面整块删除
+
+用户定案：侧栏顶部的品牌位改放「看见样本里的病毒世界。」；页面上的
+「植物病毒分析平台」「看见样本里的病毒世界。」两行删掉；环境状态
+（模块/工具/数据库/磁盘）搬进顶栏；右侧入口只保留「环境自检」。
+
+- `_nav.html`：侧栏品牌文字改为标语（`data-i18n="hm.heroLead"`，中英随
+  语言切换）；顶栏 `tb-title` 之后插入 `#envStrip`（`env-strip-top` 变体，
+  扁平无卡片底），链接改指 `/settings#sec-selfcheck`、文案「环境自检」。
+- `home.html`：封面（标题 + 定位语）与页内 envStrip 整块删除 —— 总览页
+  从此只有 AI 工作台 + 运行中任务 + 最近样品。环境条的填充脚本保留在
+  home 内联（其它页面 envStrip 保持隐藏）。
+- `app.css`：新增 `.env-strip-top` 扁平样式（无卡片底、12px、防溢出）；
+  删除不再使用的 `.hero.cover.hero-slim` 块。
+- i18n：新增 `hm.env.selfcheck`（中英）；`hm.heroLead` 既有键复用。
+
+**验证**：冻结版实测——侧栏品牌显示标语；封面消失；顶栏出现 4 位环境
+状态（✔模块 141/141 · 外部工具 32/32 · 数据库 就绪 · 磁盘 34.3 GB）与
+「环境自检」链接；`pytest tests -q` 273 passed。仅模板/静态改动，
+两版已同步并重启标准版（Jinja 模板缓存需重启）。
+
+
+## 2026-10-30（补十四）：侧栏品牌位改两行 —— 平台名 + 定位语小字
+
+承接上一条（用户澄清）：不是用定位语**替换**平台名，而是两行一起作为
+侧栏顶部品牌 —— 第一行「植物病毒分析平台」，第二行「看见样本里的病毒
+世界。」小字。
+
+- `_nav.html`：`.sn-brand-txt` 内改为 `b.sn-brand-name`（NI.brand()，
+  服务端按语言输出）+ `small.sn-brand-tag`（`data-i18n="hm.heroLead"`，
+  中英随语言切换）。
+- `app.css`：`.sn-brand-txt` 改纵向 flex；`.sn-brand-name` 13.5px/700
+  nowrap+ellipsis；`.sn-brand-tag` 10.5px `#9dc4ae`；821~1024px 档与
+  顶部导航档分别给小一号的字。原 `.sn-brand-txt { font-size: … }`
+  容器规则不再影响子元素（子元素均带显式字号）。
+- 顶栏右侧状态簇（上一条）不变；冻结版实测两行显示、无溢出；
+  `_check_home_dashboard.py` 全绿。仅模板/CSS 改动，两版已同步并重启。
+
+
+## 2026-10-30（补十五）：顶栏环境状态一体化 —— 状态位改胶囊、消除中段空洞
+
+用户反馈：环境状态位「不是完整的整合在顶部，好像嵌套的」——状态是裸文本
+挤在左段，环境自检是下划线链接，右侧样品/项目/清理却是胶囊芯片，中间一段
+大空白，读起来像两截。
+
+- `env-strip-top` 改为 `flex:1` 的连续容器：四个状态位（模块/外部工具/
+  数据库/磁盘）与「环境自检」统一做成**胶囊**（圆角 999、surface 底、
+  状态色描边 ok/warn/bad）；
+- `navctx-host` 不再生长（`flex: 0 0 auto; margin-left: auto`），右簇
+  （样品/项目/清理/EN/📂）被推到最右，中段只留一段干净的分隔空隙。
+
+**验证**：冻结版实测——四个状态胶囊 + 环境自检胶囊与右簇同排同高，
+`gapToRight=17px` 为自然间距；`_check_home_dashboard.py` 全绿。
+
+
+## 2026-10-30（补十六）：锚条链接改向 —— 「正在分析」去任务中心、「核对」去结果页
+
+用户要求：左下常驻锚条（`#vpAnchorBar`）上「正在分析」应跳任务中心（原为
+`/results`），「核对」应直接打开该样品的结果页（原为弹校验浮层）。
+
+- `app.js anchorBarPaint()`：`abOpen.href = '/tasks'`（title「打开任务中心
+  查看进度」，完成态文案仍为「刚完成」）；`abVerify.href = '/results?sample='
+  + encodeURIComponent(a.sample || a.slug)`（title「打开该样品的结果页」）。
+- 顺带清理死代码：`anchorVerifyShow()` 浮层函数及导出删除（app.js）、
+  `.ancv` 样式块删除（app.css）、`anc.cvChecked/cvHead/cvSeq` 中英键删除
+  （i18n.js）。锚校验数据本身仍由 `/api/anchor/verify` 提供，可随时复用。
+- 冻结版实测：`abOpen`→`/tasks`、「正在分析」；`abVerify`→
+  `/results?sample=GQMIX`、「核对」；无控制台报错。
+
+**任务中心分组现状（回答用户提问）**：`tasks.html` 当前是**按提交时间倒序
+的平铺列表**，过滤器只有「只看当前样品」（`curOnlyChk`）；没有按项目、
+也没有按任务模块分组的视图。任务概览接口（`get_task_overview`）每条已带
+`tid/name/sample/stage`，前端加分组器即可实现「按项目/按模块」折叠视图，
+后端无需改动。
+
+
+## 2026-10-30（补十七）：任务中心分组视图 —— 按时间 / 按样品 / 按模块三态切换
+
+承接用户提问「任务中心有按照项目分组展示嘛，还是只按照的提交时间呢，或者
+任务模块」，用户拍板「两种都支持」。
+
+- `tasks.html` 工具栏新增 `#gtabs` 分组切换（按时间=平铺默认 / 按样品 /
+  按模块），选择存 `localStorage('vp_tasks_group')`，与状态过滤标签
+  （全部/运行中/…）正交叠加。
+- 渲染重构：原 `render()`/`renderArch()` 的增量卡片逻辑抽成
+  `placeCard()`（cardSigs 签名防闪烁）+ `layoutList()`（按 GROUP 决定
+  卡片进列表根还是组体）；组容器 `.tk-group` 带可折叠头（组名 + 数量 +
+  运行数徽标，折叠态存页面内存 `GRP_CLOSED`，跨轮询保持）。归档区同样
+  生效。
+- 归类规则（前端正则，中英任务名都覆盖；依据各 `tm.start()/tm.attach()`
+  调用点的真实命名）：
+  - 样品分析：`队列·/Queue·`、`排队·/Queued·`、`样品分析 X`、
+    `AI执行·X`（负向先行排除 `AI执行·工具·`）、`<样品> · 阶段标签…`
+    （samples.py 流水线任务唯一的空格间隔写法）；
+  - 工具运行：`工具·`、`AI执行·工具·`、`AI tool·`、`宿主预测·`、
+    `Contig分析·/Contig `、`导出迁移 GIF·`；
+  - 数据库构建：宿主库/病毒库/病毒鉴定库/通用病毒库/RVDB 库构建；
+  - 下载与参考集：`下载·`、ICTV/NCBI/GenBank 下载导入、`CDS/PEP 提取`、
+    `GenBank巡检`、`集合建树`、`下载/准备 Taxonomy`、`病毒数据集下载`、
+    `datasets … 下载`；
+  - 检索与鉴定：`检索绘图·`、`AI 元数据补全·`、`AI 总结·`、`LOGAN 批量`、
+    `公共检索`（meta.py SRA/GSA 检索）；
+  - 导出与提交：`CDS/PEP 导出·`、`物种名校验·`、`提交 .sqn 生成·`；
+  - 系统任务：`存储占用扫描`；其余落「其他任务」。
+- 组排序：按样品 = 组内最新任务时间倒序（未关联样品沉底）；按模块 =
+  固定顺序（样品分析→工具运行→数据库构建→下载与参考集→检索与鉴定→
+  导出与提交→系统任务→其他）。
+- i18n：`tk.gtime/gsample/gmodule/gnosample` + `tk.mod.*` 八个模块名，
+  中英双语。
+
+**验证**：归类器 33 例单测全过；冻结版实测——按样品把 2 条「公共检索」
+归入「未关联样品」、按模块归入「检索与鉴定」，组折叠跨轮询（7s）保持、
+再点开恢复，刷新后 module 模式持久化，切回按时间平铺正常，控制台 0
+SEVERE；`pytest tests -q` 273 passed。模板/静态改动，两版已同步并重启
+标准版。
+
+
+## 2026-10-30（补十八）：pdprep 接自建在线库 —— 「在线库圈定 accession → NCBI 取正文」
+
+用户问 pdprep（进化动力学数据接入，/tools?g=phylodyn#t-pdprep）需要的病毒
+基因组「能不能直接通过 api 获取」。探测 39.106.101.94 网关（48 数据集在线，
+CORS 全开、GET-only、120 req/min/IP）后确认：网关 reference/sequences
+（GenBank 记录级元数据，含 Species_NCBI/Length/Geo_Location/Collection_Date
+列）**没有序列正文**，日期地点也稀疏 —— 不能当独立数据源；但它圈定
+accession 又快又准（国内直连）。方案：**网关圈定 → 既有 Entrez efetch
+管道取正文与特征表**。
+
+- 新模块 `Virus_Platform_Core/gateway_client.py`：`GW_BASE` 默认
+  `http://39.106.101.94/api/v1`（env `VP_GATEWAY_BASE` 可覆盖）；`health()`；
+  `resolve_accessions(species/taxid, full_only, max_records)` —— 学名等值
+  `?Species_NCBI=` → 模糊 `?q=` → `?Taxid=` 三级回退；full_only 用
+  sequences 数据集 + `Nuc_Completeness=complete` 组合过滤（reference/complete
+  数据集只有少量代表记录，实测 TMV 2 条 vs 组合过滤 98 条）；超时/失败统一
+  RuntimeError 带可操作文案（提示取消勾选回退 NCBI 检索）。
+- `tool_jobs._tool_job_pdprep` genbank 分支：`gateway=1` 且未手填 accessions
+  时先 `resolve_accessions(...)` 圈定清单 → `import_from_genbank(accessions=…)`
+  走既有 efetch 管道（phylodyn_kit.py:1190 accessions 分支复用，日期/地点
+  仍由 GenBank 特征表提供）。
+- UI（tools.html pdprep 卡）：「在线库圈定」checkbox `pd_gw`（默认不勾）+
+  说明 hint；`runPdprep` 传 `params.gateway`；校验「勾了网关就要填物种名」。
+- i18n：`tk.pdprepGwOn/GwHint/GwNeedSpecies` 中英。
+- 测试：`tests/test_gateway_client.py` 8 例（mock urllib；exact/fuzzy/taxid
+  三策略、full_only 组合过滤 URL 断言、分页、上限截断、无匹配可操作报错）。
+
+**验证**：单测 8/8；真机链路 TMV full_only —— 网关命中 10 条全长
+（AB369275.1 韩国株…）→ `import_from_genbank(accessions=…)` NCBI efetch →
+FR878069.1（2012-01-10/USA）产出合格标准元数据行，NC_001557.1 RefSeq 缺
+日期地点被正确剔除（与 pdprep 文档口径一致）；tools.html 内联脚本 node
+--check 过。exe 重打后两版同步。
+
+
+## 2026-10-30（补十九）：AI 工具调用 DSML 泄漏 —— 根因是 propose_action spec 缺 name
+
+用户截图：AI 工作台里模型回复「我先查一下当前可用的工具口径…」后，正文
+直接打出 `<|DSML|calls><|DSML|invoke name="mcp_tool_catalog"></|DSML|invoke>
+</|DSML|calls>` —— 工具调用没走结构化通道。
+
+**完整因果链（全部实测确认）**：
+1. `TOOLS_SPEC` 里 `propose_action` 条目**缺 `'name'` 字段**（只有
+   description/parameters，tools.py 曾被改坏）；
+2. deepseek 官方 API 严格校验 → 整个请求 **422**（tools[7].function:
+   missing field `name`，复现两次）；
+3. `chat.py` 的兼容降级逻辑（`AIProviderError` 且 status in 400/404/422 →
+   `use_tools=False` 整轮禁用工具重试）把这次 422 当成了「端点不支持
+   tools」→ 降级生效；
+4. 降级后的模型没了 tools 定义，但 system prompt 里大量描述了平台工具
+   （mcp_tool_catalog/propose_action 等）→ 它凭记忆"演"工具调用，把
+   DeepSeek 内部标记（DSML）直接当正文吐出 → 用户看到泄漏。
+
+**修复（三处）**：
+- `tools.py`：补回 `'name': 'propose_action'`（一行）；真机验证——修复后
+  同样的消息模型正常发起结构化调用（list_samples + get_task_overview），
+  无 422、无降级、无泄漏；
+- `chat.py`：新增 `_strip_dsml()`（DSML_RE 剥离 `</?\|DSML\|…>`），三个
+  出口全部过滤（工具轮 assistant 入库、message 分支入库、轮次用完收尾流）
+  ——就算上游再泄漏，也不污染对话历史（防"越聊越多"自我强化）；
+- `tests/test_ai_spec_sanity.py`（新）：6 例——TOOLS_SPEC 每条必须有
+  function.name/parameters.object（防再改坏）、propose_action enum 动作
+  齐全、_strip_dsml 三态。**以后任何改动 TOOLS_SPEC 的提交都必须过这组
+  结构自检**。
+
+## 2026-11-01（补二十）：AI 代理自举层 —— agent-guide / agent-ops / 计划≠已执行
+
+背景：调研 github.com/forageseed/organelleverse 的「AI 驱动」——它自己不调
+任何 LLM，而是把 Python 库按"给外部 AI agent 当工具"设计（agent_guide 自举
++ operations 注册表 + 参数 schema + 诚实结果契约 + 唯一写入边界）。取其三件
+落到本平台：
+
+**① 代理自举指南**
+- 仓库根新增 `AGENTS.md`（完整指南：三入口/自举三步/发现边界/执行纪律/
+  权限边界/环境事实）；agent 宿主与人都直接读它，盘上单一事实源。
+- 新增 `Virus_Platform_Core/agent_guide.py`：`read_guide()`（源码模式读
+  PLATFORM_ROOT/AGENTS.md，冻结版读 _MEIPASS 副本，缺失回退内嵌兜底版，
+  不抛异常）+ `read_skill()`（指针技能卡，可存为
+  `.agents/skills/virusplatform/SKILL.md`）。
+- `main.py` 新增 `agent-guide [--skill]` 子命令；spec 里 AGENTS.md 随包
+  （`datas += [(ROOT/'AGENTS.md', '.')]`，紧挨 README.md 那行）。
+
+**② 操作发现层（单一事实源重构）**
+- `_TOOL_PARAM_SCHEMAS`（mcp_server.py 内 330 行参数表）**原样迁出**为
+  `Virus_Platform_Core/agent_catalog.py` 的 `TOOL_PARAM_SCHEMAS`；
+  mcp_server 改为 `import … as _TOOL_PARAM_SCHEMAS`（行为零变化，导入点
+  在文件头部 import 区）。新增 kvchain 的运行时扩展仍发生在同一 dict 上，
+  catalog 与 MCP 看到同一份。
+- `agent_catalog.py` 四件套：`list_operations(kind)` / `search(q, limit)` /
+  `describe(op_id)` / `parameter_schema(op_id)`——统一目录 = 工具箱
+  （TOOL_REGISTRY×参数表）+ 15 管道阶段（STAGE_ORDER×STAGE_NAMES）+
+  7 执行单动作（executors.ACTIONS），共 54 条，含调用口径（vp_run_tool /
+  vp_pipeline_start / propose_action / HTTP / CLI）。
+- `main.py` 新增 `agent-ops [关键词] [--id <op>] [--schema] [--kind] [--json]`。
+- mcp_server 新增 `vp_search_operations` / `vp_describe_operation`（_RO，
+  只读），工具数 22 → **24**；实测 `_tool_manager.list_tools()` 两工具在位。
+
+**③ 「计划 ≠ 已执行」措辞纪律（反幻觉红线）**
+- `chat.py` 系统提示：中文第 12 条 / 英文第 12 条（原 12 顺延 13）——
+  propose_action 成功 ≠ 已开始 ≠ 已完成；只有三种口径可说「已开始/已完成」：
+  任务中心真实 tid 且终态 done / 亲自读到落盘产物 / create_sample 同步
+  done；禁止由计划推断结果、禁止编造数字。
+- `tools.py` propose_action description 追加同义约束（起草≠执行……）——
+  该描述每轮随 tools 传入模型，是最有效的约束位。
+
+**测试**：`tests/test_agent_guide.py`（新，10 例：指南/技能卡/兜底/目录
+形状/已知操作/中英搜索/工具·阶段·动作 schema/未知安全/参数表单一事实源）；
+AI 全家桶回归 38 passed。CLI 实测：agent-ops 三种用法与 agent-guide 两种
+输出全通。
+
+**遗留**：README「40 个子命令」等处数字未同步（现 42）；wiki 未加页
+（指南已覆盖，后续可挂 FAQ）。frozen 版生效需下次重打包（AGENTS.md 进
+_internal、agent-guide/agent-ops 两个子命令进 CLI）。
+
+## 2026-11-02（补二十一）：AI 工作台「跑不完整 / 改了没效果」三处根治
+
+用户现场：① 对话坞里模型把内部标记 `<|DSML|invoke name="propose_action">`
+当正文整段打出（截图）；② 在设置页把「模型」改成 deepseek-flash、点绿色
+「保存设置」弹「✔ 已保存并生效」，回到坞里仍显示 `deepseek-chat`；
+③ 让 AI 跑 kvsuite 定量+共识，任务中心一律 failed。
+
+三条互不相干，逐一查实（全部实测，不靠推测）：
+
+**① kvsuite 共识段每次必崩（这才是"跑不完整"的主因）**
+- 任务 `d025e6171c74`（打包版实盘）`status=failed`，
+  `RuntimeError: known_virus_suite 退出码 1`，栈底是
+  `kv_consensus.py:559 → pandas/core/generic.py __getattr__`：
+  `AttributeError: 'DataFrame' object has no attribute 'iter_rows'`。
+- 根因：`kv_identify.py` / `kv_filter.py` 于 **2026-10-20 由 polars 迁回
+  pandas**（省 167.7MB 的 polars-runtime-32），但 `kv_consensus.py` 的
+  `passed_df.iter_rows(named=True)` 没跟着改 —— 过滤表已是 pandas，共识段
+  却按 polars 取行。跑该次任务的日志可证：identify 17 命中 → filter 保留 6
+  行 → 进共识段当场崩，`consensus/` 目录为空。
+- 修复：新增模块级 `iter_passed_rows(df)`（有 `iter_rows` 走 polars，
+  否则 `to_dict('records')`），共识段改调它；两种上游都能吃。
+- 修完再跑，**又暴露第二处**：`kv_consensus.py` 的 `_run()` 日志写完直接
+  结束、**没有 `return`**，恒返回 None，而 `_bam_mapped_count()` 拿它读
+  `.stdout`（`check=False` 的 `samtools view -c`）→
+  `AttributeError: 'NoneType' object has no attribute 'stdout'`，
+  崩在"比对完统计映射数"这一步。补 `return result`。
+- 实跑验证：同一 GQMIX 双端（G:\…\run\fastq）`stage=all` 全跑通，
+  identify 17 命中 / filter 6 行 / 共识段产出参考 + minibwa 索引 + BAM。
+
+**② 设置页「保存设置」根本不提交 AI 卡片**
+- 现象：改模型 → 点绿色「保存设置」→ toast「✔ 已保存并生效」→ 坞里
+  「当前配置 · deepseek-chat」不变。
+- 根因：`webapp/templates/settings.html` 的 `saveSettings()` 只 POST
+  `/api/settings`（language/threads/email/defaults），而 AI 字段由另一颗
+  按钮 `aiSave()` POST `/api/ai/config`；同一页两颗按钮，主按钮静默忽略
+  AI 卡片，toast 却报成功。
+- 实测确认后端无辜：直接 POST `/api/ai/config {"model":"deepseek-flash"}`
+  → 200，`platform.json` 的 `ai.model` 立刻变 deepseek-flash，
+  `GET /api/ai/config` 也回 deepseek-flash。
+- 修复：`saveSettings()` 在常规设置存好后，若本页有 AI 卡片
+  （`typeof aiBody==='function' && $('aiModel')`）再补一次
+  `/api/ai/config`（传 `aiBody(false)` → 不回写已存 Key）；失败时 toast
+  改口径「常规设置已保存；AI 设置保存失败」，不再假报成功。
+
+**③ 流式正文出口漏过滤 DSML（截图的直接原因）**
+- 根因：2026-10-30 的 `_strip_dsml()` 只覆盖三个**入库**出口，**没覆盖
+  `delta` 流**——模型一旦把内部标记当正文吐出来，前端逐字渲染，
+  用户就看到原始 DSML；而历史里是干净的，形成"截图很脏、复现不出来"的
+  错觉（本轮实测：正常请求 200、无降级、无泄漏）。
+- 修复：`chat.py` 新增 `_DsmlStreamGuard`（有状态缓冲）：完整标记直接剥，
+  **跨 chunk 的半截标记先扣住**（`<`、`<|DS`、`</|DSML|` 这些尾巴不下发），
+  凑齐再定去留；三个正文出口（工具轮 delta / 正常收尾 / 轮次用尽的总结）
+  全部改走它，`done` 事件附带 `dsml_stripped` 便于前端与审计观测。
+- 反面案例也锁进测试：普通正文 `a < b 且 c > d` 不得被吃掉，
+  行尾孤立的 `<` 必须照常吐出。
+
+**④ 参考库 `reference.fasta.fai` 自身损坏（第三处崩溃，纯数据问题）**
+- 修完上面两处后共识段一路跑到绘图（6 张深度图已出），变异段再崩：
+  `RuntimeError: bcftools mpileup 失败(rc=1): [E::fai_insert_index] Malformed
+  line: width (39) less than base count (60) | [E::fai_load3_core] Failed to
+  read FASTA index ...\databases\virusref_db\plant_ref\reference.fasta.fai`。
+- 根因：索引首三行 `NC_116488.1 2302 13 60 39` / `NC_083851.1 13626 2367 60 228`
+  / `NC_077216.1 6096 16234 60 102` —— linebases=60 而 linewidth=39，
+  **物理上不可能**（行宽 < 碱基数）。offset=13 说明索引是在 LF 换行的
+  fasta 上建的，而当前 fasta 是 CRLF（换行宽度被改写过、索引没重建）。
+  两者 mtime 同为 2026-10-19 01:10:14。
+- 影响面：源码库 `databases/virusref_db/plant_ref/` 与用户打包库
+  `D:\PVAP\PlantVirusPlatform_with_Plugin\VirusPlatform-Database\databases\
+  virusref_db\plant_ref\` 两份坏 .fai **sha256 完全相同**
+  （`560093E4…D03031437`），即分发时就带着这张坏索引。
+- 数据修复（两边都做，先备份 `.bak_20261102`）：
+  `3rd/tools/samtools/bin/samtools.exe faidx reference.fasta`，
+  首行变 `NC_116488.1 2302 13 60 61`（linewidth=61=60+\r）。
+- 代码自愈：`kv_common.py` 新增
+  `ensure_fai(ref_fasta, samtools=None, logger=None, env=None)` —— 读 `.fai`
+  首行做物理约束校验（`linewidth < linebases or linewidth > linebases + 2`
+  即判坏 → 重建），缺 samtools 时返回 False 不抛；`known_virus_suite.py`
+  的 `main()` 在工具探测后、`args.reference` 存在时调用一次（异常只
+  warning，不拦分析），`kv_consensus.py` 处理单条 ref 时也改走它。
+- 验证：`stage=all` 全链路实跑（`run/tool_runs/kvfix_verify3_20261102`，
+  GQMIX 双端、salmon、threads=8、jobs=4）**exit 0，1m53s 跑完**：
+  17 命中 → filter 保留 6 → 共识 6/6 + 蛋白 QC 2/6 → 深度图 6 张 →
+  变异段 4 参考 / 60 图 / 4 个 SNPGenie。
+
+**测试**：`tests/test_ai_spec_sanity.py` 6 → 11 例（新增 StreamGuardTests
+4 例：单块泄漏 / 跨 chunk 切片 / 尖括号正文 / 半截标记 flush）；
+`tests/test_kv_pandas.py` 新增 8 例（pandas 入参、polars 形状兼容、
+`_run` 必须返回 CompletedProcess、`_bam_mapped_count` 解析与 -1 兜底、
+`ensure_fai` 判坏重建 / 好索引不动、`iter_passed_rows` 两种入参）。
+两文件 **24 passed**。
+
+**遗留**：修复分层如下——
+（1）`.fai` 数据修复与设置页模板**已直接落到用户机器**（模板
+`_internal/webapp/templates/settings.html` 已就地更新并留 `.bak_20261102`，
+sha256 `535504AE…B615049261`），**重启一次服务即生效**；
+（2）`chat.py` / `kv_consensus.py` / `kv_common.py` / `known_virus_suite.py`
+四处 Python 改动在 exe 归档内，**必须重打包**才进打包版；源码模式
+（`python app.py`）已即时生效。
+另：设置页两颗保存按钮的分工建议后续做「AI 卡片未保存」脏标记提示，
+本轮只做了行为补齐。
+
+**部署落地（2026-11-02 01:00）**：按 `dev_tools/package.py --verify`
+重打包（`D:\桌面\PVAP\VirusPlatform`，1.745 GB / 7161 文件，PyInstaller
+6.22.2 + Python 3.12.10，git 5b27fe07），随后只替换用户安装的程序层——
+`VirusPlatform.exe` 与整棵 `_internal`（277 MB / 1478 文件），
+**保留** `run/`、`platform.json`、`3rd/`、`VirusPlatform-Database/`、
+`primer3_pkg/`。改动前备份：`VirusPlatform.exe.bak_20261102`、
+`_internal.bak_20261102`（回滚只需把两者换回）。
+
+替换后实测（打包版，非源码）：
+- `GET /settings` → 200，页面已含 `aiBody(false)`（保存设置会带上 AI 卡片）；
+- `GET /api/ai/config` → `model=deepseek-flash`、`api_key_set=true`、
+  `ready=true`（用户原设置原样保留）；
+- `--run-engine known_virus_suite.py all`（GQMIX 双端，salmon，
+  threads=8，jobs=4）→ **exit 0，1m53s**，产物
+  `run/tool_runs/kvfix_pkg_20261102/`：identify 17 命中 → filter 保留 6 →
+  `consensus/` 6 个参考目录 + `consensus_qc.tsv` → 变异段 4 参考 /
+  40 图 / 4 个 SNPGenie，与源码模式结果一致。
+- 单独跑 `consensus` 子命令会「过滤结果为空，跳共识段」——这是既有设计
+  （`known_virus_suite.py:498` 起，standalone consensus 的 `confirmed`
+  为 None，只有 `all` / 管道内联才带 in-memory 过滤表），不是本次引入的
+  缺陷；验证必须用 `all`，不要用 `consensus` 单段。
+- 打包版工具探测里 `[MISS] mafft`：`kv_consensus.py` 全文不引用 mafft，
+  该缺席不影响共识段（本就不消费）。
+
+## 2026-11-02（补二十三）：AI 工作台全面审查 —— 静默假成功、预算被思维链吃掉、坞里看不到进度
+
+用户要求「全面审查、增强、优化，实现真正的可用性和落地」。做法：两个只读
+子代理分头审 `ai_agent/{tools,executors,agent_catalog}.py` 与前端
+`webapp/static/app-ai.js` + `web/templates`，Lead 逐条核实（grep / 实测 /
+真实任务复跑）后统一改，避免并发写冲突。
+
+**审查认定的 P0（全部已修）**
+
+① **单动作执行单永远停在 launched（静默假成功）**：`executors.py` 非
+`create_sample` 的动作批准后只 `_snapshot_publish('launched')`，全仓没有
+watcher 推到终态——`'launched'` 只出现在白名单与这一处赋值。卡片一直「✓
+已启动运行」，任务早崩了也不变色、不写 error，AI 只能照旧说「还在跑」。
+修：新增 `_watcher_kind()` / `_watch_to_terminal()`（任务型轮询
+`web.tasks.tm`，下载型轮询 `get_dl_manager()`，终态回写 done/failed 并把
+任务 error 带进 `rec['error']`），`_execute` 落完任务后为每条单动作起守护
+线程；`create_sample` 不再把**样品名**写进 `tid`（此前 AI 拿它去
+`wait_task` 会空转到 240s 超时），改存 `result_sample`。
+实测（`tmp_diag/e2e_action.py`）：A 输入不存在 → `executing → failed` 且
+error 为真实的 `FileNotFoundError: 路径不存在…`；B 真转小 FASTQ →
+`executing → launched → done`（tid 落盘）。
+
+② **「原参数重试」实际按默认值重跑**：`_dispatch` 只用 `rec['params']`，
+`base_params` 全库只写不读。修：analysis 分支 `body = dict(base_params);
+body.update(params)`，与「body > 设置页默认」同向。
+
+③ **模型可绕过审批触发不可逆操作**：`mcp_call` 只黑名单了
+`vp_delete_tool_run`，但 `vp_cli_submit` 能发 `tool-runs action=clean` 与
+`db-migrate action=apply`（`_cli_check_confirm` 只认 confirm），违反
+AGENTS.md §5/§7。修：新增 `_CLI_DESTRUCTIVE` + `_mcp_denied()`，前置拦截
+并回 `{'error':…, 'blocked':True}`。
+
+④ **给模型的表格只有前 8 列**：`digest._tsv_head` 砍到 8 列、单元格 80 字，
+而 kvsuite 汇总表 22 列，Coverage(%)/MeanDepth/EM_Reads/Avg_Read_ANI 都在
+第 9-16 列——被问覆盖度只能编。修：`MAX_COLS` 8→24，`.csv` 按逗号解析，
+超宽时显式给 `columns_total` / `dropped_columns` / `note`。
+
+⑤ **多步计划卡看不到步骤**：`_publish` 的字段白名单漏了
+`steps/step/step_total/step_action/step_title`（`_snapshot` 里有），而
+对话坞只从事件取这些字段 → 计划卡不列步骤、批准后永远没有「第 2/3 步」，
+用户判定卡死。修：`_publish` 白名单与 `_snapshot` 取并集（含
+`result_sample`）。
+
+**P1 / P2 一并处理**
+
+- **推理型模型的预算被思维链吃掉**：deepseek-flash 在 max_tokens=2048 时
+  reasoning 4225 字符、正文只剩 536 且半截（`tmp_diag/probe_budget.py`
+  实测；4096 时正文 2410 完整）。修：`chat.py` 加预算游标
+  （`_BUDGET_MAX=8192`）——`finish=='length'` 且正文为空时自动加倍重试并
+  发 notice；有正文触顶则补「_（回答触到最大生成长度上限被截断…）_」+
+  warn notice；空正文的错误按 finish/reasoning_chars 分因，不再一律
+  「模型未返回内容」。
+- **降级不再静默**：400/404/422 关工具时发 warn notice（「已降级为纯上下文
+  模式」+ 上游原文摘要）——这正是 10-30 那次 DSML 泄漏的上游条件。
+- **工具参数口径**：新增 `_tool_params(tool, job)` 以
+  `TOOL_PARAM_SCHEMAS` 为主、job 源码校验的键补为必填（`source='job'`），
+  去掉 `[:8]` 截断；kvsuite 以前报 6 个「必填」（实际三选一）；
+  `agent_catalog.py` 里 `kvchain: []` 改为继承 kvsuite 的 25 条（一键流程
+  参数口径完全相同）。
+- **stages 非法项不再静默丢弃**：`create_action` 直接报错并列出 15 个合法
+  阶段键；`propose_action` 返回体回显归一化后的 action/sample/stages/
+  params/steps；reason 空则拒收（原来必填只写在 spec 里，执行层不校验）。
+- **`_mcp_call` 超长返回**：4000 字符裸切会把 JSON 从中间截断、task_id
+  丢失；改为结构化裁剪（保 task_id/status/summary/next + 截断标记）。
+- **工具名重复拼名**：兼容网关每片都重发完整 name（`mcp_callmcp_call`）时
+  新增 `provider._join_name()` 归一。
+- **SSE 静默期**：`/api/ai/chat` 以前长推理/长工具轮（`mcp_call` 最长
+  330s）期间零字节，前端只有「思考中…」。修：`ai_assist.py` 把
+  `run_chat` 放到工作线程喂队列，主生成器每 5s 无数据就发一帧
+  `{'type':'tick','elapsed':N}`，前端把提示改成「思考中… 已等待 N 秒」
+  （`tmp_diag/test_heartbeat.py` 实测 12s 的打桩响应 → ticks=[5,10]，
+  随后 delta/done 正常）。
+- **前端一批「点了没反应」**：批准/驳回/闸门按钮失败后不恢复（现在
+  cards()+paint()+fail()，失败恢复并在卡内写 `.ai-err`，成功 4s 未翻转也
+  放回可点）；error 帧不再与「思考中」并存；`AI.clear` 生成中先 abort；
+  发送中按回车给「先点 ■ 停止」提示；流结束 flush decoder 与残余 buf
+  （末帧中途断开不再丢最后一句）；`pageshow(persisted)` 重建 SSE（bfcache
+  回来不再静默）；abort 的半截回答只留界面、不进历史（否则下一轮模型接着
+  残句写）；播报/闸门文本也过 `_strip_dsml`。
+- **批准竞态**：`resolve()` 的「是否 pending」判定与置 executing 原分两段
+  加锁，双击「批准」会各起一个执行线程（同一动作跑两遍）。改为同一把锁内
+  完成翻转，并发上限命中时把状态放回 pending。
+
+**测试**：新增 `tests/test_ai_hardening.py`（17 例：事件步骤字段、
+base_params 合并、破坏面 CLI 拦截、`_tsv_head` 列数/CSV/超宽、
+kvsuite+pdprep 参数必填、`_join_name`、watcher 终态、批准竞态/驳回终态）。
+`test_ai_hardening.py + test_ai_spec_sanity.py + test_kv_pandas.py` →
+**41 passed**。
+
+**端到端实测（源码模式，真 provider）**：`tmp_diag/e2e_chat_route.py`
+用 Flask test_client 打 `/api/ai/chat`（deepseek-flash）→ 4.8s、
+`counts={'reasoning':79,'tool':1,'delta':529,'done':1}`、工具
+`list_samples`、正文 988 字符、无 error；`propose_action` 三条分支实测：
+缺 reason → 明确报错；非法 stage → 报错并列出合法键；正常 → `created:
+true` + 回显 stages。
+
+**仍未做（记录在案，非阻塞）**：坞历史 localStorage 单键 30 条多标签互覆、
+闸门卡不显示 15 分钟倒计时、`settings.html` 档案名拼进 inline onclick、
+每标签一条 SSE（6 标签触顶 HTTP/1.1 连接）、`tool_runs` 空目录残留、
+非中文界面下并发闸按任务名前缀计数失效。
+
+## 2026-11-02（补二十四）：P2 全清 —— 多标签、刷新丢卡、闸门倒计时、设置页注入面
+
+上一节（补二十三）修完五个 P0/P1 后留下的 P2 清单，本节逐条清掉。分工：`app-ai.js`
++ `app.css` 由主 agent 改；`broadcast.py` / `executors.py` / `ai_assist.py` /
+`settings.html` / 新测试由子 agent 改（写作用域不重叠）。
+
+**前端（`webapp/static/app-ai.js`）**
+
+- **多标签互覆**：历史原写单一 `localStorage['vp_ai_msgs']`（30 条），两个标签
+  各聊一段就互相覆盖。改为「会话 id + 分键」：`AI._initConv()` / `AI.msgsKey()`
+  用 sessionStorage 存 `vp_ai_conv`（刷新不变、新标签新会话），键名
+  `vp_ai_msgs:<convId>`，内容 `{t, msgs}`；`_pruneHistory()` 只留最近 12 段会话。
+  首启检测到旧单键 `vp_ai_msgs` 数组则迁到 `vp_ai_msgs:main` 后删旧键（已在
+  jsdom 冒烟里验证迁移路径）。
+- **刷新堆旧卡**：`lastEventId` 原每页从 0 起，服务端重放整个环形缓冲。改为
+  持久化到 sessionStorage（`vp_ai_eid`），并在 `ai_assist.py` 侧的事件查询支持
+  `?since=`；`AI._foldBacklog()` 把回放事件（`ev.backlog`）除「待决闸门/
+  待批执行单」外全部折进 `<details class="ai-backlog">`（默认收起，summary 写
+  「此前会话的 N 条事件」）。
+- **服务端重启后整坞静默**：`AI._syncWatermark()` 先 `GET /api/ai/events?since=0`
+  取当前最大 id，若本地 `lastEventId` 比它大（服务端重启、id 归零）则归零；
+  同一响应里的 `pending_gates` 顺手补渲染丢失的闸门卡。
+- **6 个标签触顶 HTTP/1.1 连接**：原来每个标签一条 EventSource。改为
+  `AI._elect()`：`navigator.locks.request('vp_ai_sse_leader')` 选主，只有主标签
+  建流，其余标签靠 `BroadcastChannel('vp_ai_dock')` 收 `{kind:'ev', ev}` 转发
+  渲染（`_seenAction` 去重）；`pagehide` 时 `_releaseLeader()` 释放锁让位。
+  浏览器不支持 locks 时退回「每页一条」，行为与旧版一致。
+- **已决卡片刷新即消失 / 状态不对账**：`AI.hydratePending()` 重写：并发拉
+  `/api/ai/actions`，用 `pending` 补按钮、用 `recent` 对账（卡片还标 pending
+  但后端已终态 → `_flipActionCard`），并把最近 3 条从未渲染过的已决单补成
+  只读历史卡；`stMap` 增 `interrupted`「已中断」。
+- **闸门卡倒计时**：`_startCountdown(node, deadline)` 从事件/`pending_gates`
+  的 `deadline`（epoch 秒）起秒级更新「⏳ 剩余 4 分 12 秒（超时自动继续）」，
+  `:empty{display:none}` 保证老事件没有 deadline 时不显示空行。
+- **inline 拼接**：执行单/闸门按钮全部改 `data-ai-act` + `#aiMsgs` 事件委托
+  （读 `dataset.aid/decision/sample/stage`），文件内 inline onclick 计数已 0；
+  含单引号的档案名/样品名不会再让按钮静默失效。
+- **切档案失败不回滚**：`AI.onModelChange` 失败把 `sel.value` 恢复成原
+  `pf:<activeProfile>` 并提示；成功则回读 `loadModels()`，坞底「当前配置」
+  与实际生效一致。
+- **开坞即刻回车**：`ensureCtx` 改成 promise 合流（`_ctxP`），`send()` 在
+  `ctxLoaded` 为假时先 `await`，旧历史不会插到新提问后面。
+- `AI.clear()` 同时清当前会话键、折叠块与去重集合。
+
+**后端与模板**
+
+- **闸门期限**：`broadcast.py` 的 `gate_point()` 生成 `deadline = time.time() +
+  timeout_s`，pending 事件带 `deadline`/`timeout_s`；`pending_gate()` 也返回，
+  刷新后 hydrate 仍能续倒计时（`publish()` 用 `ev.update(fields)`，无字段白名单，
+  未改）。
+- **并发闸去中文前缀**：原按任务名 `startswith('AI执行·')` 计数，英文界面下失效。
+  执行单记录统一加 `'origin': 'ai'`（6 处：run_stages/download/run_tool/
+  create_sample/build_host_db/plan），新增 `_AI_TIDS` 登记启动后的任务 id，
+  `_count_ai_active()` 判定顺序 `origin` → `tid in _AI_TIDS` → 旧前缀兜底
+  （向后兼容历史卡片）。
+- **校验失败留空目录**：`executors.py` 先 makedirs 再构造 job，参数非法时留一个
+  空 `tool_runs/<tool>_<ts>_<uuid>/`。改为记录 `created_here`，构造抛错且目录是
+  本次建的、仍为空时 `os.rmdir()` 再原样 raise（用户已有目录不动）。
+- **设置页注入面**：档案 chip 的「使用/删除」与插件「安装/卸载」原拼 inline
+  `onclick="aiPfUse('名字')"`，`esc` 出的 `&#39;` 在属性里会被解码回 `'`，名字
+  带单引号就失效、构造名还能注入。改为 `data-name` + `data-act` 加事件委托
+  （`bindAiProfileList()` / `bindPluginButtons()`），函数体不变。
+- **档案与实际配置不同步**：`POST /api/ai/config` 合并后，若 `active_profile`
+  已不存在或 model/base_url 与合并值不同，则清空 `active_profile`，坞底不再
+  标着一个并未生效的档案名。
+
+**测试**
+
+- 新增 `tests/test_ai_p2.py`（10 例）：闸门 `deadline`/`timeout_s` 与
+  `pending_gate()` 暴露、并发闸三种判定（英文名 + origin、中文旧前缀兜底、
+  混合计数）、执行单记录带 `origin`、参数非法时 tool_runs 目录不留残留、
+  模板不再含 inline `onclick` 且含 `data-name` + `addEventListener`。
+- 新增前端冒烟 `tmp_diag/js_smoke.cjs`（Node 22 + jsdom 30.1.3，非浏览器环境）：
+  `window.eval` 注入 `app-ai.js`，打桩 `fetch`/`EventSource`/`BroadcastChannel`/
+  `t`/`esc`，覆盖会话分键与旧键迁移、执行单/闸门渲染、状态翻转、回放折叠、
+  点击委托（点批准恰好发一次 `/api/ai/actions/resolve`）、切模型失败回滚、
+  `ensureCtx` 合流、水位对齐 + 闸门恢复 —— **29 项断言全绿**。
+  注：一版用 `linkedom` 时反复失败，查明是库自身问题（`getElementById` 每次
+  返回不同 wrapper、`appendChild` 后另一实例读不到子节点），改用 jsdom 后正常。
+- 合计：`test_ai_p2.py + test_ai_hardening.py + test_ai_spec_sanity.py +
+  test_kv_pandas.py` → **51 passed**；`node --check app-ai.js` 通过。
+
+**顺带修**：`webapp/templates/settings.html` 本轮被写成了 LF（索引是 CRLF），
+按 `.gitattributes`「仓库与磁盘逐字节一致」的口径转回 CRLF，整文件 diff 噪声
+从 2752 行回落到真实改动 328/132 行。
+
+**已知限制（如实记录）**：`origin` 只加在执行单记录上，任务中心任务 dict 由
+`web/tasks.py` 产出、本次未改，跨服务重启的英文名历史任务只能靠旧前缀兜底；
+多标签 SSE 靠 `navigator.locks`，Safari 15 以下无该 API 时退回每页一条。
+
+## 2026-11-02（补二十五）：把两条「已知限制」也修掉 —— origin 落盘跨重启、无 Web Locks 也能选主
+
+补二十四里如实留了两条限制，用户要求一并修（原话：「也修复呀」）。
+
+### ① 任务记录带 `origin`，跨重启仍能认出「AI 发起的任务」
+
+- `Virus_Platform_Core/web/tasks.py`
+  - `TaskManager.start(..., origin=None)` 新增形参并写进 `rec['origin']`；
+  - `_rec_json()` 落盘带 `origin`（`tasks/<tid>.json` 与归档区同结构）；
+  - `snapshot()` 对外快照带 `origin`，`unarchive()` 恢复时还原 `origin`
+    —— 归档 → 恢复后并发闸仍认得出这是 AI 任务。
+- `Virus_Platform_Core/ai_agent/executors.py`：`_launch_tool`(961) 与
+  `_launch_analysis`(1075) 起任务时传 `origin='ai'`；`_count_ai_active()`
+  本来就优先看 `origin`，于是「英文界面任务名不以 `AI执行·` 开头」这条漏洞
+  不再依赖进程内 `_AI_TIDS` 兜底（该集合降级为启动瞬间的补充）。
+- 说明：`_recover_interrupted()` 启动时把 running 改 failed（跨重启的 running
+  任务本就作废），落盘的 `origin` 用于任务中心展示与归档恢复，不参与调度。
+
+### ② 没有 `navigator.locks` 的浏览器：租约选主（与 Web Locks 同效）
+
+`webapp/static/app-ai.js` 新增一套基于 `BroadcastChannel` 的租约选主，
+`_elect()` 在没有 Web Locks 时走它，不再是「每页一条 SSE」：
+
+- `AI._post(obj)` / `AI._onBusCtl(d)`：`claim`（有人要当主）/`have`（已有主）/
+  `beat`（主的心跳）/`bye`（主随页面走了）；
+- `AI._claimLeader()`：广播 `claim`，等 `CLAIM_WAIT`；听见 `have`/`beat`
+  就转 `_watchLeader()`（只收中继），否则 `_becomeLeader()` + `_startBeat()`；
+- `AI._watchLeader()`：`BEAT_MISS` 内收不到心跳 → 重新抢租约；
+- `AI._yieldLeader()`：**撞车收敛**——两个标签页同时冷启动时谁都还没听见
+  对方就都当了主（各开一条 SSE，HTTP/1.1 同源 6 连接会被吃满）。收到对端
+  心跳/应答时按 tabId 字典序裁决，id 小的留任，另一个静默退位转跟随者
+  （**不广播 `bye`**：bye 表示「页面走了」，广播出去会让对端以为主没了又抢一轮）；
+- `AI._timing(key, dflt, floor)`：读 `window.VP_AI_TIMING`，仅供冒烟测试把
+  等待压到毫秒级（默认 `CLAIM_WAIT=600ms`、`BEAT_MS=4000ms`、`BEAT_MISS=12000ms`）。
+
+### 测试
+
+- `tests/test_ai_hardening.py` 新增 `TaskOriginTests`（4 例）：`_rec_json` 保留
+  `origin`、`snapshot` 暴露 `origin`、`start()` 签名含 `origin`、并发计数按
+  `origin` 判（英文名 `AI run·report` 也计入）。
+- `tmp_diag/js_smoke.cjs` 第 9 组改为**收敛断言**（34 条断言全绿）：
+  ① 两个标签同时启动最终恰好一个主、只为它开一条 SSE；② 在位者让位（广播
+  `bye`）后跟随者接手；③ 新标签加入时当跟随者；④ 在位者静默消失（心跳停、
+  不发 bye）后跟随者租约过期抢到主。
+  注：原断言「B 收到 have 不建流」依赖定时器精确时序，jsdom 里定时器会被
+  延迟，实测两边可能同时当主——正是这个竞态促成了 `_yieldLeader()` 的确定性
+  收敛；断言也相应改成「最终恰好一个主」。
+- 合计：`test_ai_p2.py + test_ai_hardening.py + test_ai_spec_sanity.py +
+  test_kv_pandas.py` → **55 passed**；`node --check app-ai.js` 通过。
+
+### 收尾（2026-11-02 02:00）：把尾巴也堵上
+
+- **没有 `BroadcastChannel` 的老内核**：`_claimLeader()` 若发现连广播通道都没有，
+  直接 `_becomeLeader()`（每页一条、退回单页行为），不再白等 `CLAIM_WAIT`。
+  冒烟第 10 组两条断言（无需等待即当主、只建一条流）覆盖。
+- **并发闸的两种兜底都锁死**：`origin='ai'` 为主判据；修复前落盘的老记录（无
+  `origin`）靠中文前缀 `AI执行·` 兜底；排队中的任务快照对外呈现 `running`，
+  所以排队也算进并发上限——三条各有测试（`TaskOriginTests` 6 例）。
+- **备份清理**（用户确认后执行，不可逆）：删掉 7 份历史 `_internal.bak*`/
+  `.gwold`/`.old` 与 6 个历史 exe 备份，共约 **2.64 GB**；只保留最近一对
+  `_internal.bak_20261102c` + `VirusPlatform.exe.bak_20261102c` 作为回滚点。
+  D: 可用空间 22.4 GB → **24.9 GB**；清理后服务与 `/api/tasks` 实测正常。
+- 合计：**57 passed**（`test_ai_hardening.py` 21 例）；jsdom 冒烟 **36 ok / 0 fail**。
+## 2026-11-02（补二十六）：AI 工作台右侧「历史提问导航」——按提问打点、点击跳转、滚动高亮
+
+坞里消息一多，想翻回"上次那句话"只能一路滚。用户给的参考图是聊天右侧那列
+短横点：当前那条加粗变长，其余浅灰。这里按同一套东西做进 AI 工作台。
+
+### 设计取舍
+
+- **只认用户提问**：`.ai-msg.ai-user` 直接子节点才算一轮；回放折叠块
+  （`.ai-backlog`）、播报卡（`.ai-msg.ai-bot` 内的执行单/任务卡）、系统提示
+  （`.ai-event`）都不打点 —— 否则一条回答里塞三张卡，点就成一团浆糊。
+- **等高均分，不按文档位置成比例**：按真实位置摆的话，流式回答每吐一段就把
+  整个文档撑长，点会一直往下挪。等高分布只随"轮数"变，稳定得多。
+- **≥2 轮才出现**：一轮的时候没有"跳"的意义；`AI.clear()` / 新建会话清空后
+  自动收起。
+- **给轨道让 26px**：`.ai-msgs` 加 `padding-right:26px`，提问气泡右缘与轨道
+  留 2px（`tests/_check_turn_nav.py` 断言 gap ≥ 0），不再压住徽标/复制按钮。
+
+### 实现
+
+- `webapp/templates/_nav.html`（149 行起）：`#aiMsgs` 外包一层
+  `.ai-msgs-wrap`，里面放 `<nav id="aiTurnNav" class="ai-turn-nav" hidden>`
+  与 `<div id="aiTurnTip" class="ai-turn-tip" role="tooltip" hidden>`。
+- `webapp/static/app.css`（`.ai-msgs` 规则之后）：`.ai-turn-nav` 绝对定位于
+  消息区右侧（`right:2px`、上下 10px、竖直居中、`gap:8px`、默认
+  `opacity:.55`，悬停 1）；`.ai-turn-tick` 是 22×12 的透明按钮，`::before`
+  画 13×2 的圆角短横（`--ink-300`），悬停 18px（`--ink-500`），`.on` 时
+  21×3（`--ink-900`）—— 和参考图一个比例；`.ai-turn-tip` 是 `right:28px` 的
+  浮动预览（最多 4 行）。深色主题走同一批 CSS 变量，不用另写。
+- `webapp/static/app-ai.js`：`_scroll` 之后新增一段导航模块 ——
+  `_turnNodes()` 取轮次、`_turnLabel()` 压出 120 字预览、`rebuildTurnNav()`
+  重建点、`syncTurnNav()` 按滚动位置切高亮（贴底永远是最后一轮）、
+  `jumpTurn()` 平滑滚到该轮顶部 8px 并给气泡加 1.1s 闪光、`initTurnNav()`
+  挂 `scroll` + `MutationObserver(childList)`（只盯直接子节点，流式回答在
+  `.ai-answer` 内部重排不触发重建）并做 30ms 防抖。挂载点两处：`AI.toggle(true)`
+  用 rAF 补一次（收起时 `display:none` 量不到 `offsetTop`），boot 里在
+  `_restoreHistory` 之前 `AI.initTurnNav()`。
+- 预览改用 `mousemove` 触发而不是 `mouseenter`：重建导航条时如果光标正好停在
+  轨道上，`mouseenter` 会给新点补一发预览（明明没动鼠标却弹气泡）；真实悬停
+  一定伴随 `mousemove`，两边都不丢。点完/滚轮滚动都主动 `hideTurnTip()`。
+- i18n：`ai.nav.title` / `ai.nav.jumpTpl`（`跳到第 {n} 轮提问`）/
+  `ai.nav.turnTpl`（`第 {n} 轮 · `）/ `ai.nav.empty`（`（这条提问只有附件）`），
+  中英成对；`applyI18n` 不管 `aria-label`，导航条与每个点的提示语在 JS 里
+  用 `setAttribute` 补。
+
+### 测试
+
+- 新增 `tests/_check_turn_nav.py`（17 条断言，自起临时实例 + 真浏览器，~25s，
+  已登记进 `tests/_run_all.py`）：打点口径（5 轮 → 5 点、回放块/播报卡不算）、
+  贴底高亮最后一轮、悬停预览含轮次与原文、移开收起、点第 1 个点落到视口顶部
+  且闪光且不残留预览、上下滚动高亮跟随、气泡不被压、单轮隐藏、清空后不留点、
+  重开对话恢复、全程无 pageerror。全绿。
+- `tmp_diag/turn_nav_probe.py` 负责出图（`turn_nav_dock/home/hover/dark/mobile.png`），
+  实测像素：未激活短横 17 CSS px、激活 25 px、距坞右缘 9 px。
+- 既有回归：`node --check app-ai.js`、`tests/_check_i18n.py`（1400 条锚点中英
+  成对、无重复键）、`tmp_diag/js_smoke.cjs`（36 ok / 0 fail）。
+
+### 顺带修掉的三处
+
+- `tests/_check_ai_dock_ui.py` 用 `#aiDock .ai-ico` 的 `.last` 点「收起」，
+  可坞底还有 ⟲ 清空 / ⚙ 设置也是 `.ai-ico` —— 实际点到设置，坞不收起，
+  「收起后 FAB 回归」一直红。改成点坞头的 `#aiDock .ai-dock-head .ai-ico`。
+- `tests/_check_ai_events_ui.py` 断言 `.ai-gate-st.done` 全页恰好 1 个；补只读
+  历史卡之后页面上还有别的执行单徽章（实测 7 个），改成只在 `.ai-gate` 里数。
+- 闸门拍板后卡片仍挂着「⏳ 剩余 00:58（超时自动继续）」：`_stopCountdown` 只停
+  定时器不清字，`_flipGateCard` 里补一句把 `.ai-gate-cd` 藏掉。
+
+### 已知边界
+
+- 390px 窄屏下坞本身固定 430px 会横向溢出（235px），这是既有问题；导轨不额外
+  加宽（隐藏导轨后溢出一致），用例里断言的就是"不额外撑出"。
+- 导航条按当前 DOM 里的轮次打点，`AI_MSGS_CAP=30` 淘汰掉的老提问自然消失。
+
+### UI 微调（2026-11-02 02:10）：样品锚常驻条从左侧挪到右下角
+
+用户截图指出「GQMIX · 阶段 0/1 · kvsuite · R1 4b1540c4 正在分析 核对 ×」这条
+常驻在左下角，问能不能放右下角。
+
+- `webapp/static/app.css` 的 `.anchorbar`：`left:12px; bottom:12px; z-index:96`
+  → `right:92px; bottom:32px; z-index:89`。右下角这一列从上到下现在是
+  运行条（`bottom:90px`）→ AI 坞/按钮（`right/bottom:26px`），锚条贴在按钮
+  **左侧**同一行，既不与运行条上下抢位，也不挡按钮；`z-index:89` 低于 AI 坞
+  （95）——坞打开时盖住它（坞是临时焦点，收起即回），高于运行条（88）。
+- 窄屏 `@media (max-width:820px)`：铺满左右 12px，`bottom:88px` 抬到 AI 按钮
+  上方（按钮占 26+52），并继续隐藏指纹。
+- 同步更新 `webapp/static/app.js` 里 anchorBar 段落注释（原写「位置选左下——
+  右下是 AI Dock 的地盘」）。
+- 验证：用 Chrome headless + CDP 截图实测（`tmp_diag/cdp_shot.js`，Node 全局
+  WebSocket 直连 `Page.captureScreenshot`，比 `--screenshot` 可靠——后者会卡在
+  updater 重试循环）：1600×1000 下 `/tasks` 页锚条在 AI 按钮左侧同一行、运行条
+  在其正上方、互不遮挡；780×900 下锚条铺满并抬到按钮上方，指纹已隐藏。
+
+### 右下角浮层支持拖动（2026-11-02 02:20）
+
+用户要求（m02185）：「这几个都 支持拖动可以吗，以免覆盖其他，默认右下角位置」。
+右下角三件浮层（样品锚条 `#vpAnchorBar`、全局运行条 `#vpRunBar`、AI 圆钮
+`#aiFab`）都会盖住页面内容，此前只能靠隐藏或改窗口大小绕开。
+
+- `webapp/static/app.js` 新增一套通用拖动（插在锚条段之前）：
+  `UI_DRAG_KEY='vp_ui_drag'`、`_uiDragAll()/_uiDragSave()/_uiClamp()/_uiPlace()`、
+  `vpDragApply(el)`、`vpDraggable(el, name, {handle, anchorBottom})`。
+  口径：
+  - 只改 `left/top`（并把 `right/bottom` 置 auto），位置按浮层名存
+    localStorage，刷新、切模块、重开浏览器都还在原处；
+  - **4px 阈值**区分「拖」与「点」：拖过就吞掉紧随的这一次 click（350ms 内），
+    锚条里的「核对 / 打开 / ×」和 AI 圆钮不会被误触发；没拖过一切照旧；
+  - **双击回右下角默认位**（清该浮层的存档）；
+  - `_uiClamp` 留 6px 边距夹在可视区内，`resize` 时重新夹回并落盘——
+    拖到屏幕外也能找回来；
+  - 运行条是 `column-reverse`、往上长的，用 `anchorBottom:true` 以右下边缘为
+    锚存 `{x, b}`，展开任务明细时头部不跳；
+  - 隐藏中的浮层（无任务时的运行条）`getClientRects()` 为空，直接不记起点，
+    不会存进 `{x:0,y:0}` 的坏位置。
+- 接线：`anchorBarMount()` → `vpDraggable(bar,'anchor')`；`runBarMount()` →
+  `vpDraggable(bar,'runbar',{handle:'.rb-head', anchorBottom:true})`；
+  `runBarInit()` → `vpDraggable($('aiFab'),'fab')`。两条常驻条在
+  `bar.hidden=false` 之后补一次 `vpDragApply(bar)`（显示后才有真实尺寸）。
+- `webapp/static/app.css`：`#vpAnchorBar, .runbar .rb-head, #aiFab { touch-action:none }`
+  （触屏拖动不连带滚页面）、`cursor:grab`、`.is-dragging { cursor:grabbing; opacity:.92 }`。
+- 验收脚本 `tmp_diag/cdp_drag.js`（Chrome headless + CDP，合成 PointerEvent 走真实
+  事件链）**20 项全过**：三件套各自「拖动改位置 → 存档 → 刷新后保持 → 双击清档 →
+  双击回右下角默认位（92/32、26/90、26/26）」；运行条用注入的假任务行验证，
+  存档形态为 `{"runbar":{"x":1087,"b":350}}`；AI 圆钮「拖动生效且不误开坞」
+  与「正常点击仍能开坞」都成立。
+- 已知取舍：AI 坞面板本身仍固定占右下角（宽 430px），圆钮被拖走后坞不跟随——
+  坞是临时焦点面板，若跟着圆钮跑容易出现半屏悬空；需要的话可再改成跟随定位。
+
+## 2026-11-02（补二十七）：全面测试第一轮 —— 空 POST 就能删数据的两条路由
+
+这一轮的起点是「全面测试各模块可用性」，落点却是两条**破坏性接口没有防误触门**。
+记录在这里的首要目的不是复盘，而是让下一个往路由上发空 POST 的人（很可能也是
+AI 代理）先看到它。
+
+### 事故：archive + purge 连环两次空 POST，删掉 74 个运行目录
+
+`tests/_audit_routes.py` 的设计是「对每条路由发一次空参数请求，看有没有 500」，
+所以它自带一张 `DESTRUCTIVE_POST` 跳过表，注释写得很直白：
+
+    空参数 POST 就会改状态/删数据的路由：不参与巡检。
+    新增破坏性路由时必须登记到这里，否则巡检会真的执行它。
+
+2026-11-02 我为定位 `_audit_routes` 的一处失败，另写了一个探测脚本，**照抄了
+巡检的"空 POST"思路却没照抄跳过表**，于是：
+
+1. `POST /api/tool/runs/archive`，空 body → 200。
+   `api_tool_runs_archive()` 里 `keep = int(body.get('keep', 3))` —— **缺省 3 就生效**，
+   把 `run/tool_runs/` 下 77 个运行目录中的 74 个移进 `_archive/`。
+2. `POST /api/tool/runs/archived/purge`，空 body → 200。
+   `api_tool_runs_archive_purge()` 里 `names` 省略 = **清空整个归档区**，
+   把这 74 个目录永久删除（`shutil.rmtree`）。
+
+损失：`run/tool_runs/` 下 2026-10-12 ~ 10-26 的历史工具箱产物（genoplot / structcmp /
+primer / conan / phylogeo / phylodyn / fastp / orfa 等）。
+**未受影响**：`run/results/<样品>/`、`run/tasks/*.json`、`host-db/`、`databases/`、源码配置。
+
+两个教训必须分开记，因为修法不同：
+
+- **对代理/脚本作者**：`_audit_routes.py` 的跳过表是要**继承**的，不是参考的。
+  想巡检路由，直接跑那个脚本；想写自己的探测，第一件事是把
+  `DESTRUCTIVE_POST` 抄过来，并且**只发 GET**。
+- **对接口作者**：默认值即破坏是最危险的组合。`keep` 缺省 3、`names` 缺省全体，
+  两条加起来等于"什么参数都不给就能删数据"。`/api/global/reset` 早就为此加了
+  confirm 令牌（见 `docs` 里 2026-09-11 那条），这两条一直漏着。
+
+### 修复：两条路由补 confirm 令牌
+
+`Virus_Platform_Core/web/tools_api.py` 新增模块常量（口径对齐
+`tasks_api.RESET_CONFIRM`，注释里点明「**不是鉴权**，本地平台没有鉴权概念，
+只拦空 body 打过来的调用方」）：
+
+    ARCHIVE_CONFIRM = 'archive'
+    PURGE_CONFIRM   = 'purge'
+
+- `api_tool_runs_archive()`：进入后第一件事校验 `body['confirm'] == 'archive'`，
+  否则 400「批量归档需显式确认：请求体须含 {"confirm": "archive"}」。
+  **校验放在读 keep 之前**——否则空 body 仍会在校验前把 keep 算成 3。
+- `api_tool_runs_archive_purge()`：同样校验 `body['confirm'] == 'purge'`。
+- 前端 `webapp/static/app-runhistory.js` 三处调用同步带上令牌：
+  `rhClean()`（archive）、`rhPurge()`（单条 purge）、`rhPurgeAll()`（清空 purge，
+  原来直接发 `body: '{}'`，现在发 `JSON.stringify({confirm:'purge'})`）。
+- `tests/_audit_routes.py` 的 `DESTRUCTIVE_POST` 补登这两条，并留了本次事故的
+  一行注释。**即便接口已自带令牌，这张表仍要登记**——巡检的价值在于不依赖
+  接口的自我保护。
+- 实测：空 body 与仅 `keep` 的请求现在都返回 400；
+  `_audit_routes.py` 264 路由 / 0 个 500 / 0 未捕获异常 / **未触发任何后台任务**。
+
+### 顺带修掉的：`_check_task_on_finish.py` 自身竞态（C/D 恒红）
+
+C（正常路径）与 D（失败路径）长期报 `on_finish = 0（应恰 1）`。根因不在产品，
+在这个检查脚本的判据：
+
+`Virus_Platform_Core/web/tasks.py` 的 `_run()` 里，
+
+- 第 278-282 行在 `with self.lock:` 内先把 `rec['status']` 置为 `done`；
+- 第 310 行 `_call_on_finish()` 在 `finally` 末尾才执行。
+
+脚本看到 `status != 'running'` 就立刻断言，正好落在这两步之间的窗口里，于是
+稳定误报（探测脚本复现：状态已 done 时 `n=0`，再多等 0.5s 就 `n=1`）。
+**当时 B 通过、C/D 失败，正是这个窗口的写照**——B 走的是"排队取消"分支，
+状态与回调在同一个代码块里连着写，没有窗口。
+
+修法：新增 `_wait_finished(mgr, tid, timeout=15.0)`，改为 `rec['thread'].join(timeout)`
+等线程真正收尾，C/D 都走它。另外清理阶段原先 `os.remove` + `os.rmdir` 会撞
+`OSError: [WinError 145] 目录不是空的`（任务线程还持有 tmpdir 里的日志句柄），
+改为先 `join` 再 `shutil.rmtree(..., ignore_errors=True)`。
+
+判据现状：A/B/C/D 四条 9 项**全绿**。
+
+### 本轮其它结论（含两条"看起来红、其实不是产品问题"）
+
+- `_check_browse_dlg.py`：硬失败是误报。`_samples_new.html` 是片段，真正的
+  include 在 `webapp/templates/samples.html:45`；Flask test_client 实测 `/samples`
+  能渲染出 `dlgMask/dlgPath/dlgList/dlgPickDir`。判据已改为内容匹配。
+  同时修 `check_runtime` 里对 playwright 的硬 import（`3rd/python` 没装，
+  已改为 ImportError 时打印跳过，浏览器用例归 `C:\Python312`）。
+- `_it_async_ui.py`：套件内红、单跑全绿。原因是多份测试套件并发抢 chromium
+  与 Flask 端口（该机器上确有非本会话的 `_run_all.py` 在跑）。属**环境并发**，
+  不是用例缺陷。
+- `_check_mcp_console.py`：单跑 10 项全 ok，套件内红，同上。
+- `_audit_contract.py`：12 个「代码在用、字典没登记」的 i18n 键已补齐中英
+  （`ai.act.interrupted`、`ai.dock.backlogTpl/busyHint/thinkingSec`、
+  `ai.ev.gateCd/gateCdOver/gateRestored`、`anc.openTasks/verifyTip2`、
+  `mcp.con.noArgs`、`se.savedAiFail`、`ui.qs.switchBack`），复检无硬性差异。
+- `_check_spec_datas.py`：因源码树里残留 `webapp/static/i18n.js.bak`（372KB，
+  未被 git 跟踪、已被 `.gitignore` 的 `*.bak` 忽略）而红；删除后 ✅。
+
+## 2026-11-02（补二十八）：AI 代理技能卡 —— 中英双语触发词 + 任务型手册
+
+### 背景
+
+用户问「植物病毒分析的 skills 有吗，加载 skills 会不会更规范？」。现状：仓库根
+没有 `.agents/` 目录；`main.py agent-guide --skill` 早就能打印一张**指针卡**
+（5 步：读指南 → 查目录 → 调用方式 → 计划≠已执行 → 权限边界），但 description
+只有英文一句 `Use the local VirusPlatform ...`，中文提问（「跑个组装」「建样品」）
+不一定触发；长清单（阶段表、工具分组、排障表）也没地方放——全塞进常驻的
+`AGENTS.md` 会挤占每次会话的上下文。
+
+### 改动
+
+1. **指针卡双语化**（`.agents/skills/virusplatform/SKILL.md`）：description 改为
+   中英双语并列出触发词（植物病毒、PVAP、建样品、跑组装、跑流水线、工具箱、
+   公共检索、NCBI 提交、任务中心、结果在哪），末尾指向 `virusplatform-ops`。
+2. **新增任务型手册**（`.agents/skills/virusplatform-ops/SKILL.md`，173 行），按需
+   加载，10 节：三条铁律 / 三入口对照 / 查目录（agent-ops 与 MCP 工具名）/
+   15 阶段表（stage → 目录 → `.done` → 关键产物）/ 32 个工具箱分 6 组 /
+   7 个执行动作 / 三套账（执行单 · 任务 · 归档，含「切模块不归档」与
+   `archive|unarchive` API）/ 结果判读 / 常见故障 / 说完成前的自检清单。
+3. **源头同步**（关键）：技能卡是 `Virus_Platform_Core/agent_guide.py` 里 `_SKILL`
+   常量的打印结果，只改盘上文件会在下次重新生成时被覆盖；这次先改 `_SKILL`，
+   再 `python main.py agent-guide --skill > SKILL.md` 生成，两边内容一致
+   （1537B / 24 行）。
+
+### 为什么用 skill 而不是全写进 AGENTS.md
+
+`AGENTS.md` 是每次会话注入的常驻红线（要短、要硬）；skill 是按 description
+匹配后才加载的补充手册，篇幅不设限、适合放长清单与排障表。两张卡分工：
+指针卡回答「这平台能干什么」，ops 卡回答「具体怎么干、干完怎么判读」。
+
+### 数据口径（均为现取，不写死）
+
+- 操作目录：54 条 = 32 工具 / 15 阶段 / 7 执行动作（`main.py agent-ops`）。
+- 目录树与完成标记取自真实样品 `run/results/cli_fulltest`：
+  `01_host_removal/.host_removal.done`、`03_assembly/.assembly.done`、
+  `04_orf/.orf.done`、`05_phylo/.phylo.done`、`08_host_analysis/.host_analysis.done`、
+  `09_genome_plots/.gbdraw.done` 等；关键产物如
+  `02b_kvsuite/identify/all_viruses.summary.tsv`、`03_assembly/summary.json`、
+  `03c_consensus/coverage.tsv`、`07_report/fig_manifest.json`。
+
+### 生效范围
+
+`.agents/skills/` 是宿主无关的项目级目录，DSH 本会话已即时出现两张卡；其它宿主
+（Claude Code 等）若支持项目级 skill 目录可直接复用，不支持的读 `AGENTS.md`
+即可——指针卡本来就是 `agent-guide` 的输出，随时可重新生成。
+
+## 2026-11-02（补二十九）：技能卡全面升级 —— 三卡分工 + 机器守卫 + 指南入口
+
+用户接着要求「我们的 skills 全面增强，优化，调整更新一下嘛」。上一版两张卡的
+问题：①指针卡只有「先做四步」，没回答「什么活儿该看哪张」；②ops 卡是平铺清单，
+缺任务剧本（用户真正问的是「我要跑全链路 / 我只想鉴定」这类目标）；③**没有任何
+守卫**——卡片里的 54/32/15/7、`.done` 标记、路径引用全是手抄，平台一升级就会
+静默腐烂，和 2026-09-16 阶段表、2026-10-01 i18n fixture 那两次「写了检查却不在
+批量里」是同一类事故。
+
+### 改动
+
+1. **三卡分工**（`virusplatform` / `virusplatform-ops` / `virusplatform-dev`）：
+   指针卡=这平台能干什么、该看哪张、权限到哪（60 秒四步含「认实例」：同一台机
+   可能同时跑源码实例与打包实例，`run/` 目录不同）；ops=怎么干与怎么判读；
+   dev=改平台本身（代码地图、加工具三步、加阶段六到八处、confirm 令牌、
+   任务管理器、前端陷阱、测试矩阵、打包、文档义务）。
+2. **ops 卡改写**：新增六个任务剧本（A 全链路 / B 只鉴定定量 / C 检索下载建样 /
+   D 补跑失败 / E 注释进化 / F 引物检测 / G NCBI 提交），把「阶段表 + 工具表 +
+   判读表」串成可执行路径；三套账一节补上 60/300 内存淘汰与 `confirm` 令牌。
+3. **新增机器守卫** `tests/_check_skills.py`（已登记进 `tests/_run_all.py`，
+   60s 超时）：三卡存在 + frontmatter `name` 与目录一致 + description 中英双语
+   （必须同时出现 CJK 与拉丁词）+ 指针卡与 `agent_guide._SKILL` 同步（盘上文字
+   必须能在生成结果里找到）+ ops 卡覆盖 32 工具 / 15 阶段 / 7 动作全集 +
+   54/32/15/7 四个条数 + 22 条路径引用存在 + 卡片里的 `.done` 标记在真实样品
+   里出现过。
+4. **AGENTS.md §1 加入口**：一行指向三张卡，并注明「只是本指南的展开版，
+   不授予任何权限；改完卡跑 `python tests/_check_skills.py`」。
+5. **源头同步**：`_SKILL` 常量重写为导航版，再
+   `python main.py agent-guide --skill > .agents/skills/virusplatform/SKILL.md`
+   生成（3829B / 63 行），避免下次重新生成把盘上改动覆盖掉。
+
+### 踩坑
+
+首次跑守卫报 `导入 agent_catalog 失败：name '_srna_target_complete' is not
+defined`，但同一时刻单独 `import Virus_Platform_Core.agent_catalog` 正常，
+`config.py:898` 也确实有这个函数——是**另一个 agent 会话正在写 `config.py`**，
+读到了半成品。守卫本身没问题，重跑即过。教训：工作树有并发写者时，导入类检查
+第一轮失败先看 `git status` 与文件 mtime，别急着改被检查的代码。
+
+### 验证
+
+- `python -X utf8 tests\_check_skills.py` → 七段全绿，输出「技能卡检查通过 ✔」
+  （真实样品里见过 9 种 `.done`：assembly/fq2fa/gbdraw/host_analysis/
+  host_removal/orf/orfa/phylo/primer）。
+- `python tests\_run_all.py --list` 可见 `tests/_check_skills.py timeout=1.0min`。
+- DSH 技能目录即时出现三张卡，description 显示双语触发词。
+
+## 2026-11-02（补三十）：MCP 1.3.0 —— 从 24 个工具到 32 个，补齐归档/等待/结果层
+
+用户要求：「我们的 mcp 也全面 增强 优化 调整更新一下嘛」。目标是让 agent 侧与网页
+侧的能力与口径对齐，而不是再造一套 API。`mcp_server.py` 版本 1.2.0 → **1.3.0**，
+能力指纹随之变为 `83805cd01bf1`（32 个工具）。
+
+### 为什么改
+
+旧工具面有三个洞：
+1. **看不见已归档的任务**：网页 2026-11-02 起有手动归档（`run/tasks/_archive/`），
+   但 MCP 的 `vp_get_task` 只查内存，任务归档后在 agent 侧表现为「不存在」。
+2. **没有等待原语**：长任务只能 `vp_get_task` 手搓循环，模型常把「queued」当失败。
+3. **结果层只到 toolbox run**：样品产物（`run/results/<样品>/0X_*/`）没有读取
+   入口，只能让 agent 猜路径；样品阶段状态也得靠 `vp_platform_info` 之外的东西拼。
+
+### 新增 8 个工具（总计 32）
+
+| 工具 | 作用 | 注解 |
+|---|---|---|
+| `vp_wait_task` | 阻塞到 done/failed/cancelled 或超时（返回最后快照 + `timed_out`/`waited_sec`） | 只读 |
+| `vp_archive_task` / `vp_unarchive_task` | 任务手动归档/恢复（与网页 `/api/task/<tid>/archive` 同一实现 `tm.archive/unarchive`） | `_WRITE` |
+| `vp_sample_stages` | 单样品 15 阶段状态（counts + 每阶段 status/summary/outputs；**纯磁盘判定**，见下） | 只读 |
+| `vp_read_sample_file` | 读样品目录内相对路径的文本产物（拒 `..`/绝对路径/二进制/超大） | 只读 |
+| `vp_archive_tool_run` / `vp_restore_tool_run` | 工具箱运行搬进/搬出 `run/tool_runs/_archive/`（只搬目录，不删产物） | `_WRITE` |
+| `vp_selfcheck` | 结构化自检（platform_root / mcp_sdk / host_db / virus_db / toolboxes / mcp_tools / disk_free） | 只读 |
+
+既有工具的增强：
+- `vp_get_task` / `vp_get_task_log`：内存 miss 时回落 `tm.archived_snapshot()`，
+  归档任务仍可读，快照多 `archived` / `external` 两个键。
+- `vp_list_tasks`：加 `status` / `name` 过滤（`include_archived` 合并归档区）。
+- `vp_list_tools`：加 `query` / `weight(heavy|light)` / `need_db` / `limit+offset`，
+  返回 `{count,total,note,tools}`，不再一口气吐 32 条。
+- `vp_list_tool_runs`：加 `include_archived`，归档区出 `archived` 列表与
+  `archived_total`。
+- `_selfcheck()` 拆成 `_selfcheck_report()`（结构化）+ 打印版，`--check` 与
+  `vp_selfcheck` 共用一份判定。
+
+### `vp_sample_stages` 为什么不用 `pipeline_overview`（2026-11-02 事故）
+
+第一版直接调 `pipeline.pipeline_overview()`，在进程内测试 1.0s 返回，但**从 MCP
+stdio 子进程或网页 MCP 控制台调用会永久卡住**（实测 90s / 150s / 200s 都不返回，
+还把控制台的 `_LOCK` 一起堵死）。用 `faulthandler.dump_traceback_later()` 抓到
+工作线程栈：
+
+```
+numpy/_core/multiarray.py:11 ← numpy/_core/__init__.py:24 ← numpy/__config__.py:4
+← matplotlib/cbook.py:24 ← matplotlib/__init__.py:161
+```
+
+即 `tools/call` 的工作线程在首次 `import matplotlib` 时卡在字体缓存上（多进程并发的
+`MPLCONFIGDIR` 争用）。触发链条：`pipeline_overview` 为判定 `unavailable` 会探测
+fastp/seqkit/gbdraw/DFV/ORF 注释/验证/共识引擎，这些模块把绘图栈拉进来。
+
+修法：MCP 侧改**纯磁盘判定**（`_stage_disk_state`），只读 `summary.json` /
+`report.html` / `fastp_R1.fastq.gz` / `STAGE_OUTPUTS` 产物，依赖关系用 `STAGE_DEPS`，
+不 import 任何引擎。口径与网页逐条对齐（`skipped` 的 `primer`/`gbdraw` 特例、`ok is
+False` → failed、`ran = has_summary and not failed`），唯一差别是**不给
+`unavailable`**：MCP 侧显示 ready/blocked，工具装没装看 `vp_selfcheck` 或网页。
+
+对齐验证：`qguard02`、`vfix03`、`i18nchain`、`GQMIX`、`mcp_night_demo2`、
+`cli_fulltest` 六个样品与网页逐阶段 diff **全部 none**；`cli_fulltest` 为
+`done 12 / skipped 1（primer）/ ready 2`。stdio 调用 **0.0s**，网页控制台 **2s**。
+
+教训：**MCP 工具里不要 import 带 GUI/绘图依赖的模块做「探测」**。同一个函数在
+主进程里快，在工作线程里可能因为首次 import 的全局锁/缓存争用卡死；判断「装没装
+工具」交给自检，不要在读取路径上做。
+
+### 口径
+
+- **归档是手动动作**：切模块、重连、刷新都不会归档；`vp_archive_task` 只收已结束的
+  任务，运行中先 `vp_cancel_task`，外部下载批次（`external=true`）请在来源模块处理。
+- 工具运行归档与 `/api/tool/runs/<run>/archive` 同语义：搬 `_archive/`，可恢复；
+  真删除仍然只有 `vp_delete_tool_run`（网页控制台 `_BLOCKED_TOOLS` 只拦它）。
+- 错误一律 `ValueError('中文原因')`：`check_path` 的 `FileNotFoundError` 会绕过
+  友好文案（归档/恢复第一次实现就踩到，测试里表现为 traceback 而非断言失败）。
+
+### 验证
+
+- `python mcp_server.py --check` → 7 项全 ok，`mcp_tools 32 个启用`，`ready: yes`。
+- `python tests\_check_mcp_tools.py` → 「✔ MCP 工具面自检通过」（七段：注册与
+  description、过滤/分页、状态/名称过滤、归档→仍可读→恢复、工具运行归档→恢复、
+  真实样品阶段与产物读取含越界拒绝、自检七项）。
+- `vp_sample_stages` 磁盘版：stdio 0.0s，网页控制台 2s，6 个样品与网页 diff none。
+- `python tests\_run_all.py _check_mcp_tools _check_skills` → 2/2 通过（8.2s）。
+
+## 2026-11-02 · 全模块巡检：真实缺陷修复与守卫健壮化
+
+用户要求「全面测试软件的不同模块是否正常，潜在的问题，全面修复，优化，提升」。
+本轮做法：`python -m pytest -q`（基线 341 passed / 2 failed）+
+`python tests\_run_all.py --quick`（97/105，8 红）+ pyflakes 全量 + 页面/接口抽查，
+然后**逐条复验每个红项**——结论是 7 个红项来自并发串扰、1 个来自真实代码缺陷。
+
+### 一、产品侧真实缺陷（已修）
+
+1. **`webapp/templates/mcp.html` 外部接入区块整段不存在**。脚本里的
+   `MCPC._cfg()` 找 `$('mcpCfg')`、`pages.py:404` 也往 `#mcpCfg` 注入配置文本，
+   但模板从来没渲染这个 `<pre id="mcpCfg">`，复制按钮同理。后果是 /mcp 页面
+   "外部接入" 一栏永远是空的（`tests/_check_mcp_console.py` 抓到了）。
+   修法：`#mcpUI` 之后补 `<section class="card" id="mcpExt">`，复用既有
+   i18n 键 `mcp.page.externalTitle / externalHint / externalNote`，不新造文案。
+2. **`Virus_Platform_Core/phylodyn_govern.py` 地理位置治理与上游不一致**（3 条）：
+   - `China, Ningxia, Yinchuan_AI` 未剥噪声后缀（上游 → `Yinchuan`）；
+   - `China, Unknown, Yinchuan_AI` 同上；
+   - `China, Unknown, Unknown_AI` 的 `dropped_levels` 少记 `Unknown_AI`
+     （旧 `_is_unknown_level` 正则 `^(unknown|...)([_\- ]|$)` 不命中 `Unknown_AI`）。
+   修法：新增 `_LOC_NOISE_RE = re.compile(r'[_\-\.](?:ai|v[1-9]|new|final|rev\d*|copy)$', re.I)`，
+   在 `split_location()` 里逐级剥离后过滤空串；`_is_unknown_level()` 增加
+   「占位词 + 分隔符」判据。**分隔符必须存在**，否则 `Shanghai/Qinghai/Chennai`
+   会被误截。对拍脚本 `tests/_check_govern_vs_upstream.py` 现已 10 项全过。
+3. **`Virus_Platform_Core/bsp.py` 缺 `import io`**（`render_pdf()` 用 `io.BytesIO()`，
+   签出即 NameError），**`Virus_Platform_Core/public_meta/host_genome.py` 缺
+   `import urllib.parse`**（重定向 `urljoin` 处）。两处都是 pyflakes 的
+   `undefined name`，属"只有走到那个分支才炸"的定时炸弹。
+4. **`webapp/templates/submit.html` 的物种名校验读回文件用页面级 `CUR`**：
+   任务轮询完成后若当前项目切换过，`/api/submit/table/<CUR>/file?name=taxonomy_check.json`
+   会 400。服务端 job payload 现在回 `project`，前端改成
+   `const proj = (snap.result && snap.result.project) || CUR;`。
+5. **`webapp/static/app-ai.js` 的 `_saveHistory()` 会写空历史桶**：
+   `AI.messages` 为空时也 `setItem`，导致「打开坞又关掉」在 localStorage 里
+   留下一串没有任何消息的 `vp_ai_msgs:<conv>`，`_pruneHistory()` 还得逐个解析。
+   修法：`if (!AI.messages.length) return;`。
+
+### 二、守卫/测试健壮化（不是产品缺陷，但会伪装成红）
+
+6. **`tests/_check_svg_wellformed.py` 顺着 junction 把整棵树走两遍**：
+   `%TEMP%\vp_ascii_root` 是 `hmm_annot.py:235` 建的目录链接（指向平台根，
+   给 Easel/ANSI fopen 中转 ASCII 路径用）。`os.walk` 跟着它进去后路径层层嵌套
+   （7 层），超 Windows MAX_PATH → `ET.parse` 抛 `FileNotFoundError` → 整脚本崩。
+   修法：新增 `_is_link()`（`islink` 或 `FILE_ATTRIBUTE_REPARSE_POINT = 0x400`），
+   `_iter_svgs()` 的 `dirs[:]` 过滤链接目录；`_is_wellformed()` 改返回三元组
+   `(ok, err, readable)`，把"打不开"与"真残缺"分开，打不开只记 warn。
+7. **`tests/_check_ai_global_ui.py` 依赖浏览器残留状态**：坞的开合记在
+   `localStorage.vp_ai_open`、会话 id 记在 `sessionStorage.vp_ai_conv`。
+   上一轮若把坞留在开着，FAB 就是 `hidden`，`page.click('#aiFab')` 必定 30s 超时；
+   不固定 sessionStorage 的话每次导航都新开一会话，"刷新后历史恢复"永远测不出。
+   修法：`add_init_script` 只在**首次进入**预置干净初态（清 `vp_ai_open` 与历史键、
+   固定 `vp_ai_conv=uicheck`），之后不动；发送历史用例用 `page.route` 拦
+   `/api/ai/chat` 返回固定 SSE（`{"type":"delta"}` + `{"type":"done"}`，口径照
+   `ai_agent/chat.py:313` 的 `_sse()`）；点 FAB 前先判 `is_visible()`。
+8. **`tests/_check_browse_dlg.py` 误判共享片段**：`_samples_new.html` 是片段
+   （由 `samples.html` include），它自己不该 include `_browse_dlg.html`。
+   改成按 `{% include %}` 传递闭包判定"自身或其宿主页的 include 链是否含对话框"。
+9. **`tests/_check_govern_vs_upstream.py` 在 GBK 控制台下自杀**：失败行 print 的
+   `✗` 编不出来 → `UnicodeEncodeError` → 只看到 exit 1、看不到是哪条。
+   头部补 `sys.stdout/stderr.reconfigure(errors='replace')`（与 `_run_all.py` 同款）。
+10. **`tests/test_ai_actions.py` / `tests/test_mirna_alignment.py`**：前者断言
+    仍按旧契约查 `rec['tid']`（产品已改 `result_sample`，docstring 也早就写明），
+    后者 `_Fake` 桩缺 `returncode/stderr`（`run_miranda_batch()` 先查
+    `r.returncode != 0`）。两处都按产品现状改桩/断言。
+
+### 三、i18n 与静态资源
+
+11. `webapp/static/i18n.js` 中英各补 9 键（代码在用、字典没登记）：
+    `ai.act.interrupted` / `ai.ev.gateCd` / `ai.ev.gateCdOver` / `ai.ev.gateRestored`
+    / `anc.openTasks` / `anc.verifyTip2` / `mcp.con.noArgs` / `se.savedAiFail`
+    / `ui.qs.switchBack`。补后 `tests/_audit_contract.py` 报
+    「zh/en 各 2999 键 · 无硬性差异」。
+12. 源码树里的手工备份 `webapp/static/i18n.js.bak`（372 KB）归档到
+    `archive\_bak_20261102\`（未删除），`tests/_check_spec_datas.py` 复绿。
+
+### 四、验证与经验
+
+- `python -m pytest -q` → **351 passed**（基线 341 passed / 2 failed）。
+- `python tests\_run_all.py --quick` → 97/105；8 个红项逐条复验后全部消解
+  （7 假 1 真，真项见第 6 条），单项复跑均 rc=0。
+- `python main.py selfcheck` → 模块 144/144、工具 32/32；页面抽查 22 个 GET 全 200。
+- **经验：`tests/_run_all.py --quick` 不能两个实例并发跑**。`run/` 目录被共享，
+  并发会互删产物，制造 `_it_dsrna`、`_audit_routes`（"巡检期间任务记录被删除 2 个"）
+  这类假红。看到 script 测试批量红、单跑绿，先查有没有第二个实例。
+- **经验：巡检类 Playwright 脚本必须先"清场"再断言**。用户配置（坞开合、
+  语言、会话 id）是持久化的，残留状态会让点击超时或让"恢复历史"永远为假。
+
+## 2026-11-02（补三十一）：三入口逐个实调 —— 从「能导入」到「真能调起来」
+
+补二十七那一轮验的是**接口会不会误删数据**；这一轮换成相反的视角：
+把 Web / CLI / MCP 三个入口**逐个真跑一遍**，看每个模块到底能不能调起来。
+结论先给：8 个真实缺陷，全部已修并补了回归测试。
+
+### 一、srna-target：模块声明了依赖，探测表里却没有这个键（mirna 100% 不可用）
+
+现象：任取 miRNA 序列提交 mirna，任务 `status=failed`，
+`RuntimeError: 模块「mirna」缺少必要外部工具：srna-target`；日志还顺带打了
+「自动安装插件 srna-target（31.4MB）…」，而插件源根本不提供这个工具——
+**排障方向被完全带偏**。
+
+根因：`Virus_Platform_Core/module_deps.py:63` 写的是 `'mirna': ['srna-target']`，
+但 `Virus_Platform_Core/config.py` 的 `detect_tools()` 候选表里**没有 `srna-target`
+条目**，于是 `cfg.tool_status()['srna-target']` 永远是空串，
+`missing_tools('mirna')` 永远判缺。而文件其实一应俱全：
+`3rd/tools/srna-target/{miranda/miranda.exe, rnahybrid/RNAhybrid.exe,
+pita/pita_prediction.pl, pita/perl/bin/perl.exe}`。
+
+修法三步：
+1. `detect_tools()` 的 cands 字典补 `'srna-target'`（排在 `'dsRNAmax'` 之后），
+   候选给 `3rd/tools/srna-target/miranda/miranda.exe` 与 `which('miranda')`；
+2. 新增 `_srna_target_complete(root=None)`，**四项全在**才算可用；
+3. `detect_tools()` 末尾加 `if out.get('srna-target') and not _srna_target_complete():
+   out['srna-target'] = ''`。
+
+第 2 步的理由值得单独记：三引擎缺一时，`mirna_target/bin_engines.py` 的
+`run_*` 会**静默返回 None** 降级，共识等级从 LOW 悄悄变 VERY HIGH 却不报错。
+所以「只找到 miRanda 就放行」比「直接报缺」更危险——宁可判缺。
+
+修完 `main.py selfcheck` 第②项由 32/32 变 **33/33**，mirna 端到端跑通
+（task 6df9201c8056，`status=done`，3 秒，产物落在
+`run/tool_runs/mirna_*\/mirna_target/{results.json, results.tsv, summary.json,
+mirna_targets_table.html}`）。
+
+> 口径提醒：这里说的 33 是**外部工具**数；工具箱**操作**仍是 32 个
+> （`agent_catalog.list_operations()` total=54 = tool 32 / stage 15 / action 7）。
+> `srna-target` 只是 mirna 的依赖引擎，不是用户能调的工具，别为了对齐数字硬塞。
+
+### 二、vp_ascii_root 自引用环：链接落进了被链接的树里
+
+现象：`main.py selfcheck` 第⑥项 `✘ 依赖审计失败: [Errno 2] ... 'run\tmp\
+vp_ascii_root\run\tmp\vp_ascii_root\...\dev_tools\build_plugin_repo.py'`
+（嵌套 9 层，撞 Windows MAX_PATH）。
+
+因果链：
+1. `Virus_Platform_Core/config.py:153` 模块级 `ensure_usable_tempdir()` 在系统
+   临时目录不可用时把 `tempfile.tempdir` 重定向到 `<平台根>/run/tmp`；
+2. `Virus_Platform_Core/hmm_annot.py:235` 的 `_ascii_path()` 取
+   `os.path.join(tempfile.gettempdir(), 'vp_ascii_root')` 建 junction 指向
+   `PLATFORM_ROOT`；
+3. 于是**链接落在被链接树内部**——任何 `os.walk` 平台根的操作都会无限复制
+   整棵树，直到路径超 MAX_PATH。
+
+修法：`_ascii_path()` 建链接前先做环检查——`link` 规范化后若以
+`PLATFORM_ROOT + os.sep` 开头，就弃用 tempdir 位置，改试 `%TEMP%` / `%TMP%`
+下的同名目录；仍不可用就整段跳过（`_ASCII_LINK = ''`），**宁可返回原路径也不造环**。
+
+清理：确认 `run\tmp\vp_ascii_root` 属性是 `Directory, ReparsePoint`
+（Target=`D:\桌面\植物病毒分析平台`）后，用 `cmd /c rmdir` 只删链接不留内容。
+核对平台根 main.py/app.py/Virus_Platform_Core/webapp/tests/host-db/databases/3rd
+全部在位、run/results 14 个样品、run/tool_runs 121 个目录都在。
+修完第⑥项变 `✔ 全部依赖就绪（扫描 44 个）`。
+
+> 冷知识：`tests/_check_svg_wellformed.py:111-124` 里早有一大段注释在讲
+> 「`%TEMP%\vp_ascii_root` 让 `os.walk` 走两遍、超 MAX_PATH」，当时只在扫描器
+> 侧加了 `_is_link()` 跳过——**症状被绕开了，根因没人动**。这次修的是根。
+
+#### 补记：第一版修复不够深，复跑时环又回来了
+
+第一版只改了 `hmm_annot._ascii_path()`（建链接前做环检查），selfcheck 当时确实绿了。
+但过了一小时复跑，第⑥项**又红了**，嵌套九层的路径一模一样。查链接时间戳：
+`run/tmp/vp_ascii_root` 创建于 03:29:57，正是那一轮 web 进程启动后的几十秒内。
+
+继续往上追，真正的根因在 **`config.ensure_usable_tempdir()`**：
+
+    if _usable(tempfile.tempdir):
+        return tempfile.tempdir
+
+`_usable(d)` 的头一行是 `if not d: return False`。而模块**首次导入**时
+`tempfile.tempdir` 还是 `None`（它是懒初始化的缓存，第一次 `gettempdir()` 才填）。
+于是：
+
+1. `_usable(None)` → False；
+2. 跳过「系统临时目录可用」这条最该走的路；
+3. 一路落到 `cands` 列表里的 `os.path.join(PLATFORM_ROOT, 'run', 'tmp')`；
+4. `tempfile.tempdir` 被**永久改写**成平台根内部，并同步覆盖 `TMPDIR/TEMP/TMP`
+   三个环境变量。
+
+也就是说：**系统临时目录明明是好的**（实测 `gettempdir()` =
+`C:\Users\17711\AppData\Local\Temp`），代码却因为读了一个还没初始化的变量，
+主动把自己搬进了平台根。这比「系统临时目录不可用」这个设计初衷要糟得多——
+后者是罕见的兜底，前者是**每次启动都发生**。
+
+修法：新增 `_sys_tempdir()`，口径改为「显式设置过就用设置的，没设置过就问环境要」：
+
+    if tempfile.tempdir:
+        return tempfile.tempdir
+    for k in ('TMPDIR', 'TEMP', 'TMP'):
+        v = os.environ.get(k)
+        if v:
+            return v
+    return '/tmp' if os.name != 'nt' else None
+
+`ensure_usable_tempdir()` 的首行相应改成 `if _usable(_sys_tempdir())`，
+并把 `import tempfile` 从函数内挪到模块级（新函数也要用）。
+
+> **教训：兜底分支要判「真的不可用」，不能判「我不知道」。**
+> `tempfile.tempdir is None` 表达的是"还没问过系统"，不是"系统没有"。
+> 把未知当成否定，兜底就会从"万不得已才走"变成"默认就走"，
+> 而兜底分支往往正是不想选的那个位置（这里是平台根内部）。
+> 这类 bug 有个共同特征：**修复后一段时间才复现**，因为触发点在不同入口
+> （CLI selfcheck 与 web 启动顺序不同）。看到"修完又回来了"，先怀疑修复
+> 只盖住了症状分支，没盖住产生症状的上游。
+
+新增回归 `tests/test_usable_tempdir_never_prefers_platform_root`：
+把 `tempfile.tempdir` 显式置 None、`TEMP` 指向 tmp_path，断言
+`ensure_usable_tempdir()` 返回的不是平台根内部路径——直接锁死这个"未知当否定"。
+
+> 顺带记一个**并发踩坑**：这一轮我在 `_run_all` 还在跑的时候单跑了同一批脚本
+> 去排查，结果把正在跑的套件搅成了 19 个秒级 FAIL（全部 0.2~1.2s，
+> 典型的"连不上/抢目录"）。单跑全部 ALL PASS。**排查期间不要动正在跑的套件**，
+> 先停掉再查；也顺手查出机器上残留着两份 `app.py --web`（一份 03:24 一份 03:30）
+> 和遗留的 `_run_all.py`，互相抢 8765 与 `run/`。清理干净后重跑才是可判读的。
+
+
+### 三、空参数提交能建出「必然失败」的任务（4 个工具）
+
+32 个工具箱工具里有 9 个输入是「多选一」（consensus 的参考可以是 contigs 运行 /
+kvsuite 运行 / 独立 FASTA；kvchain 的样本可以是样品 / 直填测序数据 / 样本表；
+pdprep 按 source 分支各有必填；verify 是运行或 FASTA）。这类工具 schema 里
+`required=[]` 是**对的**（没有任何单个键永远必填），但实测发现：
+
+| 工具 | 空提交结果 |
+|---|---|
+| mirna / kvsuite / genoplot / orfa / phylodyn | 400 + 中文原因 ✔ |
+| **consensus / kvchain / pdprep / verify** | **建了任务，终态 failed** ✘ |
+
+后四个的后果不是数据损坏，是**体验与排查成本**：用户看到一张 pct=1、
+`status=failed` 的卡，真正的文案（「请选择 contigs 运行或输入 FASTA」）
+埋在任务 error 字段里；而且每试一次就多一个空转的任务目录。
+
+根因分两类：
+- `verify` / `consensus` / `pdprep`：校验写在 **job 体内**（`raise ValueError(...)`），
+  任务线程里没有 Flask 请求上下文，`abort(400)` 只会退化成裸的
+  「BadRequest: 400 Bad Request」，所以当初改用了 `raise ValueError`——文案能看，
+  但**任务已经建出来了**。
+- `kvchain`：它是 `kvsuite` 的 `stage=all` 封装，参数 schema 直接复用 kvsuite
+  （`agent_catalog.py:365` `TOOL_PARAM_SCHEMAS['kvchain'] = TOOL_PARAM_SCHEMAS['kvsuite']`），
+  但提交入口自己不校验，指望 kvsuite 在任务线程里 abort。
+
+修法：在 4 个 job 函数的**factory 期**（`return job` 之前、Flask 请求上下文还在）
+补与 kvsuite 同款的互斥校验：
+- `Virus_Platform_Core/web/tool_jobs.py` `_tool_job_verify`：
+  `if not run_ref and not fasta: abort(400, '请选择 contigs 运行或输入 FASTA')`
+- `_tool_job_consensus`：`if not run_ref and not fasta and not kv_run: abort(...)`
+  （注意 `kv_refs` 依赖 `kv_run`，只要 `kv_run` 给了就不算空）
+- `_tool_job_pdprep`：按 `source` 分支校验（files 要 fasta+meta、manual 要
+  fasta_text+meta_text、genbank 至少给 accession/term/species/taxid/gb_files 之一——
+  判定放宽，不误伤 gateway+species 这类合法组合）
+- `Virus_Platform_Core/web/chains.py` `_tool_job_kvchain`：三选一全空即 400
+
+修完 9/9 全部 400 且带中文原因，`tests/test_tool_mutex_inputs.py` 11 项通过
+（9 个参数化空提交 + 「400 后不留运行目录」+「合法输入不被误伤」）。
+
+> **这条测试是做过反向验证的**：把 `abort` 换成遇到这几条文案就放行的桩，
+> 4 个工具立刻从 400 变 500 —— 证明新加的校验就是唯一的那道闸，
+> 测试不是靠别处顺手拦下来蒙对的。以后加同类校验，建议照做一次。
+
+### 四、三入口实调结论
+
+| 入口 | 做法 | 结果 |
+|---|---|---|
+| CLI | 43 个子命令逐个 `<cmd> --help` | 43/43 通过，无 Traceback |
+| CLI | 只读子命令真跑（tools/selfcheck/ref-status/ictv-status/gb-list/logan-jobs/submit-list/agent-guide/agent-ops…） | 全部 rc=0；`host-analysis --sample mcp_night_demo2` → 3 条 contigs |
+| MCP | `mcp_server.py --check` | 24 个工具、指纹 821cdad41bf5、http 模式可用 |
+| MCP | 手写 JSON-RPC over stdio（initialize → tools/list → tools/call） | 24 个工具全 `vp_` 前缀、inputSchema 齐备 |
+| MCP | 9 个只读工具真实调用 | 全部 ok（vp_list_tools 56705 字符、vp_cli_help 29797 字符…） |
+| HTTP | 32 个工具的参数契约（空 params 提交） | 23 个缺必填 → 400 中文；9 个互斥型见上文 |
+
+两个**踩过的坑**（都是探测脚本自己的错，不是产品问题，记下来少走弯路）：
+- MCP **没有** `vp_agent_ops` 工具（`agent-ops` 是 CLI 子命令）；别凭印象写名字，
+  先 `tools/list` 或 `tmp_diag/list_mcp_tools.py` 静态解析。
+- `vp_search_operations` 的参数键是 **`query`**，不是 `keyword`。写错会得到
+  Pydantic 的 `query Field required`——**参数校验正常工作**。
+
+### 五、验证与经验
+
+- `python -m pytest -q` → 346 passed（新增 `test_tool_detect_and_ascii_link.py`
+  5 项、`test_tool_mutex_inputs.py` 11 项）。
+- `python main.py selfcheck` → 模块 144/144、**工具 33/33**、依赖审计 44 个全就绪。
+- **经验：改了 `config.py` 这类启动期算一次的东西，必须重启 web 进程**。
+  `Config` 是单例、`detect_tools()` 在 `__init__` 里跑完，改代码不会热加载；
+  修复后复跑仍报旧错误时，先确认 8765 上跑的是不是新进程（看 PID 有没有变）。
+- **经验：模块声明的工具 key 必须能在探测表里找到**。`module_deps.MODULE_TOOLS`
+  是「模块 → 依赖」的真源，`detect_tools()` 是「本机有没有」的真源，两者不对齐
+  就是「永远判缺」。`tests/test_tool_detect_and_ascii_link.py` 里那条
+  `test_srna_target_declared_by_module_has_detect_entry` 遍历全部声明键做断言，
+  锁的是这个**通用形态**，以后新增模块漏登记会当场红。
+- **经验：互斥型输入的校验要放在 factory 期，不是 job 体里**。job 体里 `abort(400)`
+  没有请求上下文，只剩一个没有文案的 400；而 `raise ValueError` 虽然有文案，
+  但任务已经建出来了。判断标准很简单：**这条错是「参数不对」还是「跑起来才发现」**——
+  前者进 factory，后者才进 job。
+
+### 六、i18n 字典：重复键是「静默死代码」，比缺键更难发现
+
+`tests/_run_all.py` 收尾那一轮（106/107）唯一的红是 `tests/_check_i18n.py`，
+报的是**重复键**而非缺键：
+
+    ✘ [en] se.savedAiFail     L3497 与 L3498 重复
+    ✘ [zh] ui.qs.switchBack   L2514 与 L2516 重复
+    ✘ [en] ai.act.interrupted L2885 与 L2886 重复
+    ✘ [en] anc.verifyTip2     L3005 与 L3006 重复
+
+四处全部是**我在补键时自己造的**：`i18n.js` 里中英是两个大对象字面量，
+同一对象内重复键不报语法错（`node --check` 也是绿的），后写的**静默覆盖**前写的
+——前一处变成永远执行不到的死代码。JS 引擎不警告、页面也照常显示，
+所以只能靠静态检查抓。
+
+`anc.verifyTip2` 那两处还**内容不一致**（`\'` vs `\u2019`，同一个撇号的两种写法），
+说明它不是简单复制粘贴，而是两次独立编辑留下的残影。处理时保留与全文一致
+的 `\'` 写法（全文 `\u2019` 只出现 2 次，是个孤例）。
+
+补齐 `ai.dock.convs` 时又踩到同一个坑：中文块缺这个键（页面 `_nav.html` 的
+`data-i18n-title` 用它做「历史会话」按钮的 tooltip），我在中文块补上后，
+顺手在英文块的「settings 之后」也加了一条——**而英文块 L2800 早就有**
+`'ai.dock.convs': 'Conversations'`，于是立刻又多出一处重复。
+教训是：**补键前先全文搜一遍这个键是否已存在**，不要按「它应该挨着谁」去猜位置。
+
+最终 `tests/_check_i18n.py` → `模板锚点 1411 个全部有定义，中英成对，无重复键`。
+
+> 这类检查器的价值就在这里：`node --check` 只验语法，而重复键、缺键、
+> 中英不成对都**不是语法问题**。`tests/_verify_i18n.js --verbose` 才能把
+> 「哪个 key、哪两行、哪个模板引用了它」一次说清——排障时先跑它，
+> 别在 5600 行字典里人肉找。
+
+### 七、并发稳定性（用户原话里的「工作的稳定性」）
+
+顺序跑通 ≠ 稳定。补了一个 `tmp_diag/probe_concurrency.py` 三件套：
+
+- **A 并发读**：40 路并发打 6 个只读接口（`/`、`/api/samples`、`/api/tool/runs`、
+  `/api/tasks`、`/api/settings`、`/api/tool/runs/archived`）→ 1.72s，
+  **非 200 共 0 个**，且 `/api/*` 响应体全部仍是合法 JSON（没被截断）。
+- **B 并发写**：同时提交 8 个 `convert` 任务 → 0.17s 拿到 **8 个互不相同的 task id**
+  （没有串号），轮询后 **8/8 done**，无超时。
+- **C 压后健康**：压完再打 `GET /` → 200 / 23066 字节。
+
+不做的事也记一笔：**不并发跑重工具**（抢 CPU 会让结果不可判读），
+**不并发跑 `tests/_run_all.py`**（前文第 5 条的经验）。
+
+### 八、MCP 侧的「同样的闸」——拒绝路径也验了
+
+上一轮只验了 24 个工具「能列出来、只读的能调」，这一轮补了**拒绝路径**：
+参数不对时必须守住，而不是照单执行。8 个用例全过：
+
+| 调用 | 结果 |
+|---|---|
+| `vp_delete_tool_run(confirm=False)` | 拒删：「删除不可逆：请把 confirm 设为 true 再执行」 |
+| `vp_delete_tool_run(不存在的 run, confirm=True)` | 拒：「路径不存在」 |
+| `vp_run_tool(no_such_tool)` | 拒：「未知工具」（并列可用工具清单） |
+| `vp_run_tool(convert)` 缺 input | 拒：「缺少必填参数 input（输入文件）」 |
+| `vp_run_tool(mirna)` 空参数 | 拒：「请粘贴 miRNA 序列或选择 miRNA FASTA 文件」 |
+| `vp_get_task(不存在)` | 拒：「任务不存在」（并提示去哪查） |
+| `vp_read_run_file(run, '../../platform.json')` | 拒：越界读被挡 |
+
+并且**拒绝之后 `run/tool_runs/` 没有新增任何目录**——这条单独断言，
+因为「报错了但已经把目录建出来」是很容易漏的半修状态。
+
+顺带确认了**第三节那 4 个工具的修复在 MCP 侧同样生效**（HTTP 与 MCP 共用
+同一个 job factory）：`consensus` / `kvchain` / `pdprep` / `verify` 经
+`vp_run_tool` 空提交全部被拒、且不建目录。
+
+### 九、本轮数字
+
+- `python -m pytest -q` → **362 passed / 0 failed**（156.46s）。
+- `python tests\_run_all.py` 第二轮 → 106/107（唯一红是 i18n 重复键）；
+  i18n 修完复跑见下条。
+- `python main.py selfcheck` → 模块 144/144、工具 33/33、依赖审计 44 个全就绪。
+- CLI 43 个子命令 `--help` 全过；MCP 24 工具、9 个只读实调全过、8 个拒绝路径全过；
+  工具箱 32 工具参数契约全过；并发 40 读 + 8 写全过。
+
+
+
+## 2026-11-02 · 全模块巡检第二轮：真实缺陷修复（批次 A：任务落盘 / 提交读回 / CDS 挑选 / MCP 配置）
+
+### 产品缺陷
+
+1. **任务记录落盘被自己的路径守卫拦掉**（镜像/自测/自定义任务目录全中招）
+   - 现象：`任务状态保存失败 <tid>: 路径越界（仅允许平台或输出目录内）: <临时目录>\<tid>.json`，
+     它只是 warning，于是任务记录**静默不落盘**，重启/归档演练全部失真。
+   - 根因：`Virus_Platform_Core/utils.py` 的 `check_path()` 写模式按
+     `config.write_roots()` 判越界；`TaskManager._persist()` 允许 `DIRS['tasks']`
+     指向自定义目录（测试/镜像），随后 `safe_open(p, 'wt')` 内部又
+     `check_path(path, in_platform=True)` 再判一次 → 必失败。
+   - 修法：`check_path(path, must_exist=False, in_platform=False)` 支持
+     `in_platform='tasks'`（额外放行 `web.tasks.DIRS['tasks']`，统一
+     `os.path.abspath` 后比较）；`safe_open(path, mode, compress_level=6,
+     allow_outside=False)` 写模式改用 `check_path(path, in_platform=not allow_outside)`；
+     `web/tasks.py` 的 `_persist` / `_archive_dir` / `archive` / `_recover` /
+     `_prune` / `purge_*` / `_archive_path`（已更名 `_archive_rec_path`）统一走
+     `in_platform='tasks'` + `allow_outside=True`。
+   - 教训：**「先改 DIRS 再写文件」这种测试友好设计，必须让守卫认识那个 DIRS**，
+     否则守卫和调用方各说各话，错误还只是个 warning。
+
+2. **物种名校验结果读回踩页面级 `CUR`**
+   - 根因：`webapp/templates/submit.html` 的 `doTaxCheck()` 想用
+     `snap.result.project` 拼读回地址，但 `TaskManager.snapshot()` 下发的是
+     `result_preview = build_result_preview(result)`，把 dict 折成
+     `{'kind':'tool','stats':{...}}`，`project` 被压进 stats；而 job 返回值
+     `{'n_checked','n_missing','result'}` 本身也没带 project。前端只好退回 `CUR`，
+     切模块/清空后 400。
+   - 修法：`build_result_preview` 透传标识类标量 `('project','run','out_dir','sample')`；
+     `web/submit.py::api_submit_table_taxonomy_check()` 的 job 返回值加 `'project': name`。
+
+3. **`/cds-export` 选中集合被列表异步刷掉**
+   - 现象：刚选中集合、列表请求返回，选中项被打回占位项，`cdsPickOpen()` 只报
+     「先选择集合」就 return（用户表现为：点「挑选」没反应）。
+   - 根因：`cdsLoadCollections()` 用 `sel.innerHTML = ...` 整段重写选项。
+   - 修法（`webapp/static/cds_export.js`）：改为**原地增删 `<option>`**，占位项固定首位，
+     重载后 `sel.value = cur` 保住选中；`cdsPickOpen()` 落值前若目标 option 不存在，
+     先 `document.createElement('option')` 补上再赋值（浏览器对不存在的 value 是**静默忽略**的）。
+
+4. **`/mcp` 页「外部接入配置」区块整段缺失**
+   - `mcp.html` 的 `MCPC._cfg()` 找 `$('mcpCfg')`、`MCPC.copyCfg()` 有复制按钮，
+     `web/pages.py` 也会往 `#mcpCfg` 注入 `dataset.root/py/script`，但模板从未渲染
+     这个 `<pre id="mcpCfg">`。已补 `#mcpExt` 区块（复用既有 i18n 键）。
+
+### 测试健壮化
+
+5. `tests/_it_async_ui.py` 第 4 段不再「扫磁盘上现成集合」，改为**自带夹具集合**
+   `uitest_async_cdscoll`（180 bp、`cp`/`movement protein` 两条 CDS，均非假想蛋白）。
+   以前借用别的集合，一旦那个集合恰好全是 hypothetical（实测 `it_compare_coll`
+   18 条全中招），挑选表就只剩「无匹配记录」，而超时是以空消息的
+   `WebDriver` TimeoutException 冒泡，看不出原因。选集合改为**竞态容错**
+   （`cdsLoadCollections` 重写选项期间 value 会短暂为空，重复设置直到勾选框出现）。
+6. `tests/_check_ai_global_ui.py`：坞开合存在 `localStorage.vp_ai_open`、会话 id 存在
+   `sessionStorage.vp_ai_conv`，不清场则「点 FAB」永远 30s 超时、「刷新恢复历史」
+   永远为假；改为首次进入才清场，并用 `page.route('**/api/ai/chat')` 桩 SSE
+   （事件形态是 `{"type":"delta","content":...}` + `{"type":"done"}`）。
+7. `tests/_check_svg_wellformed.py`：`%TEMP%\vp_ascii_root` 是指向平台根的**目录链接**
+   （`hmm_annot.py` 给 Easel 中转 ASCII 路径用），`os.walk` 会跟着走进去 → 路径
+   层层嵌套 7 层 → 超 MAX_PATH → 整个守卫崩掉。改为跳过 reparse point，
+   并把「打不开」与「真残缺」分开（`_is_wellformed` 返回三元组）。
+8. `tests/_it_task_archive.py` / `_it_task_archive_api.py` / `_it_async_ui.py` /
+   `_check_pages_console.py` 批量红、单独跑全绿——都是**并行实例互抢 `run/` 目录**，
+   不是产品缺陷；巡检时务必确认只有一个 `_run_all` 在跑。
+
+### 顺带清理
+9. `Virus_Platform_Core/bsp.py` 补 `import io`、`public_meta/host_genome.py` 补
+   `import urllib.parse`（`undefined name` 实测会抛 NameError）。
+10. `viz.py` 去掉函数内重复的 `from .utils import count_fasta_seqs`；
+    `mcp_server.py` 的两处「先试装再 import」重复 import 改为 `importlib.import_module`。
+11. `webapp/static/app-ai.js` 的 `AI._saveHistory` 空对话直接返回，不再写空历史桶。
+
+### 验证基线（本轮）
+- `python -m pytest -q` → **362 passed, 1 skipped**（基线 341 passed / 2 failed）。
+- `python tests/_run_all.py --quick` → **107/107 通过，总耗时 1419.7s**（此前同类批量跑 97/105、99/107，红项均已定位）。
+- `python mcp_server.py --check` → `ready: yes`、`mcp_tools: ok 32 个启用`。
+
+## 2026-11-02（补三十二）：AI 对话坞跨页持久化 —— 恢复不再等网络、镜像兜底、离开即落盘
+
+### 用户现场
+「我运行的 AI 工作台的问答，切换其他页面，再回来又没了……有时候正常，有时候再修又错了」。
+截图是首页内嵌的 AI 工作台：一条提问「对 Dataset_1 ~ Dataset_18 进行已知病毒识别和定量分析」
+加一张进行中的「Dataset_11 · 阶段 0/4 · fastp 正在分析」卡片——切页时 18 个数据集正在跑。
+
+### 根因（不是存储丢了，是恢复被网络卡住）
+`webapp/static/app-ai.js` 的 `AI._ensureCtx()` 里，历史恢复写在
+`await fetch('/api/ai/context')` 成功之后；服务端跑重活时该请求排队/超时，
+一旦抛异常就整段跳过恢复（`catch` 只打一句「上下文加载失败」）：
+
+    const d = await (await fetch('/api/ai/context' + q)).json();
+    ...
+    if (!AI.ctxLoaded) { AI.ctxLoaded = true; if (!AI._restoreHistory()) AI.greet(); }
+    } catch (e) { AI.notice('上下文加载失败'); }   // ← 不进恢复分支
+
+于是画面上干干净净，而 localStorage 里的消息一条没丢。「有时候正常」= 服务端闲时
+这条 fetch 几十毫秒就回来。次要口子：会话 id 存在 sessionStorage（新标签页/隐私模式
+换 id 就接不上旧键），以及流式回答发出后 2s 内切页时只落了提问气泡。
+
+### 修法（`webapp/static/app-ai.js`，4 处）
+1. 新增 `AI.restoreOnce()`：只跑一次、**只读 localStorage、不碰网络**；在 boot、
+   `_ensureCtx()` 开头、上下文成功/失败分支各调一次（`_restored` 标记防重复渲染）。
+2. 镜像键 `AI_LAST_KEY = 'vp_ai_msgs:__last'`：`_saveHistory()` 每次连同
+   `{t, conv, msgs}` 写一份；`_restoreHistory()` 当前会话键为空/损坏时回落镜像，
+   并把 `conv` 认回 `AI.convId` + sessionStorage —— 新标签页也能接上最近一段。
+3. `pagehide` 里补 `AI._saveHistory()`：刚发出去就切页的那条也落盘。
+4. 配套：`AI.clear()` 连镜像一起清（否则清空后换页又「复活」）；`_pruneHistory()`
+   与 `_listConvs()` 跳过镜像键（它不算一段会话）。
+
+### 验证
+`tests/_it_ai_persist_ui.py`（Edge headless 打 8765）：① 正常换页保留；② 会话 id
+换掉走镜像恢复；③ 只进内存、不等 2s 定时器就导航也能落盘；④ `fetch` 直接 reject
+仍恢复历史；⑤ 清空后换页不复活。5/5 通过，已登记进 `tests/_run_all.py`（300s，
+缺 Edge/selenium 时 SKIP 返回 0）。
+### 守卫：把「这条链」写成断言（2026-11-02）
+这处故障被反复「修好又坏」，不是因为同一个 bug 没修对，而是每次修别的问题时，
+这条链上的某一环被顺手改回去了（恢复挪到 `await fetch` 之后、镜像键没写、clear 没清镜像…）。
+所以除了行为测试，又加了 `tests/_check_ai_dock_persist.py`（静态、0.1s、不用浏览器）：
+把 A 恢复不依赖网络（`restoreOnce`/`_restoreHistory` 体内无 `fetch`/`await`，且
+`_ensureCtx` 里 `restoreOnce()` 必须先于 `/api/ai/context`）、B 两处落盘、C 镜像兜底与
+会话 id 认回、D clear 连镜像清 + `_pruneHistory`/`_listConvs` 跳过镜像 + `pagehide` 落盘 +
+boot 先恢复，共 25 条断言，已登记进 `tests/_run_all.py`（60s）。
+
+变异验证过：把 `_ensureCtx` 开头那句 `AI.restoreOnce()` 删掉（模拟「又被挪回网络之后」），
+守卫立刻 `FAILED: 1 项不变量被改坏`；恢复文件后哈希一致、重新全绿。
+今后改这一带代码，先跑它；红了就是有人把某一环改回去了，不必再等用户切页踩出来。

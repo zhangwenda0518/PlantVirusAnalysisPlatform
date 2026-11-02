@@ -896,6 +896,8 @@ async function refreshTasks() {
           <b>${esc(task.name)}</b>
           <span style="display:flex;gap:8px;align-items:center">
             ${task.status === 'running' ? `<button class="btn small danger" onclick="cancelTask('${task.id}')">${t('mt.stopBtn')}</button>` : ''}
+            ${task.status !== 'running' && task.status !== 'queued'
+              ? `<button class="btn small" onclick="mtArchiveTask('${task.id}', this.dataset.n)" data-n="${esc(task.name || '')}" title="${t('tk.archiveTip', '移入历史归档（可随时恢复）')}">${t('tk.archive', '📦 归档')}</button>` : ''}
             <span class="tstat ${st}">${stText}</span>
           </span>
         </div>
@@ -917,6 +919,24 @@ async function refreshTasks() {
 async function cancelTask(tid) {
   try { await jfetch(`/api/task/${tid}/cancel`, {method: 'POST'}); refreshTasks(); }
   catch (e) { alert(e.message); }
+}
+/* 手动归档（2026-11-02）：本页任务跑完后默认继续留在「运行任务」区，
+   切模块 / 切功能都不会把它收走；点这张卡的「📦 归档」才进任务中心历史
+   （可再恢复）。跑完的任务在整体上由右下角全局运行条统一兜住。 */
+async function mtArchiveTask(tid, name) {
+  const ask = t('tk.confirmArchive', '归档任务「{name}」？\n记录移入历史归档（可随时恢复），日志与结果文件保留。');
+  if (!confirm(ask.replace('{name}', name || ''))) return;
+  try {
+    const r = await fetch(`/api/task/${tid}/archive`, {method: 'POST'});
+    if (!r.ok) {
+      let msg = r.statusText;
+      try { msg = (await r.json()).error || msg; } catch (e) { /* ignore */ }
+      throw new Error(msg);
+    }
+    if (typeof toast === 'function') toast(t('tk.archivedOne', '已归档'), name || '', {ttl: 3000});
+  } catch (e) { alert(t('tk.archiveFail', '归档失败') + '：' + (e.message || e)); }
+  refreshTasks();
+  if (window.runBarTick) window.runBarTick();
 }
 
 /* ── 勾选行 → 数据下载 / Info 提取 ── */

@@ -15,7 +15,7 @@ import csv
 import glob
 import shutil
 
-from .config import get_config, DIRS, ref_annotation_path
+from .config import get_config, DIRS, engine_cmd, ref_annotation_path
 from .utils import (check_path, safe_open, run_cmd, iter_fasta, write_fasta_record,
                     count_fasta_seqs, is_step_done, mark_step_done)
 from .kunpeng import classify, parse_classify_output, parse_kreport, KreportTree
@@ -469,12 +469,12 @@ def _run_spades_once(r1, r2, out_dir, mode, threads, memory_gb, logger,
     # 内存钳制（2026-10-04 审查 E3）：-m 64 硬编码在 16GB 机器上换页抖动；
     # POST 侧已钳（web/samples.py），这里覆盖 CLI 直调路径
     from .utils import total_ram as _total_ram
-    _ram_cap = max(2, int((_total_ram() or 16 * 1024 ** 3)
-                          * 0.6 / 1024 ** 3))
+    _ram_cap = assembler_memory_cap_gb()
     if int(memory_gb) > _ram_cap:
         if logger:
-            logger.log(f"组装内存 {memory_gb}GB 超物理内存 60% 上限"
-                       f"（{_ram_cap}GB），已自动钳制", "WARN")
+            logger.log(f'组装内存 {memory_gb}GB 超过允许上限（物理内存的 60%，'
+                       f'约 {_ram_cap}GB），已自动钳制到 {_ram_cap}GB —— 再高会'
+                       f'触发系统换页，整机变卡', 'WARN')
         memory_gb = _ram_cap
     if mode == 'srna' and r2:
         if logger:
@@ -975,3 +975,237 @@ def _load_virus_info_species():
                         }
             return out
     return {}
+
+
+# ---------------------------------------------------------------- MEGAHIT
+# Windows 移植版：megahit.bat → bin\megahit.py → megahit_core.exe。
+# 比 SPAdes 快一个量级（不纠错、SdBG 直接出图），代价是低深度样品的灵敏度
+# 不如 SPAdes 的 rnaviral/rna 模式；小 RNA（srna）仍固定走 SPAdes
+# （MEGAHIT 的 k 下限 15、默认 21，21-24nt 读长拼不出东西）。
+ASSEMBLER_CHOICES = ('auto', 'spades', 'megahit')
+MEGAHIT_MODES = ('default', 'sensitive', 'large')
+
+# 组装内存口径（2026-10-29）：
+#   默认 = 物理内存的一半（下限 4GB）—— 组装的峰值通常远低于物理内存，
+#          留一半给系统和别的程序，避免整机换页卡死；
+#   上限 = 物理内存的 60%（run_spades / run_megahit 里钳制）—— 再高就会
+#          触发 Windows 换页，越跑越慢，甚至把整机拖到假死。
+RAM_FRACTION_DEFAULT = 0.5
+RAM_FRACTION_CAP = 0.6
+
+
+def physical_ram_gb():
+    """物理内存（GB，整数，至少 1）。"""
+    from .utils import total_ram
+    try:
+        ram = total_ram() or 0
+    except Exception:                                   # noqa: BLE001
+        ram = 0
+    return max(1, int(round(ram / 1024 ** 3))) if ram else 16
+
+
+def default_assembler_memory_gb():
+    """组装内存默认值 = 物理内存的一半（下限 4GB）。"""
+    return max(4, int(physical_ram_gb() * RAM_FRACTION_DEFAULT))
+
+
+def assembler_memory_cap_gb():
+    """组装允许使用的内存上限 = 物理内存的 60%（下限 2GB）。"""
+    return max(2, int(physical_ram_gb() * RAM_FRACTION_CAP))
+
+
+_OOM_MARKERS = ('bad_alloc', 'out of memory', 'outofmemory', 'memoryerror',
+                'not enough memory', 'not_enough_memory', 'cannot allocate',
+                'unable to allocate', 'insufficient memory', 'not enough storage',
+                'page file', '页面文件太小', 'error 1455', '(1455)',
+                'killed', 'signal 9')
+
+
+def looks_like_oom(message):
+    """判断一条失败信息是否像"内存不足"（用于给出人话提示）。"""
+    low = str(message or '').lower()
+    return any(m in low for m in _OOM_MARKERS)
+
+
+def oom_hint(message, memory_gb):
+    """把 OOM 原始报错包装成可操作的中文提示（非 OOM 原样返回）。"""
+    if not looks_like_oom(message):
+        return message
+    cap = assembler_memory_cap_gb()
+    half = default_assembler_memory_gb()
+    return (f'内存不足：组装在 {int(memory_gb)}GB 内存上限下失败（工具因内存退出）。\n'
+            f'建议：把「内存(GB)」改小 —— 默认值是物理内存的一半（本机约 {half}GB），'
+            f'平台允许的上限是物理内存的 60%（约 {cap}GB，再高会触发系统换页、'
+            f'整机变卡，程序本身也会被自动钳制）；同时可适当减少线程数。\n'
+            f'原始错误：{str(message or "")[:300]}')
+_MEGAHIT_K_TOTAL = 8      # 默认 k 阶梯 21,29,39,59,79,99,119,141
+
+
+def choose_assembler(requested='auto', mode='rnaviral', megahit_path=None):
+    """实际使用的组装引擎（'megahit' | 'spades'）。
+
+    - requested='spades'：永远 SPAdes；
+    - requested='megahit'：有 MEGAHIT 就用（缺失由调用方报错更友好）；
+    - requested='auto'：有 MEGAHIT 且非 srna → MEGAHIT（快），否则 SPAdes；
+    - srna（小 RNA）固定 SPAdes。
+    纯函数，单测见 tests/test_assembly_engine.py。
+    """
+    req = (requested or 'auto').strip().lower()
+    if req not in ASSEMBLER_CHOICES:
+        req = 'auto'
+    if req == 'spades' or mode == 'srna':
+        return 'spades'
+    return 'megahit' if megahit_path else 'spades'
+
+
+def normalize_megahit_mode(raw):
+    """MEGAHIT 组装模式 → 内部取值（default / sensitive / large）。
+
+    default   = 官方默认 k 阶梯 21,29,...,141
+    sensitive = --presets meta-sensitive（min-count 1，低深度样品更敏感）
+    large     = --presets meta-large（k 27→127，复杂宏基因组）
+    """
+    v = (raw or 'default').strip().lower()
+    return v if v in MEGAHIT_MODES else 'default'
+
+
+def build_megahit_args(r1, r2, out_dir, threads=None, memory_gb=64,
+                      min_len=200, tmp_dir=None, preset=None):
+    """拼 MEGAHIT 的参数表（纯函数，不含可执行文件）。
+
+    -m 口径：MEGAHIT 接受字节数（0~1 之间才按物理内存比例），这里固定传字节。
+    单端用 -r，双端用 -1/-2；--min-contig-len 直接取界面上的最短 contig。
+    可执行部分是 engine_cmd() 生成的（见 run_megahit 的说明）。
+    """
+    args = []
+    if r2:
+        args += ['-1', r1, '-2', r2]
+    else:
+        args += ['-r', r1]
+    args += ['-o', out_dir, '--min-contig-len', str(int(min_len))]
+    if threads:
+        args += ['-t', str(int(threads))]
+    if memory_gb:
+        args += ['-m', str(int(float(memory_gb) * 1024 ** 3))]
+    if tmp_dir:
+        args += ['--tmp-dir', tmp_dir]
+    mode = normalize_megahit_mode(preset)
+    if mode == 'sensitive':
+        args += ['--presets', 'meta-sensitive']
+    elif mode == 'large':
+        args += ['--presets', 'meta-large']
+    return args
+
+
+def _megahit_monitor(me_out, progress):
+    """从 MEGAHIT 的 log 里数「已完成几个 k 阶段」估算进度。"""
+    if not progress:
+        return None
+    log_p = os.path.join(me_out, 'log')
+    state = {'n': 0}
+
+    def _watch():
+        try:
+            if not os.path.isfile(log_p):
+                return
+            with open(log_p, 'r', encoding='utf-8', errors='replace') as fh:
+                text = fh.read()
+            ks = set(re.findall(r'k\s*=\s*(\d+)', text))
+            n = len(ks)
+            if n and n != state['n']:
+                state['n'] = n
+                progress(min(0.9, 0.1 + 0.8 * n / _MEGAHIT_K_TOTAL),
+                         f'MEGAHIT 组装中：k 阶段 {n}/{_MEGAHIT_K_TOTAL}')
+        except OSError:
+            return
+
+    return _watch
+
+
+def run_megahit(r1, r2, out_dir, threads=None, memory_gb=64, min_len=200,
+                logger=None, progress=None, info=None, preset=None):
+    """运行 MEGAHIT，返回 contigs fasta（<out>/megahit/final.contigs.fa）。
+
+    与 SPAdes 同款两条保护：平台路径含中文时经纯 ASCII 临时目录中转
+    （megahit_core.exe 是 C++ 程序，按系统 ANSI 代码页开文件，中文路径
+    实测找不到输入）；内存按物理内存 60% 钳制。
+    """
+    import uuid
+    from .utils import total_ram as _total_ram
+    cfg = get_config()
+    try:
+        megahit = cfg.tool('megahit')
+    except FileNotFoundError:          # cfg.tool 缺工具是抛异常，不是返回 None
+        megahit = None
+    if not megahit:
+        raise RuntimeError('未检测到 MEGAHIT（3rd/tools/megahit*/megahit.bat）')
+    threads = threads or cfg.threads
+    _ram_cap = assembler_memory_cap_gb()
+    if int(memory_gb) > _ram_cap:
+        if logger:
+            logger.log(f'组装内存 {memory_gb}GB 超过允许上限（物理内存的 60%，'
+                       f'约 {_ram_cap}GB），已自动钳制到 {_ram_cap}GB —— 再高会'
+                       f'触发系统换页，整机变卡', 'WARN')
+        memory_gb = _ram_cap
+    mode = normalize_megahit_mode(preset)
+    if info is not None:
+        info['engine'] = 'megahit'
+        info['requested_mode'] = 'megahit'
+        info['mode'] = 'megahit-' + mode
+
+    me_dir = check_path(os.path.join(out_dir, 'megahit'),
+                        must_exist=False, in_platform=True)
+    os.makedirs(me_dir, exist_ok=True)
+
+    use_shim = not (_is_ascii(me_dir) and _is_ascii(r1)
+                    and (not r2 or _is_ascii(r2)))
+    in1, in2, run_out, shim = r1, r2, me_dir, None
+    if use_shim:
+        shim = os.path.join(_spades_tmp_base(), 'me_' + uuid.uuid4().hex[:8])
+        os.makedirs(shim, exist_ok=True)
+        run_out = os.path.join(shim, 'megahit')
+        in1 = os.path.join(shim, _shim_name(r1, 'R1'))
+        shutil.copyfile(check_path(r1, must_exist=True), in1)
+        if r2:
+            in2 = os.path.join(shim, _shim_name(r2, 'R2'))
+            shutil.copyfile(check_path(r2, must_exist=True), in2)
+        if logger:
+            logger.log('平台路径含中文，MEGAHIT 经 ASCII 临时目录中转: ' + shim)
+
+    # MEGAHIT 拒绝已存在的输出目录（"already exists, please change -o"），
+    # 所以这里只清空、不预建；临时目录放同级，别塞进 -o 里面。
+    shutil.rmtree(run_out, ignore_errors=True)
+    tmp_dir = os.path.join(os.path.dirname(run_out), 'megahit_tmp')
+    os.makedirs(tmp_dir, exist_ok=True)
+    # 不走 megahit.bat：分发版没有 3rd/python（bat 会 exit 9009）。
+    # 交给平台的引擎入口用当前解释器执行 MEGAHIT 的 Python 驱动。
+    args = build_megahit_args(in1, in2, run_out, threads, memory_gb,
+                              min_len, tmp_dir=tmp_dir, preset=mode)
+    engine_py = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'megahit_engine.py')
+    cmd = engine_cmd(engine_py, *args)
+    if logger:
+        logger.log(f'MEGAHIT 组装 (mode={mode}, threads={threads}, '
+                   f'mem={int(memory_gb)}GB, min-contig-len={int(min_len)}'
+                   f'{"，单端 -r" if not in2 else ""})')
+    run_cmd(cmd, logger=logger,
+            monitor_fn=_megahit_monitor(run_out, progress),
+            monitor_interval=5)
+
+    cand = os.path.join(run_out, 'final.contigs.fa')
+    if not os.path.isfile(cand) or os.path.getsize(cand) == 0:
+        hits = sorted(glob.glob(os.path.join(run_out, '*.contigs.fa')))
+        cand = hits[0] if hits else None
+    if not cand or not os.path.getsize(cand):
+        raise RuntimeError('MEGAHIT 未找到 contigs（final.contigs.fa 不存在或为空）')
+    if not use_shim:
+        return cand
+    dst = os.path.join(me_dir, 'final.contigs.fa')
+    shutil.copyfile(cand, dst)
+    _log = os.path.join(run_out, 'log')
+    if os.path.isfile(_log):
+        shutil.copyfile(_log, os.path.join(me_dir, 'log'))
+    if logger:
+        logger.log('MEGAHIT 产物拷回: ' + dst)
+    shutil.rmtree(shim, ignore_errors=True)
+    return dst

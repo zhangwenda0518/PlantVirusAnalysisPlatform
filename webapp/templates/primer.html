@@ -13,7 +13,8 @@
   gap: 18px; align-items: start; }
 @media (max-width: 1100px) { .pd-layout { grid-template-columns: 1fr; } }
 
-.pd-panel { position: sticky; top: 14px; max-height: calc(100vh - 28px);
+.pd-panel { position: sticky; top: calc(var(--head-h) + 14px);
+  max-height: calc(100vh - var(--head-h) - 28px);
   overflow-y: auto; }
 @media (max-width: 1100px) { .pd-panel { position: static; max-height: none; } }
 
@@ -867,6 +868,34 @@ window.addEventListener('resize', function () {
   pdOnTypeChange();
   const adv = $('pd_fold_adv');
   if (adv) adv.classList.remove('open');
+})();
+
+// 从「组装结果再鉴定」分类表跳过来时带上的 contig 序列（2026-10-28）。
+// pdRun() 的口径：字段值含换行 → 当 FASTA 文本；否则当文件路径。
+(function () {
+  let j = null;
+  try { j = JSON.parse(sessionStorage.getItem('vp_primerjump') || 'null'); } catch (e) {}
+  if (!j || Date.now() - (j.ts || 0) > 60000) {
+    try { sessionStorage.removeItem('vp_primerjump'); } catch (e) {}
+    return;
+  }
+  try { sessionStorage.removeItem('vp_primerjump'); } catch (e) {}
+  // 注意时序：examples.js 的 autoFill 在 DOMContentLoaded 后 400ms 才写入
+  // 示例路径 —— 必须举旗让它让路，再等 load 之后把带过来的序列写回去。
+  window.__vpNoAutoFill = true;
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      const el = $('pd_fa');
+      if (!el || !j.fasta) return;
+      el.value = j.fasta;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus();
+      if (typeof toast === 'function') {
+        toast(t('tk.primerJump', '已带入 contig'), j.contig || '', { ttl: 4000 });
+      }
+    }, 30);
+  });
 })();
 </script>
 <script src="/static/examples.js?v={{ asset_v }}"></script>

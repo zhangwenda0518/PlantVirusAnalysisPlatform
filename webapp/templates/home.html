@@ -12,34 +12,57 @@
 {% include "_nav.html" %}
 
 <div class="page">
-  <!-- 环境状态条：模块 / 工具 / 数据库 / 磁盘一览。
-       数据异步取 /api/selfcheck（服务端进程内缓存），不阻塞首屏；
-       请求失败或未就绪时整条隐藏，不打扰封面。 -->
-  <div id="envStrip" class="env-strip" hidden>
-    <span id="envStripBody"></span>
-    <a href="/settings" data-i18n="hm.env.settings">设置与自检 ›</a>
+  <!-- 2026-10-30 用户定案：封面（平台名 + 定位语）删除；环境状态条搬进顶栏
+       （_nav.html），模块/工具/数据库/磁盘一览与「环境自检」入口随顶栏常驻。
+       总览页从此只有 AI 工作台 + 最近样品。 -->
+
+  <!-- 运行中任务：只在真的有任务时出现（无任务整块 hidden，不占位）。
+       数据来自全局任务轮询（app.js navTasksBadgeLoop），不额外发请求。 -->
+  <div id="runSec" hidden>
+    <h2 class="sec sec-split">🔴 <span data-i18n="hm.runSection">运行中任务</span>
+      <i class="sec-fill"></i>
+      <a class="sec-more" href="/tasks" data-i18n="hm.secAll">全部 ›</a></h2>
+    <div id="runList" class="run-list"></div>
   </div>
 
-  <!-- 封面：平台名 + 科研定位句 + 工程口径行。
-       2026-10-23 按需求移除「背景 / 方法 / 流程 / 意义」四张叙事卡与
-       平台架构总览：前者是静态文案，后者与下方模块入口重复。
-       2026-10-26 AI 对话卡与 MCP 控制台迁出（悬浮坞 + /mcp 页），
-       一键全流程卡按 2026-10-11 的归档决定移除 —— 首页只留封面、
-       数据库状态与最近样品，分析入口在各功能模块页。 -->
-  <div class="hero cover">
-    <div class="cover-txt">
-      <h1 data-i18n="hm.heroTitle">植物病毒分析平台</h1>
-      <!-- 主标题下的一句科研定位（口径：看见样本里的病毒世界） -->
-      <p class="cover-lead" data-i18n="hm.heroLead">看见样本里的病毒世界。</p>
-      <p data-i18n="hm.heroSub">发现、鉴定、定量、溯源植物 RNA 病毒——再低的丰度也看得见；从原始测序数据到可发表的基因组证据，一台 Windows 电脑完成。</p>
-      <!-- 工程口径一行：本地化 / 内置库 / 13 步级联 / 默认离线 -->
-      <p class="cover-eng" data-i18n="hm.heroEng">Windows 单机本地分析 · 内置病毒数据库 3.4 GB · 十余个功能模块全程离线</p>
+  <!-- AI 分析台（2026-10-29 用户要求）：紧跟封面（数据库模块已在封面内）。
+       一句话就能触发真实动作（建样品 / 组装 / 建宿主基因组库 / 多步计划），
+       执行单仍需批准。实现上不复制聊天引擎：_nav.html 注入的 #aiDock 在
+       总览被移进这里改成流式布局，其它页面仍是右下角浮坞。
+       样品创建只在封面保留入口（点按钮去 /samples），总览不再内嵌表单。 -->
+  <section class="card ai-console" id="aiConsole">
+    <p class="hint ai-console-hint" data-i18n="hm.aiConsoleHint">直接说你要做什么：建样品、跑组装、构建宿主基因组库，或一次排好多步。</p>
+    <div class="ai-console-grid">
+      <div id="aiConsoleHost" class="ai-console-host"></div>
+      <!-- 工作区文件（2026-10-30）：只读浏览 + 预览；想让 AI 用某个文件，
+           点输入框的「＋」附加，而不是在这里点。 -->
+      <aside class="ai-files" id="aiFiles">
+        <div class="ai-files-head">
+          <b data-i18n="ai.files.title">工作区文件</b>
+          <select id="aiFilesRoot" class="ai-files-root" title="切换目录"></select>
+        </div>
+        <div class="ai-files-bar">
+          <input id="aiFilesFilter" type="text" placeholder="筛选文件…"
+                 data-i18n-ph="ai.files.filter">
+          <button type="button" id="aiFilesUp" class="ai-files-up" title="上一级">⬆</button>
+        </div>
+        <div class="ai-files-path" id="aiFilesPath"></div>
+        <div class="ai-files-list" id="aiFilesList"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 文件预览（点右侧列表里的文件打开；同源只读 /api/fs/read|raw） -->
+  <div id="fsPreview" class="fs-preview" hidden>
+    <div class="fs-preview-box">
+      <div class="fs-preview-head">
+        <b id="fsPreviewName"></b>
+        <span id="fsPreviewMeta" class="hint"></span>
+        <button type="button" onclick="VPFiles.close()" aria-label="关闭">✕</button>
+      </div>
+      <div class="fs-preview-body" id="fsPreviewBody"></div>
     </div>
   </div>
-
-  <!-- 数据库模块 -->
-  <h2 class="sec" data-i18n="hm.dbSection">🗄 数据库模块</h2>
-  <div class="module-grid" id="dbCards"><p class="hint" data-i18n="c.loading">加载中…</p></div>
 
   <!-- 常用工具 -->
   <div id="favSection" style="display:none">
@@ -48,12 +71,18 @@
   </div>
 
   <!-- 最近样品 -->
-  <h2 class="sec" data-i18n="hm.recentSection">🧪 最近样品</h2>
+  <h2 class="sec sec-split">🧪 <span data-i18n="hm.recentSection">最近样品</span>
+    <i class="sec-fill"></i>
+    <span class="sec-stat" id="sampleStat"></span>
+    <a class="sec-more" href="/samples" data-i18n="hm.manageSamples">管理样品 ›</a></h2>
   <div id="homeSamples" class="module-grid"><p class="hint" data-i18n="c.loading">加载中…</p></div>
 </div>
 
 <!-- AI 助手对话坞已全局化：随 _nav.html 注入每个页面（2026-10-02），
      本页不再单独携带。事件流/快捷指令/闸门确认在任何页面都可用。 -->
+
+<!-- 文件/目录选择对话框：AI 分析台的「＋」附加文件需要它（共享片段） -->
+{% include "_browse_dlg.html" %}
 
 <script src="/static/i18n.js?v={{ asset_v }}"></script>
 <script src="/static/app.js?v={{ asset_v }}"></script>
@@ -61,6 +90,7 @@
   <script src="/static/app-runhistory.js?v={{ asset_v }}"></script>
   <script src="/static/app-jobs.js?v={{ asset_v }}"></script>
   <script src="/static/app-browse.js?v={{ asset_v }}"></script>
+  <script src="/static/app-ai-files.js?v={{ asset_v }}"></script>
   <script src="/static/app-batch.js?v={{ asset_v }}"></script>
   <script src="/static/app-storage.js?v={{ asset_v }}"></script>
 <script src="/static/examples.js?v={{ asset_v }}"></script>
@@ -73,12 +103,19 @@
     const sec = {};
     for (const s of (d.sections || [])) sec[s.id] = s;
     if (!sec.modules && !sec.tools) return;
-    const bit = (label, val, state) =>   // state: ok / warn / bad
-      `<span class="env-bit ${state}">${state === 'ok' ? '✔' : state === 'warn' ? '△' : '✘'} ` +
+    const bit = (label, val, state, tip) =>   // state: ok / warn / bad
+      `<span class="env-bit ${state}"${tip ? ` title="${esc(tip)}"` : ''}>` +
+      `${state === 'ok' ? '✔' : state === 'warn' ? '△' : '✘'} ` +
       `${esc(label)} <b>${esc(val)}</b></span>`;
     const disk = sec.disk && sec.disk.items && sec.disk.items[0];
     const tools = sec.tools || {};
     const nMiss = (tools.missing || []).length;
+    // 磁盘那一位的 tooltip 给「谁吃了盘」的明细（selfcheck 新增 usage 段；
+    // 老后端没有这个字段时自动跳过，不报错）
+    const usage = (sec.disk && sec.disk.usage) || [];
+    const diskTip = usage.length
+      ? usage.map(u => `${u.name} ${fmtSize(u.bytes)}`).join(' · ')
+      : '';
     const bits = [
       bit(t('hm.env.modules', '模块'),
           sec.modules ? trSc(sec.modules.summary) : '—',
@@ -91,11 +128,33 @@
           sec.databases && sec.databases.ok ? 'ok' : 'bad'),
       bit(t('hm.env.disk', '磁盘'),
           disk ? trSc(disk.detail.replace(/^(剩余|free)\s*/, '')) : '—',
-          disk ? (disk.ok ? 'ok' : 'warn') : 'ok'),
+          disk ? (disk.ok ? 'ok' : 'warn') : 'ok', diskTip),
     ];
     $('envStripBody').innerHTML = bits.join('');
     $('envStrip').hidden = false;
   } catch (e) { /* 静默 */ }
+})();
+
+/* 样品创建 / 批量导入只在封面保留入口（2026-10-29 用户定案：内嵌面板
+   太占地方）。按钮就是普通链接 → /samples，本页不再绑定任何展开逻辑。 */
+
+/* AI 分析台：把全站对话坞搬进总览卡片（2026-10-29）。
+   坞的 DOM/事件流/流式渲染全部复用，只是位置从 fixed 变成文档流；
+   离开总览后自然恢复成右下角浮坞。 */
+(function () {
+  var host = document.getElementById('aiConsoleHost');
+  var dock = document.getElementById('aiDock');
+  if (!host || !dock) return;
+  host.appendChild(dock);
+  dock.classList.add('ai-inline');
+  dock.hidden = false;
+  var fab = document.getElementById('aiFab');
+  if (fab) fab.hidden = true;
+  if (window.AI) {
+    AI.open = true;
+    if (AI.clearUnread) AI.clearUnread();
+    if (AI.ensureCtx) AI.ensureCtx();
+  }
 })();
 </script>
 </body>

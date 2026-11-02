@@ -24,11 +24,13 @@ def test_fixture_funnel_rows():
     assert res is not None
     by_key = {r['key']: r for r in res['rows']}
     # fixture 覆盖的核心层必须提取到数字
+    # orf_genes：pyrodigal 与 pyrodigal_rv 是同一批 ORF 的两套坐标，取最大值
+    # 而不是相加（相加会 2 倍虚高，GQMIX 曾出现 8 vs 真实 4）。
     for k, expect in (('input_reads', 7200), ('qc_reads', 7150),
                       ('host_free_reads', 7112), ('viral_reads', 1834),
                       ('contigs', 24), ('viral_contigs', 2),
                       ('verified', 2), ('consensus_refs', 2),
-                      ('orf_genes', 14)):
+                      ('orf_genes', 7)):
         assert by_key[k]['value'] == expect, (k, by_key[k])
         assert by_key[k]['src'], f'{k} 缺数据源标注'
     # 每层 note 不含科学计数残留

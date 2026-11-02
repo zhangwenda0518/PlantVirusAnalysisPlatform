@@ -47,7 +47,8 @@ import sys
 import time
 from pathlib import Path
 
-from .kv_common import ToolRegistry, fmt_time, load_ref_info, setup_logger
+from .kv_common import (ToolRegistry, ensure_fai, fmt_time, load_ref_info,
+                        setup_logger)
 from .kv_engines import make_engine
 from .kv_filter import FilterStage
 from .kv_identify import IdentifyStage
@@ -432,6 +433,17 @@ def main():
     tools.probe(extra_dirs=_extra_tool_dirs())
     print(tools.report())
     print()
+
+    # 参考库 .fai 自检（2026-11-02）：坏索引会让变异段 bcftools mpileup
+    # [E::fai_insert_index] 整段失败（"width (39) less than base count (60)"）。
+    # samtools 只在"文件不存在"时才建，所以坏索引会被一直沿用——这里主动校验。
+    if args.reference:
+        try:
+            ensure_fai(args.reference,
+                       samtools=(tools.paths or {}).get('samtools'),
+                       logger=logger, env=tools.env)
+        except Exception as e:                 # 自检失败不该拦整轮分析
+            logger.warning('参考库 .fai 自检跳过（%s: %s）', type(e).__name__, e)
 
     t_all = time.time()
 

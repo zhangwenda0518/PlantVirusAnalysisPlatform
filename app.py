@@ -268,6 +268,7 @@ def _guard_local_origin():
 # ------------------------------------------------------------------
 from Virus_Platform_Core.web import (  # noqa: E402
     ai_assist as _bp_ai,
+    anchor_api as _bp_anchor,
     build as _bp_build,
     cds_export as _bp_cds_export,
     download as _bp_download,
@@ -298,7 +299,9 @@ from Virus_Platform_Core.web import (  # noqa: E402
 # archive/_retire_20260927/explorer/，代码与数据在本仓不再保留活动副本。
 # 注意：app.py 的 JSON 清洗器原从 web/explorer.py 借 _nan_to_null（每个
 # JSON 响应都走它）——现已内联为本文件顶部的 _nan_to_null，无外部依赖。
-for _bp in (_bp_pages, _bp_ai, _bp_tool_results, _bp_refs, _bp_logan, _bp_io,
+# 2026-10-27：新增 anchor_api（样品锚只读 API，3 条路由），见
+# Virus_Platform_Core/anchor.py 与 docs/DEVELOPMENT_NOTES.md 的「样品锚」一节。
+for _bp in (_bp_pages, _bp_ai, _bp_anchor, _bp_tool_results, _bp_refs, _bp_logan, _bp_io,
             _bp_mcp,
             _bp_samples, _bp_download, _bp_submit, _bp_meta, _bp_prescreen,
             _bp_settings, _bp_virome, _bp_tools, _bp_tasks, _bp_build,
@@ -356,12 +359,446 @@ def _pick_port():
     raise RuntimeError('未找到可用的本地端口，请关闭占用端口的程序后重试')
 
 
-def _open_browser(url):
-    time.sleep(1.2)
+_LOG_PATH = {'path': None}
+
+
+def _log_open_browser(msg):
+    """把「打开浏览器」的结果追加到日志（顺序找第一个可写位置）。
+
+    冻结版实测写 <平台>/run/_open_browser.log 可能被权限拒绝，所以再兜
+    %LOCALAPPDATA%\\VirusPlatform\\open_browser.log。都写不了就静默——
+    它只是诊断信息，不能影响启动。
+    """
+    import os as _os
+    line = '%s %s\n' % (time.strftime('%Y-%m-%d %H:%M:%S'), msg)
+    cands = []
+    if _LOG_PATH['path']:
+        cands.append(_LOG_PATH['path'])
     try:
-        webbrowser.open(url)
-    except Exception:
+        from Virus_Platform_Core.config import PLATFORM_ROOT
+        cands.append(_os.path.join(PLATFORM_ROOT, 'run', '_open_browser.log'))
+    except Exception:                                   # noqa: BLE001
         pass
+    local = _os.environ.get('LOCALAPPDATA') or _os.path.expanduser('~')
+    cands.append(_os.path.join(local, 'VirusPlatform', 'open_browser.log'))
+    for path in cands:
+        try:
+            _os.makedirs(_os.path.dirname(path), exist_ok=True)
+            with open(path, 'a', encoding='utf-8') as fh:
+                fh.write(line)
+            _LOG_PATH['path'] = path
+            return
+        except OSError:
+            continue
+
+
+def _default_browser_exe():
+    r"""从注册表解析默认浏览器的可执行文件路径（失败返回 None）。
+
+    HKCU\...\UrlAssociations\http\UserChoice 给出 ProgId（如 ChromeHTML），
+    再到 HKCR\<ProgId>\shell\open\command 取命令行，形如
+        "C:\Program Files\Google\Chrome\Application\chrome.exe" -- "%1"
+    """
+    if sys.platform != 'win32':
+        return None
+    try:
+        import winreg
+    except ImportError:
+        return None
+    prog = None
+    try:
+        with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r'Software\Microsoft\Windows\Shell\Associations'
+                r'\UrlAssociations\http\UserChoice') as k:
+            prog = winreg.QueryValueEx(k, 'ProgId')[0]
+    except OSError:
+        prog = None
+    cmd = None
+    for sub in ((prog + r'\shell\open\command') if prog else None,
+                r'http\shell\open\command'):
+        if not sub:
+            continue
+        try:
+            with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, sub) as k:
+                cmd = winreg.QueryValueEx(k, '')[0]
+                break
+        except OSError:
+            continue
+    if not cmd:
+        return None
+    # 命令行里 exe 通常带引号；取第一个引号段，否则取到第一个空格
+    if cmd.startswith('"'):
+        end = cmd.find('"', 1)
+        exe = cmd[1:end] if end > 1 else cmd.strip('"')
+    else:
+        exe = cmd.split(' ')[0]
+    return exe if exe and os.path.isfile(exe) else None
+
+
+# Chromium 内核的浏览器（含国产）：都认 --new-window / --user-data-dir。
+# 名字命中只用于"怎么传参"，不影响能不能用 —— 不认识的浏览器仍然会被打开。
+CHROMIUM_HINTS = ('chrome', 'msedge', 'brave', 'chromium', 'vivaldi', 'opera',
+                  '360se', '360chrome', '360browser', 'qqbrowser', 'sogou',
+                  'ucbrowser', 'maxthon', 'liebao', '2345explorer')
+
+
+def _is_chromium(exe):
+    low = (exe or '').lower()
+    return any(t in low for t in CHROMIUM_HINTS)
+
+
+def _is_firefox(exe):
+    return 'firefox' in (exe or '').lower()
+
+
+def _new_window_args(exe, url):
+    """按浏览器家族选「新窗口」参数；不认识的浏览器只给 URL。"""
+    if _is_chromium(exe):
+        return [exe, '--new-window', url]
+    if _is_firefox(exe):
+        return [exe, '-new-window', url]
+    return [exe, url]
+
+
+# 浏览器进程名（按进程认，比窗口标题可靠：Chrome 的窗口标题反映的是
+# 当前活动标签，新开的平台标签可能不在前台）
+BROWSER_PROCS = ('chrome.exe', 'msedge.exe', 'firefox.exe', 'brave.exe',
+                 'chromium.exe', 'opera.exe', 'vivaldi.exe', '360se.exe',
+                 '360chrome.exe', '360browser.exe', 'qqbrowser.exe',
+                 'sogouexplorer.exe', 'ucbrowser.exe', 'maxthon.exe',
+                 'liebao.exe', '2345explorer.exe')
+
+
+def _window_proc_name(hwnd):
+    """窗口所属进程的可执行文件名（取不到返回空串）。"""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.windll.kernel32
+        user32 = ctypes.windll.user32
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if not pid.value:
+            return ''
+        h = k32.OpenProcess(0x1000, False, pid.value)    # QUERY_LIMITED_INFORMATION
+        if not h:
+            return ''
+        try:
+            buf = ctypes.create_unicode_buffer(512)
+            size = wintypes.DWORD(512)
+            if not k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size)):
+                return ''
+            return os.path.basename(buf.value).lower()
+        finally:
+            k32.CloseHandle(h)
+    except Exception:                                   # noqa: BLE001
+        return ''
+
+
+def _focus_platform_window(timeout=3.0):
+    """把平台页面所在浏览器窗口提到前台（尽力而为，返回是否找到）。
+
+    命中条件：窗口可见、标题含平台名、且**所属进程是浏览器**（或标题里带
+    浏览器名兜底）。不能用"只要标题含平台名"——启动脚本的控制台标题就是
+    "Plant Virus Analysis Platform - Web mode (browser)"。
+    """
+    if sys.platform != 'win32':
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+    except Exception:                                   # noqa: BLE001
+        return False
+    keys = ('植物病毒分析平台', 'Plant Virus Analysis Platform')
+    browsers = ('Google Chrome', 'Microsoft Edge', 'Mozilla Firefox',
+                'Chromium', 'Brave', 'Opera', 'Vivaldi',
+                '360', 'QQ浏览器', 'QQBrowser', '搜狗', 'Sogou', 'UC浏览器',
+                'Maxthon', '傲游', '猎豹', '2345')
+    hit = {'hwnd': None}
+    CB = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def _cb(hwnd, _lparam):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        n = user32.GetWindowTextLengthW(hwnd)
+        if n <= 0:
+            return True
+        buf = ctypes.create_unicode_buffer(n + 1)
+        user32.GetWindowTextW(hwnd, buf, n + 1)
+        title = buf.value or ''
+        if not any(k in title for k in keys):
+            return True
+        proc = _window_proc_name(hwnd)
+        if (proc in BROWSER_PROCS) or any(b in title for b in browsers):
+            hit['hwnd'] = hwnd
+            return False
+        return True
+
+    # 第二手：标题里没有平台名（Chrome 收到 URL 后可能没切换活动标签，
+    # 窗口标题还是别的页面）时，退而求其次把 z-order 最靠前的浏览器窗口提上来
+    # —— 它通常就是刚接收标签页的那个窗口。
+    fallback = {'hwnd': None}
+
+    def _cb_first_browser(hwnd, _lparam):
+        if fallback['hwnd']:
+            return True
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        n = user32.GetWindowTextLengthW(hwnd)
+        if n <= 0:
+            return True
+        if _window_proc_name(hwnd) in BROWSER_PROCS:
+            fallback['hwnd'] = hwnd
+            return False
+        return True
+
+    cb_first = CB(_cb_first_browser)
+
+    cb = CB(_cb)
+    end = time.time() + timeout
+    while time.time() < end:
+        user32.EnumWindows(cb, 0)
+        if not hit['hwnd']:
+            user32.EnumWindows(cb_first, 0)
+            if fallback['hwnd']:
+                hit['hwnd'] = fallback['hwnd']
+                _log_open_browser('no titled platform window; raising topmost '
+                                  'browser window instead')
+        if hit['hwnd']:
+            h = hit['hwnd']
+            try:
+                user32.ShowWindow(h, 9)                 # SW_RESTORE
+                # 前台锁：后台进程直接 SetForegroundWindow 常被拒绝（只闪任务栏）
+                k32 = ctypes.windll.kernel32
+                fg = user32.GetForegroundWindow()
+                fg_tid = user32.GetWindowThreadProcessId(fg, None) if fg else 0
+                cur_tid = k32.GetCurrentThreadId()
+                attached = False
+                if fg_tid and fg_tid != cur_tid:
+                    attached = bool(user32.AttachThreadInput(
+                        cur_tid, fg_tid, True))
+                try:
+                    user32.BringWindowToTop(h)
+                    user32.SetForegroundWindow(h)
+                finally:
+                    if attached:
+                        user32.AttachThreadInput(cur_tid, fg_tid, False)
+            except Exception:                           # noqa: BLE001
+                return False
+            return True
+        time.sleep(0.3)
+    return False
+
+
+def _which_browser(names):
+    """在常见安装位置 + PATH + 用户级安装里找一个浏览器 exe。"""
+    import glob as _glob
+    import shutil as _sh
+    home_local = os.path.join(os.path.expanduser('~'), 'AppData', 'Local')
+    fixed = {
+        'msedge': [os.path.join(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'),
+                                'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+                   os.path.join(os.environ.get('ProgramFiles', r'C:\Program Files'),
+                                'Microsoft', 'Edge', 'Application', 'msedge.exe')],
+        'chrome': [os.path.join(os.environ.get('ProgramFiles', r'C:\Program Files'),
+                                'Google', 'Chrome', 'Application', 'chrome.exe'),
+                   os.path.join(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'),
+                                'Google', 'Chrome', 'Application', 'chrome.exe')],
+        'firefox': [os.path.join(os.environ.get('ProgramFiles', r'C:\Program Files'),
+                                 'Mozilla Firefox', 'firefox.exe'),
+                    os.path.join(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'),
+                                 'Mozilla Firefox', 'firefox.exe')],
+    }
+    for key in names:
+        for p in fixed.get(key, ()):
+            if os.path.isfile(p):
+                return p
+        hit = _sh.which(key + '.exe') or _sh.which(key)
+        if hit:
+            return hit
+        for pat in (os.path.join(home_local, '*', 'Application', key + '.exe'),
+                    os.path.join(home_local, 'Programs', key, key + '.exe')):
+            hits = sorted(_glob.glob(pat))
+            if hits:
+                return hits[0]
+    return None
+
+
+def _profile_browser_candidates():
+    """独立配置兜底用的浏览器候选（去重，只留真实存在的）。
+
+    顺序：系统默认浏览器（若为已知浏览器）→ Edge → Chrome → Firefox。
+    国产套壳浏览器由「默认浏览器」那一档覆盖，这里不猜它们的安装路径。
+    """
+    out = []
+    try:
+        exe = _default_browser_exe()
+    except Exception:                                   # noqa: BLE001
+        exe = None
+    if exe and (_is_chromium(exe) or _is_firefox(exe)):
+        out.append(exe)
+    for key in ('msedge', 'chrome', 'firefox'):
+        p = _which_browser([key])
+        if p:
+            out.append(p)
+    seen, uniq = set(), []
+    for p in out:
+        k = os.path.normcase(os.path.abspath(p))
+        if k not in seen:
+            seen.add(k)
+            uniq.append(p)
+    return uniq
+
+
+def _app_window_candidates():
+    """--app 独立窗口的浏览器候选：默认浏览器（可解析时）→ Chrome → Edge。"""
+    out = []
+    try:
+        exe = _default_browser_exe()
+    except Exception:                                   # noqa: BLE001
+        exe = None
+    if exe:
+        out.append(exe)
+    for key in ('chrome', 'msedge'):
+        p = _which_browser([key])
+        if p:
+            out.append(p)
+    seen, uniq = set(), []
+    for p in out:
+        k = os.path.normcase(os.path.abspath(p))
+        if k not in seen:
+            seen.add(k)
+            uniq.append(p)
+    return uniq
+
+
+def _spawn_detached(cmd):
+    """经 `cmd /c start` 启动外部程序（不要直接 CreateProcess）。
+
+    两条都是 2026-10-29 实测出来的（冻结版 + 作业对象场景）：
+      1. 直接 `Popen([chrome.exe, ...])` → Chrome 立刻退出
+         （poll = 0x80000003 STATUS_BREAKPOINT），一个窗口都没有；
+         经 `cmd /c start` 才正常。
+      2. **绝对不要加 CREATE_NO_WINDOW**：带上它时页面照样加载，但浏览器
+         窗口**不会到前台**（Windows 前台权限只给"有界面"的启动者）；去掉
+         以后同一个 URL 立刻弹出并置前的窗口。这就是"开了但看不到"的根因。
+    """
+    import subprocess
+    subprocess.Popen(['cmd', '/c', 'start', ''] + list(cmd))
+
+
+def _open_browser(url):
+    """打开平台页面：优先独立应用窗口，其次普通标签页。
+
+    顺序与判据（2026-10-29 收敛后的最终版）：
+      1. `--app=<url>` 独立窗口（Chromium 系）—— 标题就是页面标题，不会被
+         塞进别的窗口；启动后 3 秒内用 `_focus_platform_window()` 确认窗口
+         真的出现并置前。找不到就继续下一条（最多两轮，不会连环开标签）。
+      2. `webbrowser`（系统默认浏览器，普通标签页）—— 历史上一直有效的那条路；
+         返回成功即视为成功，只提示地址，不再做窗口验证（否则又会误判）。
+      3. 其余兜底：startfile → cmd start(url) → 独立配置窗口 → explorer。
+    每一步都写 `run/_open_browser.log`（写不进去会退到 %LOCALAPPDATA%）。
+    """
+    time.sleep(1.2)
+    import subprocess
+
+    def _try_app_window():
+        for exe in _app_window_candidates():
+            if not _is_chromium(exe):
+                continue
+            try:
+                _spawn_detached([exe, '--app=' + url])
+                return True
+            except OSError as e:
+                _log_open_browser('app-window failed (%s): %s' % (exe, e))
+        return False
+
+    def _try_webbrowser():
+        return bool(webbrowser.open(url, new=2))
+
+    def _try_new_window():
+        exe = _default_browser_exe()
+        if not exe:
+            return False
+        _spawn_detached(_new_window_args(exe, url))
+        return True
+
+    def _try_startfile():
+        os.startfile(url)                       # noqa: S606
+        return True
+
+    def _try_cmd_start():
+        # 同样不能带 CREATE_NO_WINDOW（见 _spawn_detached 的注释）
+        import subprocess
+        subprocess.Popen(['cmd', '/c', 'start', '', url])
+        return True
+
+    def _try_profile():
+        root = os.path.join(os.path.expanduser('~'), 'AppData', 'Local',
+                            'VirusPlatform')
+        for exe in _profile_browser_candidates():
+            try:
+                if _is_chromium(exe):
+                    prof = os.path.join(root, 'browser-profile')
+                    os.makedirs(prof, exist_ok=True)
+                    _spawn_detached([exe, '--user-data-dir=' + prof,
+                                     '--no-first-run', '--new-window', url])
+                    return True
+                if _is_firefox(exe):
+                    prof = os.path.join(root, 'firefox-profile')
+                    os.makedirs(prof, exist_ok=True)
+                    _spawn_detached([exe, '-profile', prof, '-new-window', url])
+                    return True
+            except OSError as e:
+                _log_open_browser('profile start failed (%s): %s' % (exe, e))
+        return False
+
+    def _try_explorer():
+        subprocess.Popen(['explorer.exe', url])
+        return True
+
+    # (名称, 函数, 是否验证窗口) —— 只有 app-window 验证：它是"看得见"的那条，
+    # 不可靠时立刻退到标签页；标签页这条不再验证，避免再次连环误判。
+    # 顺序（2026-10-29 定稿）：先走**shell 路径**——`cmd /c start "" <url>` 由
+    # cmd 转交 shell 打开，实测在「作业对象」里（Windows Terminal 启动的就是）
+    # 也能正常加载页面；而直接 CreateProcess 拉 chrome.exe 在作业里必死
+    # （0x80000003），所以 --app 只能排后面、给没有作业限制的场合用。
+    steps = [
+        ('cmd-start', _try_cmd_start, False),
+        ('webbrowser', _try_webbrowser, False),
+        ('app-window', _try_app_window, True),
+        ('new-window', _try_new_window, False),
+        ('startfile', _try_startfile, False),
+        ('profile', _try_profile, True),
+        ('explorer', _try_explorer, False),
+    ]
+    for name, fn, verify in steps:
+        try:
+            ok = fn()
+        except Exception as e:                          # noqa: BLE001
+            print(f'  [提示] {name} 失败（{type(e).__name__}: {e}）')
+            _log_open_browser('%s raised %s: %s' % (name, type(e).__name__, e))
+            continue
+        if not ok:
+            _log_open_browser('%s returned False: %s' % (name, url))
+            continue
+        if verify and not _focus_platform_window(timeout=3.0):
+            _log_open_browser('%s spawned but no platform window yet: %s'
+                              % (name, url))
+            continue
+        print(f'  已打开平台页面: {url}（方式: {name}）')
+        _log_open_browser('opened via %s: %s' % (name, url))
+        if _focus_platform_window(timeout=2.0):
+            print('  已把平台窗口切到前台。')
+            _log_open_browser('focused platform window')
+        else:
+            print('  若没看到页面，请查看任务栏，或手动在浏览器访问上面的地址。')
+        return
+
+    print(f'  [提示] 未能自动打开浏览器，请手动在浏览器访问: {url}')
+    _log_open_browser('ALL FAILED, manual URL: ' + url)
 
 
 def _start_server(port):
@@ -426,105 +863,56 @@ def _open_window(url, mode='gui'):
         return False
 
 
-def _pid_alive(pid):
-    """pid 是否是一个仍在运行的进程（实例锁残留判定用）。"""
-    try:
-        pid = int(pid)
-    except (TypeError, ValueError):
-        return False
-    if pid <= 0:
-        return False
-    if sys.platform == 'win32':
-        import ctypes
-        k32 = ctypes.windll.kernel32
-        # 只 OpenProcess 成功不够（pid 被回收/僵尸也算存在）；
-        # 再取退出码，等于 STILL_ACTIVE(259) 才算真活着。
-        h = k32.OpenProcess(0x1000, False, pid)   # QUERY_LIMITED_INFORMATION
-        if not h:
-            return False
-        try:
-            code = ctypes.c_ulong()
-            ok = k32.GetExitCodeProcess(h, ctypes.byref(code))
-            return bool(ok) and code.value == 259
-        finally:
-            k32.CloseHandle(h)
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
-
-
-def _acquire_instance_lock():
-    """单实例锁：run/.platform.lock（O_CREAT|O_EXCL）。返回 (status, path)。
-
-    为什么需要：多实例共享同一份 run/ 数据（queue.json 队列、tasks/*.json
-    状态、results/ 结果目录），而 web/samples.py 的并发保护是**进程内**的
-    set —— 跨进程完全失效，两个实例同时跑同一批样品会互相覆盖状态与结果。
-
-    status: 'ok'=抢到锁（path 为锁文件）| 'busy'=已有实例在跑（调用方应退出）
-            | 'skip'=锁不可用（磁盘/权限异常），放弃保护但不拦启动。
-    锁内容为「pid 时间戳」：pid 仍存活 → 报错退出；pid 已消失（上次异常
-    退出的残留锁）→ 覆盖接管。
-    """
-    from Virus_Platform_Core.config import PLATFORM_ROOT
-    path = os.path.join(PLATFORM_ROOT, 'run', '.platform.lock')
-    try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-    except OSError as e:
-        print(f'  [提示] 实例锁目录不可用（{e}），跳过并发保护。')
-        return ('skip', None)
-    for _ in range(2):
-        try:
-            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
-            old_pid = 0
-            try:
-                with open(path, encoding='utf-8') as f:
-                    old_pid = int((f.read() or '0').split()[0])
-            except (OSError, ValueError, IndexError):
-                old_pid = 0
-            if old_pid and _pid_alive(old_pid):
-                # 走 stderr：脚本/安装器据此判断「被拒绝」，退出码见 main()
-                print(f'  [错误] 检测到平台已在运行（pid={old_pid}）。',
-                      file=sys.stderr)
-                print('  同一份 run/ 数据不允许两个实例同时读写，请先关闭'
-                      '已运行平台的窗口/控制台。', file=sys.stderr)
-                print(f'  确认该进程已不存在后，可删除锁文件再启动: {path}',
-                      file=sys.stderr)
-                _pause_before_exit()
-                return ('busy', None)
-            # 残留锁（上次异常退出，pid 已不存在）：覆盖接管
-            print(f'  [提示] 发现残留锁（pid={old_pid or "未知"} 已不存在），'
-                  '已接管。')
-            try:
-                os.remove(path)
-            except OSError:
-                pass
-            continue
-        except OSError as e:
-            print(f'  [提示] 实例锁创建失败（{e}），跳过并发保护。')
-            return ('skip', None)
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            f.write(f'{os.getpid()} {time.strftime("%Y-%m-%d %H:%M:%S")}\n')
-        return ('ok', path)
-    return ('skip', None)
-
-
-def _release_instance_lock(path):
-    """退出时删除自己写的锁（pid 不匹配则不动，避免误删他人锁）。"""
-    if not path:
-        return
-    try:
-        with open(path, encoding='utf-8') as f:
-            if int((f.read() or '0').split()[0]) != os.getpid():
-                return
-        os.remove(path)
-    except (OSError, ValueError):
-        pass
-
-
 def main():
+    # 诊断开关（2026-10-29）：冻结版里"浏览器到底卡在哪一步"只能靠它，
+    # 因为 run/ 日志在部分环境写不进去、控制台输出又会被缓冲吞掉。
+    if '--browser-selftest' in sys.argv:
+        import subprocess as _sp
+        from Virus_Platform_Core.config import PLATFORM_ROOT as _PR
+        print('frozen =', getattr(sys, 'frozen', False))
+        print('executable =', sys.executable)
+        print('PLATFORM_ROOT =', _PR)
+        print('__file__ =', __file__)
+        for label, fn in (('default_browser_exe', _default_browser_exe),
+                          ('app_window_candidates', _app_window_candidates),
+                          ('profile_browser_candidates',
+                           _profile_browser_candidates)):
+            try:
+                print(label, '=', fn())
+            except Exception as e:                      # noqa: BLE001
+                print(label, 'FAILED:', type(e).__name__, e)
+        exe = (_app_window_candidates() or [None])[0]
+        print('spawn target =', exe)
+        no_win = getattr(_sp, 'CREATE_NO_WINDOW', 0)
+        variants = (
+            ('A no_win', lambda: _sp.Popen([exe, '--app=about:blank#a'],
+                                           creationflags=no_win)),
+            ('B devnull', lambda: _sp.Popen([exe, '--app=about:blank#b'],
+                                            stdin=_sp.DEVNULL, stdout=_sp.DEVNULL,
+                                            stderr=_sp.DEVNULL, close_fds=True)),
+            ('C cmd start', lambda: _sp.Popen(
+                ['cmd', '/c', 'start', '', exe, '--app=about:blank#c'],
+                creationflags=no_win)),
+            ('D plain', lambda: _sp.Popen([exe, '--app=about:blank#d'])),
+        )
+        print('--- full _open_browser 演练 ---')
+        try:
+            _open_browser('http://127.0.0.1:8765')
+            print('open_browser returned')
+        except Exception as e:                          # noqa: BLE001
+            print('open_browser raised:', type(e).__name__, e)
+        for p in (os.path.join(_PR, 'run', '_open_browser.log'),
+                  os.path.join(os.environ.get('LOCALAPPDATA') or '',
+                               'VirusPlatform', 'open_browser.log')):
+            print('log', p, 'exists =', os.path.exists(p))
+        for label, fn in variants:
+            try:
+                p = fn()
+                time.sleep(3)
+                print('%-12s pid=%s poll=%s' % (label, p.pid, p.poll()))
+            except Exception as e:                      # noqa: BLE001
+                print('%-12s FAILED %s: %s' % (label, type(e).__name__, e))
+        return
     # 接管 SIGINT/SIGTERM/SIGBREAK：退出前把 AI 审计队列排空。Windows 下
     # SIGTERM **不触发 atexit**（实测），只靠 atexit 会丢最后几秒的记录。
     # 必须在主线程且尽早装（signal.signal 有线程限制，且装晚了会漏掉信号）。
@@ -533,18 +921,14 @@ def main():
         _ai_audit.install_signals()
     except Exception:
         pass
-    # 最早的启动动作：抢单实例锁（端口探测/起服务之前），防止第二个实例
-    # 共享 run/ 目录把状态与结果互相覆盖。
-    lock_status, lock_path = _acquire_instance_lock()
-    if lock_status == 'busy':
-        # 退出码 3：让脚本/安装器能区分「已启动」与「被单实例锁拒绝」
-        raise SystemExit(3)
+    # 单实例锁已按用户要求移除（2026-10-28）：不再拦截第二个实例。
+    # 代价：两个实例共享同一份 run/（queue.json / tasks/*.json / results）
+    # 时可能互相覆盖，请自行避免同时开两份。
     mode = _gui_mode()
     try:
         port = _pick_port()
     except RuntimeError as e:
         print(f'  [错误] {e}')
-        _release_instance_lock(lock_path if lock_status == 'ok' else None)
         _pause_before_exit()
         return
     # CSRF 端口校验的基准：起服务前写入，_guard_local_origin 按「完整源」
@@ -577,7 +961,6 @@ def main():
         print(f'\n  [错误] 端口 {port} 监听失败: {e}')
         print('  可在管理员 PowerShell 运行以下命令查看被系统保留的端口段:')
         print('     netsh interface ipv4 show excludedportrange protocol=tcp')
-        _release_instance_lock(lock_path if lock_status == 'ok' else None)
         _pause_before_exit()
         return
     # Taxonomy 首启自解压（2026-10-25）：数据库包只随附官方 new_taxdump.tar.gz
@@ -606,7 +989,11 @@ def main():
         if mode == 'gui':
             print('  （已回退浏览器模式；如需固定用网页模式，'
                   '下次用 启动平台-网页.bat 或 python app.py --web）')
-        threading.Thread(target=_open_browser, args=(url,), daemon=True).start()
+        # --no-open：由启动脚本负责开浏览器（Start-Web.bat 里那条
+        # `start "" <url>` 从有控制台的 cmd 发起，前台权限正常，窗口一定会
+        # 弹出来；平台进程自己拉浏览器在部分上下文里窗口不到前台）。
+        if '--no-open' not in sys.argv:
+            threading.Thread(target=_open_browser, args=(url,), daemon=True).start()
         while True:
             time.sleep(3600)    # 关闭本控制台窗口即退出（守护线程随之终止）
     except KeyboardInterrupt:
@@ -616,7 +1003,6 @@ def main():
             srv.shutdown()
         except Exception:
             pass
-        _release_instance_lock(lock_path if lock_status == 'ok' else None)
 
 
 if __name__ == '__main__':

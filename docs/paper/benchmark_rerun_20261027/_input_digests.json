@@ -1,0 +1,247 @@
+{
+  "d:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\reference.fasta": {
+    "path": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\reference.fasta",
+    "exists": true,
+    "size": 45834839,
+    "mtime_ns": 1792343414132277800,
+    "sha256": "5e56e99fe54bd76e0fed89d5e1748c66d115f290799d0d64fa0bc26a33f9b619"
+  },
+  "d:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\reference.ref_info.tsv": {
+    "path": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\reference.ref_info.tsv",
+    "exists": true,
+    "size": 3621193,
+    "mtime_ns": 1792343414132277800,
+    "sha256": "f9f27d4e8896a3051eb3a7d181dee21e77e361efda2fa1d48be6bdb7ce08251e"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_11_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_11_R1.fastq.gz",
+    "exists": true,
+    "size": 3617928,
+    "mtime_ns": 1633910976000000000,
+    "sha256": "d8a18bc9476cf1c139331955ad95e19fa2709fd19d827b50e1b9e5062ea132b7"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_11_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_11_R2.fastq.gz",
+    "exists": true,
+    "size": 3784042,
+    "mtime_ns": 1633910976000000000,
+    "sha256": "32cf8fbd3f7ef8427f9dcc489ea1db15a45521506a9e39860f31cd8e6a301574"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_1_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_1_R1.fastq.gz",
+    "exists": true,
+    "size": 1579665111,
+    "mtime_ns": 1633888950000000000,
+    "sha256": "de1248a5dd5891121d70714616d947eef0cf179f887a185b332686a0ce172083"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_1_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_1_R2.fastq.gz",
+    "exists": true,
+    "size": 2048359331,
+    "mtime_ns": 1633889008000000000,
+    "sha256": "d35413f5343d0223057beeae6269e503dbc50eb12521b60a01f1060352d3e605"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_2_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_2_R1.fastq.gz",
+    "exists": true,
+    "size": 1585407615,
+    "mtime_ns": 1633921480000000000,
+    "sha256": "2417745772327d0abf3d40a7525317b4ab06b42d22a4a35469751110f15a3f45"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_2_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_2_R2.fastq.gz",
+    "exists": true,
+    "size": 2056618708,
+    "mtime_ns": 1633921540000000000,
+    "sha256": "6a593f67a0d68feb3bca615da4c6d0c4301f8f299f3c84bd9979dddc803e54d3"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_3_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_3_R1.fastq.gz",
+    "exists": true,
+    "size": 992011751,
+    "mtime_ns": 1633921742000000000,
+    "sha256": "c5a17e48867212cae343ac25c29c309e8f1addccf58ffb36e942ef52c99486b9"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_3_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_3_R2.fastq.gz",
+    "exists": true,
+    "size": 1291447747,
+    "mtime_ns": 1633921698000000000,
+    "sha256": "fd9a1643aaad57b474852d20a22f4bd2f850489fc4f0b523e05158192e699df3"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_4_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_4_R1.fastq.gz",
+    "exists": true,
+    "size": 280339938,
+    "mtime_ns": 1633925320000000000,
+    "sha256": "e1549a2fb8131b014c156330da77f7bd321e184b44fa251b20a869a6eaf6e11f"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_4_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_4_R2.fastq.gz",
+    "exists": true,
+    "size": 329335187,
+    "mtime_ns": 1633925272000000000,
+    "sha256": "3ed592d17405628f227a43a2226e8fb999870f533a99ff63c7e651b6b5afc3cf"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_5.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_5.fastq.gz",
+    "exists": true,
+    "size": 1082286063,
+    "mtime_ns": 1633928474000000000,
+    "sha256": "23e14440b2067ab4822085d02e3d5a12125e978a7f140ad4c961c38d00b78cf5"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_6.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_6.fastq.gz",
+    "exists": true,
+    "size": 1088711878,
+    "mtime_ns": 1633906026000000000,
+    "sha256": "2c8962cf8980908edc97e706c2625f5d77aa3d806d0218ec5eb93216d47d0b96"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_7_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_7_R1.fastq.gz",
+    "exists": true,
+    "size": 313586512,
+    "mtime_ns": 1633920578000000000,
+    "sha256": "fad0f7fe4346f960e422f5e834e168a8ce8657176a650602343313fd4b658704"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_7_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_7_R2.fastq.gz",
+    "exists": true,
+    "size": 353413179,
+    "mtime_ns": 1633920566000000000,
+    "sha256": "c978994ad8f1eb701c1ca481dc411257b67de5ee81a283e0c11466cf7780f20b"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_8_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_8_R1.fastq.gz",
+    "exists": true,
+    "size": 13103274,
+    "mtime_ns": 1633917758000000000,
+    "sha256": "3cf78ec21547d290681d97f85d62330a7c7801dcb24311e5dfedf31b081bbaeb"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_8_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_8_R2.fastq.gz",
+    "exists": true,
+    "size": 16680193,
+    "mtime_ns": 1633917758000000000,
+    "sha256": "9b634ef5f72895a1cdd1153b8b7c99fec95e47dc1f118f67b2c607c743236258"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_9_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_9_R1.fastq.gz",
+    "exists": true,
+    "size": 454184824,
+    "mtime_ns": 1633916228000000000,
+    "sha256": "0dd5efa0bbd52f2e51cacd2d517ff7b937c49a2ceba169b272111007d135e2cd"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_9_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_9_R2.fastq.gz",
+    "exists": true,
+    "size": 276160940,
+    "mtime_ns": 1633916242000000000,
+    "sha256": "b75d4507864c3d8c9b03754250cd03fed798d5cc83383d22a6a4d2016a9a1ab9"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_10.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_10.fastq.gz",
+    "exists": true,
+    "size": 798382139,
+    "mtime_ns": 1633928600000000000,
+    "sha256": "51f5191b3242d6026b351c3082e6a59de1dcd3d9c757095dcfc362da79fd19ce"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_12_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_12_R1.fastq.gz",
+    "exists": true,
+    "size": 3042809,
+    "mtime_ns": 1633919656000000000,
+    "sha256": "0d05ee80ad32ca5a2a9c2f0448dfaa90c48a9192785b4aeca1b1e012b15fb7eb"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_12_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_12_R2.fastq.gz",
+    "exists": true,
+    "size": 3210341,
+    "mtime_ns": 1633919656000000000,
+    "sha256": "0a39e400b4057da8b004b44d54f0882335252863a9f76ac4510266df265d502f"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_13_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_13_R1.fastq.gz",
+    "exists": true,
+    "size": 3624514,
+    "mtime_ns": 1633920502000000000,
+    "sha256": "098c63826dc56c70d1d00224376722716d2230d74907832ffe7094ec695a01ab"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_13_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_13_R2.fastq.gz",
+    "exists": true,
+    "size": 3780711,
+    "mtime_ns": 1633920502000000000,
+    "sha256": "694b7cc72a27ef2eeeabed0766a9774fddbae0eb93f0ced88b1a6b07e35a940c"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_14_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_14_R1.fastq.gz",
+    "exists": true,
+    "size": 4196184,
+    "mtime_ns": 1633920562000000000,
+    "sha256": "896cfde84bef4a98c0c9aba9fa2ae2ca70318650dedf2b097352f3886b74dd9c"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_14_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_14_R2.fastq.gz",
+    "exists": true,
+    "size": 4369632,
+    "mtime_ns": 1633920562000000000,
+    "sha256": "3c3cc3ea416c861604adbab57fb3aed8c8f778c882b15b23384aea0367a563bb"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_15_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_15_R1.fastq.gz",
+    "exists": true,
+    "size": 4081984,
+    "mtime_ns": 1633921348000000000,
+    "sha256": "47e511049220384e0ec31bb22289671e0605fe38233dbe485d45d6ed1cc5e875"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_15_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_15_R2.fastq.gz",
+    "exists": true,
+    "size": 4236235,
+    "mtime_ns": 1633921348000000000,
+    "sha256": "682567a84834305a62423b4ee16b784c1447d5ecfe18a63322414c66223bbde8"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_16_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_16_R1.fastq.gz",
+    "exists": true,
+    "size": 4226104,
+    "mtime_ns": 1634260290000000000,
+    "sha256": "db3139f72d9a878f4e3bdf5b177d0c3303f982e37c7b92e8bc1e41819b873045"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_16_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_16_R2.fastq.gz",
+    "exists": true,
+    "size": 4386861,
+    "mtime_ns": 1634260290000000000,
+    "sha256": "b0cec3d00ff90d88dd2f32c314948c8c044a70d4228e6376d77501d93570e9c6"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_17_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_17_R1.fastq.gz",
+    "exists": true,
+    "size": 4223412,
+    "mtime_ns": 1634260282000000000,
+    "sha256": "0cc4a4c4e471cab29baafc832f536268c7c5a681631c6a259f1c4656e4d10ad2"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_17_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_17_R2.fastq.gz",
+    "exists": true,
+    "size": 4377900,
+    "mtime_ns": 1634260282000000000,
+    "sha256": "382d953ff4edf6feda5f47a2477e75cde8e7033cd1f5beac9bf587aa229da1a4"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_18_r1.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_18_R1.fastq.gz",
+    "exists": true,
+    "size": 3448424,
+    "mtime_ns": 1633921516000000000,
+    "sha256": "84ba72ade0f2a9057925cfcf9b1aef6f2083fc81c0daecf3411753bb324af672"
+  },
+  "e:\\谷歌下载\\测试数据验证\\dataset_18_r2.fastq.gz": {
+    "path": "E:\\谷歌下载\\测试数据验证\\Dataset_18_R2.fastq.gz",
+    "exists": true,
+    "size": 3607857,
+    "mtime_ns": 1633921516000000000,
+    "sha256": "80288676af69f2c2ebe244777088cea2be461b4edc6a5667f6273274fd6f33e1"
+  }
+}

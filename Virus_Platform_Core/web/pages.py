@@ -273,7 +273,15 @@ def _inject_group_nav():
 @bp.app_errorhandler(FileNotFoundError)
 def _bad_request(e):
     """路径非法/不存在 → 400（含路径穿越拦截）。"""
-    return jsonify({'error': str(e)}), 400
+    msg = str(e)
+    # 临时目录不可用是环境问题，不能只丢英文原文（用户实测：拖拽上传报
+    # "No usable temporary directory found"，看不出怎么修）
+    if 'No usable temporary directory' in msg:
+        return jsonify({'error': '服务器临时目录不可用：系统 TEMP 与 '
+                                 '<程序目录>\run\tmp 都写不进去，上传无法落盘。'
+                                 '请检查程序目录权限（或先手动创建 run\tmp）后重启平台。',
+                        'detail': msg}), 400
+    return jsonify({'error': msg}), 400
 
 
 @bp.app_errorhandler(PermissionError)
@@ -423,6 +431,8 @@ def page_results():
                         'name': an,
                         'report': os.path.isfile(
                             os.path.join(ad, '07_report', 'report.html')),
+                        'report_v2': os.path.isfile(
+                            os.path.join(ad, '07_report', 'report_v2.html')),
                         'mtime': time.strftime(
                             '%Y-%m-%d %H:%M',
                             time.localtime(os.path.getmtime(ad)))})
@@ -434,6 +444,8 @@ def page_results():
         rpt = check_path(os.path.join(d, '07_report', 'report.html'),
                          must_exist=False, in_platform=True)
         samples.append({'name': name, 'report': os.path.isfile(rpt),
+                        'report_v2': os.path.isfile(os.path.join(
+                            d, '07_report', 'report_v2.html')),
                         'project': _sample_project(d),
                         'mtime': time.strftime(
                             '%Y-%m-%d %H:%M',
@@ -492,13 +504,29 @@ def _send_report(path):
 
 @bp.route('/report/<sample>/')
 def page_report(sample):
+    """样品报告。
+
+    `?v=paper` 出 report_kit 的学术论文风结论文档（report_v2.html），
+    缺省仍是 viz 的图表报告（report.html）——两条入口并存，
+    report_v2 尚未生成时自动回落到 report.html，不给用户 404。
+    """
     safe = _safe_sample(sample)
     # base 归一后加前缀包含校验：filename 类路径段若为绝对路径，os.path.join
     # 会整段替换 base，仅靠 check_path(in_platform=True) 可读平台内任意文件。
     base = os.path.abspath(check_path(os.path.join(DIRS['results'], safe),
                                       must_exist=True, in_platform=True))
-    rpt = check_path(os.path.join(base, '07_report', 'report.html'),
-                     must_exist=True, in_platform=True)
+    names = ['report.html']
+    if (request.args.get('v') or '').lower() in ('paper', 'v2', 'report_v2'):
+        names.insert(0, 'report_v2.html')
+    rpt = None
+    for name in names:
+        cand = check_path(os.path.join(base, '07_report', name),
+                          must_exist=False, in_platform=True)
+        if os.path.isfile(cand):
+            rpt = cand
+            break
+    if rpt is None:
+        abort(404, '该样品还没有生成报告')
     if not rpt.startswith(base + os.sep):
         abort(400, '非法路径')
     return _send_report(rpt)
@@ -519,12 +547,25 @@ def page_report_file(sample, filename):
 
 @bp.route('/archive_report/<sample>/')
 def page_archive_report(sample):
-    """归档样品报告（results/_archive/<sample>/）。"""
+    """归档样品报告（results/_archive/<sample>/）。
+
+    `?v=paper` 与样品页同义：出 report_kit 结论文档，缺失时回落图表报告。
+    """
     # 归档目录名不在 results/ 下，解析基准要指到 _archive
     safe = _safe_sample(sample, base=os.path.join(DIRS['results'], '_archive'))
     base = os.path.abspath(os.path.join(DIRS['results'], '_archive', safe))
-    rpt = check_path(os.path.join(base, '07_report', 'report.html'),
-                     must_exist=True, in_platform=True)
+    names = ['report.html']
+    if (request.args.get('v') or '').lower() in ('paper', 'v2', 'report_v2'):
+        names.insert(0, 'report_v2.html')
+    rpt = None
+    for name in names:
+        cand = check_path(os.path.join(base, '07_report', name),
+                          must_exist=False, in_platform=True)
+        if os.path.isfile(cand):
+            rpt = cand
+            break
+    if rpt is None:
+        abort(404, '该归档样品还没有生成报告')
     if not rpt.startswith(base + os.sep):
         abort(400, '非法路径')
     return _send_report(rpt)
@@ -546,3 +587,80 @@ def page_help():
                 pass
             break
     return render_template('help.html', text=text)
+
+
+# ------------------------------------------------------------------
+# 工作区文件预览（2026-10-30，AI 分析台右侧文件面板）
+#   只读、只允许平台目录内的文件：路径经 check_path(in_platform=True)，
+#   不提供写入/删除/上传。文本截断到 max_bytes；二进制走 raw 供 <img>/<iframe>。
+# ------------------------------------------------------------------
+_FS_TEXT_MAX = 8 * 1024 * 1024          # 超过 8MB 不走文本预览
+
+
+def _fs_read_roots():
+    """可读根：平台目录 + 运行数据 + 示例（分发版里示例在外置目录）。"""
+    from Virus_Platform_Core.config import (DIRS, PLATFORM_ROOT,
+                                            _detect_examples_root)
+    roots = [PLATFORM_ROOT, DIRS.get('results'), DIRS.get('tool_runs'),
+             DIRS.get('downloads')]
+    try:
+        roots.append(_detect_examples_root())
+    except Exception:
+        roots.append(DIRS.get('examples'))
+    return [os.path.normpath(r) for r in roots if r]
+
+
+def _fs_path(raw):
+    raw = str(raw or '').strip()
+    if not raw:
+        abort(400, '需要 path')
+    p = os.path.normpath(os.path.abspath(raw))
+    if not any(p == r or p.startswith(r + os.sep) for r in _fs_read_roots()):
+        abort(400, '路径越界（只允许平台目录、示例与下载目录）')
+    if not os.path.exists(p):
+        abort(400, f'路径不存在: {p}')
+    if not os.path.isfile(p):
+        abort(400, '不是文件')
+    return p
+
+
+@bp.route('/api/fs/roots')
+def api_fs_roots():
+    """文件面板的根目录（绝对路径由服务端给出，兼容三分离分发布局）。"""
+    from Virus_Platform_Core.config import DIRS, _detect_examples_root
+    try:
+        examples = _detect_examples_root()
+    except Exception:
+        examples = DIRS.get('examples')
+    items = [('sample', '当前样品', DIRS.get('results')),
+             ('tool', '工具运行', DIRS.get('tool_runs')),
+             ('examples', '示例数据', examples),
+             ('downloads', '下载数据', DIRS.get('downloads'))]
+    return jsonify([{'id': i, 'label': lb, 'path': p}
+                    for i, lb, p in items if p and os.path.isdir(p)])
+
+
+@bp.route('/api/fs/read')
+def api_fs_read():
+    """读文本片段（预览用）：返回 path/size/truncated/text。"""
+    p = _fs_path(request.args.get('path'))
+    size = os.path.getsize(p)
+    if size > _FS_TEXT_MAX:
+        abort(413, f'文件过大（{size} 字节），请下载后查看')
+    try:
+        maxb = int(request.args.get('max_bytes') or 200000)
+    except (TypeError, ValueError):
+        maxb = 200000
+    maxb = max(1000, min(maxb, 1000000))
+    with open(p, 'rb') as fh:
+        chunk = fh.read(maxb)
+    return jsonify({'path': p, 'size': size,
+                    'truncated': size > maxb,
+                    'text': chunk.decode('utf-8', 'replace')})
+
+
+@bp.route('/api/fs/raw')
+def api_fs_raw():
+    """原样输出（图片 / HTML 预览用）；同源，只读平台目录内文件。"""
+    p = _fs_path(request.args.get('path'))
+    return send_file(p)

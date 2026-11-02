@@ -214,7 +214,14 @@ def _ai_text(ai, sys_prompt, user_msg, max_tokens=700):
                     out.append(ev['content'])
             text = ''.join(out).strip()
             if text:
-                return text
+                # 播报/闸门是 AI 文本的另一个出口：漏出的内部工具标记
+                # <|DSML|…> 会原样显示在播报卡里（2026-11-02 统一清洗）。
+                try:
+                    from .chat import _strip_dsml
+                    text = _strip_dsml(text).strip()
+                except Exception:
+                    pass
+                return text or None
             last_err = RuntimeError('空响应')
         except Exception as e:
             last_err = e
@@ -370,11 +377,16 @@ def gate_point(sample, stage, logger=None, timeout_s=None):
             logger.log('[AI 闸门] 评估不可用（未配置或生成失败），自动继续',
                        'WARN')
         return 'continue'
+    # 2026-11-02 P2：pending 事件带期限，前端闸门卡才能显示倒计时；
+    # 刷新页面后 pending_gate() 仍能给出剩余时间（不再只有 eid）。
+    deadline = time.time() + timeout_s
     ev = publish('ai_gate', sample=sample, stage=stage,
                  name=_stage_disp(stage), status='pending',
-                 text=assessment[:3000])
+                 text=assessment[:3000],
+                 timeout_s=timeout_s, deadline=deadline)
     key = (sample, stage)
-    g = {'ev': threading.Event(), 'action': None, 'eid': ev['id']}
+    g = {'ev': threading.Event(), 'action': None, 'eid': ev['id'],
+         'deadline': deadline, 'timeout_s': timeout_s}
     with _gate_lock:
         _gates[key] = g
     try:
@@ -417,7 +429,10 @@ def pending_gate(sample=None, stage=None):
     """查询待决闸门（前端恢复用）；无参返回全部。"""
     with _gate_lock:
         out = [{'sample': k[0], 'stage': k[1], 'eid': v['eid'],
-                'action': v['action']}
+                'action': v['action'],
+                # 刷新后 hydrate 也要能显示倒计时（epoch 秒，数值）
+                'deadline': v.get('deadline'),
+                'timeout_s': v.get('timeout_s')}
                for k, v in _gates.items()
                if (sample is None or k[0] == sample)
                and (stage is None or k[1] == stage)]

@@ -578,14 +578,18 @@ async function doTaxCheck(btn) {
       await new Promise(r => setTimeout(r, 2000));
       snap = await jfetch(`/api/task/${d.task}?log_lines=20`);
       box.textContent = `[${snap.stage || ''}] ${snap.msg || ''}`
-        + (snap.pct != null ? `（${Math.round((snap.pct || 0) * 100)}%）` : '');
+        + (snap.pct != null ? `（${Math.round((snap.pct || 0) * 100)}%）` : '')
+        + '\n⏳ 校验中…（可留在本页等结果，也可切到任务中心看进度）';
       if (snap.status !== 'running') break;
     }
     if (snap.status !== 'done') {
       throw new Error(snap.error || (snap.status === 'cancelled' ? '任务已停止' : '校验失败'));
     }
-    // 结果走既有文件预览接口读回（不回传嵌套 rows，避免被结果预览压平）
-    const raw = await jfetch(`/api/submit/table/${encodeURIComponent(CUR)}/file?name=taxonomy_check.json`);
+    // 结果走既有文件预览接口读回（不回传嵌套 rows，避免被结果预览压平）。
+    // 项目名取落盘的 payload.project，不依赖页面级 CUR——校验期间用户可能
+    // 切走模块或清空 CUR，用 CUR 读回会 400 并让整份结果丢掉（2026-11-02）。
+    const proj = (snap.result && snap.result.project) || CUR;
+    const raw = await jfetch(`/api/submit/table/${encodeURIComponent(proj)}/file?name=taxonomy_check.json`);
     const res = JSON.parse(raw.content);
     if (!res.rows.length) { box.textContent = '（表内没有可校验的 organism）'; }
     else {

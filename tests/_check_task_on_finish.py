@@ -75,6 +75,21 @@ def make_mgr(mod, tmpdir):
     return mgr
 
 
+def _wait_finished(mgr, tid, timeout=15.0):
+    """等到任务终态**且** on_finish 已收尾。
+
+    不能只看 snapshot 的 status：tasks.py 在 `with self.lock` 里先把 status
+    置为 done/failed，`_call_on_finish()` 在 finally 末尾才调 —— 中间有窗口。
+    只看 status 立刻断言会稳定误报 "on_finish = 0"（2026-11-02 实测复现：
+    状态已 done 时 n=0，再等 0.5s 即 n=1）。这里等线程真正结束。
+    """
+    rec = mgr.tasks.get(tid) or {}
+    th = rec.get('thread')
+    if th is not None:
+        th.join(timeout)
+        return rec
+
+
 def run_scenario(mod, tmpdir, tag, use_on_finish):
     """返回 (job_finally_called, on_finish_calls)。"""
     mgr = make_mgr(mod, tmpdir)
@@ -157,11 +172,7 @@ def main():
         tid = mgr.start('normal', ok_job,
                         log_file=os.path.join(tmpdir, 'normal.log'),
                         on_finish=lambda: calls.__setitem__('n', calls['n'] + 1))
-        for _ in range(60):
-            s = mgr.snapshot(tid, log_lines=0, include_result=False)
-            if s and s.get('status') != 'running':
-                break
-            time.sleep(0.2)
+        _wait_finished(mgr, tid)
         _check(calls['fin'] == 1, f'正常路径 fn 的 finally = {calls["fin"]}（应 1）')
         _check(calls['n'] == 1, f'正常路径 on_finish = {calls["n"]}（应恰 1）')
 
@@ -176,16 +187,17 @@ def main():
         tid2 = mgr2.start('bad', bad_job,
                           log_file=os.path.join(tmpdir, 'bad.log'),
                           on_finish=lambda: calls2.__setitem__('n', calls2['n'] + 1))
-        for _ in range(60):
-            s = mgr2.snapshot(tid2, log_lines=0, include_result=False)
-            if s and s.get('status') != 'running':
-                break
-            time.sleep(0.2)
+        _wait_finished(mgr2, tid2)
         _check(calls2['n'] == 1, f'失败路径 on_finish = {calls2["n"]}（应恰 1）')
     finally:
-        for f in os.listdir(tmpdir):
-            os.remove(os.path.join(tmpdir, f))
-        os.rmdir(tmpdir)
+        # 任务线程持有 tmpdir 下的日志句柄；不等它收尾就删会撞
+        # WinError 145「目录不是空的」（2026-11-02 实测）。
+        for th in list(live.tm.tasks.values()):
+            t = th.get('thread') if isinstance(th, dict) else None
+            if t is not None:
+                t.join(5)
+        import shutil
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
     print()
     if FAILS:

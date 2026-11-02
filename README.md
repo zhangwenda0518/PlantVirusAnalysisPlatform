@@ -282,6 +282,26 @@ VirusPlatform/
 - **[Wiki 首页](https://github.com/zhangwenda0518/PlantVirusPlatform/tree/main/wiki)** — 25 个页面逐模块详解（快速开始 / 各阶段 / 进化动力学 / BEAST / 系统地理 / 公共数据 / 工具箱 / 提交 / LOGAN / 数据库 / CLI / FAQ）。
 - Wiki 源文件同步维护在本仓库 [`wiki/`](wiki/) 目录。
 - **[MCP 服务器](docs/mcp_server.md)** — 把工具箱 / 流水线 / 任务管理暴露为 22 个 `vp_*` 工具（工具箱+流水线+任务管理+全量 CLI+病毒预筛+OpenVirome 云端检索）（工具箱+流水线+任务管理+全量 CLI 能力），Claude Desktop、ZCode 等 MCP 客户端可直接驱动（stdio 与 streamable-HTTP 双模式，含逐参数 schema 与调用模型）。
+
+  <a id="mcp-external"></a>
+  **外部 agent 接入配置**（把下面这段加进客户端的 MCP 配置文件即可；路径按本机实际安装位置替换）：
+
+  ```json
+  {
+    "mcpServers": {
+      "virusplatform": {
+        "command": "D:\\PVAP\\PlantVirusPlatform\\VirusPlatform\\VirusPlatform.exe",
+        "args": ["--mcp-stdio"],
+        "cwd": "D:\\PVAP\\PlantVirusPlatform\\VirusPlatform"
+      }
+    }
+  }
+  ```
+
+  源码运行环境（非打包）用 `"command": "python"`, `"args": ["mcp_server.py"]`, `"cwd": "<仓库根目录>"`。
+  接入后客户端可直接调用全部 `vp_*` 工具；网页端「MCP 控制台」（`/mcp`）是同一套契约的调试面板——打开即自动连接并列出工具清单，无需手动选择。
+  注意：破坏面工具（如 `vp_delete_tool_run`）在网页控制台与内置对话中不开放；外部 agent 是否受同样限制取决于其自身权限策略，请自行把关。
+
 - 开发踩坑记录见 [`docs/DEVELOPMENT_NOTES.md`](docs/DEVELOPMENT_NOTES.md)。
 
 ## ❓ FAQ（速览）

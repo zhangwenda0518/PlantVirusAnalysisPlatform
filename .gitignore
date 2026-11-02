@@ -173,3 +173,14 @@ plugins-dist/
 # outputs/ 与 run/ 同属运行期产物目录（旧布局结果根）：vp_retest 基准重跑的
 # 宿主库/分类库中间件（host.fa.mbw 等，实测 13.4GB）绝不入库。2026-10-24。
 outputs/
+
+# ---------- 8. 本地诊断 / 打包产物 / 插件运行态（2026-11-02 起） ----------
+# 排查期临时脚本目录（tmp_diag/：探针 py/js、截图、node_modules、_runall_*.log）。
+# 结论必须写进 docs/（DEVELOPMENT_NOTES.md / 全面测试与加固报告），脚本不参与分发。
+tmp_diag/
+# dev_tools/package.py 的打包输出（build_dist/VirusPlatform/，实测 317MB）；
+# 与 /dist/ /build/ 同类，属可重新生成的产物。
+build_dist/
+# 插件安装台账（plugin_manager 运行态文件，含 installed_at 与本机安装路径）。
+# 仓库只分发插件清单 plugins-dist/index.json。
+plugins/_registry.json

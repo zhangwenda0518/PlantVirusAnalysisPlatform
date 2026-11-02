@@ -204,6 +204,8 @@ def test_miranda_block_parsing(tmp_path, monkeypatch):
 
     class _Fake:
         stdout = block
+        returncode = 0            # run_miranda_batch 先查退出码再解析
+        stderr = ''
 
     monkeypatch.setattr(B, 'MIRANDA_EXE', __file__)      # 只过 isfile 检查
     monkeypatch.setattr(B, '_run', lambda *a, **k: _Fake())

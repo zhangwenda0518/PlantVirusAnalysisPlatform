@@ -806,6 +806,46 @@ def cmd_importprobe(args):
     return True
 
 
+def cmd_agent_guide(args):
+    """打印 AI 代理使用指南（AGENTS.md）/ 技能卡（--skill）。只读、零副作用。"""
+    from Virus_Platform_Core.agent_guide import main as _guide
+    return _guide(['--skill'] if getattr(args, 'skill', False) else [])
+
+
+def cmd_agent_ops(args):
+    """操作发现层：目录 / 搜索 / 详情 / 参数 schema 的命令行脸。"""
+    import json as _json
+    from Virus_Platform_Core import agent_catalog as _ac
+    if args.id:
+        d = _ac.describe(args.id)
+        if d is None:
+            print(f'未知操作: {args.id}（用 agent-ops <关键词> 搜索）')
+            return 1
+        if args.schema:
+            d = _ac.parameter_schema(args.id)
+        print(_json.dumps(d, ensure_ascii=False, indent=1))
+        return 0
+    q = (args.query or '').strip()
+    if args.json:
+        d = (_ac.search(q, limit=args.limit) if q
+             else _ac.list_operations(args.kind))
+        print(_json.dumps(d, ensure_ascii=False, indent=1))
+        return 0
+    if q:
+        d = _ac.search(q, limit=args.limit)
+        items = d['items']
+        print(f'搜索「{q}」命中 {d["total"]} 条（显示 {len(items)}）:')
+    else:
+        items = _ac.list_operations(args.kind)['items']
+        print(f'操作目录 {len(items)} 条:')
+    for x in items:
+        req = ','.join(x.get('required_params') or [])
+        extra = f' [必填: {req}]' if req else ''
+        print(f'  [{x["kind"]:<6}] {x["id"]:<16} {x["title"]}'
+              f'  {x.get("title_en", "")}{extra}')
+    return 0
+
+
 def cmd_selfcheck(args):
     """环境自检：模块导入 / 外部工具 / 数据库 / 磁盘空间，一次摸底。"""
     import importlib
@@ -1424,6 +1464,27 @@ def build_parser(cfg):
     sp.add_argument('--dry-run', action='store_true',
                     help='只报告将要写入的内容，不落盘')
     sp.set_defaults(func=cmd_samples_backfill)
+
+    sp = sub.add_parser('agent-guide',
+                        help='打印 AI 代理使用指南（AGENTS.md）；--skill 打印技能卡')
+    sp.add_argument('--skill', action='store_true',
+                    help='打印技能卡（存为 .agents/skills/virusplatform/SKILL.md）')
+    sp.set_defaults(func=cmd_agent_guide)
+
+    sp = sub.add_parser('agent-ops',
+                        help='操作发现层：目录/搜索/详情/参数 schema（54+ 条操作）')
+    sp.add_argument('query', nargs='?', default='',
+                    help='搜索关键词（中英皆可，如 组装 / kvsuite / 引物）')
+    sp.add_argument('--id', default='',
+                    help='查单条详情（配合 --schema 出参数口径）')
+    sp.add_argument('--schema', action='store_true',
+                    help='配合 --id：输出参数 schema 路径口径')
+    sp.add_argument('--kind', choices=['tool', 'stage', 'action'], default=None,
+                    help='列表模式按类目过滤')
+    sp.add_argument('--limit', type=int, default=8,
+                    help='搜索最多返回条数（默认 8）')
+    sp.add_argument('--json', action='store_true', help='原始 JSON 输出')
+    sp.set_defaults(func=cmd_agent_ops)
 
     sp = sub.add_parser('selfcheck', help='环境自检（模块/工具/数据库/磁盘/依赖）')
     sp.set_defaults(func=cmd_selfcheck)

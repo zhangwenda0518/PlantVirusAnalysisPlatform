@@ -81,19 +81,21 @@ def main():
                     if m.type == 'error' else None)
             page.on('pageerror', lambda e: errors.append(str(e)))
 
-            # 常驻 EventSource 使 networkidle 永不触发（与 _check_pages_console 回退策略一致）
+            # 2026-10-29：总览改成内嵌「AI 分析台」——坞被移进 #aiConsoleHost、
+            # 常开、FAB 隐藏；浮坞行为改到其它页面（/samples）验证。
             page.goto(base + '/', wait_until='load')
-            check('FAB 浮钮存在', page.locator('#aiFab').count() == 1)
-            check('对话坞初始隐藏', not page.locator('#aiDock').is_visible())
-
-            page.click('#aiFab')
-            page.wait_for_timeout(800)
-            check('点击后对话坞展开', page.locator('#aiDock').is_visible())
-            n_opts = page.locator('#aiSampleSel option').count()
-            check(f'样品下拉已填充（{n_opts} 项）', n_opts >= 2)
+            check('总览内嵌 AI 分析台',
+                  page.locator('#aiConsoleHost #aiDock').count() == 1)
+            check('总览分析台常开', page.locator('#aiDock').is_visible())
+            check('总览 FAB 隐藏', not page.locator('#aiFab').is_visible())
+            # 2026-10-30：坞里不再有独立样品下拉（跟随顶栏全局胶囊），标题改名 AI 工作台
+            check('坞内不再有独立样品下拉',
+                  page.locator('#aiSampleSel').count() == 0)
+            check('标题已改为 AI 工作台',
+                  '工作台' in page.locator('.ai-dock-title').inner_text())
             check('未配置引导条出现',
                   page.locator('.ai-notice').count() >= 1)
-            page.screenshot(path=os.path.join(shot_dir, 'ai_dock_open.png'))
+            page.screenshot(path=os.path.join(shot_dir, 'ai_console_home.png'))
 
             page.fill('#aiInput', '这个平台能做什么？')
             page.click('#aiSendBtn')
@@ -104,10 +106,17 @@ def main():
             page.screenshot(
                 path=os.path.join(shot_dir, 'ai_dock_degraded.png'))
 
-            page.click('#aiDock .ai-ico[title*="收起"], #aiDock .ai-ico') \
-                if False else None
-            # 收起（最后一个 ai-ico 是 ✕）
-            page.locator('#aiDock .ai-ico').last.click()
+            # 其它页面仍是右下角浮坞：初始隐藏 → FAB 展开 → ✕ 收起
+            page.goto(base + '/samples', wait_until='load')
+            page.wait_for_timeout(500)
+            check('其它页对话坞初始隐藏', not page.locator('#aiDock').is_visible())
+            check('其它页 FAB 可见', page.locator('#aiFab').is_visible())
+            page.click('#aiFab')
+            page.wait_for_timeout(600)
+            check('点击 FAB 后对话坞展开', page.locator('#aiDock').is_visible())
+            # 收起点 ✕ 在坞头；页面底部还有 ⟲ 清空 / ⚙ 设置也是 .ai-ico，
+            # 所以不能用 .last（2026-11-02：那会点到设置、坞根本不收）。
+            page.locator('#aiDock .ai-dock-head .ai-ico').click()
             page.wait_for_timeout(300)
             check('收起后 FAB 回归', page.locator('#aiFab').is_visible())
 

@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="vp-lang" content="{{ lang }}">
+<script>window.VP_HAS_MEGAHIT = {{ 'true' if has_megahit else 'false' }};</script>
+<script>window.VP_RAM_GB = {{ ram_gb }}; window.VP_ASM_MEM_DEFAULT = {{ asm_mem_default }}; window.VP_ASM_MEM_CAP = {{ asm_mem_cap }};</script>
 <title>{{ 'Feature tree - Plant Virus Analysis Platform' if lang == 'en' else '功能树 - 植物病毒分析平台' }}</title>
 <script>try{if(localStorage.getItem("vp_theme")==="dark")document.documentElement.setAttribute("data-theme","dark")}catch(e){}</script>
 <link rel="stylesheet" href="/static/app.css?v={{ asset_v }}">
@@ -26,6 +28,8 @@
     <div id="moduleSubList" class="gt-items"></div>
   </nav>
   <div id="groupLanding" class="landing-grid" style="display:none"></div>
+  <!-- 组概览的 wiki 文档区：app-wiki.js 按 index.json 的映射填充（2026-10-29） -->
+  <div id="groupDocs" class="group-docs" hidden></div>
   <!-- ⚡ 一键前处理（prepchain）：输入自适应 转换 → 质控 → 转换(FASTA) → 宿主去除 -->
   <section class="card" id="t-prepchain">
     <h2 data-i18n="tb.prepchain">⚡ 一键前处理（SRA / FASTQ 自适应）</h2>
@@ -271,17 +275,19 @@
   </section>
   <!-- ③ 提取序列组装 -->
   <section class="card" id="t-assemble">
-    <h2 data-i18n="tb.assemble">③ 提取序列组装（SPAdes）</h2>
+    <h2 data-i18n="tb.assemble">③ 提取序列组装（SPAdes / MEGAHIT）</h2>
     <p class="hint" data-i18n="tk.asHint">对识别/提取阶段得到的病毒 reads 做 de novo 组装
-       （SPAdes，输入自动衔接上游：识别提取的 viral_sequences 或质控/去宿主
-       reads）。低深度样品 metaviral 拼不出 contigs 时自动回退 rna 模式。</p>
+       （输入自动衔接上游：识别提取的 viral_sequences 或质控/去宿主 reads）。
+       引擎可选：<b>MEGAHIT</b>（默认优先，快一个量级）或 <b>SPAdes</b>
+       （低深度更灵敏，低深度 metaviral 拼不出 contigs 时自动回退 rna 模式）。
+       小RNA（srna）固定用 SPAdes。</p>
     <label style="margin-top:12px" data-i18n="tk.batchSamplesLbl">⏩ 按样品批量（📋 多选，可按项目全选；自动取各样品登记的 R1/R2，单双端自动识别）</label>
     <div class="filerow">
       <input id="a_samples" type="text" placeholder="点右侧 📋 选样品（可多选）" data-i18n-ph="tk.batchSamplesPh">
       <button class="btn small" onclick="kvPickSamples('a_samples')" data-i18n-title="tk.pickSamplesTitle">📋</button>
     </div>
     <div style="margin-top:6px">
-      <button class="btn" onclick="batchRunForSamples(this,'assemble','a_samples',(nm,d)=>{const srna=$('a_srna')?.checked;if(!d.r2&&!srna&&$('a_mode').value!=='srna') throw new Error('单端样品（该模式组装需双端；勾选「小RNA」或选 srna 模式支持单端）');return {r1:d.r1,r2:d.r2,mode:srna?'srna':$('a_mode').value,memory:+val('a_mem')||64,min_len:+val('a_minlen')||200};})" data-i18n="tk.batchAssemble">⏹ 批量组装（逐样品提交；单端样品自动跳过）</button>
+      <button class="btn" onclick="batchRunForSamples(this,'assemble','a_samples',(nm,d)=>asmSamplesParams(d))" data-i18n="tk.batchAssemble">⏹ 批量组装（逐样品提交；单端样品自动跳过）</button>
     </div>
 
     <label style="margin-top:8px">R1 FASTQ</label>
@@ -296,24 +302,41 @@
     </div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end">
       <div class="gp-item">
+        <label data-i18n="tk.asEngineLbl">组装引擎</label>
+        <select id="a_engine" title="MEGAHIT 更快；SPAdes 对低深度/小RNA 更灵敏">
+          <option value="auto" selected data-i18n="tk.optAsmAuto">auto（有 MEGAHIT 就用，快）</option>
+          <option value="spades" data-i18n="tk.optAsmSpades">SPAdes（灵敏度高）</option>
+          <option value="megahit" data-i18n="tk.optAsmMegahit">MEGAHIT（最快）</option>
+        </select>
+      </div>
+      <div class="gp-item">
         <label data-i18n="tk.asModeLbl">组装模式</label>
         <select id="a_mode" onchange="if($('a_srna')?.checked){this.value='srna'}">
+          {% if has_megahit %}
+          <option value="default" selected data-i18n="tk.mhDefault">默认 k 阶梯（21→141）</option>
+          <option value="sensitive" data-i18n="tk.mhSensitive">低深度敏感（min-count 1）</option>
+          <option value="large" data-i18n="tk.mhLarge">复杂宏基因组（k 27→127）</option>
+          {% else %}
           <option value="rnaviral" selected data-i18n="tk.optRnaviral">rnaviral（RNA 病毒，默认）</option>
           <option value="metaviral" data-i18n="tk.optMetaviral">metaviral（宏病毒组）</option>
           <option value="rna" data-i18n="tk.optRna">rna（低深度回退）</option>
           <option value="meta" data-i18n="tk.optMeta">meta（宏基因组）</option>
           <option value="srna" data-i18n="tk.optSrna">srna（小RNA / siRNA）</option>
+          {% endif %}
         </select>
       </div>
-      <div class="gp-item">
+      <div class="gp-item" id="a_srna_wrap">
         <label style="white-space:nowrap;cursor:pointer">
-          <input type="checkbox" id="a_srna" onchange="if(this.checked){$('a_mode').value='srna'}">
+          <input type="checkbox" id="a_srna" onchange="if(this.checked){$('a_mode').value='srna';if($('a_engine'))$('a_engine').value='spades'}">
           <span data-i18n="tk.asSrnaChk">小RNA (siRNA)——k 9–23 奇数阶梯 · 仅组装 · 支持单端</span>
         </label>
       </div>
       <div class="gp-item">
         <label data-i18n="tk.asMemLbl">内存 (GB)</label>
-        <input id="a_mem" type="number" value="64" min="4">
+        <input id="a_mem" type="number" value="{{ asm_mem_default }}" min="4"
+               max="{{ ram_gb }}" oninput="asmMemHint('a_mem')"
+               title="默认 = 物理内存的一半；上限 = 物理内存的 60%（再高会被钳制并拖慢整机）">
+        <div class="hint" id="a_mem_hint" style="margin-top:2px"></div>
       </div>
       <div class="gp-item">
         <label data-i18n="tk.minLenLbl">最短 contig (bp)</label>
@@ -400,6 +423,7 @@
               映射总片段。<b>≥0.9 极可靠</b> · 0.5~0.9 高可信 · 0.1~0.5 需复核。</p>
               <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
                 <span class="hint"><span data-i18n="tk.curResult">当前结果：</span><b class="mono" id="anaRunLabel">（自动显示最新一次分类运行）</b></span>
+                <button class="btn small" onclick="openContigReport()" title="展开/刷新分类表与分类报告（刷新页面后也用它把表拉回来）" data-i18n-title="tk.reportBtnTip" data-i18n="tk.reportBtn">📊 分类报告</button>
                 <label style="margin:0" data-i18n="c.hostFilter">宿主筛选</label>
                 <select id="vcHostF" onchange="hostFilterChanged()" style="max-width:180px">
                   <option value="" data-i18n="tk.optAllHosts">（全部宿主）</option>
@@ -565,6 +589,14 @@
 
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end;margin-top:10px">
       <div class="gp-item">
+        <label data-i18n="tk.asEngineLbl">组装引擎</label>
+        <select id="vc_engine" title="MEGAHIT 更快；SPAdes 对低深度/小RNA 更灵敏">
+          <option value="auto" selected data-i18n="tk.optAsmAuto">auto（有 MEGAHIT 就用，快）</option>
+          <option value="spades" data-i18n="tk.optAsmSpades">SPAdes（灵敏度高）</option>
+          <option value="megahit" data-i18n="tk.optAsmMegahit">MEGAHIT（最快）</option>
+        </select>
+      </div>
+      <div class="gp-item">
         <label data-i18n="tk.asModeLbl">组装模式</label>
         <select id="vc_mode">
           <option value="rnaviral" selected data-i18n="tk.optRnaviralVirome">rnaviral（RNA 病毒，默认）</option>
@@ -576,7 +608,10 @@
       </div>
       <div class="gp-item">
         <label data-i18n="tk.vcMemLbl">内存上限 GB</label>
-        <input id="vc_memory" type="number" min="4" value="64" style="width:80px">
+        <input id="vc_memory" type="number" min="4" value="{{ asm_mem_default }}"
+               max="{{ ram_gb }}" style="width:80px" oninput="asmMemHint('vc_memory')"
+               title="默认 = 物理内存的一半；上限 = 物理内存的 60%">
+        <div class="hint" id="vc_memory_hint" style="margin-top:2px"></div>
       </div>
       <div class="gp-item">
         <label data-i18n="tk.vcMinLenLbl">最小 contig 长度</label>
@@ -617,7 +652,7 @@
         <button class="btn small" onclick="kvPickSamples('vc_samples')" data-i18n-title="tk.pickSamplesTitle">📋</button>
       </div>
       <div style="margin-top:6px">
-        <button class="btn" onclick="batchRunForSamples(this,'virchain','vc_samples',(nm,d)=>{const p=_peParams(nm,d);return {input:p.r1,input2:p.r2,run_identify:$('vc_run_identify').checked||undefined,do_verify:$('vc_do_verify').checked,mode:$('vc_mode').value,memory:+val('vc_memory')||64,min_len:+val('vc_min_len')||200,confidence:+val('vc_confidence')||0,combine:$('vc_combine').value,methods:$('vc_methods').value};})" data-i18n="tk.batchVirchain">⏩ 批量一键流程（逐样品提交 ②→③→④）</button>
+        <button class="btn" onclick="batchRunForSamples(this,'virchain','vc_samples',(nm,d)=>{const p=_peParams(nm,d);return {input:p.r1,input2:p.r2,run_identify:$('vc_run_identify').checked||undefined,do_verify:$('vc_do_verify').checked,...vcParams(),memory:+val('vc_memory')||64,min_len:+val('vc_min_len')||200,confidence:+val('vc_confidence')||0,combine:$('vc_combine').value,methods:$('vc_methods').value};})" data-i18n="tk.batchVirchain">⏩ 批量一键流程（逐样品提交 ②→③→④）</button>
       </div>
       <div style="margin-top:12px">
       <button class="btn primary" onclick="runVirchain(this)" data-i18n="tk.runVirchain">⚡ 一键运行（②→③→④）</button>
@@ -996,14 +1031,15 @@
 
 
   <!-- 共识序列与变异分析（验证模块之后）
-       参考 = 候选 contig；reads 回贴用 minimap2（-ax sr），
+       参考 = 候选 contig；reads 回贴用 minibwa（-x sr，2026-09-08 由
+       minimap2 换过来，minimap2 现已无任何调用点），
        共识调用与变异分析为自研（对齐 ViralConsensus 产物语义）。 -->
   <section class="card" id="t-consensus">
     <h2 data-i18n="tk.csH2">🧬 共识序列与变异分析</h2>
     <p class="hint" data-i18n="tk.csHint">把 reads <b>回贴到验证后的候选 contig</b>，产出<b>精修共识序列</b>与<b>变异谱</b>。
        思路来自 MultiVirusConsensus（多参考并行 + 据覆盖度判断哪些真实存在），
-       但只依赖 <b>minimap2</b>：共识调用用 Python 重写，不需要 samtools / viral_consensus
-       （二者无 Windows 官方构建）。<br>
+       回贴用平台自带的 <b>minibwa</b>（-x sr），共识调用用 Python 重写，
+       不需要 minimap2 / samtools / viral_consensus（三者无可用 Windows 构建）。<br>
        产物：<b>consensus.fa</b>（共识序列）、<b>poscounts.tsv</b>（逐位碱基计数）、
        <b>inscounts.json</b>（插入）、<b>variants.tsv</b>（变异位点）、<b>coverage.tsv</b>（覆盖统计）。</p>
 
@@ -2041,41 +2077,69 @@
       <textarea id="pd_meta_text" rows="4" style="width:100%" placeholder="name	date	location	lat	lon&#10;SeqA	2019-03-01	Wuhan	30.5	114.3&#10;SeqB	2019-07	Nairobi"></textarea>
     </div>
     <div id="pd_src_genbank" style="display:none">
-      <label data-i18n="tk.pdprepGbLbl">accession 列表（逗号/换行）或检索式，二选一</label>
-      <textarea id="pd_acc" rows="3" style="width:100%" placeholder="LC683642, LC683643, ..."></textarea>
-      <div class="gp-item">
-        <label data-i18n="tk.pdprepTermLbl">或 Entrez 检索式</label>
-        <input id="pd_term" type="text" style="width:70%" placeholder="tomato yellow leaf curl virus[ORGN] AND 2015:2024[PDAT]">
+      <!-- 2026-11-02 简化：对齐 VirPhyKit SeqHarvester 的两步节奏 ——
+           物种名 → [检索] 出清单 → 勾选 → [导入所选]。
+           accession / 检索式 / 条数 / 集合 / 在线库圈定 全收进「高级」，
+           普通用户只碰一个输入框；日期区间与"只要全长"留在外面（选参常用）。 -->
+      <label data-i18n="tk.pdprepSpeciesLbl">物种名或 taxid（一键采集：自动查 taxid + 拼检索式）</label>
+      <div class="filerow">
+        <input id="pd_species" type="text" style="flex:1" placeholder="Potato spindle tuber viroid" data-i18n-ph="tk.pdprepSpeciesPh">
+        <button class="btn" id="pdGbSearchBtn" onclick="pdGbSearch(this)" data-i18n="tk.pdprepGbSearch">🔍 检索</button>
       </div>
-      <div style="margin-top:8px;padding:8px 10px;border:1px solid var(--line-200);border-radius:8px">
-        <label data-i18n="tk.pdprepSpeciesLbl" style="display:block;margin-bottom:2px">物种名或 taxid（一键采集：自动查 taxid + 拼检索式）</label>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
-          <input id="pd_species" type="text" style="width:300px" placeholder="Potato spindle tuber viroid" data-i18n-ph="tk.pdprepSpeciesPh">
-          <div class="gp-item">
-            <label data-i18n="tk.pdprepDateFromLbl">采集年份从</label>
-            <input id="pd_date_from" type="text" style="width:80px" placeholder="2010">
-          </div>
-          <div class="gp-item">
-            <label data-i18n="tk.pdprepDateToLbl">到</label>
-            <input id="pd_date_to" type="text" style="width:80px" placeholder="2024">
-          </div>
-        </div>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;margin-top:6px">
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal">
           <input id="pd_full_only" type="checkbox" style="width:auto" checked>
           <span data-i18n="tk.pdprepFullOnly">只要全长（complete genome / cds / sequence，过滤片段）</span>
         </label>
-        <div class="hint" data-i18n="tk.pdprepOnlineHint">输出与平台元数据**完全一致**（name,date,location[,lat,lon]，GenBank 带 host 时追加一列 host）；地点优先取 geo_loc_name（保留到省/市）。RefSeq 参考记录常缺时间/地点，会被自动跳过（报告里逐条列出），所以实际会多取一些再挑。</div>
-      </div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end;margin-top:6px">
         <div class="gp-item">
-          <label data-i18n="tk.pdprepMaxLbl">最多记录数</label>
-          <input id="pd_maxrec" type="number" min="2" max="5000" value="200" style="width:90px">
+          <label data-i18n="tk.pdprepDateFromLbl">采集年份从</label>
+          <input id="pd_date_from" type="text" style="width:80px" placeholder="2010">
         </div>
         <div class="gp-item">
-          <label data-i18n="tk.pdprepGbColLbl">或已有 GenBank 集合名</label>
-          <input id="pd_collection" type="text" style="width:170px" placeholder="gb-dl 下载过的集合">
+          <label data-i18n="tk.pdprepDateToLbl">到</label>
+          <input id="pd_date_to" type="text" style="width:80px" placeholder="2024">
         </div>
       </div>
+      <div class="hint" style="margin-top:4px" data-i18n="tk.pdprepGbSearchHint">先检索、看清单（accession / 定义 / 长度 / 采集日期 / 地点 / 宿主），再勾选要导入的记录 —— 和 VirPhyKit 一样只走两小步。缺采集日期或地点的记录进不了数据集（会置灰并给原因），所以「列出条数」通常多于「可导入条数」。</div>
+      <div id="pdGbList" style="display:none;margin-top:8px">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <span id="pdGbStat" class="hint"></span>
+          <a href="javascript:void(0)" onclick="pdGbSelAll(true)" data-i18n="tk.pdprepGbSelAll">全选可用</a>
+          <a href="javascript:void(0)" onclick="pdGbSelAll(false)" data-i18n="tk.pdprepGbSelNone">清空</a>
+          <span style="flex:1"></span>
+          <button class="btn primary" onclick="runPdprep(this)">▶ <span id="pdGbImportLbl">导入所选</span></button>
+        </div>
+        <div class="scroll-md" style="max-height:320px;margin-top:6px">
+          <table class="tbl" id="pdGbTable"></table>
+        </div>
+        <div id="pdGbQuery" class="hint" style="margin-top:4px"></div>
+      </div>
+      <details id="pd_gb_adv" style="margin-top:10px">
+        <summary style="cursor:pointer;font-weight:500" data-i18n="tk.pdprepGbAdv">高级：直接给 accession / 检索式 / 集合（跳过检索预览）</summary>
+        <div class="hint" style="margin-top:4px" data-i18n="tk.pdprepGbAdvHint">这里填了就以这里为准（优先顺序：集合名 → accession → 检索式/物种名），可以直接「导入并校验」不预览。</div>
+        <label data-i18n="tk.pdprepGbLbl" style="display:block;margin-top:6px">accession 列表（逗号/换行）或检索式，二选一</label>
+        <textarea id="pd_acc" rows="3" style="width:100%" placeholder="LC683642, LC683643, ..."></textarea>
+        <div class="gp-item">
+          <label data-i18n="tk.pdprepTermLbl">或 Entrez 检索式</label>
+          <input id="pd_term" type="text" style="width:70%" placeholder="tomato yellow leaf curl virus[ORGN] AND 2015:2024[PDAT]">
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end;margin-top:6px">
+          <div class="gp-item">
+            <label data-i18n="tk.pdprepMaxLbl">最多记录数</label>
+            <input id="pd_maxrec" type="number" min="2" max="5000" value="200" style="width:90px">
+          </div>
+          <div class="gp-item">
+            <label data-i18n="tk.pdprepGbColLbl">或已有 GenBank 集合名</label>
+            <input id="pd_collection" type="text" style="width:170px" placeholder="gb-dl 下载过的集合">
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;margin-top:8px">
+          <input id="pd_gw" type="checkbox" style="width:auto">
+          <span data-i18n="tk.pdprepGwOn">优先在线库圈定（39.106.101.94 自建库：先按物种锁定 accession，再到 NCBI 取记录正文）</span>
+        </label>
+        <div class="hint" data-i18n="tk.pdprepGwHint">勾上后「物种名或 taxid」改为先查自建在线库（48 个数据集、国内直连快）锁定 accession 清单，NCBI 只做记录正文拉取，不跑开放检索；日期/地点仍以 GenBank 特征表为准。在线库没有该物种时任务会失败并给出建议（可取消勾选回退 NCBI 检索）。</div>
+        <div class="hint" data-i18n="tk.pdprepOnlineHint">输出与平台元数据完全一致（name,date,location[,lat,lon]，GenBank 带 host 时追加一列 host）；地点优先取 geo_loc_name（保留到省/市）。RefSeq 参考记录常缺时间/地点，预览里已置灰并标注原因。</div>
+      </details>
     </div>
     <!-- ── 可选后处理（2026-09-18 整合：去重 / 比对质检 / 坐标表 / 降采样 都收进来）──
          主流程只有三步：**选来源 → ▶ 导入并校验 → 接力 A0**。
@@ -2902,6 +2966,9 @@
   <script src="/static/app-batch.js?v={{ asset_v }}"></script>
   <script src="/static/app-storage.js?v={{ asset_v }}"></script>
 <script src="/static/examples.js?v={{ asset_v }}"></script>
+<!-- 组概览的 wiki 文档：VPMD 与 /help 共用同一套 Markdown 渲染 -->
+<script src="/static/app-md.js?v={{ asset_v }}"></script>
+<script src="/static/app-wiki.js?v={{ asset_v }}"></script>
 <script>
 /* $ / esc / taskLogOpen / startPolling / browse 等均来自 app.js */
 
@@ -2975,11 +3042,16 @@ function showModule(id) {
      顶部二级模块切换条（#moduleTree）与落地卡片容器除外。 */
   const main = document.querySelector('main');
   const landing = $('groupLanding');
+  const docs = $('groupDocs');
   const strip = $('moduleTree');
   if (landing) landing.style.display = 'none';
+  if (docs) {
+    docs.style.display = 'none';
+    if (window.VPWiki) VPWiki.hide(docs);
+  }
   if (!main) return;
   main.querySelectorAll(':scope > *').forEach(el => {
-    if (el === landing || el === strip) return;
+    if (el === landing || el === strip || el === docs) return;
     el.style.display = el.id === id ? '' : 'none';
   });
 }
@@ -2988,10 +3060,11 @@ function showLanding(group) {
   /* 组落地卡片视图：所有组统一「先总览、点击进入」；本地模块卡片点击切 hash */
   const main = document.querySelector('main');
   const landing = $('groupLanding');
+  const docs = $('groupDocs');
   const strip = $('moduleTree');
   if (!main || !landing) return;
   main.querySelectorAll(':scope > *').forEach(el => {
-    if (el !== landing && el !== strip) el.style.display = 'none';
+    if (el !== landing && el !== strip && el !== docs) el.style.display = 'none';
   });
   landing.innerHTML = group.items.map(item => {
     const href = item.href || ('#' + item.id);
@@ -3009,6 +3082,11 @@ function showLanding(group) {
     });
   });
   landing.style.display = '';
+  /* 卡片下方按组渲染 wiki 模块文档（2026-10-29 用户要求） */
+  if (docs) {
+    docs.style.display = '';
+    if (window.VPWiki) VPWiki.show(group.id, docs);
+  }
 }
 
 window.addEventListener('hashchange', () => renderModuleTree());
@@ -3022,6 +3100,119 @@ function showRows() {
 }
 
 function val(id) { return ($(id)?.value || '').trim(); }
+
+/* ---------------- 组装引擎 ↔ 组装模式（2026-10-29） ----------------
+   两套模式互斥：MEGAHIT 用 --presets，SPAdes 用 --rnaviral 等；
+   切引擎时自动换成该引擎的默认模式，界面里不再同时出现两套。 */
+const ASM_MODES = {
+  spades: [
+    ['rnaviral', () => t('tk.optRnaviral', 'rnaviral（RNA 病毒，默认）')],
+    ['metaviral', () => t('tk.optMetaviral', 'metaviral（宏病毒组）')],
+    ['rna', () => t('tk.optRna', 'rna（低深度回退）')],
+    ['meta', () => t('tk.optMeta', 'meta（宏基因组）')],
+    ['srna', () => t('tk.optSrna', 'srna（小RNA / siRNA）')]
+  ],
+  megahit: [
+    ['default', () => t('tk.mhDefault', '默认 k 阶梯（21→141）')],
+    ['sensitive', () => t('tk.mhSensitive', '低深度敏感（min-count 1）')],
+    ['large', () => t('tk.mhLarge', '复杂宏基因组（k 27→127）')]
+  ]
+};
+/* auto 的真实含义取决于这台机器有没有 MEGAHIT */
+function asmEngineOf() {
+  const v = ($('a_engine') || {}).value || 'auto';
+  if (v === 'spades' || v === 'megahit') return v;
+  return window.VP_HAS_MEGAHIT ? 'megahit' : 'spades';
+}
+function asmSyncModes(reset) {
+  const eng = asmEngineOf();
+  const sel = $('a_mode');
+  if (!sel) return;
+  const cur = reset ? '' : sel.value;
+  const list = ASM_MODES[eng];
+  sel.innerHTML = list.map(([v, lab]) =>
+    `<option value="${v}">${esc(lab())}</option>`).join('');
+  sel.value = list.some(([v]) => v === cur) ? cur : list[0][0];
+  const wrap = $('a_srna_wrap');
+  if (wrap) wrap.style.display = eng === 'spades' ? '' : 'none';
+  const sr = $('a_srna');
+  if (eng !== 'spades' && sr && sr.checked) sr.checked = false;
+}
+/* ---------------- 组装内存提示（2026-10-29） ----------------
+   物理内存由服务端注入（window.VP_RAM_GB），默认值=一半，上限=60%：
+   超过上限运行时会被钳制（assembly 里），而且会触发系统换页让整机变卡，
+   所以这里先把话说明白，再在提交前确认一次。 */
+function asmMemHint(inputId) {
+  const el = $(inputId);
+  const box = $(inputId + '_hint');
+  if (!el || !box) return;
+  const ram = window.VP_RAM_GB || 16;
+  const cap = window.VP_ASM_MEM_CAP || Math.max(2, Math.round(ram * 0.6));
+  const v = +el.value || 0;
+  let text = t('tk.memRamTpl', '物理内存约 {ram}GB，建议不超过 {cap}GB（60%）')
+    .replace('{ram}', ram).replace('{cap}', cap);
+  let color = '';
+  if (v > cap) {
+    text = t('tk.memOverCapTpl',
+      '已超过平台上限 {cap}GB（物理内存 60%），运行时会被自动钳制；再高会拖慢整机')
+      .replace('{cap}', cap);
+    color = 'color:#b45309';
+  } else if (v > ram * 0.75) {
+    text = t('tk.memHigh', '占用偏高，可能让系统卡顿');
+    color = 'color:#b45309';
+  }
+  box.textContent = text;
+  box.style.color = color;
+}
+function asmMemConfirm(mem) {
+  const ram = window.VP_RAM_GB || 16;
+  const cap = window.VP_ASM_MEM_CAP || Math.max(2, Math.round(ram * 0.6));
+  if (!mem || mem <= ram * 0.75) return true;
+  const pct = Math.round((mem / ram) * 100);
+  const msg = t('tk.memConfirmTpl',
+    '内存设为 {mem}GB（物理内存的 {pct}%），可能让系统卡顿。\n平台上限是 {cap}GB（60%），超出部分会被钳制。继续？')
+    .replace('{mem}', mem).replace('{pct}', pct).replace('{cap}', cap);
+  return confirm(msg);
+}
+
+/* 单次/批量共用：把界面上的引擎与模式翻译成后端参数 */
+function asmParams() {
+  const eng = asmEngineOf();
+  const srna = !!($('a_srna') && $('a_srna').checked);
+  const m = ($('a_mode') || {}).value || '';
+  const out = {
+    assembler: ($('a_engine') || {}).value || 'auto',
+    mode: srna ? 'srna' : (eng === 'spades' ? m : 'rnaviral'),
+    megahit_mode: eng === 'megahit' ? (m || 'default') : 'default'
+  };
+  if (eng === 'megahit' && srna) {
+    // 勾了小RNA 但引擎还是 MEGAHIT：小RNA 只有 SPAdes 能拼
+    out.assembler = 'spades';
+    out.mode = 'srna';
+  }
+  return out;
+}
+function asmSamplesParams(d) {
+  const srna = !!($('a_srna') && $('a_srna').checked);
+  const eng = asmEngineOf();
+  if (!d.r2 && !srna && eng !== 'megahit') {
+    throw new Error(t('tk.needR2ForPair',
+      '单端样品（该模式组装需双端；勾选「小RNA」或改用 MEGAHIT 支持单端）'));
+  }
+  return Object.assign({ r1: d.r1, r2: d.r2,
+                         memory: +val('a_mem') || (window.VP_ASM_MEM_DEFAULT || 64),
+                         min_len: +val('a_minlen') || 200 }, asmParams());
+}
+document.addEventListener('DOMContentLoaded', function () {
+  const e = $('a_engine');
+  if (e) e.addEventListener('change', () => asmSyncModes(true));
+  if ($('a_mode')) asmSyncModes(false);
+  const ve = $('vc_engine');
+  if (ve) ve.addEventListener('change', () => vcSyncModes(true));
+  if ($('vc_mode')) vcSyncModes(false);
+  asmMemHint('a_mem');
+  asmMemHint('vc_memory');
+});
 
 async function runTool(tool, btn) {
   let params = {}, threads = null, outdir = '';
@@ -3040,10 +3231,15 @@ async function runTool(tool, btn) {
   } else if (tool === 'assemble') {
     const srna = !!$('a_srna')?.checked;
     if (!val('a_r1')) { alert(t('ui.tk.needR1')); return; }
-    if (!val('a_r2') && !srna) { alert(t('ui.tk.needR2')); return; }
-    params = { r1: val('a_r1'), r2: val('a_r2'),
-               mode: srna ? 'srna' : $('a_mode').value,
-               memory: +val('a_mem') || 64, min_len: +val('a_minlen') || 200 };
+    // MEGAHIT 支持单端（-r），SPAdes 的 rnaviral 等模式仍要双端
+    if (!val('a_r2') && !srna && asmEngineOf() !== 'megahit') {
+      alert(t('ui.tk.needR2')); return;
+    }
+    const memSel = +val('a_mem') || (window.VP_ASM_MEM_DEFAULT || 64);
+    if (!asmMemConfirm(memSel)) return;
+    params = Object.assign({ r1: val('a_r1'), r2: val('a_r2'),
+                             memory: memSel,
+                             min_len: +val('a_minlen') || 200 }, asmParams());
     threads = +val('a_threads') || null;
   } else if (tool === 'convert') {
     if (!val('cv_input')) { alert(t('ui.tk.needInput')); return; }
@@ -3532,9 +3728,9 @@ async function loadAnaRuns(render) {
       if (lb) lb.textContent = '（先运行工具④，或到历史运行区复用）';
       return;
     }
-    if (latest === anaCurRun) return;      // 无新运行：不重复加载
+    if (latest === anaCurRun && !render) return;   // 无新运行：不重复加载；但要渲染时仍要渲染
     anaCurRun = latest;
-    if (lb) lb.textContent = latest + (render ? '' : '（点击下方的“📊 分类报告”查看）');
+    if (lb) lb.textContent = latest + (render ? '' : '（点「📊 分类报告」查看）');
     if (render) loadViralContigs();
   } catch (e) { /* 忽略 */ }
 }
@@ -3560,6 +3756,9 @@ async function embedContigReport(run) {
 async function openContigReport() {
   const run = anaCurRun;
   if (!run) { alert(t('ui.tk.needRunOnce')); return; }
+  // 刷新页面 / 从历史运行时，分类表（含每行的 BLASTN/BLASTX/Primer 按钮）
+  // 只有走这里才会重新渲染 —— 标签文案一直这么写，但按钮此前并不存在。
+  await loadViralContigs();
   try {
     const r = await fetch('/api/tool/report_data?run=' + encodeURIComponent(run));
     if (!r.ok) { alert(t('ui.tk.reportLoadFail') + ': ' + ((await r.json()).error || '')); return; }
@@ -3712,10 +3911,9 @@ function renderViralContigs() {
       + pagerHtml(vcPageN, pages, 'vcGo');
 }
 
-/* 点 Contig ID → 复制该序列（FASTA 格式）到剪贴板 */
-async function copyContigSeq(contig) {
-  const run = anaCurRun;
-  if (!run) { alert(t('ui.tk.needRun')); return; }
+/* 取某个 contig 的 FASTA（viral_contigs.fasta 优先，其次 contigs.filtered.fasta） */
+async function contigFastaOf(run, contig) {
+  if (!run || !contig) return null;
   const tryFetch = async f => {
     try {
       const r = await fetch(`/tool_runs/${encodeURIComponent(run)}/${f}`);
@@ -3725,12 +3923,19 @@ async function copyContigSeq(contig) {
   };
   let text = await tryFetch('viral_contigs.fasta');
   if (text == null) text = await tryFetch('contigs.filtered.fasta');
-  if (text == null) { toast('未找到序列文件', run, { ttl: 3000 }); return; }
+  if (text == null) return null;
   const rec = (text.split('>').map(s => s.trim()).filter(Boolean)
     .find(s => s.split('\n')[0].split(/\s/)[0] === contig));
-  if (!rec) { toast('序列不存在', contig, { ttl: 3000 }); return; }
-  const fasta = '>' + rec.split('\n')[0] + '\n'
-    + rec.split('\n').slice(1).join('\n') + '\n';
+  if (!rec) return null;
+  return '>' + rec.split('\n')[0] + '\n' + rec.split('\n').slice(1).join('\n') + '\n';
+}
+
+/* 点 Contig ID → 复制该序列（FASTA 格式）到剪贴板 */
+async function copyContigSeq(contig) {
+  const run = anaCurRun;
+  if (!run) { alert(t('ui.tk.needRun')); return; }
+  const fasta = await contigFastaOf(run, contig);
+  if (!fasta) { toast(t('tk.seqNotFound', '未找到该 contig 序列'), contig || '', { ttl: 3000 }); return; }
   try {
     await navigator.clipboard.writeText(fasta);
   } catch (e) {
@@ -3738,53 +3943,68 @@ async function copyContigSeq(contig) {
     ta.value = fasta; document.body.appendChild(ta);
     ta.select(); document.execCommand('copy'); ta.remove();
   }
-  toast('已复制序列', contig + '（' + (fasta.length - fasta.split('\n')[0].length - 1) + ' bp）', { ttl: 3000 });
+  toast(t('tk.seqCopied', '已复制序列'), contig + '（' + (fasta.length - fasta.split('\n')[0].length - 1) + ' bp）', { ttl: 3000 });
 }
 
-/* 分类表动作 → 跳转「病毒注释分析」并自动运行
-   blastn / blastx → t-hom 卡（原 cdd → t-cdd 分支已随 CDD 下线移除） */
-function anaJump(action, contig) {
+/* 分类表动作（2026-10-28 修：原实现指向早已移除的 #homRun 下拉，
+   点完只切组、`if (!sel) return` 静默退出，什么都不运行）：
+     blastn / blastx → 病毒注释分析组的「同源比对」卡。该卡现在只接受
+       序列输入，所以先把 contig FASTA 取出来填进 #homSeqText 再直接运行；
+     primer → 独立模块 /primer（工具卡自己的说明也指向它），带序列跳转，
+       落页后自动填进 #pd_fa。
+   CDD 已于 2026-09-29 随本地 CDD 库下线，不再有该按钮。 */
+async function anaJump(action, contig) {
   const run = anaCurRun;
   if (!run) { alert(t('ui.tk.needRun')); return; }
-  const target = '#t-hom';
-  const scope = 'hom';
+  const fasta = await contigFastaOf(run, contig);
+  if (!fasta) {
+    toast(t('tk.seqNotFound', '未找到该 contig 序列'), contig || '', { ttl: 4000 });
+    return;
+  }
+  if (action === 'primer') {
+    try { sessionStorage.setItem('vp_primerjump',
+      JSON.stringify({ contig, fasta, ts: Date.now() })); } catch (e) {}
+    location.href = '/primer';
+    return;
+  }
   try { sessionStorage.setItem('vp_anajump',
-    JSON.stringify({ action, run, contig, ts: Date.now() })); } catch (e) {}
+    JSON.stringify({ action, contig, fasta, ts: Date.now() })); } catch (e) {}
   if (location.pathname === '/tools') {
-    // t-hom 属于「病毒注释分析」组（annotate），而 contig 明细表在
-    // 「病毒识别和分类分析」组（virus）。只改 hash 不会跨组；且 renderModuleTree
-    // 会用 URL 的 ?g= 覆盖 activeModuleGroup，所以必须把 g 参数也改成 annotate。
+    // 分类表在「病毒识别和分类分析」组，同源比对卡在「病毒注释分析」组：
+    // 只改 hash 不会跨组，且 renderModuleTree 会用 ?g= 覆盖 activeModuleGroup，
+    // 所以 g 参数必须一起改。
     const params = new URLSearchParams(location.search);
     params.set('g', 'annotate');
-    const newUrl = location.pathname + '?' + params.toString() + target;
-    history.replaceState(null, '', newUrl);
+    history.replaceState(null, '', location.pathname + '?' + params.toString() + '#t-hom');
     activeModuleGroup = 'annotate';
     if (typeof renderModuleTree === 'function') renderModuleTree();
     setTimeout(() => processAnaJump(), 250);
   } else {
-    location.href = '/tools?g=annotate' + target;
+    location.href = '/tools?g=annotate#t-hom';
   }
 }
+
+/* 落页后消费 vp_anajump：填序列 → 直接在同源比对卡里运行并出结果。
+   这里不再读 #homRun / #homTable —— 那两个容器已经不存在。 */
 async function processAnaJump() {
   let j = null;
   try { j = JSON.parse(sessionStorage.getItem('vp_anajump') || 'null'); } catch (e) {}
-  if (!j || Date.now() - (j.ts || 0) > 60000) { sessionStorage.removeItem('vp_anajump'); return; }
-  sessionStorage.removeItem('vp_anajump');
-  const scope = 'hom';
-  const sc = ANA_SCOPES[scope];
-  const sel = $(sc.run);
-  if (!sel) return;
-  try {
-    await loadCaRuns(scope);          // 刷新下拉（不 auto 抢选择）
-    if (![...sel.options].some(o => o.value === j.run)) {
-      toast('运行不在列表', j.run, { ttl: 4000 }); return;
-    }
-    sel.value = j.run;
-    await loadCaContigs(scope);
-    runAnalyze(j.action, j.contig, scope);
-    const card = document.getElementById('t-hom');
-    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch (e) { /* 忽略 */ }
+  if (!j || Date.now() - (j.ts || 0) > 60000) {
+    try { sessionStorage.removeItem('vp_anajump'); } catch (e) {}
+    return;
+  }
+  try { sessionStorage.removeItem('vp_anajump'); } catch (e) {}
+  let fasta = j.fasta;
+  if (!fasta && j.run) fasta = await contigFastaOf(j.run, j.contig);
+  if (!fasta) {
+    toast(t('tk.seqNotFound', '未找到该 contig 序列'), j.contig || '', { ttl: 4000 });
+    return;
+  }
+  const ta = $('homSeqText');
+  if (ta) ta.value = fasta;
+  const card = document.getElementById('t-hom');
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  runCaSeqInput('hom', j.action || 'blastn');
 }
 
 /* 分类表「批量验证」→ 跳本组「候选序列验证」卡，自动带上当前 contigs 运行 */
@@ -4346,6 +4566,32 @@ function renderVariant(d) {
   $('vrEvoTables').innerHTML = '';
 }
 
+/* 一键分析卡的引擎/模式联动（复用 ③ 卡的 ASM_MODES） */
+function vcEngineOf() {
+  const v = ($('vc_engine') || {}).value || 'auto';
+  if (v === 'spades' || v === 'megahit') return v;
+  return window.VP_HAS_MEGAHIT ? 'megahit' : 'spades';
+}
+function vcParams() {
+  const eng = vcEngineOf();
+  const m = ($('vc_mode') || {}).value || '';
+  return {
+    assembler: ($('vc_engine') || {}).value || 'auto',
+    mode: eng === 'spades' ? (m || 'rnaviral') : 'rnaviral',
+    megahit_mode: eng === 'megahit' ? (m || 'default') : 'default'
+  };
+}
+function vcSyncModes(reset) {
+  const eng = vcEngineOf();
+  const sel = $('vc_mode');
+  if (!sel) return;
+  const cur = reset ? '' : sel.value;
+  const list = ASM_MODES[eng];
+  sel.innerHTML = list.map(([v, lab]) =>
+    `<option value="${v}">${esc(lab())}</option>`).join('');
+  sel.value = list.some(([v]) => v === cur) ? cur : list[0][0];
+}
+
 /* ---------- 一键分析：病毒识别和分类（②③④） ---------- */
 async function runVirchain(btn) {
   const input = val('vc_input');
@@ -4355,13 +4601,14 @@ async function runVirchain(btn) {
     input2: val('vc_input2') || undefined,
     run_identify: $('vc_run_identify').checked || undefined,
     do_verify: $('vc_do_verify').checked,
-    mode: $('vc_mode').value,
-    memory: +val('vc_memory') || 64,
+    memory: (+val('vc_memory') || (window.VP_ASM_MEM_DEFAULT || 64)),
     min_len: +val('vc_min_len') || 200,
     confidence: +val('vc_confidence') || 0,
     combine: $('vc_combine').value,
     methods: $('vc_methods').value,
+    ...vcParams(),
   };
+  if (!asmMemConfirm(params.memory)) return;
   const threads = +val('vc_threads') || null;
   try {
     const r = await fetch('/api/tool/run', {
@@ -6203,6 +6450,150 @@ function pdSrcToggle() {
     if (el) el.style.display = (k === src) ? '' : 'none';
   }
 }
+
+/* ── GenBank 两步（2026-11-02 简化）：物种名 → 检索预览 → 勾选导入 ──
+   对齐 VirPhyKit SeqHarvester 的节奏：中间那步把「到底拿到了什么」摊开给人看，
+   人再勾选。预览是**只读**任务（写 pdprep/preview.json）；导入复用既有 pdprep
+   数据集链路（按勾选的 accession 走 import_from_genbank），两边判定同口径。 */
+let _pdGbRows = [];
+/* 预览时 GenBank 平文落在哪个集合（含 `_pdprev_*` 隐藏集合）：
+   第二步把「集合 + 勾选清单」一起交给后端，就能直接从本地挑，不重打 NCBI。 */
+let _pdGbPvColl = '';
+
+function pdGbCount() {
+  const tbl = $('pdGbTable');
+  const n = tbl ? tbl.querySelectorAll('input[type=checkbox]:checked').length : 0;
+  const lbl = $('pdGbImportLbl');
+  if (lbl) lbl.textContent = t('tk.pdprepGbImport', '导入所选 {n} 条').replace('{n}', n);
+  const btn = lbl && lbl.parentElement;
+  if (btn) btn.disabled = !n;
+}
+function pdGbSelAll(on) {
+  const tbl = $('pdGbTable');
+  if (!tbl) return;
+  tbl.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    if (!cb.disabled) cb.checked = !!on;
+  });
+  pdGbCount();
+}
+function pdGbSelected() {
+  const tbl = $('pdGbTable');
+  if (!tbl) return [];
+  const out = [];
+  tbl.querySelectorAll('tr[data-acc]').forEach(tr => {
+    const cb = tr.querySelector('input[type=checkbox]');
+    if (cb && cb.checked && !cb.disabled) out.push(tr.getAttribute('data-acc'));
+  });
+  return out;
+}
+
+async function pdGbSearch(btn) {
+  const species = val('pd_species'), term = val('pd_term'),
+        acc = val('pd_acc'), coll = val('pd_collection');
+  if (!species && !term && !acc && !coll) {
+    alert(t('tk.pdprepGbNeedSpecies',
+            '请先填物种名（或展开「高级」填 accession / 检索式 / 集合）'));
+    return;
+  }
+  const params = {
+    source: 'genbank', mode: 'preview',
+    species: species, term: species ? '' : term,
+    accessions: (species || coll) ? '' : acc, collection: coll,
+    full_only: ($('pd_full_only') || {}).checked ? '1' : '0',
+    date_from: val('pd_date_from'), date_to: val('pd_date_to'),
+    max_records: val('pd_maxrec') || '200',
+    gateway: ($('pd_gw') || {}).checked ? '1' : '0',
+  };
+  const box = $('pdGbList');
+  if (box) box.style.display = 'none';
+  if ($('pdGbTable')) $('pdGbTable').innerHTML = '';
+  _pdGbRows = [];
+  _pdGbPvColl = '';
+  return _submitTool('pdprep', params, null, btn,
+    t('tk.pdprepGbSearchBusy', '⏳ 检索 GenBank…'), loadPdGbPreview);
+}
+
+async function loadPdGbPreview(run) {
+  if (!run) return;
+  let d;
+  try {
+    const r = await fetch('/tool_runs/' + encodeURIComponent(run)
+      + '/pdprep/preview.json');
+    if (!r.ok) {
+      alert(t('tk.pdprepGbLoadFail', '预览结果没读到（任务可能被取消）')
+        + ' (' + r.status + ')');
+      return;
+    }
+    d = await r.json();
+  } catch (e) {
+    alert(t('tk.pdprepGbLoadFail', '预览结果没读到（任务可能被取消）') + ': ' + e);
+    return;
+  }
+  _pdGbRows = d.rows || [];
+  _pdGbPvColl = d.collection || '';
+  const rows = _pdGbRows;
+  const st = $('pdGbStat');
+  if (st) {
+    st.textContent = t('tk.pdprepGbStat',
+                       '命中 {t} 条 · 列出 {n} 条 · 可用 {u} 条')
+      .replace('{t}', d.total_hits || rows.length)
+      .replace('{n}', rows.length)
+      .replace('{u}', d.n_usable || 0);
+  }
+  const qbox = $('pdGbQuery');
+  if (qbox) {
+    qbox.innerHTML = esc(t('tk.pdprepGbQueryLbl', '检索式')) + '：<code>'
+      + esc(d.query || '') + '</code>'
+      + (rows.length && !d.n_usable ? ' · <b style="color:#c60">'
+        + esc(t('tk.pdprepGbNoUsable',
+                '没有可导入的记录：都缺采集日期或地点（换条件，或到「高级」用集合/检索式自己挑）'))
+        + '</b>' : '');
+  }
+  const tbl = $('pdGbTable');
+  if (!tbl) return;
+  if (!rows.length) {
+    tbl.innerHTML = '';
+    if ($('pdGbList')) $('pdGbList').style.display = '';
+    pdGbCount();
+    alert(t('tk.pdprepGbNoHit', '这个检索式在 GenBank 没有命中记录'));
+    return;
+  }
+  // 定义列：分类标签放最前、整体单行省略，长定义不会把标签挤到第二行（实测）
+  let h = '<thead><tr><th style="width:30px"></th><th>accession</th>'
+    + '<th style="min-width:260px">'
+    + t('tk.pdprepGbColDef', '定义') + '</th><th>'
+    + t('tk.pdprepGbColLen', '长度') + '</th><th>'
+    + t('tk.pdprepGbColDate', '采集日期') + '</th><th>'
+    + t('tk.pdprepGbColLoc', '地点') + '</th><th>'
+    + t('tk.pdprepGbColHost', '宿主') + '</th><th>'
+    + t('tk.pdprepGbColOk', '可导入') + '</th></tr></thead><tbody>';
+  rows.forEach(r => {
+    const ok = !!r.usable;
+    const why = esc(r.reason || '');
+    h += '<tr data-acc="' + esc(r.accession) + '"'
+      + (ok ? '' : ' style="opacity:.55"') + '>'
+      + '<td><input type="checkbox" style="width:auto" '
+      + (ok ? 'checked' : 'disabled') + ' onchange="pdGbCount()" title="'
+      + why + '"></td>'
+      + '<td><a href="https://www.ncbi.nlm.nih.gov/nuccore/'
+      + encodeURIComponent(r.accession)
+      + '" target="_blank" rel="noopener">' + esc(r.accession) + '</a></td>'
+      + '<td title="' + esc(r.definition || '') + '" style="max-width:560px;'
+      + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+      + (r.kind ? '<span class="hint" style="white-space:nowrap">['
+        + esc(r.kind) + ']</span> ' : '')
+      + esc((r.definition || '').slice(0, 70))
+      + '</td>'
+      + '<td>' + (r.length ? r.length : '-') + '</td>'
+      + '<td>' + (r.date ? esc(r.date) : '—') + '</td>'
+      + '<td>' + (r.location ? esc(r.location) : '—') + '</td>'
+      + '<td>' + (r.host ? esc(r.host) : '—') + '</td>'
+      + '<td>' + (ok ? '✓' : '<span title="' + why + '">✗</span>') + '</td></tr>';
+  });
+  tbl.innerHTML = h + '</tbody>';
+  if ($('pdGbList')) $('pdGbList').style.display = '';
+  pdGbSelAll(true);          // 默认把可用记录全勾上（人只管取消不要的）
+}
 function pdColors(n) {
   const base = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
     '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
@@ -6318,13 +6709,28 @@ async function runPdprep(btn) {
       alert(t('tk.pdprepNeedPaste', '请粘贴 FASTA 与元数据表')); return;
     }
   } else {
-    params.accessions = val('pd_acc'); params.term = val('pd_term');
-    params.species = val('pd_species'); params.full_only = ($('pd_full_only') || {}).checked ? '1' : '0';
+    // 两步导入的第二步：预览表里勾了就用勾选清单（和预览同一套判定），
+    // 没勾过（或干脆跳过预览）才回退「高级」里的 accession / 检索式 / 集合。
+    const sel = pdGbSelected();
+    params.accessions = sel.length ? sel.join(',') : '';
+    params.term = sel.length ? '' : val('pd_term');
+    params.species = sel.length ? '' : val('pd_species');
+    params.full_only = ($('pd_full_only') || {}).checked ? '1' : '0';
     params.date_from = val('pd_date_from'); params.date_to = val('pd_date_to');
-    if (val('pd_species')) { params.accessions = ''; params.term = val('pd_term') || ''; }
-    params.max_records = val('pd_maxrec'); params.collection = val('pd_collection');
-    if (!params.accessions && !params.term && !params.collection) {
-      alert(t('tk.pdprepNeedGb', '请填 accession 列表 / 检索式 / 集合名之一')); return;
+    // 物种名优先于 accession（旧口径）：只填物种名时不把 accession 带进去
+    if (!sel.length && params.species) params.accessions = '';
+    params.gateway = ($('pd_gw') || {}).checked ? '1' : '0';
+    params.max_records = val('pd_maxrec');
+    // 勾过预览：把预览用的集合一并带上，让后端从本地集合按勾选过滤（不重下载）
+    params.collection = sel.length
+      ? (_pdGbPvColl || val('pd_collection')) : val('pd_collection');
+    if (params.gateway === '1' && !params.species
+        && !params.accessions && !params.term && !params.collection) {
+      alert(t('tk.pdprepGwNeedSpecies', '勾了「在线库圈定」就要填「物种名或 taxid」')); return;
+    }
+    if (!params.accessions && !params.term && !params.species
+        && !params.collection) {
+      alert(t('tk.pdprepNeedGb', '请先检索物种名并勾选记录，或在「高级」里填 accession / 检索式 / 集合名')); return;
     }
   }
   return _submitTool('pdprep', params, null, btn,
@@ -6358,6 +6764,17 @@ async function loadPdprepResult(run) {
     if (!r.ok) return;
     d = await r.json();
   } catch (e) { return; }
+  if (d.mode === 'preview') {
+    // 预览任务没有数据集：从任务日志点进来时别装作「0 条导入」
+    $('pdprepResult').style.display = '';
+    $('pdprepTitle').textContent = t('tk.pdprepTitle', '数据集') + ' · ' + run;
+    $('pdprepSummary').innerHTML = '<span class="hint">'
+      + esc(t('tk.pdprepGbPreviewOnly',
+              '这次只做了检索预览（没有建数据集）：回到卡上勾选记录后点「导入所选」。'))
+      + '</span>';
+    $('pdprepSteps').innerHTML = pdPrepSteps(d);
+    return;
+  }
   $('pdprepResult').style.display = '';
   $('pdprepTitle').textContent = t('tk.pdprepTitle', '数据集') + ' · ' + run;
   $('pdprepFaDl').href = pdRunLink(run, 'pdprep/sequences.fasta');

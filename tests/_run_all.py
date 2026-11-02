@@ -170,6 +170,14 @@ TESTS = [
     # 文案、停止转发到 DownloadManager、前往页面、真身消失后卡片自动移除、
     # provider 报错时降级保留。绑定的是临时 downloads 目录，不碰真实批次。
     ('tests/_it_taskcenter_dl_ui.py', 600, False),
+    # 切换模块不归档任务 + 全局运行条 + 手动归档/恢复（2026-11-02）：
+    # ①后端往返（内存移除 / _archive 落盘 / 恢复 / 两目录 delete+purge，只改
+    #   进程内 DIRS['tasks']，不碰真实 run/tasks）；②archive/unarchive API +
+    #   /tasks /meta 渲染；③真实浏览器全流程（全局运行条展开 → 点📦归档 →
+    #   历史归档点↩恢复 → 列表再归档），无浏览器自动 SKIP。
+    ('tests/_it_task_archive.py',    120,  False),
+    ('tests/_it_task_archive_api.py', 180, False),
+    ('tests/_it_runbar_ui.py',       600,  False),
     # 三条修复路径真实浏览器端到端（续传 / 重试失败 / 重试转换）：点下去
     # 真的能把批次救回来。只打桩「字节传输」与「sracha 解码」，其余走真实代码。
     ('tests/_it_dl_repair_ui.py',   600,  False),
@@ -203,6 +211,11 @@ TESTS = [
     # 自动 SKIP 返回 0。2026-10-03 入编（此前不在批量里，一次批量替换把函数头
     # 连删 5 行都无人报警）。
     ('tests/_check_js_syntax.py',   120,  False),
+    # AI 代理技能卡守卫（2026-11-02 入编）：三张卡存在 + frontmatter 名字与目录
+    # 一致 + description 中英双语 + 指针卡与 agent_guide._SKILL 同步 + ops 卡
+    # 覆盖 54/32/15/7 全集 + 引用路径存在 + 卡片里的 .done 标记真的出现过。
+    # 只读；加工具/加阶段/改目录后卡片没跟上时在这里报红。
+    ('tests/_check_skills.py',       60,  False),
     # 路由清单基线守卫：rule+methods 与 tests/_route_baseline.json 严格比对。
     # 新增/丢失/方法变化都会报红（改路由后需 python tests/_route_inventory.py
     # --save 更新基线）；只读、不启动分析任务，秒级。
@@ -235,10 +248,19 @@ TESTS = [
     # (vp_delete_tool_run) 在 /api/mcp/call 前置 403 且文案指出替代入口。
     # 纯 test_client，不拉起 mcp_server 子进程（~2s）。
     ('tests/_check_mcp_console.py', 120, False),
+    # MCP 工具面（1.3.0）：32 个 vp_* 工具全部注册且 description 非空、
+    # 清单过滤/分页口径、任务归档→仍可读→恢复、工具运行搬 _archive/ 再恢复、
+    # 样品阶段状态与样品产物读取、越界路径拒绝、_selfcheck_report 七项。
+    # 进程内改 DIRS['tasks'] 与 tool_runs_root，不碰真实 run/（~3s）。
+    ('tests/_check_mcp_tools.py',    90, False),
     # ⚡一键分析（全流程）卡：自起临时实例 + 真浏览器，验证本卡自有输入/参数/
     # 输出区齐全、示例与参数互取落到本卡、内联结果链路（桩 API）不串卡（~30s）。
     # 无 playwright（开发依赖未装）时自动 SKIP 并返回 0。
     ('tests/_check_kvchain_ui.py',  300,  False),
+    # AI 对话坞右侧「历史提问导航」：按用户提问逐条打点、滚动高亮当前轮、
+    # 悬停出预览、点击跳到该轮并闪光、单轮/清空时整条隐藏（~25s）。
+    # 自起临时实例；无 playwright（开发依赖未装）时自动 SKIP 并返回 0。
+    ('tests/_check_turn_nav.py',    300,  False),
     # 病毒浏览器 Explorer（服务器版 7 页签：时序趋势 / 全基因组变异 / 数据浏览 /
     # 引物库 / 宿主范围 / 媒介传播 / 病毒档案）真浏览器验证：断言 Plotly 实例真的
     # 渲染出数据点（读 _fullData，兼容 bdata 二进制数组与 Sankey 的 node/link 嵌套）、
@@ -385,6 +407,15 @@ TESTS = [
     ('tests/_it_ai_events.py',       300, False),
     ('tests/_it_ai_actions.py',      300, False),
     ('tests/_check_ai_dock_ui.py',   300, False),
+    # 对话坞跨页持久化（2026-11-02）：用户反复报「切模块回来问答没了」，
+    # 根因是恢复挂在 /api/ai/context 成功之后——服务端跑重活时该请求超时，
+    # 整段不渲染。本测试守 4 条：换页保留 / 会话 id 换掉走镜像键 /
+    # pagehide 落盘 / 上下文接口失败仍恢复。需要 8765 在跑 + Edge，缺则 SKIP。
+    ('tests/_it_ai_persist_ui.py',   300, False),
+    # 同一条链的静态守卫（2026-11-02，秒级、不用浏览器）：把「恢复不依赖网络 /
+    # 两处落盘 / 镜像兜底 / clear 连镜像清 / pagehide 落盘 / boot 先恢复」写成断言，
+    # 改别的问题时若把其中一环改回去，这里立刻红，而不是等用户下次切页才发现。
+    ('tests/_check_ai_dock_persist.py', 60, False),
     ('tests/_check_ai_events_ui.py', 300, False),
     ('tests/_check_ai_global_ui.py', 300, False),
     # digest ↔ 源文件数字对拍（2026-10-08）：digest 是 AI 的**唯一数字来源**，

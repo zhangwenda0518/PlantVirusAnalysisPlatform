@@ -50,6 +50,29 @@
   .tk-empty { color: var(--ink-400, #789); font-size: 12.5px; padding: 18px 0; text-align: center; }
   h2.sec { font-size: 15px; margin: 22px 0 6px; padding-bottom: 5px; border-bottom: 1px solid var(--line-100, #eceff2); }
   .label-chk { display: inline-flex; gap: 5px; align-items: center; font-size: 12.5px; color: var(--ink-600, #456); }
+  /* ?focus=<tid>：从 AI 工作台/锚条跳转时定位并高亮该任务卡 */
+  .task-card.focus-flash {
+    outline: 2px solid var(--green-500);
+    background: var(--green-50, #f2f8f4);
+    transition: background 1.2s;
+  }
+  html[data-theme="dark"] .task-card.focus-flash { background: #1d3a2a; }
+  /* 分组视图（2026-10-30）：按时间 / 按样品 / 按模块 */
+  .tk-sep { width: 1px; height: 18px; background: var(--line-200, #dfe6ec); margin: 0 2px; }
+  .tk-group { margin: 10px 0 4px; }
+  .tk-group-head { display: flex; align-items: center; gap: 8px; cursor: pointer;
+    user-select: none; padding: 5px 10px; border-radius: 8px;
+    border: 1px solid var(--line-100, #eceff2); background: var(--gray-50, #f6f8f9); }
+  .tk-group-head:hover { border-color: var(--green-600, #2e8b57); }
+  .tk-group-head .carat { font-size: 10px; color: var(--ink-400, #789); width: 11px; }
+  .tk-group.closed .carat::before { content: '▸'; }
+  .tk-group:not(.closed) .carat::before { content: '▾'; }
+  .tk-group-head .gname { font-size: 12.5px; font-weight: 650; color: var(--ink-600, #456); }
+  .tk-group-head .gcnt { font-size: 11px; font-family: var(--mono, monospace); color: var(--ink-400, #789); }
+  .tk-group-head .grun { font-size: 11px; color: var(--amber-600, #b97a1e); margin-left: auto; padding-right: 6px; }
+  .tk-group-body { margin: 2px 0 8px 12px; }
+  .tk-group-body .task-card { margin: 6px 0; }
+  html[data-theme="dark"] .tk-group-head { background: #1a222a; }
 </style>
 </head>
 <body>
@@ -68,6 +91,12 @@
       <span class="tab" data-f="failed" data-i18n="tk.f.failed">失败</span>
       <span class="tab" data-f="cancelled" data-i18n="tk.f.cancelled">已停止</span>
     </div>
+    <span class="tk-sep"></span>
+    <div class="tk-tabs" id="gtabs" title="分组显示（选择会记住）" data-i18n-title="tk.gtip">
+      <span class="tab on" data-g="time" data-i18n="tk.gtime">按时间</span>
+      <span class="tab" data-g="sample" data-i18n="tk.gsample">按样品</span>
+      <span class="tab" data-g="module" data-i18n="tk.gmodule">按模块</span>
+    </div>
     <span style="flex:1"></span>
     <label class="label-chk" id="curOnlyWrap" style="display:none">
       <input type="checkbox" id="curOnlyChk">
@@ -81,7 +110,7 @@
   <div class="tk-stats" id="stats"></div>
   <div id="taskList"></div>
 
-  <h2 class="sec"><span data-i18n="tk.arch">历史归档</span> <small class="hint" style="font-weight:400">{{ '(records from before the service restarted)' if lang == 'en' else '（服务重启前的任务记录）' }}</small></h2>
+  <h2 class="sec"><span data-i18n="tk.arch">历史归档</span> <small class="hint" style="font-weight:400">{{ '(manual archive / pre-restart records)' if lang == 'en' else '（手动归档 / 重启前记录）' }}</small></h2>
   <div id="archList"></div>
 </div>
 
@@ -115,6 +144,76 @@ let archLoaded = false;  // 归档只在首次/手动/删除后刷新（避免�
 const LOG_TAIL = 300;    // 展开日志时拉取的行数
 
 const jf = jfetch;   // 委托 app.js 全局 jfetch（行为口径一致）
+
+/* ── 分组视图（2026-10-30）：按时间（平铺）/ 按样品 / 按模块 ──
+   选择存 localStorage('vp_tasks_group')；组折叠状态只留页面内存。 */
+let GROUP = (() => {
+  const v = localStorage.getItem('vp_tasks_group');
+  return (v === 'sample' || v === 'module') ? v : 'time';
+})();
+const GRP_CLOSED = new Set();   // '<mode>|<key>' → 折叠中的组
+
+/* 任务名 → 样品名。写法与后端 samples._task_matches_sample 一致，外加
+   AI 代跑的「AI执行·<样品>」（executors.py）；「AI执行·工具·」是工具任务，
+   负向先行排除。匹配不到返回 ''（未关联样品）。 */
+function sampleOfName(name) {
+  const n = String(name || '');
+  let m = n.match(/^(?:排队|Queued)·(.+)$/) || n.match(/^(?:队列|Queue)·(.+)$/);
+  if (m) return m[1];
+  m = n.match(/^(?:样品分析|Sample analysis)\s+(.+)$/);
+  if (m) return m[1].trim();
+  m = n.match(/^AI执行·(?!工具·)(.+)$/) || n.match(/^AI run·(.+)$/);
+  if (m) return m[1].trim();
+  m = n.match(/^(.+?) · /);   // 「<样品> · 阶段标签…」（samples.py 流水线任务）
+  if (m) return m[1];
+  return '';
+}
+
+/* 任务名 → 模块代码。规则顺序即优先级，中英任务名都要能归组；规则来自
+   各 tm.start()/tm.attach() 调用点的命名（开发笔记补十七有完整清单）。 */
+const MODULE_RULES = [
+  ['sample', [/^(?:排队|Queued|队列|Queue)·/, /^(?:样品分析|Sample analysis)\s+/,
+              /^AI执行·(?!工具·)/, /^AI run·/, / · /]],
+  ['tools', [/^工具·/, /^Tool·/, /^AI执行·工具·/, /^AI tool·/, /^宿主预测·/,
+             /^Host prediction·/, /^Contig分析·/, /^Contig /, /^导出迁移 GIF·/,
+             /^GIF export·/]],
+  ['db', [/宿主库构建/, /Host DB build/, /病毒库构建/, /Virus DB build/,
+          /病毒鉴定库构建/, /Virus index build/, /通用病毒库构建/, /RVDB 库构建/,
+          /RefSeq Viral/, /C-RVDB/]],
+  ['refs', [/^下载·/, /^Download·/, /^ICTV下载/, /^ICTV download/, /^NCBI下载/,
+            /^NCBI download/, /^GenBank下载/, /^GenBank download/, /^GenBank导入/,
+            /^GenBank import/, /^CDS\/PEP 提取/, /^Extract CDS\/PEP/, /^GenBank巡检/,
+            /^GenBank inspect/, /^集合建树/, /^Collection phylo/,
+            /^下载\/准备 Taxonomy/, /^Download\/prepare Taxonomy/,
+            /^病毒数据集下载/, /^Virus dataset download/,
+            /datasets .*下载/, /datasets .*download/]],
+  ['meta', [/^检索绘图·/, /^Meta plot·/, /^AI 元数据补全·/, /^AI metadata fill·/,
+            /^AI 总结·/, /^AI summary·/, /^LOGAN 批量/, /^LOGAN batch/,
+            /^公共检索/, /^Public search/]],
+  ['export', [/^CDS\/PEP 导出·/, /^CDS\/PEP export·/, /^物种名校验·/,
+              /^taxonomy check·/, /^提交 .sqn 生成·/, /^submit \.sqn·/]],
+  ['sys', [/^存储占用扫描/, /^Storage/]],
+];
+const MODULE_ORDER = ['sample', 'tools', 'db', 'refs', 'meta', 'export', 'sys', 'other'];
+
+function moduleOfName(name) {
+  const n = String(name || '');
+  for (const [code, rules] of MODULE_RULES)
+    if (rules.some(re => re.test(n))) return code;
+  return 'other';
+}
+
+function groupLabelOf(key) {
+  if (GROUP === 'sample')
+    return key === '__nosample__' ? t('tk.gnosample', '未关联样品') : key;
+  const ent = {
+    sample: ['tk.mod.sample', '样品分析'], tools: ['tk.mod.tools', '工具运行'],
+    db: ['tk.mod.db', '数据库构建'], refs: ['tk.mod.refs', '下载与参考集'],
+    meta: ['tk.mod.meta', '检索与鉴定'], export: ['tk.mod.export', '导出与提交'],
+    sys: ['tk.mod.sys', '系统任务'], other: ['tk.mod.other', '其他任务'],
+  }[key];
+  return ent ? t(ent[0], ent[1]) : key;
+}
 
 function fmtClock(ts) {
   if (!ts) return '';
@@ -163,6 +262,13 @@ function actionsHtml(task, archived) {
   const rl = resultLink(task);
   if (rl && task.status === 'done')
     btns.push(`<a class="btn small" href="${rl.href}" style="text-decoration:none">${rl.text}</a>`);
+  // 手动归档（2026-11-02）：切模块 / 切功能 / 刷新都不归档，只有这里点了才进历史；
+  // 归档后还能「↩ 恢复」回运行列表（记录与日志都在 tasks/_archive/ 下）。
+  if (!archived && !task.external && task.status !== 'running' && task.status !== 'queued')
+    btns.push(`<button class="btn small" onclick="archiveTask('${task.id}', this.dataset.n)"`
+      + ` data-n="${esc(task.name || '')}" title="${t('tk.archiveTip', '移入历史归档（可随时恢复）')}">${t('tk.archive', '📦 归档')}</button>`);
+  if (archived)
+    btns.push(`<button class="btn small" onclick="restoreTask('${task.id}')">${t('tk.restore', '↩ 恢复')}</button>`);
   btns.push(`<button class="btn small" onclick="delTask('${task.id}', ${archived})">🗑 ${t('tk.del', '删除')}</button>`);
   return `<span class="tk-actions">${btns.join('')}</span>`;
 }
@@ -199,6 +305,101 @@ function cardHtml(task, archived) {
   </div>`;
 }
 
+/* 单张卡片的增量放置（cardSigs 签名防闪烁）；body 为卡片应处的容器
+   （平铺 = 列表根，分组 = 组体）。签名没变就只挪位置，不变 DOM。 */
+function placeCard(box, body, tk, archived, keep) {
+  const sig = sigOf(tk);
+  const tid = tk.id;
+  const sk = (archived ? 'a:' : '') + tid;
+  let el = box.querySelector(`.task-card[data-tid="${CSS.escape(tid)}"]`);
+  if (!el || cardSigs[sk] !== sig) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = cardHtml(tk, archived);
+    const fresh = tmp.firstElementChild;
+    if (el) {
+      // 重建前转移展开日志内容，消除闪烁
+      const oldLog = el.querySelector('.tk-log');
+      if (oldLog) {
+        const newLog = fresh.querySelector('.tk-log');
+        if (newLog && oldLog.textContent && oldLog.textContent !== t('tk.logLoading', '加载中…'))
+          newLog.textContent = oldLog.textContent;
+      }
+      el.replaceWith(fresh);
+    } else {
+      body.appendChild(fresh);
+    }
+    el = fresh;
+    cardSigs[sk] = sig;
+  }
+  body.appendChild(el);   // appendChild 移动已有节点 = 保序
+  keep.add(tid);
+}
+
+/* 平铺 / 分组共用的列表布局：GROUP 决定卡片进哪个容器。
+   卡片的样品/模块归属不随时间变化，增量逻辑在两种模式下都成立。 */
+function layoutList(box, tasks, archived) {
+  const keep = new Set();
+  if (GROUP === 'time') {
+    box.querySelectorAll('.tk-group').forEach(sec => sec.remove());
+    tasks.forEach(tk => placeCard(box, box, tk, archived, keep));
+  } else {
+    const groups = new Map();
+    tasks.forEach(tk => {
+      const key = GROUP === 'sample'
+        ? (sampleOfName(tk.name) || '__nosample__')
+        : moduleOfName(tk.name);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(tk);
+    });
+    const keys = [...groups.keys()];
+    if (GROUP === 'module') {
+      keys.sort((a, b) => MODULE_ORDER.indexOf(a) - MODULE_ORDER.indexOf(b));
+    } else {
+      const newest = a => Math.max(...a.map(x => x.started || 0));
+      keys.sort((a, b) => a === '__nosample__' ? 1
+        : b === '__nosample__' ? -1 : newest(groups.get(b)) - newest(groups.get(a)));
+    }
+    keys.forEach(key => {
+      const ck = GROUP + '|' + key;
+      let sec = box.querySelector(`.tk-group[data-gkey="${CSS.escape(key)}"]`);
+      if (!sec) {
+        sec = document.createElement('section');
+        sec.className = 'tk-group';
+        sec.dataset.gkey = key;
+        sec.innerHTML = `<div class="tk-group-head" onclick="toggleGroup(this)">
+            <span class="carat"></span><span class="gname"></span>
+            <span class="gcnt"></span><span class="grun"></span>
+          </div><div class="tk-group-body"></div>`;
+        box.appendChild(sec);
+      }
+      sec.classList.toggle('closed', GRP_CLOSED.has(ck));
+      const arr = groups.get(key);
+      sec.querySelector('.gname').textContent = groupLabelOf(key);
+      sec.querySelector('.gcnt').textContent = ' ' + arr.length;
+      const run = arr.filter(x => x.status === 'running').length;
+      sec.querySelector('.grun').textContent = run
+        ? '● ' + run + ' ' + t('tk.f.running', '运行中') : '';
+      const body = sec.querySelector('.tk-group-body');
+      arr.forEach(tk => placeCard(box, body, tk, archived, keep));
+    });
+    box.querySelectorAll('.tk-group').forEach(sec => {
+      if (!keys.includes(sec.dataset.gkey)) sec.remove();
+    });
+  }
+  // 清理消失的卡（含换组/换模式后遗留在别处的）
+  box.querySelectorAll('.task-card').forEach(el => {
+    if (!keep.has(el.dataset.tid)) {
+      delete cardSigs[(archived ? 'a:' : '') + el.dataset.tid];
+      el.remove();
+    }
+  });
+  // 重建后 open 卡手动加载日志（DOM 重建不触发 ontoggle）
+  box.querySelectorAll('.tk-log-wrap[open]').forEach(d => {
+    const id = d.querySelector('.tk-log').id.slice(4);
+    loadLog(d, id, archived);
+  });
+}
+
 function render() {
   const list = document.getElementById('taskList');
   const byStatus = TASKS.filter(t => FILTER === 'all' ? true : t.status === FILTER);
@@ -213,44 +414,8 @@ function render() {
           + '取消勾选「只看当前样品」即可看到').replace('{n}', hidden)
       : t('tk.empty', '当前过滤条件下暂无任务')}</div>`;
   } else {
-    const keep = new Set();
-    shown.forEach(tk => {
-      const sig = sigOf(tk);
-      const tid = tk.id;
-      let el = list.querySelector(`[data-tid="${tid}"]`);
-      const isStale = !el || cardSigs[tid] !== sig;
-      if (isStale) {
-        const tmp = document.createElement('div');
-        tmp.innerHTML = cardHtml(tk, false);
-        const fresh = tmp.firstElementChild;
-        if (el) {
-          // 重建前转移展开日志内容，消除闪烁
-          const oldLog = el.querySelector('.tk-log');
-          if (oldLog) {
-            const newLog = fresh.querySelector('.tk-log');
-            if (newLog && oldLog.textContent && oldLog.textContent !== t('tk.logLoading', '加载中…'))
-              newLog.textContent = oldLog.textContent;
-          }
-          el.replaceWith(fresh);
-        } else {
-          list.appendChild(fresh);
-        }
-        el = fresh;
-        cardSigs[tid] = sig;
-      }
-      list.appendChild(el);   // appendChild 移动已有节点 = 保序
-      keep.add(tid);
-    });
-    // 清理消失的卡
-    list.querySelectorAll('.task-card').forEach(el => {
-      if (!keep.has(el.dataset.tid)) { delete cardSigs[el.dataset.tid]; el.remove(); }
-    });
+    layoutList(list, shown, false);
   }
-  // 重建后 open 卡手动加载日志（DOM 重建不触发 ontoggle）
-  document.querySelectorAll('#taskList .tk-log-wrap[open]').forEach(d => {
-    const id = d.querySelector('.tk-log').id.slice(4);
-    loadLog(d, id, false);
-  });
   const cnt = k => TASKS.filter(x => x.status === k).length;
   document.getElementById('stats').textContent =
     `${t('tk.f.running', '运行中')} ${cnt('running')} · `
@@ -273,40 +438,7 @@ function renderArch() {
     box.innerHTML = `<div class="tk-empty">${t('tk.noArch', '暂无归档任务')}</div>`;
     return;
   }
-  const keep = new Set();
-  ARCH.forEach(tk => {
-    const sig = sigOf(tk);
-    const tid = tk.id;
-    const key = 'a:' + tid;
-    let el = box.querySelector(`[data-tid="${tid}"]`);
-    if (!el || cardSigs[key] !== sig) {
-      const tmp = document.createElement('div');
-      tmp.innerHTML = cardHtml(tk, true);
-      const fresh = tmp.firstElementChild;
-      if (el) {
-        const oldLog = el.querySelector('.tk-log');
-        if (oldLog) {
-          const newLog = fresh.querySelector('.tk-log');
-          if (newLog && oldLog.textContent && oldLog.textContent !== t('tk.logLoading', '加载中…'))
-            newLog.textContent = oldLog.textContent;
-        }
-        el.replaceWith(fresh);
-      } else {
-        box.appendChild(fresh);
-      }
-      el = fresh;
-      cardSigs[key] = sig;
-    }
-    box.appendChild(el);
-    keep.add(tid);
-  });
-  box.querySelectorAll('.task-card').forEach(el => {
-    if (!keep.has(el.dataset.tid)) { delete cardSigs['a:' + el.dataset.tid]; el.remove(); }
-  });
-  // 展开状态的归档日志重填（DOM 重建不触发 ontoggle）
-  box.querySelectorAll('.tk-log-wrap[open]').forEach(d => {
-    loadLog(d, d.querySelector('.tk-log').id.slice(4), true);
-  });
+  layoutList(box, ARCH, true);
 }
 
 /* ── 日志：展开时加载；running 任务展开期间 2s 轮询 ── */
@@ -384,6 +516,29 @@ async function restartTask(tid) {
     refreshAll();
   } catch (e) { alert(t('tk.restartFail', '重启失败') + '：' + e.message); }
 }
+/* 手动归档 / 恢复（2026-11-02 用户定案）：切换模块、切功能、整页刷新都不会
+   归档任何任务；只有这张卡上的「📦 归档」把记录移进 run/tasks/_archive/，
+   「↩ 恢复」再把它放回运行列表（不重启任务，只恢复记录）。 */
+async function archiveTask(tid, name) {
+  const ask = t('tk.confirmArchive', '归档任务「{name}」？\n记录移入历史归档（可随时恢复），日志与结果文件保留。');
+  if (!confirm(ask.replace('{name}', name || ''))) return;
+  try {
+    await jf(`/api/task/${tid}/archive`, { method: 'POST' });
+    toast(t('tk.archivedOne', '已归档'), name || '', { ttl: 3000 });
+  } catch (e) { alert(t('tk.archiveFail', '归档失败') + '：' + e.message); }
+  archLoaded = false;
+  await refreshAll(true);
+  if (window.runBarTick) window.runBarTick();
+}
+async function restoreTask(tid) {
+  try {
+    await jf(`/api/task/${tid}/unarchive`, { method: 'POST' });
+    toast(t('tk.restored', '已恢复到运行列表'), '', { ttl: 3000 });
+  } catch (e) { alert(t('tk.restoreFail', '恢复失败') + '：' + e.message); }
+  archLoaded = false;
+  await refreshAll(true);
+  if (window.runBarTick) window.runBarTick();
+}
 async function delTask(tid, archived) {
   if (!confirm(archived
     ? t('tk.confirmDelArch', '删除该归档记录？')
@@ -394,6 +549,7 @@ async function delTask(tid, archived) {
     await fetchActive();
     ARCH = ARCH.filter(x => x.id !== tid); renderArch();
   }
+  if (window.runBarTick) window.runBarTick();
 }
 async function clearFinished() {
   if (!confirm(t('tk.confirmClear', '清空所有已完成 / 失败 / 已停止的任务记录？（运行中不受影响）'))) return;
@@ -403,6 +559,7 @@ async function clearFinished() {
   } catch (e) { alert(e.message); }
   archLoaded = false;
   await refreshAll(true);
+  if (window.runBarTick) window.runBarTick();
 }
 async function stopAllTasks() {
   if (!confirm(t('tk.confirmStopAll', '停止全部运行中 / 排队中的任务？（任务记录与结果文件保留）'))) return;
@@ -470,6 +627,17 @@ document.querySelectorAll('#tabs .tab').forEach(el => {
     render();
   };
 });
+/* 分组切换（按时间 / 按样品 / 按模块）：记住选择，两个列表都重排 */
+document.querySelectorAll('#gtabs .tab').forEach(el => {
+  el.classList.toggle('on', el.dataset.g === GROUP);
+  el.onclick = () => {
+    GROUP = el.dataset.g;
+    try { localStorage.setItem('vp_tasks_group', GROUP); } catch (e) { /* 隐私模式 */ }
+    document.querySelectorAll('#gtabs .tab').forEach(x => x.classList.toggle('on', x === el));
+    render();
+    if (archLoaded) renderArch();
+  };
+});
 document.getElementById('curOnlyChk').onchange = (e) => {
   CUR_ONLY = e.target.checked;
   render();
@@ -485,10 +653,39 @@ refreshAll(true);
 window.stopTask = stopTask;
 window.restartTask = restartTask;
 window.delTask = delTask;
+window.archiveTask = archiveTask;
+window.restoreTask = restoreTask;
 window.clearFinished = clearFinished;
 window.stopAllTasks = stopAllTasks;
 window.refreshAll = refreshAll;
 window.onLogToggle = onLogToggle;
+window.toggleGroup = function (head) {
+  const sec = head.parentElement;
+  sec.classList.toggle('closed');
+  const k = GROUP + '|' + sec.dataset.gkey;
+  if (sec.classList.contains('closed')) GRP_CLOSED.add(k);
+  else GRP_CLOSED.delete(k);
+};
+
+/* ?focus=<tid>（2026-10-30）：AI 工作台 / 锚条跳转时定位到该任务卡。
+   列表是异步渲染的，轮询等它出现；10 秒还没出就放弃。 */
+(function () {
+  const tid = new URLSearchParams(location.search).get('focus');
+  if (!tid) return;
+  let tries = 0;
+  const timer = setInterval(() => {
+    const el = document.querySelector(
+      '.task-card[data-tid="' + CSS.escape(tid) + '"]');
+    if (el) {
+      clearInterval(timer);
+      el.scrollIntoView({ block: 'center' });
+      el.classList.add('focus-flash');
+      setTimeout(() => el.classList.remove('focus-flash'), 3000);
+    } else if (++tries > 40) {
+      clearInterval(timer);
+    }
+  }, 250);
+})();
 
 })();
 </script>

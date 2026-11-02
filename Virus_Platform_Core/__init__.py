@@ -7,6 +7,7 @@
   - 组装与注释 : assembly / orf / orf_annot / contig_annot / hmm_annot
   - 进化与比较 : phylo / sdt_exact / msa_view
   - 可视化报告 : viz / gbdraw_plot / dfv_plot / genome_diag
+  - 结论文档   : report_kit（学术论文风 report_v2.html，任务无关）
   - 路径与工具 : config
 子包：
   - web/            HTTP 边界与任务工厂（Flask blueprint）

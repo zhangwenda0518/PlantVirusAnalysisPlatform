@@ -202,3 +202,54 @@ lists package name / version / license as declared in the metadata.
   legal advice**; before commercial redistribution, verify each
   component's license yourself (especially the GPL copyleft and
   trademark terms).
+
+## 4. Source code offer (GPL-family and other copyleft components)
+
+Several bundled tools are GPL/LGPL-family software. Their binaries are
+shipped **unmodified** as separate executables; they are invoked as
+external processes and are not linked into the platform's own code.
+For every such component the complete corresponding source code of the
+exact version shipped is available from the upstream project named
+below, and this document doubles as the **written offer**: on request
+to the author (see `CITATION.cff`), we provide the corresponding source
+for the shipped version — as upstream release tarballs where the
+binary is unmodified, or as the published patch series where a local
+rebuild was necessary. The version pinned in `requirements.lock` and in
+Table 3 of the manuscript identifies the release precisely.
+
+| Component (shipped) | Copyleft status | Evidence bundled in this repository |
+|---|---|---|
+| `3rd/tools/SPAdes-Windows/` | GPL (v2) | `share/spades/LICENSE` (GNU GPL) |
+| `3rd/tools/snpEff/` + `jre-snpeff/` | LGPL/EPL (SnpEff); GPLv2+CE (bundled JRE) | `snpEff/LICENSE.md`; `jre-snpeff/legal/*/LICENSE` |
+| `3rd/tools/strawberry-perl/` | Artistic-1.0-Perl + GPL | `licenses/License.rtf`; `licenses/fribidi/COPYING` (GPL); `licenses/graphite2/COPYING` (LGPL) |
+| `3rd/tools/snpgenie/` | GPL | `LICENSE.txt` |
+| `3rd/tools/srna-target/` | GPL (vendored third-party code) | `LICENSES/NOTICE.txt` |
+| `3rd/tools/FastTree/` | GPL (v2) per upstream | no license file bundled — upstream project is authoritative |
+| `3rd/tools/iQtree/` | GPL (v2+) per upstream | no license file bundled — upstream authoritative |
+| `3rd/tools/raxml-ng/` | copyleft per upstream | no license file bundled — upstream authoritative |
+| `3rd/tools/salmon2/` | GPL (v3) per upstream | no license file bundled — upstream authoritative |
+| `3rd/tools/diamond/` | GPL (v3) per upstream | no license file bundled — upstream authoritative |
+| `3rd/tools/trimAl/` | GPL (v3) per upstream | no license file bundled — upstream authoritative |
+| `3rd/tools/pandepth/` | GPL (v3) per upstream | no license file bundled — upstream authoritative |
+| `3rd/bin/aria2c.exe` | GPL (v2) per upstream | single-file tool; upstream Release notes authoritative |
+| `3rd/bin/muscle-win64.v5.3.exe` | GPL (v3) per upstream | single-file tool; upstream Release notes authoritative |
+
+Permissively licensed components (MIT/BSD/Apache-2.0/Public Domain, e.g.
+minibwa, seqkit, fastp, mmseqs2, bcftools, samtools, minimap2, MAFFT,
+NCBI BLAST+/table2asn/datasets, crabz, sracha) impose attribution
+requirements only, met by Section 1 and by the notice files in their
+directories.
+
+**Exception — RDP5.** `3rd/tools/rdp5/` is free-of-charge academic
+software distributed under its own terms, not under an OSI-approved
+license; it is treated here as a separate, unmodified executable that
+the user invokes, and `3rd/tools/rdp5/3seqTable` (105 MB) is delivered
+via GitHub Releases (tag `external-tools`) rather than in the
+repository. Commercial redistribution of RDP5 requires the vendor's
+permission and is out of scope of the MIT license covering this
+project's code.
+
+If you believe a component's license has been mis-stated here, the
+bundled license file and the upstream project always take precedence;
+please open an issue so the table can be corrected in the next release.
+

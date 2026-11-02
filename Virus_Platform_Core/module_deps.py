@@ -46,8 +46,14 @@ MODULE_TOOLS = {
     'identity': ['mafft'],
     'structcmp': ['mafft', 'trimal', 'fasttree'],
     'verify': ['blastn', 'diamond', 'mmseqs'],
-    'consensus': ['samtools', 'minimap2'],
-    'kvsuite': ['minimap2', 'samtools', 'seqkit'],
+    # consensus（共识序列页）只有 minibwa 一个硬依赖：回贴由 minibwa 承担，
+    # 共识调用是 Python 重写的 ViralConsensus 算法，既不用 samtools 也不用
+    # viral_consensus（见 consensus.py 文件头）。
+    'consensus': ['minibwa'],
+    # kvsuite / kvchain 的回贴与计数引擎同样是 minibwa（salmon 是可选定量
+    # 引擎，见 OPTIONAL_TOOLS）。这里曾写 minimap2 —— 2026-09-08 换引擎后
+    # 忘了改，导致 preflight 会去要一个全平台都没有调用点的工具。
+    'kvsuite': ['minibwa', 'samtools', 'seqkit'],
     'align': ['mafft', 'trimal'],
     'quicktree': ['mafft', 'trimal', 'fasttree', 'raxml-ng'],
     'rdp': ['RDP5CL'],
@@ -66,7 +72,7 @@ MODULE_TOOLS = {
     'virchain': ['kunpeng', 'seqkit', 'spades', 'makeblastdb',
                  'blastn', 'diamond', 'mmseqs'],
     # kvchain = kvsuite 全流程（鉴定→过滤→共识→绘图→变异）
-    'kvchain': ['minimap2', 'samtools', 'seqkit'],
+    'kvchain': ['minibwa', 'samtools', 'seqkit'],
     # prepchain = 转换 → 质控 → 转 FASTA → 宿主去除
     'prepchain': ['seqkit', 'fastp', 'minibwa', 'kunpeng'],
     # annochain = ORF 预测 → 功能注释 → 基因组图谱
@@ -242,7 +248,13 @@ def ensure_tools(cfg, module, auto_install=True, log=None, timeout_s=600):
 
 
 def format_error(module, result):
-    """自愈失败时的可操作错误文案（直接给用户看）。"""
+    """自愈失败时的可操作错误文案（直接给用户看）。
+
+    2026-11-02：此前无条件追加「已自动安装：…」，而 installed 为空时
+    会打印「已自动安装：srna-target」——实际插件源根本没提供该工具、
+    什么都没装，文案却让人以为装上了只是没生效（用户排障时按这条查了
+    半天插件）。现在只在 installed 非空时才输出这一行。
+    """
     lines = [f'模块「{module}」缺少必要外部工具：'
              + '、'.join(result['still_missing'])]
     for k, hint in result['hints'].items():

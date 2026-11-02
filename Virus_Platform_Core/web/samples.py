@@ -629,6 +629,14 @@ def api_samples():
     from Virus_Platform_Core.pipeline import (pipeline_overview, load_sample_input,
                              load_project_manifest)
     from Virus_Platform_Core.config import DIRS
+    # 锚摘要一次扫描（每样品一个 anchor.json，几十行量级）；任何异常退回 {}
+    try:
+        from Virus_Platform_Core import anchor as _anchor
+        _ameta = _anchor.samples_meta()
+        _aslug = _anchor.slug_of
+    except Exception:
+        _ameta = {}
+        _aslug = lambda _n: _n
     out = []
     res = check_path(DIRS['results'], must_exist=False, in_platform=True)
     if os.path.isdir(res):
@@ -661,7 +669,12 @@ def api_samples():
                         'done': sum(1 for s in stages if s['status'] == 'done'),
                         'total': len(stages) or 7,
                         # 输入档案：样品表格展示类型（PE/SE）与文件用
-                        'r1': _r1 or '', 'r2': _r2 or ''})
+                        'r1': _r1 or '', 'r2': _r2 or '',
+                        # 锚摘要（第一阶段只读）：running/stage/r1 指纹等
+                        # 目录名与锚 slug 通常相同；归一化撞名时 slug 带 __2
+                        # 后缀，用 slug_of 回退匹配
+                        'anchor': (_ameta.get(name)
+                                   or _ameta.get(_aslug(name)) or {})})
     return jsonify(out)
 
 

@@ -134,7 +134,7 @@ def _run_gbdraw(fasta=None, gff=None, gbk=None, out_prefix=None, logger=None,
         sub_prefix = f'{out_prefix}.{sub}'
         argv = [sub, '-o', sub_prefix] + _sub_opts(sub)
         if bundled:
-            _gbdraw_inproc(argv)
+            _gbdraw_inproc(argv, logger=logger)
         else:
             from .utils import run_cmd
             run_cmd([gbdraw] + argv, logger=logger)
@@ -162,7 +162,7 @@ def _run_gbdraw(fasta=None, gff=None, gbk=None, out_prefix=None, logger=None,
     return made
 
 
-def _gbdraw_inproc(argv):
+def _gbdraw_inproc(argv, logger=None):
     """冻结分发：进程内执行 gbdraw.cli（随包引擎，无独立 exe）。
     需 VirusPlatform.spec 中 collect_submodules('gbdraw') 与其数据文件。"""
     import contextlib
@@ -171,11 +171,14 @@ def _gbdraw_inproc(argv):
     old_argv = sys.argv
     sys.argv = ['gbdraw'] + [str(a) for a in argv]
     try:
-        with contextlib.redirect_stdout(_io.StringIO()) as _out,                 contextlib.redirect_stderr(_io.StringIO()) as _err:
+        with contextlib.redirect_stdout(_io.StringIO()) as _out, \
+                contextlib.redirect_stderr(_io.StringIO()) as _err:
             main()
     except SystemExit as e:                      # CLI 正常退出路径
         if e.code not in (0, None):
-            raise RuntimeError(f'gbdraw 退出码 {e.code}') from None
+            err = _err.getvalue().strip()
+            detail = f'：{err}' if err else ''
+            raise RuntimeError(f'gbdraw 退出码 {e.code}{detail}') from None
     except Exception as e:
         raise RuntimeError(f'gbdraw 运行失败: {e}') from e
     finally:
@@ -194,6 +197,22 @@ def _ascii_gff(line):
     if line.isascii():
         return line
     return ''.join(ch if ord(ch) < 128 else '_' for ch in line)
+
+
+def _ascii_gff_copy(src_gff, out_dir):
+    """把注释 GFF3 逐行 ASCII 化后写入 out_dir 中转副本（返回副本路径）。
+
+    gbdraw 读 GFF3 用 open() 的默认编码：中文 Windows 默认 GBK，而平台
+    ⑥b 注释的 category 属性带中文（结构蛋白 / 假想蛋白（功能未定）…），
+    UTF-8 文件按 GBK 解码直接抛 `'gbk' codec can't decode byte 0xb6` →
+    gbdraw 退出码 1（实测 OR489165.1 自备文件链整链失败）。多序列路径在
+    _split_by_seqid 里逐行 ASCII 化；本函数补齐 standalone 单序列直传入口。
+    """
+    dst = os.path.join(out_dir, _safe_fn(os.path.basename(src_gff)))
+    with safe_open(dst, 'wt') as f, safe_open(src_gff) as g:
+        for line in g:
+            f.write(_ascii_gff(line if line.endswith('\n') else line + '\n'))
+    return dst
 
 
 def _split_by_seqid(src_fasta, src_gff, out_dir, seqid):
@@ -327,8 +346,13 @@ def run_genome_plots(sample_dir, logger=None, force=False, max_plots=12,
                 if progress:
                     progress(i / max(len(seqs), 1) * 0.95,
                              f'出图 {cid}（{i + 1}/{len(seqs)}）')
-                fa1, gff1 = (fa, gff) if standalone and len(seqs) == 1 else \
-                    _split_by_seqid(fa, gff, tmp, cid)
+                if standalone and len(seqs) == 1:
+                    # 单序列直传也要过 ASCII 化中转副本：⑥b GFF3 的中文
+                    # category 属性按系统默认编码（GBK）读必炸，与多序列
+                    # 路径同一处理；副本进 tmp，随 finally 一起清理。
+                    fa1, gff1 = fa, (_ascii_gff_copy(gff, tmp) if gff else None)
+                else:
+                    fa1, gff1 = _split_by_seqid(fa, gff, tmp, cid)
                 if not fa1:
                     continue
                 prefix = os.path.join(out_dir, _safe_fn(cid))

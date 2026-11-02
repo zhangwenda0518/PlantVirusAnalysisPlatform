@@ -295,6 +295,10 @@
   var SEEN_KEY = 'vp_example_seen';
 
   function autoFill(tries) {
+    /* 上游页面带参数跳进来时（如「组装结果再鉴定」→ /primer 带 contig 序列），
+       页内脚本会把 window.__vpNoAutoFill 置 true：示例填充必须让路，否则
+       它 400ms 后的一次性写入会把刚带进来的输入覆盖成示例文件路径。 */
+    if (window.__vpNoAutoFill) return;
     var off = false;
     try { off = localStorage.getItem(AUTO_KEY) === '0'; } catch (e) {}
     if (off) return;

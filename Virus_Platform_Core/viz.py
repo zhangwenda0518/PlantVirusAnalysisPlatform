@@ -999,15 +999,21 @@ def build_report(sample_dir, logger=None):
 
     cards = []
     if host_stats:
-        cards.append(('总 reads 对', f"{host_stats['total_pairs']:,}"))
-        cards.append(('宿主占比', f"{host_stats['host_ratio'] * 100:.2f}%"))
-        cards.append(('非宿主 reads 对', f"{host_stats['kept_pairs']:,}"))
+        cards.append(('总 reads 对', f"{host_stats.get('total_pairs', 0):,}"))
+        cards.append(('宿主占比', f"{host_stats.get('host_ratio', 0) * 100:.2f}%"))
+        cards.append(('非宿主 reads 对', f"{host_stats.get('kept_pairs', 0):,}"))
     if kv_sum:
         cards.append(('检出病毒物种', str(len(kv_sum.get('species_detected') or []))))
         cards.append(('病毒分类 reads', f"{kv_sum.get('viral_reads', 0):,}"))
     if asm:
-        cards.append(('contigs(≥min)', f"{asm['contigs']:,}"))
-        cards.append(('病毒 contigs', str(len(asm['viral_contigs']))))
+        # 不同任务的 summary.json 键不完全一致（只做组装 vs 全链路、老版本
+        # 产物没有 raw_contigs 等），统计卡缺哪个键就跳过哪个，不整体 500。
+        n_ctg = asm.get('contigs', asm.get('raw_contigs'))
+        if n_ctg is not None:
+            cards.append(('contigs(≥min)', f"{n_ctg:,}"))
+        vc = asm.get('viral_contigs')
+        if vc is not None:
+            cards.append(('病毒 contigs', str(len(vc))))
     if orf_sum:
         pyro = orf_sum.get('pyrodigal') or {}
         cards.append(('预测基因(pyrodigal)', str(pyro.get('genes', '-'))))
@@ -1232,8 +1238,7 @@ def build_contig_report(run_dir, logger=None, force=False):
                 vc_rows.append(r)
         cfa = os.path.join(run_dir, 'contigs.filtered.fasta')
         if os.path.isfile(cfa):
-            from .utils import count_fasta_seqs
-            n_total = count_fasta_seqs(cfa)
+            n_total = count_fasta_seqs(cfa)   # 已在函数开头 import
         n_virus = len(vc_rows)
     else:
         if os.path.isfile(ids_tsv):

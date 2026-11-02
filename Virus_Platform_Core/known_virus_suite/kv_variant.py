@@ -633,10 +633,14 @@ def export_ref_fastas(ref, accessions, out_dir, samtools=None, logger=None,
                               encoding='utf-8')
             if samtools and Path(str(samtools)).is_file():
                 try:
-                    subprocess.run([str(samtools), 'faidx', str(ref_fa)],
-                                   capture_output=True, env=env, check=False)
-                except OSError:
-                    pass
+                    _r = subprocess.run([str(samtools), 'faidx', str(ref_fa)],
+                                        capture_output=True, env=env, check=False)
+                    if _r.returncode != 0:
+                        LOGGER.warning(
+                            'samtools faidx 失败 (退出码 %d)：'
+                            '%s', _r.returncode, (_r.stderr or '')[-300:])
+                except OSError as e:
+                    LOGGER.warning('samtools faidx 无法启动：%s', e)
         found[vid_cur] = ref_fa
 
     try:
@@ -1003,7 +1007,12 @@ class VariantStage:
                                capture_output=True, text=True, encoding='utf-8',
                                errors='replace', env=self.cfg.get('env'))
         except OSError as e:
-            self.log.warning('samtools depth 失败（%s），按 dp=10/saf=2 处理', e)
+            self.log.warning('samtools depth 无法启动（%s），按 dp=10/saf=2 处理', e)
+            return 0.0
+        if p.returncode != 0:
+            self.log.warning('samtools depth 失败 (退出码 %d)：'
+                             '%s，按 dp=10/saf=2 处理',
+                             p.returncode, (p.stderr or '')[-300:])
             return 0.0
         total, n = 0, 0
         for line in (p.stdout or '').splitlines():

@@ -46,6 +46,7 @@ BSP 的第 *i* 段覆盖哪个时间区间，取决于该段里**实际发生的
 * 若你手上有 Tracer 导出的 TSV，走 ``table`` 模式 —— 那才是严格口径。
 """
 
+import io
 import math
 import os
 import re

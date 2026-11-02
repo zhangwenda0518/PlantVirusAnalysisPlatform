@@ -83,7 +83,7 @@ def _robocopy(src, dst, logger=None):
                            errors='replace')
         # robocopy 返回码：0-7 均表示成功（1 = 有文件被复制）
         if r.returncode >= 8:
-            tail = (r.stdout or r.stderr or '')[-500:]
+            tail = ((r.stdout or '') + (r.stderr or ''))[-500:]
             _log(logger, f'    ✘ robocopy 失败(码 {r.returncode}): {tail}')
             return False
         return True

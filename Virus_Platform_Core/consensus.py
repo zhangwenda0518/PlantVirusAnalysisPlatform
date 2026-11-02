@@ -8,9 +8,10 @@ MultiVirusConsensus（Niema Lab）：把 reads 回贴到**多个**参考、逐�
 
 为什么不是直接调用 MVC
 ----------------------
-MVC 是纯编排层，硬性依赖 minimap2 + samtools + viral_consensus 三个可执行文件。
-后两者在 Windows 上无官方构建（bioconda 的 minimap2/samtools 只有 linux-64 /
-osx-64 / osx-arm64，无 win-64）。因此本模块：
+MVC 是纯编排层，硬性依赖 minimap2 + samtools + viral_consensus 三个可执行
+文件，而这三者在 Windows 上都没有可直接使用的构建（bioconda 的
+minimap2/samtools 只有 linux-64 / osx-64 / osx-arm64，无 win-64）。
+所以本模块把三者**全部换掉，一个都不调**：
 
 - **比对**：minibwa（平台自带 0.7-r424 Windows 本地编译，静态单文件），
   短读用 `-x sr`。2026-09-08 由 minimap2 换为 minibwa（同一作者 lh3 的
@@ -23,6 +24,11 @@ osx-64 / osx-arm64，无 win-64）。因此本模块：
   深度 ≥ min_depth 且频率 ≥ min_freq 才 call，否则给简并符）——
   与 sdt_exact.py 纯 Python 替代 SDTv1.3.exe 同一套路
 - **samtools 不需要**：minibwa 直接输出 SAM，这里流式解析，省掉排序与格式转换
+
+⚠️ minimap2 在本平台**没有任何调用点**（本模块历史上用过，2026-09-08 起
+全部由 minibwa 承担；`run_minibwa()` 曾叫 run_minimap2）。别再把 minimap2
+补回 module_deps.MODULE_TOOLS 或界面文案 —— 那会让 preflight 去要一个永远
+不会执行的工具。
 
 内存只与参考长度相关、与测序深度无关（ViralConsensus 的核心优点）得以保留。
 
@@ -285,7 +291,7 @@ def _stage_ref_for_index(ref_fa, out_sam, logger=None):
     return d, local_ref
 
 
-def run_minimap2(ref_fa, reads, out_sam, threads=None, preset='sr',
+def run_minibwa(ref_fa, reads, out_sam, threads=None, preset='sr',
                  logger=None):
     """minibwa 回贴。reads 项为 str（单端）或 (r1, r2) 二元组（双端）。
 
@@ -629,7 +635,7 @@ def analyze_variants(ref_seq, cons, rows, min_minor_freq=MIN_MINOR_FREQ,
 def _probe_read_len(reads, max_records=2000):
     """头部采样 reads 的最大长度；读不到（空/异常）返回 None。
 
-    reads 是 [(r1, r2), ...] 的配对列表（同 run_minimap2 的入参口径）；
+    reads 是 [(r1, r2), ...] 的配对列表（同 run_minibwa 的入参口径）；
     支持 FASTQ 与 FASTA（含 .gz）。取所有可读文件的最大读长——单端读长
     短不等于比对不了（另一端正常仍可映射），只有两端都短才判定为超短。
     只为「能否被 minibwa 比对」这一判断服务，不追求全量精确。
@@ -725,7 +731,7 @@ def consensus_and_variants(run_dir, ref_fasta, reads, out_subdir='consensus',
 
     sam = os.path.join(out_dir, 'aligned.sam')
     _prog('align', 0.15, 'minibwa 回贴 reads（preset=%s，双端配对）' % preset)
-    run_minimap2(ref_fasta, reads, sam, threads=threads, preset=preset,
+    run_minibwa(ref_fasta, reads, sam, threads=threads, preset=preset,
                  logger=logger)
     _prog('align', 0.40, '比对完成，统计位置计数')
 

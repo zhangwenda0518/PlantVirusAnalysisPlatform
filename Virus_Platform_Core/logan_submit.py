@@ -362,7 +362,9 @@ def wait_and_download(session_url_or_id, out_dir: Path, acc: str, log,
                                     "-o", dl_p, url],
                                    capture_output=True, timeout=600)
                 if r.returncode != 0:
-                    log.warning("%s 下载失败 rc=%d", sid, r.returncode)
+                    _err = (r.stderr or b'').decode('utf-8', 'replace').strip()
+                    log.warning("%s 下载失败 rc=%d：%s",
+                                sid, r.returncode, _err[-300:])
                     return _ret("DL_FAIL")
             except Exception as e:
                 log.warning("%s 下载异常: %s", sid, e)

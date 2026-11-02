@@ -50,15 +50,28 @@ def _fastp_reads(s, key_before='reads_before', key_after='reads_after'):
 
 
 def _orf_count(s):
+    """ORF 数：独立 ORF 数，**不是**各引擎结果之和。
+
+    pyrodigal 与 pyrodigal_rv 是同一批病毒 contigs 的正向/反向模型两次运行，
+    faa 里装的是同一批 ORF 的两套坐标（仅个别起点相差几十 bp），
+    相加会得到 2 倍虚高（2026-11-02 GQMIX 实抓：8 vs 真实 4）。
+    orf.py 可能在同一次运行里同时产出 n_orfs（orfipy 六框）与 pyrodigal
+    两套结果，此时以 n_orfs 为准（六框口径，与 ⑥ 的「基因数」告示一致）。
+    优先级：n_orfs → orfipy → max(pyrodigal, pyrodigal_rv)。
+    """
     n = fnum(s.get('n_orfs'))
-    if n is None and isinstance(s.get('orfipy'), dict):
+    if n is not None:
+        return n
+    if isinstance(s.get('orfipy'), dict):
         n = fnum(s['orfipy'].get('n_orfs'))
-    if n is None:
-        n = 0.0
-        for eng in ('pyrodigal', 'pyrodigal_rv'):
-            n += fnum((s.get(eng) or {}).get('genes'), 0.0) or 0.0
-        n = n or None
-    return n
+        if n is not None:
+            return n
+    vals = []
+    for eng in ('pyrodigal', 'pyrodigal_rv'):
+        v = fnum((s.get(eng) or {}).get('genes'))
+        if v is not None:
+            vals.append(v)
+    return max(vals) if vals else None
 
 
 # ------------------------------------------------------------------

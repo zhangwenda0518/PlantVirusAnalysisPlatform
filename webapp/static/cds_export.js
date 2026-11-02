@@ -7,6 +7,12 @@ let _cpData = null;                 // /api/cds/table 返回值
 let _cpSel = new Map();             // rid -> 基因名（人工确认后）
 
 /* ---------- 集合下拉（本模块自拉，不依赖工具页的批量加载） ---------- */
+/* 2026-11-02：重载列表时**原地增删 option**，不再整段重写 innerHTML。
+   以前 `sel.innerHTML = ...` 会把用户刚选中的 value 一起冲掉：只要
+   「选中集合」与「列表返回」撞在一起，选中就静默回到占位项，接着
+   cdsPickOpen() 只报一句「先选择集合」就 return——真实用户刷新页面后
+   立刻点「挑选」很容易踩到。原地更新既能保住选中，也能留下刚生成的
+   集合（列表接口可能有缓存/延迟）。 */
 async function cdsLoadCollections() {
   const sel = $('cpColl');
   if (!sel) return;
@@ -15,19 +21,53 @@ async function cdsLoadCollections() {
     if (!r.ok) return;
     const cols = await r.json();
     const cur = sel.value;
-    sel.innerHTML = `<option value="">${t('cd.selPlaceholder', '（选择集合）')}</option>` +
-      cols.map(c => `<option value="${esc(c.name)}">${esc(c.name)}` +
-        `${t('cd.nRecPre', '（')}${c.n_records}${t('cd.nRecPost', ' 条）')}</option>`).join('');
-    if (cur && cols.some(c => c.name === cur)) sel.value = cur;
+    const want = new Map(cols.map(c => [c.name,
+      `${c.name}${t('cd.nRecPre', '（')}${c.n_records}${t('cd.nRecPost', ' 条）')}`]));
+    const ph = t('cd.selPlaceholder', '（选择集合）');
+    if (!sel.options.length || sel.options[0].value !== '') {
+      const o = document.createElement('option');
+      o.value = '';
+      o.textContent = ph;
+      sel.insertBefore(o, sel.firstChild);
+    }
+    for (const o of [...sel.options]) {
+      if (o.value === '') continue;                 // 占位项永远保留在首位
+      if (!want.has(o.value)) { o.remove(); continue; }
+      if (o.textContent !== want.get(o.value)) o.textContent = want.get(o.value);
+    }
+    const have = new Set([...sel.options].map(o => o.value));
+    for (const [name, label] of want) {
+      if (have.has(name)) continue;
+      const o = document.createElement('option');
+      o.value = name;
+      o.textContent = label;
+      sel.appendChild(o);
+    }
+    if (cur) sel.value = cur;                       // 保住用户在等的那个选中
     else if (cols.length === 1) sel.value = cols[0].name;
   } catch (e) { /* 集合列表拉取失败不阻塞页面 */ }
 }
 
 /* ---------- 解析并挑选 ---------- */
 async function cdsPickOpen() {
-  const name = ($('cpColl') && $('cpColl').value) || '';
+  const sel = $('cpColl');
+  const name = (sel && sel.value) || '';
   const msg = $('cpMsg');
   if (!name) { if (msg) msg.textContent = t('cd.needColl', '先选择集合'); return; }
+  /* 2026-11-02：下拉框里可能还没有这个集合的 <option>（列表是异步拉的，
+     或集合是刚生成/刚复制的）。此时 `sel.value = name` 会被浏览器静默忽略
+     ——value 变成 ''、选中回到第一项——后面解析的就不是用户指定的集合，
+     界面只剩一句「无匹配记录」。这里先把缺失的选项补上再落值。 */
+  if (sel && sel.value !== name) {
+    const has = [...sel.options].some(o => o.value === name);
+    if (!has) {
+      const o = document.createElement('option');
+      o.value = name;
+      o.textContent = name;
+      sel.appendChild(o);
+    }
+    sel.value = name;
+  }
   const panel = $('cdsPickPanel');
   const tbl = $('cpTable');
   if (panel) panel.style.display = '';

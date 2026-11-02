@@ -1,0 +1,54 @@
+{
+  "note": "wiki/*.md 的静态副本与分组映射。改文档后跑 dev_tools/sync_wiki.py；tests/test_wiki_docs.py 会校验两份逐字节一致。",
+  "groups": {
+    "resource": [
+      "Public-Data",
+      "Databases"
+    ],
+    "sample": [
+      "Preprocess",
+      "Toolbox"
+    ],
+    "kvsuite": [
+      "Kvsuite"
+    ],
+    "virus": [
+      "Assembly",
+      "Host-Prediction"
+    ],
+    "annotate": [
+      "ORF",
+      "Genome-Plots"
+    ],
+    "detect": [
+      "Primer",
+      "CRISPR-Design"
+    ],
+    "compare": [
+      "Phylo"
+    ],
+    "phylodyn": [
+      "Phylodynamics",
+      "Phylogeography",
+      "BEAST"
+    ],
+    "result": [
+      "Result-Interpretation",
+      "Report"
+    ],
+    "trace": [
+      "Logan",
+      "NCBI-Submission"
+    ]
+  },
+  "global": [
+    "Home",
+    "Quick-Start",
+    "Pipeline-Overview",
+    "Architecture",
+    "AI-Assistant",
+    "CLI-Reference",
+    "Settings-Ops",
+    "FAQ"
+  ]
+}

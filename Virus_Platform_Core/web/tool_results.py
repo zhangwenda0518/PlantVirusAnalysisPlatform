@@ -10,7 +10,7 @@ import re
 import threading
 import time
 
-from flask import (Blueprint, Response, abort, jsonify, request,
+from flask import (Blueprint, Response, abort, current_app, jsonify, request,
                    send_file)
 
 from Virus_Platform_Core.config import PLATFORM_ROOT
@@ -57,6 +57,20 @@ def _norm_engine(raw):
 def _engine_tag(engine):
     """结果文件名后缀：在线沿用旧名（兼容历史缓存），本地加 _local。"""
     return '' if engine == 'online' else '_' + engine
+
+
+def _seq_cache_name(contig):
+    """直接输入序列模式的缓存目录名（只留 [A-Za-z0-9_-]，截 30 字符）。
+
+    必须与 _analysis_out() 的「运行名白名单」一致（那里只允许
+    [A-Za-z0-9_-]）。组装出来的 contig 名通常带点
+    （NODE_15048_length_278_cov_1.89）—— 两处对点的处理不一致时，
+    BLASTN / BLASTX / Primer 的「直接输入序列」分支会 400「无效的运行名」。
+    读写（api_tool_analyze / api_tool_analysis）必须走同一个函数，
+    否则写入与读取的缓存路径对不上。
+    """
+    safe = re.sub(r'[^A-Za-z0-9_\-]', '_', str(contig or ''))[:30]
+    return safe or 'seq'
 
 
 @bp.route('/api/tool/viral_contigs')
@@ -836,6 +850,8 @@ def api_tool_report():
     """生成（带缓存）并打开工具运行的结果报告（桑基/旭日/分类表）。
 
     ?force=1 强制重建（输入未变时默认复用既有 report.html）。
+    ?v=paper 出 report_kit 的学术论文风结论文档 report_v2.html
+    （任务无关：任何工具箱运行都能出），生成失败回归图表报告。
     """
     run = request.args.get('run') or ''
     if not re.fullmatch(r'[A-Za-z0-9_\-]+', run):
@@ -843,12 +859,23 @@ def api_tool_report():
     force = request.args.get('force') in ('1', 'true', 'yes')
     run_dir = check_path(_run_real_dir(run),
                          must_exist=True, in_platform=True)
+    from flask import redirect
+    if (request.args.get('v') or '').lower() in ('paper', 'v2', 'report_v2'):
+        try:
+            from Virus_Platform_Core.report_kit import build_enhanced_report
+            out = build_enhanced_report(run_dir, force=force)
+            return redirect(f'/tool_runs/{run}/'
+                            f'{os.path.basename(out["html"])}')
+        except Exception as e:                   # noqa: BLE001 边界：回落图表报告
+            current_app.logger.warning(
+                'report_v2 生成失败，回落 report.html: %s: %s',
+                type(e).__name__, e)
+            return redirect(f'/api/tool/report?run={run}&force={int(force)}')
     from Virus_Platform_Core.viz import build_contig_report
     try:
         build_contig_report(run_dir, force=force)
     except RuntimeError as e:
         abort(400, str(e))
-    from flask import redirect
     return redirect(f'/tool_runs/{run}/report.html')
 
 
@@ -1019,7 +1046,7 @@ def api_tool_analysis():
     if seq:
         import hashlib as _hl
         _key = _hl.md5((contig + '|' + seq).encode('utf-8')).hexdigest()[:12]
-        _safe = re.sub(r'[^A-Za-z0-9_\-.]', '_', contig)[:30]
+        _safe = _seq_cache_name(contig)
         run_dir = os.path.join(_tool_runs_root(), '_seq_input',
                                _safe + '_' + _key + tag)
         run_dir = check_path(run_dir, must_exist=True, in_platform=True)
@@ -1066,7 +1093,7 @@ def api_tool_analyze():
                              must_exist=False, in_platform=True)
         import hashlib as _hl
         _key = _hl.md5((contig + '|' + seq).encode('utf-8')).hexdigest()[:12]
-        contig = re.sub(r'[^A-Za-z0-9_\-.]', '_', contig)[:30]
+        contig = _seq_cache_name(contig)
         _used_for_cache = contig + '_' + _key + tag
         run_dir = os.path.join(run_dir, _used_for_cache)
         os.makedirs(run_dir, exist_ok=True)

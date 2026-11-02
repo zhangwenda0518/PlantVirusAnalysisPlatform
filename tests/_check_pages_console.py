@@ -85,19 +85,38 @@ def main():
         issues = []
 
         page.on('pageerror', lambda e: issues.append(('pageerror', str(e)[:200])))
-        page.on('console', lambda m: issues.append(('console.' + m.type, m.text[:200]))
-                if m.type == 'error' else None)
-        page.on('response', lambda r: issues.append(('http ' + str(r.status), r.url[:120]))
-                if r.status >= 400 else None)
+        # 历史执行单可能指向已被清理的任务：卡片会打 /api/task/<id> 探活，
+        # 404 是预期分支（卡片随后显示「任务不存在或已清理」），不算页面
+        # 故障；对应浏览器生成的通用 "Failed to load resource: 404" 也跳过。
+        # 其它 404（脚本/接口/静态资源）仍然照常判失败。
+        stale_task_404 = [False]
+        def _on_console(m):
+            if m.type != 'error':
+                return
+            if (stale_task_404[0] and 'Failed to load resource' in m.text
+                    and '404' in m.text):
+                return
+            issues.append(('console.' + m.type, m.text[:200]))
+        def _on_response(r):
+            if r.status < 400:
+                return
+            if '/api/task/' in r.url and 'log_lines=' in r.url:
+                stale_task_404[0] = True
+                return
+            issues.append(('http ' + str(r.status), r.url[:120]))
+        page.on('console', _on_console)
+        page.on('response', _on_response)
 
         for p in pages:
             issues.clear()
+            stale_task_404[0] = False
             try:
                 page.goto(BASE + p, wait_until='networkidle', timeout=20000)
             except Exception as e:
                 # networkidle 对轮询页可能超时：退回 load
                 try:
                     issues.clear()
+                    stale_task_404[0] = False
                     page.goto(BASE + p, wait_until='load', timeout=20000)
                     page.wait_for_timeout(800)
                 except Exception as e2:
@@ -175,10 +194,12 @@ def run_isolated():
         log = os.path.join(tempfile.gettempdir(), f'_vp_page_{i:02d}.log')
         msg = ''
         rc = None
+        cmd = [sys.executable, me, '--page', p]
+        if BASE:
+            cmd += ['--base', BASE]      # 子进程也要巡检同一个实例
         with open(log, 'w', encoding='utf-8', errors='replace') as fh:
             proc = subprocess.Popen(
-                [sys.executable, me, '--page', p],
-                stdout=fh, stderr=fh, stdin=subprocess.DEVNULL)
+                cmd, stdout=fh, stderr=fh, stdin=subprocess.DEVNULL)
             try:
                 rc = proc.wait(timeout=180)
             except subprocess.TimeoutExpired:

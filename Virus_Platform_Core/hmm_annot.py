@@ -220,32 +220,56 @@ _ASCII_LINK = None
 
 
 def _ascii_path(path):
-    """Easel(ANSI fopen) 打不开含中文的路径：经 %TEMP%\\vp_ascii_root 目录
-    junction（无需管理员，建一次）把平台内路径转成纯 ASCII 别名。"""
+    """Easel(ANSI fopen) 打不开含中文的路径：经 `%TEMP%\\vp_ascii_root` 目录
+    junction（无需管理员，建一次）把平台内路径转成纯 ASCII 别名。
+
+    2026-11-02 修复自引用环：链接位置取自 tempfile.gettempdir()，而
+    config.py:153 的 ensure_usable_tempdir() 在平台临时目录不可用时会把它
+    重定向到 <平台根>/run/tmp。于是 junction 被建在
+    <平台根>/run/tmp/vp_ascii_root 却指向 <平台根> 本身 —— 链接落在被链接
+    目录的内部，形成自引用环：任何遍历平台根的操作（os.walk、依赖审计、
+    体积统计）一旦进入这个 junction 就会无限复制整棵树，
+    `run/tmp/vp_ascii_root/run/tmp/vp_ascii_root/...` 层层嵌套直到撞上
+    Windows MAX_PATH，之后所有文件操作报 FileNotFoundError
+    （2026-11-02 selfcheck 第⑥项依赖审计失败即由此触发）。
+
+    判据：若链接目录本身位于 PLATFORM_ROOT 之内，则弃用它，改用
+    os.environ['TEMP'] 下一级独立目录；仍不可用就直接返回原路径（宁可不
+    转 ASCII，也不能造环）。
+    """
     try:
         path.encode('ascii')
         return path
     except (UnicodeEncodeError, AttributeError):
         pass
     global _ASCII_LINK
+    from .config import PLATFORM_ROOT
     if _ASCII_LINK is None:
         import tempfile
         import subprocess
-        from .config import PLATFORM_ROOT
         link = os.path.join(tempfile.gettempdir(), 'vp_ascii_root')
-        if not os.path.isdir(link):
+        # 环检查：链接不得落在被链接的树内部
+        try:
+            inside = os.path.normcase(os.path.abspath(link)).startswith(
+                os.path.normcase(os.path.abspath(PLATFORM_ROOT)) + os.sep)
+        except (OSError, ValueError):
+            inside = True
+        if inside:
+            alt = os.environ.get('TEMP') or os.environ.get('TMP')
+            link = os.path.join(alt, 'vp_ascii_root') if alt else ''
+        if link and not os.path.isdir(link):
             subprocess.run(['cmd', '/c', 'mklink', '/J', link, PLATFORM_ROOT],
                            capture_output=True)
-        _ASCII_LINK = link if os.path.isdir(link) else ''
+        _ASCII_LINK = link if (link and os.path.isdir(link)) else ''
     if not _ASCII_LINK:
         return path
-    from .config import PLATFORM_ROOT
     try:
         rel = os.path.relpath(path, PLATFORM_ROOT)
     except ValueError:
         return path
     cand = os.path.join(_ASCII_LINK, rel)
     return cand if str(cand).isascii() else path
+
 
 
 def _press_in_progress(lib_path):

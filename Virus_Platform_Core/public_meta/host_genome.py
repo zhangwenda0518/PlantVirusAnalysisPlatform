@@ -34,6 +34,7 @@ import json
 import shutil
 import argparse
 import subprocess
+import urllib.parse                      # 重定向 Location 解析（易变模块，显式导入）
 from datetime import datetime
 from typing import List, Optional, Set, Tuple
 

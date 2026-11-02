@@ -73,6 +73,7 @@ def _run_once():
         from selenium import webdriver
         from selenium.webdriver.common.by import By
         from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.common.exceptions import TimeoutException
         from selenium.webdriver.edge.options import Options as EdgeOptions
     except ImportError as e:
         skip('selenium', f'未安装（{e}）')
@@ -92,15 +93,36 @@ def _run_once():
     RUN_NAME = 'orf_uitest_async'
     COLL = 'uitest_async_cds'
     MPROJ = 'uitest_async_meta'
+    # 第 4 段专用集合：**必须自带夹具**。以前这里直接拿别的测试/用户集合
+    # 来用，于是「集合里恰好全是假想蛋白」就让挑选表一片空白，演练内容
+    # 也取决于磁盘上残留了什么（2026-11-02 实测就是这么翻的）。
+    CDS_COLL = 'uitest_async_cdscoll'
+
+    def _is_hypothetical(r):
+        """与 webapp/static/cds_export.js 的 isHypothetical() 同一判据。
+
+        挑选表默认隐藏假想蛋白（hypothetical/unknown/putative
+        uncharacterized/hp/orfN）。第 4 段的夹具 CDS_COLL 特意用
+        coat protein / movement protein，就是为了保证表里一定有勾选框；
+        本函数留着做夹具自检，防止有人把夹具改成假想蛋白又把用例弄哑。
+        """
+        import re
+        s = ((r.get('product') or '') + ' ' + (r.get('gene') or '')).lower()
+        return (s.find('hypothetical') >= 0 or s.find('unknown') >= 0
+                or s.find('putative uncharacterized') >= 0
+                or bool(re.match(r'^(hp|orf\d+)$',
+                                 (r.get('gene') or '').lower())))
+
     tool_runs = DIRS.get('tool_runs')
     run_dir = os.path.join(tool_runs, RUN_NAME)
     _CLEAN += [sstore.table_dir(PROJ), run_dir, gb_collection_dir(COLL),
-               vpm._meta_proj(MPROJ)]
+               gb_collection_dir(CDS_COLL), vpm._meta_proj(MPROJ)]
 
     # ── 夹具 ────────────────────────────────────────────────────
     shutil.rmtree(sstore.table_dir(PROJ), ignore_errors=True)
     shutil.rmtree(run_dir, ignore_errors=True)
     shutil.rmtree(gb_collection_dir(COLL), ignore_errors=True)
+    shutil.rmtree(gb_collection_dir(CDS_COLL), ignore_errors=True)
     shutil.rmtree(vpm._meta_proj(MPROJ), ignore_errors=True)
 
     os.makedirs(os.path.join(run_dir, '03_assembly'), exist_ok=True)
@@ -136,6 +158,37 @@ ORIGIN
 //
 """)
     cds_export.build_cds_table(COLL)          # 预热缓存，导出会更快
+
+    # 第 4 段（/cds-export 导出）用**自有**集合：product 不是 hypothetical，
+    # 挑选表一定渲染出勾选框（默认隐藏假想蛋白，见 cds_export.js：
+    # isHypothetical）。不再借用磁盘上其它集合，避免演练内容取决于残留数据。
+    cdir2 = gb_collection_dir(CDS_COLL)
+    os.makedirs(cdir2, exist_ok=True)
+    with open(os.path.join(cdir2, 'ui.gb'), 'w', encoding='utf-8') as f:
+        f.write("""LOCUS       UITASYNC                  180 bp    RNA     linear
+ACCESSION   UITASYNC
+ORGANISM  Ui test virus
+  Viruses.
+FEATURES             Location/Qualifiers
+     source          1..180
+                     /organism="Ui test virus"
+     CDS             1..60
+                     /gene="cp"
+                     /product="coat protein"
+                     /translation="MKLT"
+     CDS             61..180
+                     /gene="mp"
+                     /product="movement protein"
+                     /translation="MKLT"
+ORIGIN
+        1 atggctaaat tgacttaata agctagctag ctagctagct atcgatcgat
+       61 atggctaaat tgacttaata agctagctag ctagctagct atcgatcgat
+      121 atggctaaat tgacttaata agctagctag ctagctagct atcgatcgat
+//
+""")
+    _cds_fix = cds_export.build_cds_table(CDS_COLL)
+    print(f'  note 集合 {CDS_COLL} 夹具：{_cds_fix.get("n_cds")} 条 CDS / '
+          f'{_cds_fix.get("n_virus")} 个病毒', flush=True)
 
     vpm._meta_store_df(MPROJ, 'core14', pd.DataFrame({
         'Run': ['SRR1', 'SRR2'], 'ScientificName': ['Test virus'] * 2,
@@ -301,19 +354,36 @@ ORIGIN
         drv, wait = _recycle(drv)        # 换全新会话，规避累积状态崩溃
         print('\n== 2) /submit 「物种名校验」异步 ==', flush=True)
         # 新会话要重新进入 /submit 并恢复页面级选中状态 CUR（流程 1 的
-        # 会话里由 execute_script 设置，换会话即失效）
+        # 会话里由 execute_script 设置，换会话即失效）—— 在 get 之前塞进去，
+        # 页面里 `let CUR = null;` 的声明会在脚本执行时把旧值覆盖掉，必须
+        # 等脚本跑完再设。
         drv.get(base + '/submit')
         wait.until(lambda d: d.find_elements(
             By.XPATH, "//button[contains(., '物种名校验')]"))
         drv.execute_script("CUR = arguments[0];", PROJ)
+
+        # 口径（2026-11-02）：结果读回不该依赖页面级 CUR —— 校验期间用户切走
+        # 模块或清空 CUR，用 CUR 拼地址会 400 并让整份结果丢掉。这里在任务
+        # 跑起来后**故意把 CUR 置空**，再断言结果照常渲染（回归覆盖
+        # snap.result.project 这条读回路径）。
         drv.find_element(By.XPATH, "//button[contains(., '物种名校验')]").click()
         t0 = time.time()
         val_txt = ''
+        cur_cleared = False
         while time.time() - t0 < 60:
-            val_txt = drv.find_element(By.ID, 'valOut').text
+            # .text 在元素被切走/重绘的瞬间可能返回 None：按空串兜底，
+            # 别让 UI 抖动把整个流程炸成 TypeError。
+            val_txt = drv.find_element(By.ID, 'valOut').text or ''
+            if not cur_cleared and val_txt.strip():
+                # 首个非空帧之后立刻清空：任一「运行中」帧都算，不必等
+                # 服务端上报到「校验物种名 i/N」（桩很快，那一帧可能一闪而过）
+                drv.execute_script("CUR = null;")     # 模拟用户切走模块
+                cur_cleared = True
             if '物种名校验（' in val_txt:
                 break
             time.sleep(0.4)
+        check('（2）校验期间清空 CUR（读回不得依赖页面级选中态）',
+              cur_cleared, f'清空过={cur_cleared}，末帧={val_txt[:80]!r}')
         check('（2）校验结果渲染出来（读回 taxonomy_check.json）',
               '物种名校验（' in val_txt, f'{val_txt[:150]!r}')
         check('（2）✓ 已收录物种带 taxid',
@@ -366,14 +436,67 @@ ORIGIN
         # ═══════ 4) CDS/PEP 导出异步 ═══════
         drv, wait = _recycle(drv)        # 换全新会话，规避累积状态崩溃
         print('\n== 4) /cds-export 「导出」异步 ==', flush=True)
+        # 用**自有夹具集合**（CDS_COLL，见文件开头）：两条 CDS 都不是
+        # hypothetical，挑选表必然渲染勾选框。以前是从 /api/gb/collections
+        # 里扫现成集合，一旦磁盘上那几个集合恰好全是假想蛋白（2026-11-02
+        # 实测 it_compare_coll 18 条全中招），挑选表就只剩「无匹配记录」，
+        # 而且超时以空消息的 TimeoutException 冒泡，看不出原因。
+        cds_coll = CDS_COLL
+        check('（4）自有夹具集合可用', os.path.isdir(gb_collection_dir(cds_coll)),
+              f'{cds_coll}（可见 CDS {_cds_fix.get("n_cds", 0)} 条）')
         drv.get(base + '/cds-export')
         wait.until(lambda d: d.find_elements(By.ID, 'cpColl'))
-        drv.execute_script(
-            "const s=document.getElementById('cpColl');"
-            "s.value=arguments[0];"
-            "if (typeof cdsPickOpen==='function') cdsPickOpen();", COLL)
-        wait.until(lambda d: d.find_elements(
-            By.CSS_SELECTOR, '#cpTable input[type=checkbox]'))
+
+        def _pick_coll(d):
+            """选中夹具集合并拉起挑选表；列表被异步重载时要重试。
+
+            `cdsLoadCollections()` 会整段重写 #cpColl 的 innerHTML，落在
+            「我们设好 value」与「cdsPickOpen 读 value」之间时，value 会
+            被打回占位项，于是 cdsPickOpen 只报一句「先选择集合」就 return
+            ——这是真实用户也会撞到的竞态（刷新页面立刻点「挑选」）。
+            """
+            try:
+                ok = d.execute_script(
+                    "const s=document.getElementById('cpColl');"
+                    "if (!s) return 'no-select';"
+                    "s.value=arguments[0];"
+                    "if (s.value!==arguments[0]) return 'not-yet';"
+                    "if (typeof cdsPickOpen!=='function') return 'no-fn';"
+                    "cdsPickOpen();"
+                    "return document.querySelectorAll("
+                    "'#cpTable input[type=checkbox]').length ? 'ok' : 'opening';",
+                    cds_coll)
+            except Exception as _pe:                     # noqa: BLE001
+                return False
+            return ok == 'ok' or bool(d.find_elements(
+                By.CSS_SELECTOR, '#cpTable input[type=checkbox]'))
+
+        try:
+            wait.until(_pick_coll)
+        except TimeoutException:
+            box = drv.find_element(By.ID, 'cpTable').text[:120]
+            # 失败原因要能自己说话：把面板开合、集合下拉当前值、轮询地址
+            # 与页面报错都打出来（2026-11-02 这里只回一句空字符串，白等
+            # 了一轮 90 秒才发现是 cdsPickOpen 提前 return）。
+            try:
+                _diag = drv.execute_script(
+                    "const q=id=>document.getElementById(id);"
+                    "const s=q('cpColl');"
+                    "return {panel: q('cdsPickPanel')?"
+                    "getComputedStyle(q('cdsPickPanel')).display:'(缺)',"
+                    " sel:(s?s.value:'(缺)'),"
+                    " opts:(s?[...s.options].filter(o=>o.value).length:-1),"
+                    " msg:(q('cpMsg')?q('cpMsg').textContent:'').slice(0,120),"
+                    " tblHtml:(q('cpTable')?q('cpTable').innerHTML:'').length};")
+            except Exception as _de:                     # noqa: BLE001
+                _diag = f'诊断失败({type(_de).__name__})'
+            check('（4）挑选表里出现可勾选 CDS', False,
+                  f'挑选表内容={box!r} 集合={cds_coll} 诊断={_diag}')
+        else:
+            _hidden = [r for r in (_cds_fix.get('rows') or [])
+                       if _is_hypothetical(r)]
+            check('（4）挑选表里出现可勾选 CDS', True,
+                  f'{cds_coll} 隐藏假想蛋白 {len(_hidden)} 条')
         boxes = drv.find_elements(By.CSS_SELECTOR,
                                   '#cpTable input[type=checkbox]')
         check('（4）挑选表里有可勾选的 CDS', bool(boxes), f'{len(boxes)} 个')

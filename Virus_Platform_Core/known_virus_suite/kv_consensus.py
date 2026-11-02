@@ -40,6 +40,8 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
+from .kv_common import ensure_fai
+
 
 # ══════════════════════════════════════════════════════════
 # 工具函数（照抄 batch_virus_variants.py line 82）
@@ -49,6 +51,22 @@ def safe_name(s, max_len=100):
     s = re.sub(r'[^A-Za-z0-9\-.]', '_', s)
     s = re.sub(r'_+', '_', s)
     return s.strip('_.')[:max_len]
+
+
+def iter_passed_rows(passed_df):
+    """把识别/过滤表逐行产出为 dict（**兼容 pandas 与 polars**）。
+
+    2026-11-02：identify / filter 自 2026-10-20 起已由 polars 迁回 pandas
+    （见 kv_identify.py / kv_filter.py 顶部注释，为省 polars-runtime-32 的
+    167.7MB），但共识段仍留着 polars 口径 `passed_df.iter_rows(named=True)`
+    —— pandas DataFrame 没有这个方法，直接 AttributeError，导致 stage=all
+    **每次都在共识段崩**（任务中心 known_virus_suite 退出码 1，identify/
+    filter 产物齐全、consensus/ 为空）。这里两种类型都接，上游再换库也不会
+    二次踩坑。
+    """
+    if hasattr(passed_df, 'iter_rows'):        # polars
+        return passed_df.iter_rows(named=True)
+    return passed_df.to_dict('records')        # pandas
 
 
 # # ══════════════════════════════════════════════════════════
@@ -101,9 +119,22 @@ def _run(cmd, log_path=None, master_log=None, check=True, logger=None, env=None,
         logger.debug(f"[CMD] {disp}")
 
     if check and result.returncode != 0:
-        raise subprocess.CalledProcessError(
+        # 异常消息直接带输出尾部：任务日志只显示 str(e)，裸
+        # CalledProcessError 文本只有退出码，排障无从下手
+        tail = ((result.stderr or '').strip()
+                or (result.stdout or '').strip())[-500:]
+        e = subprocess.CalledProcessError(
             result.returncode, cmd_list, output=result.stdout,
             stderr=result.stderr)
+        raise RuntimeError(
+            f"命令失败 (退出码 {result.returncode}): {disp}｜{tail}") from e
+
+    # 2026-11-02：这里原先**没有 return**，函数恒返回 None —— 而
+    # _bam_mapped_count() 拿它读 `.stdout`（check=False 的 samtools view -c），
+    # 于是共识段在「比对完、统计映射数」这一步必崩：
+    # AttributeError: 'NoneType' object has no attribute 'stdout'
+    # （pandas 那处修好后就停在这里，任务仍是 known_virus_suite 退出码 1）。
+    # check=True 时异常已抛，走到这里一律把 CompletedProcess 交回去。
     return result
 
 
@@ -236,9 +267,14 @@ def extract_virus_fastas(reference, target_set, out_dir, samtools, log_file=None
         if not ref_fa.exists():
             with open(ref_fa, 'w', encoding='utf-8') as f:
                 f.write(f">{vid_cur}\n" + "".join(seq_buf) + "\n")
-        if not Path(str(ref_fa) + ".fai").exists():
-            _run([samtools, 'faidx', str(ref_fa)], log_path=log_file,
-                 master_log=master_log, check=False, logger=logger, env=env)
+        # 2026-11-02：单条 fasta 也要保证 .fai 自洽（历史上"存在但宽度错"的
+        # 索引会让下游 samtools/bcftools 报 Malformed line）；ensure_fai 自检后
+        # 必要时重建，比原来"不存在才建"更稳。
+        try:
+            ensure_fai(ref_fa, samtools=samtools, logger=logger, env=env)
+        except Exception as e:
+            if logger:
+                logger.warning('  %s 的 .fai 自检失败: %s', vid_cur, e)
 
         found_map[vid_cur] = ref_fa
 
@@ -343,9 +379,11 @@ def align_sample(fq, index_prefix, out_bam, threads, log_file=None,
                    max(rc_map, rc_sort),
                    err=(err_map or b'') + (err_sort or b''))
     if rc_map != 0 or rc_sort != 0:
-        raise subprocess.CalledProcessError(
-            max(rc_map, rc_sort), 'minibwa map | samtools sort',
-            stderr=(err_map or b'') + (err_sort or b''))
+        from Virus_Platform_Core.utils import decode_output as _dec
+        _errs = (err_map or b'') + (err_sort or b'')
+        raise RuntimeError(
+            'minibwa map | samtools sort 失败 (rc map=%d sort=%d)：'
+            '%s' % (rc_map, rc_sort, _dec(_errs).strip()[-400:]))
 
     bai = Path(str(out_bam) + '.bai')
     if out_bam and Path(out_bam).exists() and not bai.exists():
@@ -398,8 +436,10 @@ def worker_consensus(args):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         sam_out, sam_err = p_hdr.communicate()
         if p_hdr.returncode != 0:
-            raise subprocess.CalledProcessError(
-                p_hdr.returncode, 'samtools view -h', stderr=sam_err)
+            from Virus_Platform_Core.utils import decode_output as _dec
+            raise RuntimeError(
+                'samtools view -h 失败 (退出码 %d)：'
+                '%s' % (p_hdr.returncode, _dec(sam_err or b'').strip()[-300:]))
 
         sam_text = sam_out.decode('utf-8', 'replace')
         filtered, n_drop = _filter_sam_header(sam_text, virus)
@@ -413,8 +453,10 @@ def worker_consensus(args):
                        f"[py] 瘦身 @SQ -{n_drop} | samtools view -b -o {fixed_bam}",
                        p_bam.returncode, err=bam_err)
         if p_bam.returncode != 0:
-            raise subprocess.CalledProcessError(
-                p_bam.returncode, 'samtools view -b', stderr=bam_err)
+            from Virus_Platform_Core.utils import decode_output as _dec
+            raise RuntimeError(
+                'samtools view -b 失败 (退出码 %d)：'
+                '%s' % (p_bam.returncode, _dec(bam_err or b'').strip()[-300:]))
 
         # 原管道末尾的 samtools sort（对齐原管线输出，保坐标序）
         sorted_bam = Path(str(fixed_bam) + '.sorted')
@@ -556,7 +598,7 @@ class ConsensusStage:
         # ── 1. 提取每病毒单序列参考 ──
         target_set = set()
         rows = []
-        for r in passed_df.iter_rows(named=True):
+        for r in iter_passed_rows(passed_df):
             s = r.get(sp_col)
             v = r.get(vc_col)
             if not s or not v:

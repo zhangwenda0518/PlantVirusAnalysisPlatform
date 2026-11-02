@@ -79,6 +79,25 @@ def main():
                       '--disable-gpu'])
             ctx = browser.new_context(viewport={'width': 1440, 'height': 900})
             page = ctx.new_page()
+            # 浏览器配置是持久化的（context 复用同一 profile 时尤其如此）：
+            # 上次跑完若把坞留在「开着」（vp_ai_open=1）或留下历史消息，
+            # FAB 就是 hidden，直接点 #aiFab 会 30s 超时。巡检要的是干净初态：
+            # 每个用例自己在需要时开坞，不继承别人的残留。
+            #
+            # 会话 id 存在 sessionStorage（app-ai.js 的 vp_ai_conv）：不预置的话
+            # 每次导航都会新开一段（新标签页语义），「刷新后历史还在」永远测不
+            # 出来。只在**首次进入**时固定会话 id，之后（含刷新/换页）一律不动
+            # —— 早期版本每次导航都重设 vp_ai_open，结果把用户刚打开的坞又收回
+            # 去，历史恢复用例就永远看到「坞关着 + 已打招呼」。
+            page.add_init_script(
+                "try{"
+                "if(!sessionStorage.getItem('vp_probe_seeded')){"
+                "sessionStorage.setItem('vp_probe_seeded','1');"
+                "localStorage.removeItem('vp_ai_open');"
+                "for(var i=localStorage.length-1;i>=0;i--){var k=localStorage.key(i);"
+                "if(k&&k.indexOf('vp_ai_msgs')===0)localStorage.removeItem(k);}"
+                "sessionStorage.setItem('vp_ai_conv','uicheck');"
+                "}}catch(e){}")
             errors = []
             page.on('console', lambda m: errors.append(m.text)
                     if m.type == 'error' else None)
@@ -115,16 +134,46 @@ def main():
                   page.title())
 
             # -- 4) 历史持久化 --
+            # 只有发送*成功*才进历史（发送停在「配置未就绪」会给按钮置 disabled，
+            # click() 就一直等）。这里预先拦一次 /api/ai/chat 返回固定答复，
+            # 让「发送→落盘→刷新→恢复」这条链能确定性跑完，不依赖真实模型。
+            # 事件形态照抄 Virus_Platform_Core/ai_agent/chat.py:313 的 _sse()：
+            # {"type": "delta", "content": ...} 逐帧，最后 {"type": "done"}。
+            page.route('**/api/ai/chat', lambda route: route.fulfill(
+                status=200, content_type='text/event-stream',
+                body=('data: {"type": "delta", "content": "持久化答复"}\n\n'
+                      'data: {"type": "done"}\n\n')))
             page.locator('#aiInput').fill('持久化测试消息')
             page.click('#aiSendBtn')
-            page.wait_for_timeout(1500)          # 请求（无真实配置→降级错误也算内容）
+            page.wait_for_timeout(1500)
+            keys = page.evaluate(
+                "Object.keys(localStorage).filter(k => k.indexOf('vp_ai_msgs') === 0)")
+            check('发送后历史已落盘', len(keys) >= 1, str(keys))
+            # 落盘的是哪个键，给上面的 check 留证据：v4+ 每段会话一个键
+            # （`vp_ai_msgs:<convId>`），旧版单键 `vp_ai_msgs` 只在迁移时读。
+            # 上面用 page.evaluate("localStorage.removeItem('vp_ai_msgs')") 只清旧键，
+            # 会话键还在 —— 这正是「刷新后历史恢复」赖以成立的前提。
             page.goto(base + '/results', wait_until='load')
             page.wait_for_timeout(800)
-            page.click('#aiFab')
+            # 换页后坞按「上次开合」恢复（app-ai.js 的 vp_ai_open）：上一步开着，
+            # 这里就应该是开着的；只有它自己收起了才需要点 FAB 打开。
+            if not page.locator('#aiDock').is_visible():
+                page.click('#aiFab')
             page.wait_for_timeout(600)
             bubbles = page.locator('#aiMsgs .ai-user').count()
-            check('刷新后对话历史恢复', bubbles >= 1, str(bubbles))
-            page.locator('#aiDock .ai-ico[title*="清空"], #aiDock .ai-ico').first.click()
+            # 诊断口径：气泡数为 0 时要能分清「历史没恢复」与「恢复后气泡类名
+            # 变了（不是 .ai-user）」，别让断言后续版本里悄悄失去灵敏度。
+            diag = page.evaluate(
+                "JSON.stringify({cls: [].map.call("
+                "document.querySelectorAll('#aiMsgs > *'),"
+                " n => n.className + ':' + (n.textContent || '').slice(0, 12)),"
+                " keys: Object.keys(localStorage).filter("
+                "k => k.indexOf('vp_ai_msgs') === 0),"
+                " nmsg: (window.AI && AI.messages ? AI.messages.length : -1)})")
+            check('刷新后对话历史恢复', bubbles >= 1, diag)
+            # 用坞头部的「✕ 收起」而不是点任意 .ai-ico：头部那一排图标随版本
+            # 增删，按 title 匹配「清空」在英文语言包下会落空。
+            page.locator('#aiDock .ai-dock-head .ai-ico').first.click()
             page.evaluate("localStorage.removeItem('vp_ai_msgs')")
 
             # -- 4b) AI 执行单卡片：真实创建待决单 → 渲染 → 驳回闭环 --
@@ -137,6 +186,11 @@ def main():
             while time.time() < deadline and not page.locator(
                     f'.ai-action[data-aid="{rec["id"]}"]').count():
                 page.wait_for_timeout(300)
+            # 上一步把坞收起了：收起状态下卡片按钮是 display:none，Playwright
+            # 点不动（30s 超时）。执行单要人拍板，坞本就该开着。
+            if not page.locator('#aiDock').is_visible():
+                page.click('#aiFab')
+                page.wait_for_timeout(600)
             check('执行单卡片渲染（含批准/驳回按钮）',
                   page.locator(f'.ai-action[data-aid="{rec["id"]}"] '
                                '.ai-gate-btns button').count() == 2)

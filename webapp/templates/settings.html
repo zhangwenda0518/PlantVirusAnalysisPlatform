@@ -11,8 +11,8 @@
   /* 设置页侧边导航（2026-10-16）：窄屏自动退化为横向词条 */
   .se-layout { display: grid; grid-template-columns: 208px minmax(0, 1fr);
                gap: 18px; align-items: start; }
-  .se-side { position: sticky; top: calc(var(--topbar-h) + 10px);
-             max-height: calc(100vh - var(--topbar-h) - 20px);
+  .se-side { position: sticky; top: calc(var(--head-h) + 10px);
+             max-height: calc(100vh - var(--head-h) - 20px);
              overflow: auto; padding: 6px 4px;
              border-right: 1px solid rgba(127, 140, 120, .18); }
   .se-group { font-size: 11.5px; color: var(--ink-400, #7b8a99);
@@ -38,7 +38,9 @@
      处会被压住（实测 top=14 vs 顶栏底 54，标题被吃掉 40px）。
      --topbar-h 由 app.css 定义，两处同源。 */
   .se-main section, .se-main h2[id] {
-    scroll-margin-top: calc(var(--topbar-h) + 12px);
+    /* 顶部导航形态下顶栏 = 功能栏(可折行) + 工具条，必须用 --head-h；
+       只减 --topbar-h 会让锚点落进吸顶栏后面（实测偏移 -68px）。 */
+    scroll-margin-top: calc(var(--head-h) + 12px);
   }
     .pf-list { display: flex; flex-wrap: wrap; gap: 6px; }
     .pf-chip { display: inline-flex; align-items: center; gap: 6px;
@@ -53,6 +55,90 @@
     .pf-chip small { color: var(--ink-400, #7b8a99); }
     .pf-chip .x { color: var(--ink-400, #94a3b8); padding: 0 2px; }
     .pf-chip .x:hover { color: #b91c1c; }
+  /* ---- AI 工作台设置卡（2026-10-30 重排：左档案 + 右分组表单） ---- */
+  .ai-card { padding: 18px 20px 16px; }
+  .ai-card-head { display: flex; align-items: flex-start; gap: 16px; }
+  .ai-card-title { flex: 1; min-width: 0; }
+  .ai-card-title h2 { margin: 0 0 6px; }
+  .ai-card-title .hint { margin: 0; }
+  .ai-set-grid {
+    display: grid; grid-template-columns: 260px minmax(0, 1fr);
+    gap: 18px; margin-top: 16px; align-items: start;
+  }
+  .ai-side {
+    border: 1px solid var(--line-200, #e3e8ee); border-radius: 12px;
+    padding: 12px; background: var(--surface-2, #f7faf8);
+  }
+  .ai-side-head b { font-size: 13px; }
+  .ai-side-head small {
+    display: block; margin: 4px 0 10px; font-size: 11.5px;
+    color: var(--ink-400, #7b8a99); line-height: 1.5;
+  }
+  .ai-side .pf-list { display: flex; flex-direction: column; gap: 6px; }
+  .ai-side .pf-chip {
+    display: flex; width: 100%; box-sizing: border-box;
+    border-radius: 10px; padding: 7px 10px; align-items: center;
+  }
+  .ai-side .pf-chip b {
+    flex: 1; min-width: 0; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ai-side .pf-chip small {
+    max-width: 120px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ai-side-add { display: flex; gap: 6px; margin-top: 10px; }
+  .ai-side-add input { flex: 1; min-width: 0; }
+  .ai-main { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+  .ai-sec {
+    border: 1px solid var(--line-200, #e3e8ee); border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .ai-sec-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px; font-size: 13.5px;
+  }
+  .ai-sec-head span { opacity: .8; }
+  .ai-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  .ai-field:last-child { margin-bottom: 0; }
+  .ai-field > label {
+    font-size: 12.5px; font-weight: 600; color: var(--ink-700, #2c3a4b);
+  }
+  .ai-field > small {
+    font-size: 11.5px; color: var(--ink-400, #7b8a99); line-height: 1.5;
+  }
+  .ai-field input, .ai-field select { width: 100%; box-sizing: border-box; }
+  .ai-inline { display: flex; gap: 6px; align-items: center; }
+  .ai-inline input { flex: 1; }
+  .ai-two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .ai-two .ai-field { margin-bottom: 0; }
+  .ai-switch-row {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; padding: 10px 0;
+    border-top: 1px dashed var(--line-100, #eef2f5);
+  }
+  .ai-switch-row:first-of-type { border-top: none; padding-top: 0; }
+  .ai-switch-row b { font-size: 13px; color: var(--ink-800, #23303d); }
+  .ai-switch-row small {
+    display: block; margin-top: 3px; font-size: 11.5px;
+    color: var(--ink-400, #7b8a99); line-height: 1.55; max-width: 640px;
+  }
+  .ai-gate-ctl { display: flex; align-items: center; gap: 8px; flex: none; }
+  .ai-actions { display: flex; gap: 8px; align-items: center; padding-top: 2px; }
+  /* 拨动开关（AI 卡片的开/关） */
+  .sw { position: relative; display: inline-flex; flex: none; cursor: pointer; }
+  .sw input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .sw-track {
+    width: 38px; height: 22px; border-radius: 99px; background: #cbd5e1;
+    transition: background .16s; position: relative; display: inline-block;
+  }
+  .sw-track::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 50%; background: #fff;
+    transition: transform .16s; box-shadow: 0 1px 2px rgba(0, 0, 0, .2);
+  }
+  .sw input:checked + .sw-track { background: var(--green-600, #1a7a49); }
+  .sw input:checked + .sw-track::after { transform: translateX(16px); }
   @media (max-width: 980px) {
     .se-layout { display: block; }
     .se-side { position: static; max-height: none; border-right: none;
@@ -167,6 +253,14 @@
         <div class="s-ctrl lang-seg" id="themeSeg">
           <button type="button" data-theme="light" data-i18n="se.light">浅色</button>
           <button type="button" data-theme="dark" data-i18n="se.dark">深色</button>
+        </div>
+      </div>
+      <div class="set-row">
+        <div class="s-label"><span data-i18n="se.navpos">功能栏位置</span>
+          <small data-i18n="se.navposHint">顶部横排或左侧竖排，默认顶部</small></div>
+        <div class="s-ctrl lang-seg" id="navPosSeg">
+          <button type="button" data-pos="top" data-i18n="se.navTop">上方</button>
+          <button type="button" data-pos="side" data-i18n="se.navSide">左侧</button>
         </div>
       </div>
       <div class="set-row">
@@ -287,119 +381,129 @@
     </div>
   </section>
 
-  <!-- AI 助手（对话驱动智能代理）：OpenAI 兼容端点配置。
-       配置走独立的 /api/ai/config（自带保存/测试按钮，不占用底部保存栏）。 -->
-  <section class="card" id="aiCard" style="margin-top:18px">
-    <h2 data-i18n="ai.se.title">🤖 AI 助手（对话驱动智能代理）</h2>
-    <p class="hint" data-i18n="ai.se.hint">在总览页提供对话式结果解读与全过程指导。AI 只读取平台落盘的分析产物做解读（顾问层，只读）；关键数字全部由代码从结果文件算出后注入，不由模型编造。隐私口径：默认只发送统计摘要与表格行，不发送任何序列本体；选本地 Ollama 可完全离线。</p>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.enable">启用 AI 助手</span></div>
-      <div class="s-ctrl"><select id="aiEnabled">
-        <option value="false" data-i18n="se.off">关</option>
-        <option value="true" data-i18n="se.on">开</option>
-      </select></div>
+  <!-- AI 工作台（对话驱动智能代理）：两栏布局 —— 左侧供应商档案，右侧分组表单。
+       2026-10-30 按用户要求参考 ZCode 模型设置页重排：分组卡片、拨动开关、
+       档案列表竖排。配置仍走 /api/ai/config，保存/测连在右栏底部。 -->
+  <section class="card ai-card" id="aiCard" style="margin-top:18px">
+    <div class="ai-card-head">
+      <div class="ai-card-title">
+        <h2 data-i18n="ai.se.title">🤖 AI 工作台（对话驱动智能代理）</h2>
+        <p class="hint" data-i18n="ai.se.hint">在总览页提供对话式结果解读与全过程指导。AI 只读取平台落盘的分析产物做解读（顾问层，只读）；关键数字全部由代码从结果文件算出后注入，不由模型编造。隐私口径：默认只发送统计摘要与表格行，不发送任何序列本体；选本地 Ollama 可完全离线。</p>
+      </div>
+      <label class="sw" title="启用 AI 工作台">
+        <input type="checkbox" id="aiEnabled">
+        <span class="sw-track"></span>
+      </label>
     </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.pf.title">供应商档案</span>
-        <small data-i18n="ai.pf.hint">多套端点并存，点档案名即切换当前使用（对话坞/执行单立即生效）；Key 只存本机 run/ai_local.json</small></div>
-      <div class="s-ctrl">
+
+    <div class="ai-set-grid">
+      <aside class="ai-side">
+        <div class="ai-side-head">
+          <b data-i18n="ai.pf.title">供应商档案</b>
+          <small data-i18n="ai.pf.hint">多套端点并存，点档案名即切换当前使用（对话坞/执行单立即生效）；Key 只存本机 run/ai_local.json</small>
+        </div>
         <div id="aiPfList" class="pf-list"></div>
-        <div style="display:flex;gap:6px;margin-top:6px">
+        <div class="ai-side-add">
           <input id="aiPfName" placeholder="档案名（如 DeepSeek / 内网 vLLM）"
-                 data-i18n-ph="ai.se.pfNamePh" style="flex:1">
+                 data-i18n-ph="ai.se.pfNamePh">
           <button class="btn small" onclick="aiPfSave()" data-i18n="ai.se.pfSave">存为档案</button>
         </div>
+      </aside>
+
+      <div class="ai-main">
+        <div class="ai-sec">
+          <div class="ai-sec-head"><span>🔗</span><b data-i18n="ai.se.secConn">连接</b></div>
+          <div class="ai-field">
+            <label data-i18n="ai.se.provider">提供方预设</label>
+            <select id="aiProvider" onchange="aiFillPreset()"></select>
+          </div>
+          <div class="ai-field">
+            <label data-i18n="ai.se.baseurl">API Base URL</label>
+            <input id="aiBaseUrl" placeholder="https://api.deepseek.com/v1">
+            <small data-i18n="se.endpointHint">OpenAI 兼容端点，通常以 /v1 结尾</small>
+          </div>
+          <div class="ai-field">
+            <label data-i18n="ai.se.key">API Key</label>
+            <div class="ai-inline">
+              <input id="aiKey" type="password">
+              <a id="aiKeyUrl" class="btn small" href="#" target="_blank" rel="noopener"
+                 data-i18n="ai.se.keyUrl" style="display:none;white-space:nowrap">获取 Key</a>
+            </div>
+            <small data-i18n="ai.se.keyKeep">留空 = 保持已保存的 Key 不变；仅存本机 platform.json</small>
+          </div>
+          <div class="ai-field">
+            <label data-i18n="ai.se.model">模型</label>
+            <input id="aiModel" placeholder="deepseek-chat">
+          </div>
+        </div>
+
+        <div class="ai-sec">
+          <div class="ai-sec-head"><span>⚙</span><b data-i18n="ai.se.secGen">生成</b></div>
+          <div class="ai-two">
+            <div class="ai-field">
+              <label data-i18n="ai.se.temp">温度（0~2，越低越严谨）</label>
+              <input id="aiTemp" type="number" min="0" max="2" step="0.1" value="0.3">
+            </div>
+            <div class="ai-field">
+              <label data-i18n="ai.se.maxtok">最大生成长度（tokens）</label>
+              <input id="aiMaxTok" type="number" min="64" max="32768" step="64" value="2048">
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-sec">
+          <div class="ai-sec-head"><span>✨</span><b data-i18n="ai.se.secProactive">主动能力</b></div>
+          <div class="ai-switch-row">
+            <div><b data-i18n="ai.se.explain">第一层 · 主动讲解</b>
+              <small data-i18n="ai.se.explainHint">每个阶段开始时在对话坞推"这一步在做什么"卡片；静态知识库，零 AI 消耗</small></div>
+            <label class="sw"><input type="checkbox" id="aiExplain"><span class="sw-track"></span></label>
+          </div>
+          <div class="ai-switch-row">
+            <div><b data-i18n="ai.se.broadcast">第二层 · 结果播报</b>
+              <small data-i18n="ai.se.broadcastHint">②b 检出 / ③ 组装 / ⑩ 报告完成或阶段失败时，AI 自动生成解读推到对话坞（少量 token，失败静默不影响分析）</small></div>
+            <label class="sw"><input type="checkbox" id="aiBroadcast"><span class="sw-track"></span></label>
+          </div>
+          <div class="ai-field">
+            <label data-i18n="ai.se.bcastStages">播报触发阶段</label>
+            <div id="aiBcastStages" class="ai-stagegrid"></div>
+            <small data-i18n="ai.se.bcastStagesHint">勾选哪些阶段，完成时就自动生成 AI 解读；阶段失败时无论勾选与否都会播报</small>
+          </div>
+          <div class="ai-switch-row">
+            <div><b data-i18n="ai.se.gate">第三层 · 决策闸门</b>
+              <small data-i18n="ai.se.gateHint">关键阶段收尾后 AI 给出"继续/先检查"评估并暂停流水线，等你在对话坞点继续或终止；超时自动继续。⚠ 会改变流水线行为，按需开启</small></div>
+            <div class="ai-gate-ctl">
+              <label class="sw"><input type="checkbox" id="aiGate"><span class="sw-track"></span></label>
+              <input id="aiGateMin" type="number" min="1" max="120" style="width:76px">
+              <span class="hint" data-i18n="ai.se.gateMin">分钟超时</span>
+            </div>
+          </div>
+          <div class="ai-field">
+            <label data-i18n="ai.se.gateStages">闸门触发阶段</label>
+            <div id="aiGateStages" class="ai-stagegrid"></div>
+            <small data-i18n="ai.se.gateStagesHint">勾选哪些阶段，完成后就暂停等待你在对话坞确认（仅闸门开启时生效）</small>
+          </div>
+        </div>
+
+        <div class="ai-sec">
+          <div class="ai-sec-head"><span>🔐</span><b data-i18n="ai.se.secExec">执行权限</b></div>
+          <div class="ai-switch-row">
+            <div><b data-i18n="ai.se.execAuto">第二级 · 自动重试（执行权）</b>
+              <small data-i18n="ai.se.execAutoHint">阶段失败后 AI 自动按**原参数**重跑一次（限 1 次，杜绝循环）；无需确认。默认关</small></div>
+            <label class="sw"><input type="checkbox" id="aiExecAuto"><span class="sw-track"></span></label>
+          </div>
+          <div class="ai-switch-row">
+            <div><b data-i18n="ai.se.execTune">第三级 · 自动调参闭环（需手动开启）</b>
+              <small data-i18n="ai.se.execTuneHint">阶段失败后 AI 在限定键与边界内提参并**自动重跑**（每样品限 1 次，失败回落第二级）。⚠ 最高权限，仅在理解其行为后开启</small></div>
+            <label class="sw"><input type="checkbox" id="aiExecTune"><span class="sw-track"></span></label>
+          </div>
+        </div>
+
+        <div class="ai-actions">
+          <button class="btn primary" onclick="aiSave()"><span data-i18n="ai.se.save">💾 保存 AI 设置</span></button>
+          <button class="btn" onclick="aiTest()"><span data-i18n="ai.se.test">🔌 测试连接</span></button>
+          <span id="aiMsg" class="hint"></span>
+        </div>
       </div>
-    </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.provider">提供方预设</span></div>
-      <div class="s-ctrl"><select id="aiProvider" onchange="aiFillPreset()"></select></div>
-    </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.baseurl">API Base URL</span>
-        <small data-i18n="se.endpointHint">OpenAI 兼容端点，通常以 /v1 结尾</small></div>
-      <div class="s-ctrl"><input id="aiBaseUrl" placeholder="https://api.deepseek.com/v1"></div>
-    </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.key">API Key</span>
-        <small data-i18n="ai.se.keyKeep">留空 = 保持已保存的 Key 不变；仅存本机 platform.json</small></div>
-      <div class="s-ctrl" style="display:flex;gap:6px">
-        <input id="aiKey" type="password" style="flex:1">
-        <a id="aiKeyUrl" class="btn small" href="#" target="_blank" rel="noopener"
-           data-i18n="ai.se.keyUrl"
-           style="display:none;white-space:nowrap">获取 Key</a>
-      </div>
-    </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.model">模型</span></div>
-      <div class="s-ctrl"><input id="aiModel" placeholder="deepseek-chat"></div>
-    </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.temp">温度（0~2，越低越严谨）</span></div>
-      <div class="s-ctrl"><input id="aiTemp" type="number" min="0" max="2" step="0.1" value="0.3"></div>
-    </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.maxtok">最大生成长度（tokens）</span></div>
-      <div class="s-ctrl"><input id="aiMaxTok" type="number" min="64" max="32768" step="64" value="2048"></div>
-    </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.explain">第一层 · 主动讲解</span>
-        <small data-i18n="ai.se.explainHint">每个阶段开始时在对话坞推"这一步在做什么"卡片；静态知识库，零 AI 消耗</small></div>
-      <div class="s-ctrl"><select id="aiExplain">
-        <option value="false" data-i18n="se.off">关</option>
-        <option value="true" data-i18n="se.on">开</option>
-      </select></div>
-    </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.broadcast">第二层 · 结果播报</span>
-        <small data-i18n="ai.se.broadcastHint">②b 检出 / ③ 组装 / ⑩ 报告完成或阶段失败时，AI 自动生成解读推到对话坞（少量 token，失败静默不影响分析）</small></div>
-      <div class="s-ctrl"><select id="aiBroadcast">
-        <option value="false" data-i18n="se.off">关</option>
-        <option value="true" data-i18n="se.on">开</option>
-      </select></div>
-    </div>
-    <div class="set-row stack">
-      <div class="s-label"><span data-i18n="ai.se.bcastStages">播报触发阶段</span>
-        <small data-i18n="ai.se.bcastStagesHint">勾选哪些阶段，完成时就自动生成 AI 解读；阶段失败时无论勾选与否都会播报</small></div>
-      <div class="s-ctrl"><div id="aiBcastStages" class="ai-stagegrid"></div></div>
-    </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.gate">第三层 · 决策闸门</span>
-        <small data-i18n="ai.se.gateHint">关键阶段收尾后 AI 给出"继续/先检查"评估并暂停流水线，等你在对话坞点继续或终止；超时自动继续。⚠ 会改变流水线行为，按需开启</small></div>
-      <div class="s-ctrl" style="display:flex;gap:8px;align-items:center">
-        <select id="aiGate">
-          <option value="false" data-i18n="se.off">关</option>
-          <option value="true" data-i18n="se.on">开</option>
-        </select>
-        <input id="aiGateMin" type="number" min="1" max="120" style="width:80px">
-        <span class="hint" data-i18n="ai.se.gateMin" style="white-space:nowrap">分钟超时</span>
-      </div>
-    </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.execAuto">第二级 · 自动重试（执行权）</span>
-        <small data-i18n="ai.se.execAutoHint">阶段失败后 AI 自动按**原参数**重跑一次（限 1 次，杜绝循环）；无需确认。默认关</small></div>
-      <div class="s-ctrl"><select id="aiExecAuto">
-        <option value="false" data-i18n="se.off">关</option>
-        <option value="true" data-i18n="se.on">开</option>
-      </select></div>
-    </div>
-    <div class="set-row">
-      <div class="s-label"><span data-i18n="ai.se.execTune">第三级 · 自动调参闭环（需手动开启）</span>
-        <small data-i18n="ai.se.execTuneHint">阶段失败后 AI 在限定键与边界内提参并**自动重跑**（每样品限 1 次，失败回落第二级）。⚠ 最高权限，仅在理解其行为后开启</small></div>
-      <div class="s-ctrl"><select id="aiExecTune">
-        <option value="false" data-i18n="se.off">关</option>
-        <option value="true" data-i18n="se.on">开</option>
-      </select></div>
-    </div>
-    <div class="set-row stack">
-      <div class="s-label"><span data-i18n="ai.se.gateStages">闸门触发阶段</span>
-        <small data-i18n="ai.se.gateStagesHint">勾选哪些阶段，完成后就暂停等待你在对话坞确认（仅闸门开启时生效）</small></div>
-      <div class="s-ctrl"><div id="aiGateStages" class="ai-stagegrid"></div></div>
-    </div>
-    <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
-      <button class="btn primary" onclick="aiSave()">💾 <span data-i18n="ai.se.save">保存 AI 设置</span></button>
-      <button class="btn" onclick="aiTest()">🔌 <span data-i18n="ai.se.test">测试连接</span></button>
-      <span id="aiMsg" class="hint"></span>
     </div>
   </section>
 
@@ -463,6 +567,30 @@ function markTheme() {
 document.querySelectorAll('#themeSeg button').forEach(b =>
   b.addEventListener('click', () => { applyTheme(b.dataset.theme); markTheme(); }));
 markTheme();
+
+/* 功能栏位置（顶部 / 左侧）。与主题一样存 localStorage（纯视觉偏好，
+   不进 platform.json —— 那套是 CLI 与任务也要用的服务端配置）。
+   切换后整页重载：app-nav.js 在加载时按 <html data-nav> 分叉绑定行为
+   （顶部形态要点外面/Esc 收下拉、按实测高度算顶栏吸顶偏移），运行中
+   改属性不会重绑，重载一次最稳、也避免两套行为混着跑。 */
+function applyNavPos(pos) {
+  pos = pos === 'side' ? 'side' : 'top';
+  try { localStorage.setItem('vp_nav_pos', pos); } catch (e) {}
+  document.documentElement.setAttribute('data-nav', pos);
+}
+function markNavPos() {
+  const cur = document.documentElement.getAttribute('data-nav') === 'side' ? 'side' : 'top';
+  document.querySelectorAll('#navPosSeg button').forEach(b =>
+    b.classList.toggle('on', b.dataset.pos === cur));
+}
+document.querySelectorAll('#navPosSeg button').forEach(b =>
+  b.addEventListener('click', () => {
+    if (b.dataset.pos === (document.documentElement.getAttribute('data-nav') === 'side' ? 'side' : 'top')) return;
+    applyNavPos(b.dataset.pos);
+    markNavPos();
+    location.reload();
+  }));
+markNavPos();
 
 function renderDefaults(en) {
   const grid = $('defaultsGrid');
@@ -582,8 +710,23 @@ async function saveSettings() {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body)});
     if (!r.ok) { alert(t('c.fail', '保存失败') + ': ' + (await r.json()).error); return; }
-    $('saveHint').textContent = t('se.saved', '✔ 已保存并生效');
-    toast(t('se.saved', '✔ 已保存并生效'), '', {ttl: 3000});
+    // 2026-11-02：AI 卡片与本卡片同页，而「保存设置」只提交 language/threads/
+    // email/defaults —— 用户改完「模型」点这颗绿色按钮，弹「✔ 已保存并生效」，
+    // 但 AI 配置根本没落盘（坞里仍显示旧模型，用户以为"改了没效果"）。
+    // 这里补一次 AI 配置落盘，两颗按钮行为一致；AI 卡片不在本页则跳过。
+    let aiOk = true;
+    if (typeof aiBody === 'function' && $('aiModel')) {
+      try {
+        const ra = await fetch('/api/ai/config', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(aiBody(false))});   // false: 不覆盖已存 Key
+        aiOk = ra.ok;
+      } catch (e) { aiOk = false; }
+    }
+    const doneTxt = aiOk ? t('se.saved', '✔ 已保存并生效')
+      : t('se.savedAiFail', '✔ 常规设置已保存；AI 设置保存失败');
+    $('saveHint').textContent = doneTxt;
+    toast(doneTxt, '', {ttl: 3000});
     setTimeout(() => { $('saveHint').textContent = ''; }, 4000);
   } catch (e) {
     setConnBanner(true);
@@ -721,7 +864,7 @@ async function loadPlugins(showMsg) {
         <div style="display:flex;justify-content:space-between;gap:10px">
           <span>🧩 <b>${esc(p.name)}</b> <small>${esc(t('plug.desc.' + p.name, p.description || ''))}</small></span>
           <span>${st}
-            <button class="btn small danger" onclick="pluginUninstall('${esc(p.name)}')">${t('se.pluginsUninstall', '卸载')}</button>
+            <button class="btn small danger" data-act="uninstall" data-name="${esc(p.name)}">${t('se.pluginsUninstall', '卸载')}</button>
           </span>
         </div>${provides}</div>`;
     }).join('');
@@ -838,7 +981,7 @@ async function loadPluginsAvailable(force) {
         ? ` → ${t('se.pluginsMissingKeys', '缺')}: ${p.missing_keys.map(esc).join(', ')}`
         : '';
       const btn = (p.installed || !(p.url || (p.urls || []).length)) ? '' :
-        `<button class="btn small" onclick="pluginInstallAvail('${esc(p.name)}')">${t('se.pluginsInstall', '安装')}</button>`;
+        `<button class="btn small" data-act="install" data-name="${esc(p.name)}">${t('se.pluginsInstall', '安装')}</button>`;
       return `<div class="trow"><span>📦 <b>${esc(p.name)}</b> <small>${esc(p.version || '')}${size}${keys}</small></span>
         <span>${badge} ${btn}</span></div>`;
     }).join('');
@@ -1001,6 +1144,16 @@ function aiCollectStages(box) {
   return [...box.querySelectorAll('input:checked')].map(i => i.value);
 }
 
+/* 拨动开关读写（2026-10-30 AI 卡片重排：开/关下拉改为 checkbox 开关） */
+function aiSwGet(id) {
+  const el = $(id);
+  return !!(el && el.checked);
+}
+function aiSwSet(id, v) {
+  const el = $(id);
+  if (el) el.checked = !!v;
+}
+
 async function loadAiConfig() {
   try {
     const d = await (await fetch('/api/ai/config')).json();
@@ -1010,7 +1163,7 @@ async function loadAiConfig() {
     sel.innerHTML = AI_PRESETS.map(p =>
       `<option value="${p.id}">${esc(t('ai.pv.' + p.id, p.name))}</option>`).join('');
     sel.value = c.provider || 'deepseek';
-    $('aiEnabled').value = c.enabled ? 'true' : 'false';
+    aiSwSet('aiEnabled', c.enabled);
     $('aiBaseUrl').value = c.base_url || '';
     $('aiModel').value = c.model || '';
     $('aiKey').value = '';
@@ -1022,11 +1175,11 @@ async function loadAiConfig() {
                    c.broadcast_stages || ['kvsuite', 'assembly', 'report']);
     aiRenderStages($('aiGateStages'), AI_STAGE_OPTS,
                    c.gate_stages || ['kvsuite', 'assembly']);
-    $('aiExplain').value = (c.explain ?? true) ? 'true' : 'false';
-    $('aiBroadcast').value = (c.broadcast ?? true) ? 'true' : 'false';
-    $('aiGate').value = (c.gate ?? false) ? 'true' : 'false';
-    $('aiExecAuto').value = (c.exec_auto ?? false) ? 'true' : 'false';
-    $('aiExecTune').value = (c.exec_auto_tune ?? false) ? 'true' : 'false';
+    aiSwSet('aiExplain', c.explain ?? true);
+    aiSwSet('aiBroadcast', c.broadcast ?? true);
+    aiSwSet('aiGate', c.gate ?? false);
+    aiSwSet('aiExecAuto', c.exec_auto ?? false);
+    aiSwSet('aiExecTune', c.exec_auto_tune ?? false);
     $('aiGateMin').value = c.gate_timeout_min ?? 15;
     aiFillPreset(false);
   } catch (e) { $('aiMsg').textContent = t('c.loadFail', '读取失败') + ': ' + e; }
@@ -1048,17 +1201,17 @@ function aiFillPreset(overwrite) {
 
 function aiBody(includeKey) {
   return {
-    enabled: $('aiEnabled').value === 'true',
+    enabled: aiSwGet('aiEnabled'),
     provider: $('aiProvider').value,
     base_url: $('aiBaseUrl').value.trim(),
     model: $('aiModel').value.trim(),
     temperature: parseFloat($('aiTemp').value) || 0,
     max_tokens: parseInt($('aiMaxTok').value, 10) || 2048,
-    explain: $('aiExplain').value === 'true',
-    broadcast: $('aiBroadcast').value === 'true',
-    gate: $('aiGate').value === 'true',
-    exec_auto: $('aiExecAuto').value === 'true',
-    exec_auto_tune: $('aiExecTune').value === 'true',
+    explain: aiSwGet('aiExplain'),
+    broadcast: aiSwGet('aiBroadcast'),
+    gate: aiSwGet('aiGate'),
+    exec_auto: aiSwGet('aiExecAuto'),
+    exec_auto_tune: aiSwGet('aiExecTune'),
     gate_timeout_min: parseInt($('aiGateMin').value, 10) || 15,
     broadcast_stages: aiCollectStages($('aiBcastStages')),
     gate_stages: aiCollectStages($('aiGateStages')),
@@ -1154,13 +1307,20 @@ async function aiTest() {
      ⚠ 不能假设"后面的都在下方就 break"：从下往上跳（如 sec-plugins →
      sec-paths）时，目标上方仍有多个区块越过顶栏，提前退出会停在上一个
      错项上（实测 sec-paths 亮成 sec-defaults）。必须扫完全部。 */
-  const TOPBAR = 54, GAP = 16;
+  const GAP = 16;
+  /* 顶栏高度不能写死 54：顶部导航形态下吸顶的是「功能栏(可折行) + 工具条」
+     （1280~1600px 实测 82+54=136），写死会让锚点落进顶栏后面（偏移 -68px）。
+     每次滚动时取 .topbar 的实际底边，侧栏形态下仍是 54。 */
+  function headOffset() {
+    const tb = document.querySelector('.topbar');
+    return tb ? Math.round(tb.getBoundingClientRect().bottom) : 54;
+  }
   const pickActive = () => {
     let cur = ids[0];
     for (const id of ids) {
       const el = document.getElementById(id);
       if (!el) continue;
-      if (el.getBoundingClientRect().top - TOPBAR - GAP <= 0) cur = id;
+      if (el.getBoundingClientRect().top - headOffset() - GAP <= 0) cur = id;
     }
     return cur;
   };
@@ -1190,7 +1350,7 @@ async function aiTest() {
     if (!el) return;
     setActive(id);
     const y = el.getBoundingClientRect().top + window.scrollY
-            - TOPBAR - GAP + 2;
+            - headOffset() - GAP + 2;
     // 锁 = 平滑滚动的最长预期时长；期间不接受位置计算的高亮
     lockUntil = Date.now() + 700;
     window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
@@ -1207,7 +1367,7 @@ async function aiTest() {
     setTimeout(() => {
       const el = document.getElementById(hash);
       const y = el.getBoundingClientRect().top + window.scrollY
-              - TOPBAR - GAP + 2;
+              - headOffset() - GAP + 2;
       window.scrollTo({ top: Math.max(0, y) });
       setActive(hash);
     }, 60);
@@ -1228,11 +1388,11 @@ async function aiPfLoad() {
     }
     box.innerHTML = d.profiles.map(p => `
       <span class="pf-chip ${p.active ? 'on' : ''}" title="${esc(p.base_url || '')}"
-            onclick="aiPfUse('${esc(p.name)}')">
+            data-name="${esc(p.name)}" data-act="use">
         <span class="dot"></span><b>${esc(p.name)}</b>
         <small>${esc(p.model || '')}${p.key_set ? ' · 🔑' : ''}</small>
         <span class="x" title="删除档案"
-              onclick="event.stopPropagation();aiPfDel('${esc(p.name)}')">✕</span>
+              data-act="del">✕</span>
       </span>`).join('');
   } catch (e) { /* 静默：档案属增强功能 */ }
 }
@@ -1272,6 +1432,42 @@ async function aiPfDel(name) {
   if (!r.ok) return alert(d.detail || d.error || ('HTTP ' + r.status));
   await aiPfLoad();
 }
+
+/* 事件委托：档案名只进 data-name，不再拼进 inline onclick。
+   （esc() 产出的 &#39; 在 HTML 属性里会被解码回 '，名字带单引号时
+   按钮直接失效，构造过的名字还能注入脚本。） */
+(function bindAiProfileList() {
+  const box = $('aiPfList');
+  if (!box) return;
+  box.addEventListener('click', (e) => {
+    const chip = e.target.closest('.pf-chip');
+    if (!chip || !box.contains(chip)) return;
+    const name = chip.dataset.name || '';
+    if (!name) return;
+    if (e.target.closest('[data-act="del"]')) {
+      e.stopPropagation();
+      aiPfDel(name);
+      return;
+    }
+    aiPfUse(name);
+  });
+})();
+
+/* 插件列表的「安装 / 卸载」按钮同样只放 data-name。 */
+(function bindPluginButtons() {
+  const bind = (boxId, act, fn) => {
+    const box = $(boxId);
+    if (!box) return;
+    box.addEventListener('click', (e) => {
+      const btn = e.target.closest(`[data-act="${act}"]`);
+      if (!btn || !box.contains(btn)) return;
+      e.stopPropagation();
+      fn(btn.dataset.name || '');
+    });
+  };
+  bind('pluginList', 'uninstall', pluginUninstall);
+  bind('pluginAvailable', 'install', pluginInstallAvail);
+})();
 aiPfLoad();
 </script>
 </body>

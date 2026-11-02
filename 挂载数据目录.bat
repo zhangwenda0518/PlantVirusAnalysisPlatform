@@ -1,39 +1,102 @@
 @echo off
 chcp 65001 >nul
-title 挂载数据目录（源码平台 → 分发版平台）
-rem 将源码平台的测序数据目录挂载进分发版平台（NTFS 目录联接，不复制文件）。
-rem 用法：双击本文件；重复运行安全（已挂载则跳过）。
-rem 约定：分发包与源码平台同级，即 ..\PVAP\VirusPlatform；
-rem       若放别处，请编辑下方 PKG 一行指向实际的 VirusPlatform 目录。
-setlocal
-set "SRC=%~dp0run\fastq"
-set "PKG=%~dp0..\PVAP\VirusPlatform"
+title Mount data directory (NTFS junction)
+rem =====================================================================
+rem  Mount a sequencing-data folder into the distribution's run\fastq as an
+rem  NTFS directory junction: no copy, no extra disk usage.
+rem
+rem  Why the old script failed: it hard-coded
+rem      %~dp0..\PVAP\VirusPlatform
+rem  while the distribution now lives in D:\PVAP\PlantVirusPlatform\VirusPlatform,
+rem  and the source platform's run\fastq may not exist yet. This version
+rem  auto-detects the program folder, and asks for a path when it cannot.
+rem
+rem  Usage: double-click (works from the source tree or from an edition root).
+rem  Re-running is safe: an existing mount is reported, never overwritten.
+rem
+rem  NOTE: keep this file ASCII-only. cmd.exe mis-parses UTF-8 batch files
+rem        (a Chinese echo line after "chcp 65001" gets split mid-byte).
+rem =====================================================================
+setlocal enabledelayedexpansion
+set "HERE=%~dp0"
 
+rem ---------- 1) locate the distribution program folder ----------
+set "PKG="
+if exist "%HERE%VirusPlatform.exe" set "PKG=%HERE%."
+if not defined PKG if exist "%HERE%VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%VirusPlatform"
+if not defined PKG if exist "%HERE%..\PVAP\VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%..\PVAP\VirusPlatform"
+if not defined PKG if exist "%HERE%..\PVAP\PlantVirusPlatform\VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%..\PVAP\PlantVirusPlatform\VirusPlatform"
+if not defined PKG for %%D in (C D E F G) do (
+  if not defined PKG if exist "%%D:\PVAP\PlantVirusPlatform\VirusPlatform\VirusPlatform.exe" set "PKG=%%D:\PVAP\PlantVirusPlatform\VirusPlatform"
+)
+if not defined PKG (
+  echo [1/2] Distribution not found ^(VirusPlatform.exe^).
+  set /p "PKG=      Paste the folder that contains VirusPlatform.exe, then Enter: "
+)
 if not exist "%PKG%\VirusPlatform.exe" (
-  echo 未找到分发版平台: %PKG%
-  echo 请确认 PVAP\VirusPlatform 与源码平台在同一个父目录下，
-  echo 或编辑本文件把 PKG 改成实际路径后重试。
+  echo.
+  echo Invalid folder ^(no VirusPlatform.exe^): %PKG%
   echo.
   pause
   exit /b 1
 )
+echo [1/2] Distribution: %PKG%
 
-set "DST=%PKG%\run\fastq"
-if exist "%DST%" (
-  echo 已存在: %DST%
-  echo （若这里面看不到你的测序数据，说明之前挂到了别处，可删除该目录后重跑）
-) else (
-  mklink /J "%DST%" "%SRC%" >nul
-  if errorlevel 1 (
-    echo 挂载失败（需要 NTFS 文件系统；确认 %PKG%\run 目录存在）
-    echo.
-    pause
-    exit /b 1
-  )
-  echo 已挂载: %DST%  -^>  %SRC%
+rem ---------- 2) locate the data source folder ----------
+set "SRC="
+if exist "%HERE%run\fastq\." set "SRC=%HERE%run\fastq"
+if not defined SRC (
+  echo [2/2] No local run\fastq found ^(source platform's sequencing data^).
+  set /p "SRC=      Paste the data folder ^(e.g. D:\seq\fastq^), then Enter: "
 )
-
+if not exist "%SRC%" (
+  echo.
+  echo Data folder does not exist: %SRC%
+  echo.
+  pause
+  exit /b 1
+)
+echo [2/2] Data source: %SRC%
 echo.
-echo 之后在分发版平台「分析管道」新建样品时，点 ■ 进入 fastq 目录
-echo 即可直接选用源码平台里的测序数据（不占用额外磁盘空间）。
+
+rem ---------- 3) mount ----------
+set "DST=%PKG%\run\fastq"
+if not exist "%PKG%\run" mkdir "%PKG%\run" 2>nul
+if exist "%DST%" (
+  echo Target already exists: %DST%
+  dir /al "%DST%" 2>nul | "%SystemRoot%\System32\find.exe" "<JUNCTION>" >nul
+  if not errorlevel 1 (
+    set "CUR="
+    for /f "tokens=2 delims=[]" %%T in ('dir /al "%DST%" 2^>nul ^| "%SystemRoot%\System32\find.exe" "<JUNCTION>"') do set "CUR=%%T"
+    echo   It is a junction pointing at: !CUR!
+    echo   To point it at %SRC% instead: rd "%DST%"  then re-run this script.
+  ) else (
+    echo   It is a real folder ^(may already contain data^).
+    echo   Rename or move it first if you want the junction instead.
+  )
+  echo.
+  pause
+  exit /b 0
+)
+mklink /J "%DST%" "%SRC%"
+if errorlevel 1 (
+  echo.
+  echo Mount failed ^(see the mklink error above^).
+  echo Common causes: target already exists ^(rd the junction first^);
+  echo the volume is not NTFS; the folder is read-only.
+  echo.
+  pause
+  exit /b 1
+)
+echo.
+> "%HERE%mount_source.txt" echo %SRC%
+echo Mounted: %DST%
+echo      -^> %SRC%
+echo (recorded in mount_source.txt: the start scripts will re-create
+echo  this junction automatically if it ever disappears)
+echo.
+echo In the platform, open a sample's input box and browse into "fastq":
+echo the files show up there without being copied.
+echo.
 pause
+endlocal

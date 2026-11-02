@@ -1,0 +1,1459 @@
+{
+ "generated_at": "2026-10-27T21:31:08",
+ "new_results": "D:\\桌面\\植物病毒分析平台\\docs\\paper\\benchmark_rerun_20261027\\results.json",
+ "old_results": "D:\\桌面\\植物病毒分析平台\\docs\\paper\\benchmark\\results\\results.json",
+ "validation_of_scoring": {
+  "checks": [
+   {
+    "exp": "vm_d11",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 1.0,
+    "prec_csv": 1.0
+   },
+   {
+    "exp": "vm_d12",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.5,
+    "prec_csv": 0.5
+   },
+   {
+    "exp": "vm_d13",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.5,
+    "prec_csv": 0.5
+   },
+   {
+    "exp": "vm_d14",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.3333333333333333,
+    "prec_csv": 0.3333333333333333
+   },
+   {
+    "exp": "vm_d15",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 1.0,
+    "prec_csv": 1.0
+   },
+   {
+    "exp": "vm_d16",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.5,
+    "prec_csv": 0.5
+   },
+   {
+    "exp": "vm_d17",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 1.0,
+    "prec_csv": 1.0
+   },
+   {
+    "exp": "vm_d18",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 1.0,
+    "prec_csv": 1.0
+   },
+   {
+    "exp": "vm_d1",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.35714285714285715,
+    "prec_csv": 0.35714285714285715
+   },
+   {
+    "exp": "vm_d1",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.4166666666666667,
+    "prec_csv": 0.4166666666666667
+   },
+   {
+    "exp": "vm_d2",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.35714285714285715,
+    "prec_csv": 0.35714285714285715
+   },
+   {
+    "exp": "vm_d2",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 0.8,
+    "sens_csv": 0.8,
+    "prec": 0.36363636363636365,
+    "prec_csv": 0.36363636363636365
+   },
+   {
+    "exp": "vm_d3",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 0.2,
+    "sens_csv": 0.2,
+    "prec": 0.16666666666666666,
+    "prec_csv": 0.16666666666666666
+   },
+   {
+    "exp": "vm_d3",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 0.4,
+    "sens_csv": 0.4,
+    "prec": 0.2222222222222222,
+    "prec_csv": 0.2222222222222222
+   },
+   {
+    "exp": "vm_d4",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 0.8,
+    "sens_csv": 0.8,
+    "prec": 0.4,
+    "prec_csv": 0.4
+   },
+   {
+    "exp": "vm_d4",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 0.8,
+    "sens_csv": 0.8,
+    "prec": 0.4444444444444444,
+    "prec_csv": 0.4444444444444444
+   },
+   {
+    "exp": "vm_d5",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.25,
+    "prec_csv": 0.25
+   },
+   {
+    "exp": "vm_d6",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.25,
+    "prec_csv": 0.25
+   },
+   {
+    "exp": "vm_d6",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.25,
+    "prec_csv": 0.25
+   },
+   {
+    "exp": "vm_d7",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 0.0,
+    "sens_csv": 0.0,
+    "prec": 0.0,
+    "prec_csv": 0.0
+   },
+   {
+    "exp": "vm_d7",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 0.0,
+    "sens_csv": 0.0,
+    "prec": 0.0,
+    "prec_csv": 0.0
+   },
+   {
+    "exp": "vm_d8",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 0.5,
+    "sens_csv": 0.5,
+    "prec": 1.0,
+    "prec_csv": 1.0
+   },
+   {
+    "exp": "vm_d8",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 0.5,
+    "sens_csv": 0.5,
+    "prec": 0.5,
+    "prec_csv": 0.5
+   },
+   {
+    "exp": "vm_d9",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.5,
+    "prec_csv": 0.5
+   },
+   {
+    "exp": "vm_d9",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.3333333333333333,
+    "prec_csv": 0.3333333333333333
+   },
+   {
+    "exp": "vm_d10",
+    "engine": "salmon",
+    "status": "ok",
+    "sens": 0.5,
+    "sens_csv": 0.5,
+    "prec": 0.3333333333333333,
+    "prec_csv": 0.3333333333333333
+   },
+   {
+    "exp": "vm_d10",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 0.5,
+    "sens_csv": 0.5,
+    "prec": 0.3333333333333333,
+    "prec_csv": 0.3333333333333333
+   },
+   {
+    "exp": "vm_d11",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 1.0,
+    "prec_csv": 1.0
+   },
+   {
+    "exp": "vm_d12",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.3333333333333333,
+    "prec_csv": 0.3333333333333333
+   },
+   {
+    "exp": "vm_d13",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.5,
+    "prec_csv": 0.5
+   },
+   {
+    "exp": "vm_d14",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.5,
+    "prec_csv": 0.5
+   },
+   {
+    "exp": "vm_d15",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 1.0,
+    "prec_csv": 1.0
+   },
+   {
+    "exp": "vm_d16",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 0.5,
+    "prec_csv": 0.5
+   },
+   {
+    "exp": "vm_d17",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 0.0,
+    "sens_csv": 0.0,
+    "prec": 0.0,
+    "prec_csv": 0.0
+   },
+   {
+    "exp": "vm_d18",
+    "engine": "minibwa",
+    "status": "ok",
+    "sens": 1.0,
+    "sens_csv": 1.0,
+    "prec": 1.0,
+    "prec_csv": 1.0
+   }
+  ],
+  "aggregate": {
+   "salmon": {
+    "D1_D10": {
+     "sens": 0.7142857142857143,
+     "prec": 0.32786885245901637,
+     "fdr": 0.6721311475409836,
+     "f1": 0.44943820224719094,
+     "tp": 20,
+     "fp": 41,
+     "fn": 8,
+     "datasets": 10
+    },
+    "D11_D18": {
+     "sens": 1.0,
+     "prec": 0.6153846153846154,
+     "fdr": 0.38461538461538464,
+     "f1": 0.761904761904762,
+     "tp": 8,
+     "fp": 5,
+     "fn": 0,
+     "datasets": 8
+    },
+    "total": {
+     "sens": 0.7777777777777778,
+     "prec": 0.3783783783783784,
+     "fdr": 0.6216216216216216,
+     "f1": 0.5090909090909091,
+     "tp": 28,
+     "fp": 46,
+     "fn": 8,
+     "datasets": 18
+    }
+   },
+   "minibwa": {
+    "D1_D10": {
+     "sens": 0.7037037037037037,
+     "prec": 0.35185185185185186,
+     "fdr": 0.6481481481481481,
+     "f1": 0.46913580246913583,
+     "tp": 19,
+     "fp": 35,
+     "fn": 8,
+     "datasets": 9
+    },
+    "D11_D18": {
+     "sens": 0.875,
+     "prec": 0.5833333333333334,
+     "fdr": 0.4166666666666667,
+     "f1": 0.7000000000000001,
+     "tp": 7,
+     "fp": 5,
+     "fn": 1,
+     "datasets": 8
+    }
+   }
+  }
+ },
+ "new": {
+  "per_dataset": {
+   "vm_d1": {
+    "sens": 1.0,
+    "prec": 0.2777777777777778,
+    "fdr": 0.7222222222222222,
+    "f1": 0.4347826086956522,
+    "tp": 5,
+    "fp": 13,
+    "fn": 0,
+    "exp": "vm_d1",
+    "dataset": "D1",
+    "engine": "salmon",
+    "wall_s": 117.1,
+    "peak_rss_mb": 349.4,
+    "fp_species": [
+     "Prunus virus F",
+     "Citrus endogenous pararetrovirus",
+     "Citrus dwarfing viroid",
+     "Cherry virus A",
+     "Elephantopus scaber closterovirus",
+     "Apple ourmia-like virus 1"
+    ],
+    "truth_n": 5,
+    "confirmed_n": 25
+   },
+   "vm_d2": {
+    "sens": 1.0,
+    "prec": 0.2777777777777778,
+    "fdr": 0.7222222222222222,
+    "f1": 0.4347826086956522,
+    "tp": 5,
+    "fp": 13,
+    "fn": 0,
+    "exp": "vm_d2",
+    "dataset": "D2",
+    "engine": "salmon",
+    "wall_s": 111.0,
+    "peak_rss_mb": 349.9,
+    "fp_species": [
+     "Prunus virus F",
+     "Citrus endogenous pararetrovirus",
+     "Citrus dwarfing viroid",
+     "Cherry virus A",
+     "Elephantopus scaber closterovirus",
+     "Apple ourmia-like virus 1"
+    ],
+    "truth_n": 5,
+    "confirmed_n": 24
+   },
+   "vm_d3": {
+    "sens": 0.4,
+    "prec": 0.2857142857142857,
+    "fdr": 0.7142857142857143,
+    "f1": 0.3333333333333333,
+    "tp": 2,
+    "fp": 5,
+    "fn": 3,
+    "exp": "vm_d3",
+    "dataset": "D3",
+    "engine": "salmon",
+    "wall_s": 75.7,
+    "peak_rss_mb": 349.8,
+    "fp_species": [
+     "Grapevine leafroll-associated virus 3",
+     "Grapevine Kizil Sapak virus",
+     "Citrus exocortis Yucatan viroid",
+     "Dapple plum and peach fruit disease viroid",
+     "Dapple peach fruit disease viroid"
+    ],
+    "truth_n": 5,
+    "confirmed_n": 8
+   },
+   "vm_d4": {
+    "sens": 0.8,
+    "prec": 0.36363636363636365,
+    "fdr": 0.6363636363636364,
+    "f1": 0.5000000000000001,
+    "tp": 4,
+    "fp": 7,
+    "fn": 1,
+    "exp": "vm_d4",
+    "dataset": "D4",
+    "engine": "salmon",
+    "wall_s": 24.4,
+    "peak_rss_mb": 566.7,
+    "fp_species": [
+     "Grapevine yellow speckle viroid 3",
+     "Grapevine geminivirus",
+     "Citrus gummy bark viroid",
+     "Citrus exocortis Yucatan viroid",
+     "Dapple plum and peach fruit disease viroid",
+     "Grapevine viroid"
+    ],
+    "truth_n": 5,
+    "confirmed_n": 14
+   },
+   "vm_d5": {
+    "sens": 1.0,
+    "prec": 0.2,
+    "fdr": 0.8,
+    "f1": 0.33333333333333337,
+    "tp": 1,
+    "fp": 4,
+    "fn": 0,
+    "exp": "vm_d5",
+    "dataset": "D5",
+    "engine": "salmon",
+    "wall_s": 38.1,
+    "peak_rss_mb": 1268.8,
+    "fp_species": [
+     "Lycopersicon esculentum potyvirus",
+     "Citrus exocortis Yucatan viroid",
+     "Spiraea potyvirus",
+     "Physalis floridana potyvirus"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 12
+   },
+   "vm_d6": {
+    "sens": 1.0,
+    "prec": 0.2,
+    "fdr": 0.8,
+    "f1": 0.33333333333333337,
+    "tp": 1,
+    "fp": 4,
+    "fn": 0,
+    "exp": "vm_d6",
+    "dataset": "D6",
+    "engine": "salmon",
+    "wall_s": 37.5,
+    "peak_rss_mb": 1271.3,
+    "fp_species": [
+     "Lycopersicon esculentum potyvirus",
+     "Citrus exocortis Yucatan viroid",
+     "Spiraea potyvirus",
+     "Physalis floridana potyvirus"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 11
+   },
+   "vm_d7": {
+    "sens": 1.0,
+    "prec": 0.25,
+    "fdr": 0.75,
+    "f1": 0.4,
+    "tp": 1,
+    "fp": 3,
+    "fn": 0,
+    "exp": "vm_d7",
+    "dataset": "D7",
+    "engine": "salmon",
+    "wall_s": 22.2,
+    "peak_rss_mb": 349.6,
+    "fp_species": [
+     "Tobacco vein clearing virus",
+     "Pea enation mosaic virus 2",
+     "Citrus exocortis Yucatan viroid"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 7
+   },
+   "vm_d8": {
+    "sens": 1.0,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 1.0,
+    "tp": 2,
+    "fp": 0,
+    "fn": 0,
+    "exp": "vm_d8",
+    "dataset": "D8",
+    "engine": "salmon",
+    "wall_s": 9.8,
+    "peak_rss_mb": 358.4,
+    "fp_species": [],
+    "truth_n": 2,
+    "confirmed_n": 3
+   },
+   "vm_d9": {
+    "sens": 1.0,
+    "prec": 0.5,
+    "fdr": 0.5,
+    "f1": 0.6666666666666666,
+    "tp": 1,
+    "fp": 1,
+    "fn": 0,
+    "exp": "vm_d9",
+    "dataset": "D9",
+    "engine": "salmon",
+    "wall_s": 25.3,
+    "peak_rss_mb": 349.5,
+    "fp_species": [
+     "Citrus exocortis Yucatan viroid"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 9
+   },
+   "vm_d10": {
+    "sens": 0.5,
+    "prec": 0.3333333333333333,
+    "fdr": 0.6666666666666666,
+    "f1": 0.4,
+    "tp": 1,
+    "fp": 2,
+    "fn": 1,
+    "exp": "vm_d10",
+    "dataset": "D10",
+    "engine": "salmon",
+    "wall_s": 31.4,
+    "peak_rss_mb": 435.1,
+    "fp_species": [
+     "Citrus exocortis Yucatan viroid",
+     "Apricot stem pitting associated virus"
+    ],
+    "truth_n": 2,
+    "confirmed_n": 3
+   },
+   "vm_d11": {
+    "sens": 1.0,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "exp": "vm_d11",
+    "dataset": "D11",
+    "engine": "salmon",
+    "wall_s": 9.4,
+    "peak_rss_mb": 349.3,
+    "fp_species": [],
+    "truth_n": 1,
+    "confirmed_n": 8
+   },
+   "vm_d12": {
+    "sens": 1.0,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "exp": "vm_d12",
+    "dataset": "D12",
+    "engine": "salmon",
+    "wall_s": 18.7,
+    "peak_rss_mb": 349.7,
+    "fp_species": [],
+    "truth_n": 1,
+    "confirmed_n": 13
+   },
+   "vm_d13": {
+    "sens": 1.0,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "exp": "vm_d13",
+    "dataset": "D13",
+    "engine": "salmon",
+    "wall_s": 9.1,
+    "peak_rss_mb": 349.4,
+    "fp_species": [],
+    "truth_n": 1,
+    "confirmed_n": 8
+   },
+   "vm_d14": {
+    "sens": 1.0,
+    "prec": 0.5,
+    "fdr": 0.5,
+    "f1": 0.6666666666666666,
+    "tp": 1,
+    "fp": 1,
+    "fn": 0,
+    "exp": "vm_d14",
+    "dataset": "D14",
+    "engine": "salmon",
+    "wall_s": 10.1,
+    "peak_rss_mb": 349.3,
+    "fp_species": [
+     "Lycopersicon esculentum potyvirus"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 18
+   },
+   "vm_d15": {
+    "sens": 1.0,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "exp": "vm_d15",
+    "dataset": "D15",
+    "engine": "salmon",
+    "wall_s": 9.8,
+    "peak_rss_mb": 349.6,
+    "fp_species": [],
+    "truth_n": 1,
+    "confirmed_n": 3
+   },
+   "vm_d16": {
+    "sens": 1.0,
+    "prec": 0.5,
+    "fdr": 0.5,
+    "f1": 0.6666666666666666,
+    "tp": 1,
+    "fp": 1,
+    "fn": 0,
+    "exp": "vm_d16",
+    "dataset": "D16",
+    "engine": "salmon",
+    "wall_s": 9.8,
+    "peak_rss_mb": 349.6,
+    "fp_species": [
+     "Hot pepper alphaendornavirus"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 4
+   },
+   "vm_d17": {
+    "sens": 1.0,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "exp": "vm_d17",
+    "dataset": "D17",
+    "engine": "salmon",
+    "wall_s": 10.2,
+    "peak_rss_mb": 350.2,
+    "fp_species": [],
+    "truth_n": 1,
+    "confirmed_n": 5
+   },
+   "vm_d18": {
+    "sens": 1.0,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "exp": "vm_d18",
+    "dataset": "D18",
+    "engine": "salmon",
+    "wall_s": 10.3,
+    "peak_rss_mb": 349.1,
+    "fp_species": [],
+    "truth_n": 1,
+    "confirmed_n": 10
+   }
+  },
+  "aggregate": {
+   "D1_D10": {
+    "sens": 0.8214285714285714,
+    "prec": 0.30666666666666664,
+    "fdr": 0.6933333333333334,
+    "f1": 0.44660194174757273,
+    "tp": 23,
+    "fp": 52,
+    "fn": 5,
+    "datasets": 10
+   },
+   "D11_D18": {
+    "sens": 1.0,
+    "prec": 0.8,
+    "fdr": 0.2,
+    "f1": 0.888888888888889,
+    "tp": 8,
+    "fp": 2,
+    "fn": 0,
+    "datasets": 8
+   },
+   "total": {
+    "sens": 0.8611111111111112,
+    "prec": 0.36470588235294116,
+    "fdr": 0.6352941176470588,
+    "f1": 0.512396694214876,
+    "tp": 31,
+    "fp": 54,
+    "fn": 5,
+    "datasets": 18
+   }
+  }
+ },
+ "old": {
+  "per_dataset": {
+   "vm_d1": {
+    "sens": 1.0,
+    "prec": 0.35714285714285715,
+    "fdr": 0.6428571428571429,
+    "f1": 0.5263157894736842,
+    "tp": 5,
+    "fp": 9,
+    "fn": 0,
+    "exp": "vm_d1",
+    "dataset": "D1",
+    "engine": "salmon",
+    "wall_s": 127.4,
+    "peak_rss_mb": 233.6,
+    "fp_species": [
+     "Prunus virus F",
+     "Citrus gummy bark viroid",
+     "Elephantopus scaber closterovirus",
+     "Citrus dwarfing viroid",
+     "Dapple peach fruit disease viroid",
+     "Citrus exocortis Yucatan viroid"
+    ],
+    "truth_n": 5,
+    "confirmed_n": 20
+   },
+   "vm_d2": {
+    "sens": 1.0,
+    "prec": 0.35714285714285715,
+    "fdr": 0.6428571428571429,
+    "f1": 0.5263157894736842,
+    "tp": 5,
+    "fp": 9,
+    "fn": 0,
+    "exp": "vm_d2",
+    "dataset": "D2",
+    "engine": "salmon",
+    "wall_s": 168.7,
+    "peak_rss_mb": 234.9,
+    "fp_species": [
+     "Prunus virus F",
+     "Citrus endogenous pararetrovirus",
+     "Elephantopus scaber closterovirus",
+     "Citrus exocortis Yucatan viroid",
+     "Citrus gummy bark viroid",
+     "Dapple peach fruit disease viroid"
+    ],
+    "truth_n": 5,
+    "confirmed_n": 19
+   },
+   "vm_d3": {
+    "sens": 0.2,
+    "prec": 0.16666666666666666,
+    "fdr": 0.8333333333333334,
+    "f1": 0.1818181818181818,
+    "tp": 1,
+    "fp": 5,
+    "fn": 4,
+    "exp": "vm_d3",
+    "dataset": "D3",
+    "engine": "salmon",
+    "wall_s": 101.8,
+    "peak_rss_mb": 563.5,
+    "fp_species": [
+     "Grapevine yellow speckle viroid 3",
+     "Dapple peach fruit disease viroid",
+     "Citrus exocortis Yucatan viroid",
+     "Dapple plum and peach fruit disease viroid",
+     "Grapevine leafroll-associated virus 3"
+    ],
+    "truth_n": 5,
+    "confirmed_n": 10
+   },
+   "vm_d4": {
+    "sens": 0.8,
+    "prec": 0.4,
+    "fdr": 0.6,
+    "f1": 0.5333333333333333,
+    "tp": 4,
+    "fp": 6,
+    "fn": 1,
+    "exp": "vm_d4",
+    "dataset": "D4",
+    "engine": "salmon",
+    "wall_s": 24.5,
+    "peak_rss_mb": 508.6,
+    "fp_species": [
+     "Dapple plum and peach fruit disease viroid",
+     "Citrus gummy bark viroid",
+     "Dapple peach fruit disease viroid",
+     "Grapevine geminivirus",
+     "Grapevine yellow speckle viroid 3",
+     "Citrus exocortis Yucatan viroid"
+    ],
+    "truth_n": 5,
+    "confirmed_n": 19
+   },
+   "vm_d5": {
+    "sens": 1.0,
+    "prec": 0.25,
+    "fdr": 0.75,
+    "f1": 0.4,
+    "tp": 1,
+    "fp": 3,
+    "fn": 0,
+    "exp": "vm_d5",
+    "dataset": "D5",
+    "engine": "salmon",
+    "wall_s": 32.8,
+    "peak_rss_mb": 708.3,
+    "fp_species": [
+     "Physalis floridana potyvirus",
+     "Citrus exocortis Yucatan viroid",
+     "Spiraea potyvirus"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 10
+   },
+   "vm_d6": {
+    "sens": 1.0,
+    "prec": 0.25,
+    "fdr": 0.75,
+    "f1": 0.4,
+    "tp": 1,
+    "fp": 3,
+    "fn": 0,
+    "exp": "vm_d6",
+    "dataset": "D6",
+    "engine": "salmon",
+    "wall_s": 35.9,
+    "peak_rss_mb": 619.4,
+    "fp_species": [
+     "Spiraea potyvirus",
+     "Citrus exocortis Yucatan viroid",
+     "Physalis floridana potyvirus"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 11
+   },
+   "vm_d7": {
+    "sens": 0.0,
+    "prec": 0.0,
+    "fdr": 1.0,
+    "f1": 0.0,
+    "tp": 0,
+    "fp": 3,
+    "fn": 1,
+    "exp": "vm_d7",
+    "dataset": "D7",
+    "engine": "salmon",
+    "wall_s": 24.7,
+    "peak_rss_mb": 246.9,
+    "fp_species": [
+     "Pea enation mosaic virus 2",
+     "Citrus exocortis Yucatan viroid",
+     "Tobacco vein clearing virus"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 3
+   },
+   "vm_d8": {
+    "sens": 0.5,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 0.6666666666666666,
+    "tp": 1,
+    "fp": 0,
+    "fn": 1,
+    "exp": "vm_d8",
+    "dataset": "D8",
+    "engine": "salmon",
+    "wall_s": 8.1,
+    "peak_rss_mb": 277.9,
+    "fp_species": [],
+    "truth_n": 2,
+    "confirmed_n": 2
+   },
+   "vm_d9": {
+    "sens": 1.0,
+    "prec": 0.5,
+    "fdr": 0.5,
+    "f1": 0.6666666666666666,
+    "tp": 1,
+    "fp": 1,
+    "fn": 0,
+    "exp": "vm_d9",
+    "dataset": "D9",
+    "engine": "salmon",
+    "wall_s": 31.1,
+    "peak_rss_mb": 235.2,
+    "fp_species": [
+     "Citrus exocortis Yucatan viroid"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 9
+   },
+   "vm_d10": {
+    "sens": 0.5,
+    "prec": 0.3333333333333333,
+    "fdr": 0.6666666666666666,
+    "f1": 0.4,
+    "tp": 1,
+    "fp": 2,
+    "fn": 1,
+    "exp": "vm_d10",
+    "dataset": "D10",
+    "engine": "salmon",
+    "wall_s": 33.8,
+    "peak_rss_mb": 443.3,
+    "fp_species": [
+     "Citrus exocortis Yucatan viroid",
+     "Apricot stem pitting associated virus"
+    ],
+    "truth_n": 2,
+    "confirmed_n": 3
+   },
+   "vm_d11": {
+    "sens": 1.0,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "exp": "vm_d11",
+    "dataset": "D11",
+    "engine": "salmon",
+    "wall_s": 9.2,
+    "peak_rss_mb": 234.6,
+    "fp_species": [],
+    "truth_n": 1,
+    "confirmed_n": 3
+   },
+   "vm_d12": {
+    "sens": 1.0,
+    "prec": 0.5,
+    "fdr": 0.5,
+    "f1": 0.6666666666666666,
+    "tp": 1,
+    "fp": 1,
+    "fn": 0,
+    "exp": "vm_d12",
+    "dataset": "D12",
+    "engine": "salmon",
+    "wall_s": 10.9,
+    "peak_rss_mb": 235.0,
+    "fp_species": [
+     "East African cassava mosaic Kenya virus"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 23
+   },
+   "vm_d13": {
+    "sens": 1.0,
+    "prec": 0.5,
+    "fdr": 0.5,
+    "f1": 0.6666666666666666,
+    "tp": 1,
+    "fp": 1,
+    "fn": 0,
+    "exp": "vm_d13",
+    "dataset": "D13",
+    "engine": "salmon",
+    "wall_s": 8.8,
+    "peak_rss_mb": 234.7,
+    "fp_species": [
+     "Musa acuminata endogenous badnavirus"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 6
+   },
+   "vm_d14": {
+    "sens": 1.0,
+    "prec": 0.3333333333333333,
+    "fdr": 0.6666666666666666,
+    "f1": 0.5,
+    "tp": 1,
+    "fp": 2,
+    "fn": 0,
+    "exp": "vm_d14",
+    "dataset": "D14",
+    "engine": "salmon",
+    "wall_s": 10.1,
+    "peak_rss_mb": 234.7,
+    "fp_species": [
+     "Physalis floridana potyvirus",
+     "Spiraea potyvirus"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 10
+   },
+   "vm_d15": {
+    "sens": 1.0,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "exp": "vm_d15",
+    "dataset": "D15",
+    "engine": "salmon",
+    "wall_s": 8.8,
+    "peak_rss_mb": 234.8,
+    "fp_species": [],
+    "truth_n": 1,
+    "confirmed_n": 7
+   },
+   "vm_d16": {
+    "sens": 1.0,
+    "prec": 0.5,
+    "fdr": 0.5,
+    "f1": 0.6666666666666666,
+    "tp": 1,
+    "fp": 1,
+    "fn": 0,
+    "exp": "vm_d16",
+    "dataset": "D16",
+    "engine": "salmon",
+    "wall_s": 8.8,
+    "peak_rss_mb": 234.1,
+    "fp_species": [
+     "Hot pepper alphaendornavirus"
+    ],
+    "truth_n": 1,
+    "confirmed_n": 2
+   },
+   "vm_d17": {
+    "sens": 1.0,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "exp": "vm_d17",
+    "dataset": "D17",
+    "engine": "salmon",
+    "wall_s": 8.7,
+    "peak_rss_mb": 234.4,
+    "fp_species": [],
+    "truth_n": 1,
+    "confirmed_n": 1
+   },
+   "vm_d18": {
+    "sens": 1.0,
+    "prec": 1.0,
+    "fdr": 0.0,
+    "f1": 1.0,
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "exp": "vm_d18",
+    "dataset": "D18",
+    "engine": "salmon",
+    "wall_s": 8.7,
+    "peak_rss_mb": 234.6,
+    "fp_species": [],
+    "truth_n": 1,
+    "confirmed_n": 9
+   }
+  },
+  "aggregate": {
+   "D1_D10": {
+    "sens": 0.7142857142857143,
+    "prec": 0.32786885245901637,
+    "fdr": 0.6721311475409836,
+    "f1": 0.44943820224719094,
+    "tp": 20,
+    "fp": 41,
+    "fn": 8,
+    "datasets": 10
+   },
+   "D11_D18": {
+    "sens": 1.0,
+    "prec": 0.6153846153846154,
+    "fdr": 0.38461538461538464,
+    "f1": 0.761904761904762,
+    "tp": 8,
+    "fp": 5,
+    "fn": 0,
+    "datasets": 8
+   },
+   "total": {
+    "sens": 0.7777777777777778,
+    "prec": 0.3783783783783784,
+    "fdr": 0.6216216216216216,
+    "f1": 0.5090909090909091,
+    "tp": 28,
+    "fp": 46,
+    "fn": 8,
+    "datasets": 18
+   }
+  }
+ },
+ "quant_mae": {
+  "rerun": {
+   "label": "plant_ref rerun",
+   "per_dataset": {
+    "D11": {
+     "status": "ok",
+     "mae_pp": 0.077,
+     "n_isolates": 6,
+     "detail": [
+      {
+       "acc": "DQ000985",
+       "exp_pct": 39.9,
+       "obs_pct": 39.75,
+       "abs_diff": 0.15
+      },
+      {
+       "acc": "AJ606359",
+       "exp_pct": 15.32,
+       "obs_pct": 15.2,
+       "abs_diff": 0.12
+      },
+      {
+       "acc": "MF422616",
+       "exp_pct": 14.96,
+       "obs_pct": 14.91,
+       "abs_diff": 0.05
+      },
+      {
+       "acc": "JQ314460",
+       "exp_pct": 9.94,
+       "obs_pct": 9.94,
+       "abs_diff": 0.0
+      },
+      {
+       "acc": "MK133092",
+       "exp_pct": 9.94,
+       "obs_pct": 10.07,
+       "abs_diff": 0.13
+      },
+      {
+       "acc": "HG313807",
+       "exp_pct": 9.94,
+       "obs_pct": 9.94,
+       "abs_diff": 0.0
+      }
+     ]
+    },
+    "D12": {
+     "status": "ok",
+     "mae_pp": 0.318,
+     "n_isolates": 4,
+     "detail": [
+      {
+       "acc": "HE979770",
+       "exp_pct": 50.0,
+       "obs_pct": 49.39,
+       "abs_diff": 0.61
+      },
+      {
+       "acc": "HE979758",
+       "exp_pct": 19.98,
+       "obs_pct": 19.84,
+       "abs_diff": 0.14
+      },
+      {
+       "acc": "AJ314739",
+       "exp_pct": 15.01,
+       "obs_pct": 14.89,
+       "abs_diff": 0.12
+      },
+      {
+       "acc": "KR611579",
+       "exp_pct": 15.01,
+       "obs_pct": 14.61,
+       "abs_diff": 0.4
+      }
+     ]
+    },
+    "D13": {
+     "status": "ok",
+     "mae_pp": 3.081,
+     "n_isolates": 6,
+     "detail": [
+      {
+       "acc": "DQ451009",
+       "exp_pct": 37.93,
+       "obs_pct": 37.71,
+       "abs_diff": 0.22
+      },
+      {
+       "acc": "KT895259",
+       "exp_pct": 15.14,
+       "obs_pct": 15.14,
+       "abs_diff": 0.0
+      },
+      {
+       "acc": "DQ092436",
+       "exp_pct": 15.76,
+       "obs_pct": 7.88,
+       "abs_diff": 7.88
+      },
+      {
+       "acc": "AY750155",
+       "exp_pct": 10.73,
+       "obs_pct": 5.37,
+       "abs_diff": 5.36
+      },
+      {
+       "acc": "KT895258",
+       "exp_pct": 10.53,
+       "obs_pct": 10.47,
+       "abs_diff": 0.06
+      },
+      {
+       "acc": "AY493509",
+       "exp_pct": 9.91,
+       "obs_pct": 4.95,
+       "abs_diff": 4.96
+      }
+     ]
+    },
+    "D14": {
+     "status": "ok",
+     "mae_pp": 1.264,
+     "n_isolates": 5,
+     "detail": [
+      {
+       "acc": "AB711147",
+       "exp_pct": 37.79,
+       "obs_pct": 37.46,
+       "abs_diff": 0.33
+      },
+      {
+       "acc": "KC634004",
+       "exp_pct": 19.63,
+       "obs_pct": 18.63,
+       "abs_diff": 1.0
+      },
+      {
+       "acc": "MF176828",
+       "exp_pct": 18.89,
+       "obs_pct": 14.11,
+       "abs_diff": 4.78
+      },
+      {
+       "acc": "JQ969039",
+       "exp_pct": 19.63,
+       "obs_pct": 19.42,
+       "abs_diff": 0.21
+      },
+      {
+       "acc": "FJ214726",
+       "exp_pct": 9.56,
+       "obs_pct": 9.56,
+       "abs_diff": 0.0
+      }
+     ]
+    },
+    "D15": {
+     "status": "ok",
+     "mae_pp": 4.189,
+     "n_isolates": 3,
+     "detail": [
+      {
+       "acc": "LN680656",
+       "exp_pct": 49.95,
+       "obs_pct": 49.87,
+       "abs_diff": 0.08
+      },
+      {
+       "acc": "FR751552",
+       "exp_pct": 25.02,
+       "obs_pct": 25.02,
+       "abs_diff": 0.0
+      },
+      {
+       "acc": "KJ082087",
+       "exp_pct": 25.02,
+       "obs_pct": 12.54,
+       "abs_diff": 12.48
+      }
+     ]
+    },
+    "D16": {
+     "status": "ok",
+     "mae_pp": 2.651,
+     "n_isolates": 4,
+     "detail": [
+      {
+       "acc": "KX977568",
+       "exp_pct": 50.0,
+       "obs_pct": 49.52,
+       "abs_diff": 0.48
+      },
+      {
+       "acc": "KR080326",
+       "exp_pct": 20.0,
+       "obs_pct": 10.0,
+       "abs_diff": 10.0
+      },
+      {
+       "acc": "JN019858",
+       "exp_pct": 15.0,
+       "obs_pct": 14.99,
+       "abs_diff": 0.01
+      },
+      {
+       "acc": "JQ951943",
+       "exp_pct": 15.0,
+       "obs_pct": 15.11,
+       "abs_diff": 0.11
+      }
+     ]
+    },
+    "D17": {
+     "status": "ok",
+     "mae_pp": 0.008,
+     "n_isolates": 5,
+     "detail": [
+      {
+       "acc": "MH300061",
+       "exp_pct": 40.28,
+       "obs_pct": 40.28,
+       "abs_diff": 0.0
+      },
+      {
+       "acc": "KX192366",
+       "exp_pct": 19.91,
+       "obs_pct": 19.91,
+       "abs_diff": 0.0
+      },
+      {
+       "acc": "EU715989",
+       "exp_pct": 14.93,
+       "obs_pct": 14.9,
+       "abs_diff": 0.03
+      },
+      {
+       "acc": "LN794218",
+       "exp_pct": 14.93,
+       "obs_pct": 14.93,
+       "abs_diff": 0.0
+      },
+      {
+       "acc": "MG934545",
+       "exp_pct": 9.95,
+       "obs_pct": 9.95,
+       "abs_diff": 0.0
+      }
+     ]
+    },
+    "D18": {
+     "status": "ok",
+     "mae_pp": 1.305,
+     "n_isolates": 5,
+     "detail": [
+      {
+       "acc": "EF521843",
+       "exp_pct": 31.11,
+       "obs_pct": 30.98,
+       "abs_diff": 0.13
+      },
+      {
+       "acc": "KF523382",
+       "exp_pct": 15.58,
+       "obs_pct": 15.51,
+       "abs_diff": 0.07
+      },
+      {
+       "acc": "KY593456",
+       "exp_pct": 15.58,
+       "obs_pct": 15.58,
+       "abs_diff": 0.0
+      },
+      {
+       "acc": "KC559092",
+       "exp_pct": 12.63,
+       "obs_pct": 6.31,
+       "abs_diff": 6.32
+      },
+      {
+       "acc": "EU332308",
+       "exp_pct": 10.37,
+       "obs_pct": 10.37,
+       "abs_diff": 0.0
+      }
+     ]
+    }
+   }
+  },
+  "archived": null
+ }
+}

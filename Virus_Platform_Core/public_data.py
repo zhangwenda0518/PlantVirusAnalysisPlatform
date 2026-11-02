@@ -1106,6 +1106,7 @@ class DownloadManager:
         sz_re = re.compile(r'\[#\w+\s+([\d.]+[KMGT]?i?B)/([\d.]+[KMGT]?i?B)')
         dl_re = re.compile(r'\bDL:\s*([\d.]+[KMGT]?i?B)')
         eta_re = re.compile(r'\bETA:\s*([0-9]+[hms][0-9hms]*)')
+        err_ring = []        # 非进度行（含报错行）环形缓冲：失败原因取证
         try:
             for line in proc.stdout:
                 m = pct_re.search(line)
@@ -1113,6 +1114,9 @@ class DownloadManager:
                 md = dl_re.search(line)
                 me = eta_re.search(line)
                 if not (m or ms or md or me):
+                    err_ring.append(line.rstrip())
+                    if len(err_ring) > 8:
+                        err_ring.pop(0)
                     continue
                 with self.lock:
                     if ms:
@@ -1156,6 +1160,8 @@ class DownloadManager:
         if rc != 0:
             with self.lock:
                 fe['error'] = f'aria2c 退出码 {rc}'
+                if err_ring:
+                    fe['error'] += '：' + ' '.join(err_ring)[-400:]
             return False
         if not os.path.isfile(out) or os.path.getsize(out) == 0:
             with self.lock:

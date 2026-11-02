@@ -86,7 +86,9 @@ def main():
             page.on('pageerror', lambda e: errors.append(str(e)))
             # 常驻 EventSource 会让 networkidle 永不触发，用 load（与
             # _check_pages_console 的回退策略一致）
-            page.goto(base + '/', wait_until='load')
+            # 用 /settings 而不是 /：首页把对话坞内嵌进 #aiConsoleHost 且默认
+            # 展开，FAB 红点断言在首页不成立（坞开着就不计未读）。
+            page.goto(base + '/settings', wait_until='load')
             time.sleep(1.0)                       # 等 EventSource 建连
 
             # 发布三类事件（闸门事件由真实 gate_point 线程产生）
@@ -127,8 +129,10 @@ def main():
             check('点继续 → 闸门线程放行', out.get('r') == 'continue',
                   str(out))
             page.wait_for_timeout(1500)
+            # 只在本张闸门卡内数 —— 补只读历史卡后，页面上还会有别的
+            # .ai-gate-st.done（已驳回/启动失败的执行单徽章），不能全局数 1。
             check('闸门卡片原地翻转为已继续',
-                  page.locator('.ai-gate-st.done').count() == 1
+                  page.locator('.ai-gate .ai-gate-st.done').count() == 1
                   and page.locator('.ai-gate').count() == 1)
             page.screenshot(path='run/logs/ai_events_gate_done.png')
 

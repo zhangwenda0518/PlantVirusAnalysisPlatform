@@ -1,0 +1,9 @@
+{
+  "type": "kv",
+  "name": "D5",
+  "r1": "E:\\谷歌下载\\测试数据验证\\Dataset_5.fastq.gz",
+  "r2": null,
+  "engine": "salmon",
+  "db_dir": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref",
+  "out": "D:\\桌面\\植物病毒分析平台\\docs\\paper\\benchmark_rerun_20261027\\vm_d5"
+}

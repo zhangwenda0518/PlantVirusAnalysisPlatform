@@ -328,13 +328,22 @@ def api_submit_table_taxonomy_check(name):
                 out.append({'organism': org,
                             'found': bool(res['count']),
                             'taxid': (res['ids'][0] if res['ids'] else '')})
-            payload = {'ok': True, 'rows': out,
+            # 2026-11-02：project 字段必须落盘——前端拿到任务外壳快照后，
+            # 要用 `snap.result.project` 才拼得回
+            # /api/submit/table/<项目>/file?name=taxonomy_check.json 的读回
+            # 地址（外壳快照不返回 job 返回值本身）。以前缺这一项，前端只能
+            # 用页面级 CUR 兜底，切模块/刷新后项目不再选中就整体失败。
+            payload = {'ok': True, 'project': name, 'rows': out,
                        'missing': [r['organism'] for r in out if not r['found']]}
             store.write_file(name, 'taxonomy_check.json',
                              json.dumps(payload, ensure_ascii=False, indent=1))
             prog('done', 1.0, f'校验完成：{len(out)} 个物种名')
             log(f'结果已写入 taxonomy_check.json（{len(out)} 个物种名）')
-            return {'n_checked': len(out), 'n_missing': len(payload['missing']),
+            # project 要出现在**任务返回值**里（不只是落盘 payload）：前端看的是
+            # /api/task/<tid> 的 snap.result，那是这份返回值的预览，拿不到 name
+            # 就只能退回页面级 CUR（切模块/刷新后失效 → 读回 400）。
+            return {'project': name, 'n_checked': len(out),
+                    'n_missing': len(payload['missing']),
                     'result': 'taxonomy_check.json'}
 
         tid = tm.start(_cfg.tr(f'物种名校验·{name}', f'taxonomy check·{name}'),

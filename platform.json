@@ -5,6 +5,7 @@
   "tools": {
     "kunpeng": "3rd\\bin\\kun_peng-v0.7.12-x86_64-pc-windows-msvc.exe",
     "spades": "3rd\\tools\\SPAdes-Windows\\bin\\spades.bat",
+    "megahit": "3rd\\tools\\megahit-1.2.9-win64\\megahit.bat",
     "blastn": "3rd\\tools\\Blast\\bin\\blastn.exe",
     "makeblastdb": "3rd\\tools\\Blast\\bin\\makeblastdb.exe",
     "blastp": "3rd\\tools\\Blast\\bin\\blastp.exe",
@@ -33,7 +34,8 @@
     "viral_consensus": "3rd\\tools\\viral_consensus\\viral_consensus.exe",
     "lsd2": "3rd\\tools\\lsd2\\lsd2.exe",
     "RDP5CL": "3rd\\tools\\rdp5\\RDP5CL.exe",
-    "dsRNAmax": "3rd\\tools\\dsrnamax\\dsRNAmax_det.exe"
+    "dsRNAmax": "3rd\\tools\\dsrnamax\\dsRNAmax_det.exe",
+    "srna-target": "3rd\\tools\\srna-target\\miranda\\miranda.exe"
   },
   "databases": {
     "host": "host-db\\112863_genomes_host_db",
@@ -60,15 +62,15 @@
     "force": false,
     "do_trim": true
   },
-  "language": "en",
+  "language": "zh",
   "ai": {
     "enabled": true,
     "provider": "deepseek",
     "base_url": "https://api.deepseek.com/v1",
     "api_key": "",
-    "model": "deepseek-chat",
+    "model": "deepseek-flash",
     "temperature": 0.3,
-    "max_tokens": 2048,
+    "max_tokens": 32768,
     "explain": true,
     "broadcast": true,
     "gate": false,

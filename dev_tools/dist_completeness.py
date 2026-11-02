@@ -35,8 +35,11 @@ DEFAULT_PAIRS = [
     ('3rd/R', '3rd/R'),
     ('3rd/open-virome/frontend/build', '3rd/open-virome/frontend/build'),
     ('webapp', '_internal/webapp'),
-    # t-mirna 候选 miRNA 库（2026-10-24 入包；缺库 = miRNA 靶标卡 abort 500）
-    ('databases/mirna_lib', 'databases/mirna_lib'),
+    # dsRNA / miRNA 小数据（2026-10-26 从程序包移入数据库包；缺库 = miRNA
+    # 靶标卡 abort 500）。--no-split 布局仍在程序目录，main() 对
+    # ../VirusPlatform-Database/... 做同级回退。
+    ('databases/dsrna', '../VirusPlatform-Database/databases/dsrna'),
+    ('databases/mirna_lib', '../VirusPlatform-Database/databases/mirna_lib'),
     # 非 .py 的包内资源（spec 的 datas 投放，代码本身在 exe 的 PYZ 里）
     ('Virus_Platform_Core/ncbi_submit/templates',
      '_internal/Virus_Platform_Core/ncbi_submit/templates'),
@@ -51,6 +54,7 @@ PAIR_IGNORE = {
     # 工具目录里的运行残留日志不入包（插件 zip 打包时就跳过 .log；
     # 源码侧有人手动跑过工具会留下 pita_out.log 这类文件，比对时忽略）
     '3rd/tools': {'*.log'},
+    'databases/dsrna': {'panel', '_cache', '__pycache__'},
     'databases/mirna_lib': {'__pycache__'},
     # OpenVirome SPA：spec._tree 主动排除 static/virome（71MB 开发副本，
     # 冻结版实际服务 3rd/open-virome/frontend/build）——比对同口径忽略。
@@ -138,6 +142,9 @@ def main(argv=None):
     for src_rel, dst_rel in pairs:
         src = os.path.join(ROOT, *src_rel.split('/'))
         dst = os.path.join(a.app, *dst_rel.split('/'))
+        if not os.path.isdir(dst) and dst_rel.startswith('../'):
+            # --no-split 布局：数据库与小数据都在程序目录内
+            dst = os.path.join(a.app, *dst_rel.split('/', 2)[2].split('/'))
         if not os.path.isdir(src):
             print(f'-- {src_rel}: 源码目录不存在，跳过')
             continue

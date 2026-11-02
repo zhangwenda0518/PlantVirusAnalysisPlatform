@@ -1099,6 +1099,426 @@ function renderNavCtx() {
   }
 }
 
+/* ================= 浮层拖动（2026-11-02）================================
+   右下角这几个浮层（样品锚条 / 运行条 / AI 按钮）会盖住页面内容，用户要求
+   「支持拖动，默认仍在右下角」。口径：
+   - 拖动只改 left/top，并把 right/bottom 置 auto；位置按浮层名存
+     localStorage 的 vp_ui_drag，刷新/换模块后还在原处；
+   - 4px 阈值区分「拖动」与「点一下」：拖过就吞掉这一次 click，链接/按钮
+     不会被误触发；没拖过则一切照旧；
+   - **双击回到右下角默认位**（清掉该浮层的存档），拖飞了也能找回来；
+   - 视口变化（缩放/转屏）重新夹回可视区，不会停在屏幕外。 */
+const UI_DRAG_KEY = 'vp_ui_drag';
+
+function _uiDragAll() {
+  try {
+    const d = JSON.parse(localStorage.getItem(UI_DRAG_KEY) || '{}');
+    return (d && typeof d === 'object') ? d : {};
+  } catch (e) { return {}; }
+}
+
+function _uiDragSave(name, pos) {
+  if (!name) return;
+  const all = _uiDragAll();
+  if (pos && isFinite(pos.x) && (isFinite(pos.y) || isFinite(pos.b))) {
+    all[name] = {x: Math.round(pos.x),
+      ...(isFinite(pos.b) ? {b: Math.round(pos.b)} : {y: Math.round(pos.y)})};
+  } else {
+    delete all[name];
+  }
+  try { localStorage.setItem(UI_DRAG_KEY, JSON.stringify(all)); } catch (e) {}
+}
+
+function _uiClamp(x, y, w, h) {
+  const vw = window.innerWidth || 800;
+  const vh = window.innerHeight || 600;
+  const maxX = Math.max(6, vw - (w || 120) - 6);
+  const maxY = Math.max(6, vh - (h || 30) - 6);
+  return {x: Math.max(6, Math.min(x, maxX)), y: Math.max(6, Math.min(y, maxY))};
+}
+
+function _uiPlace(el, x, y) {
+  const r = el.getBoundingClientRect();
+  if (el.dataset.dragBottom === '1') {
+    /* 运行条是 column-reverse、往上长的：以右下边缘为锚，展开正文时头不跳 */
+    const vh = window.innerHeight || 600;
+    el.style.left = Math.round(x) + 'px';
+    el.style.bottom = Math.round(vh - (y + r.height)) + 'px';
+    el.style.top = 'auto';
+    el.style.right = 'auto';
+  } else {
+    el.style.left = Math.round(x) + 'px';
+    el.style.top = Math.round(y) + 'px';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+  }
+}
+
+function vpDragApply(el) {
+  const name = el && el.dataset ? el.dataset.dragName : '';
+  if (!name) return;
+  const saved = _uiDragAll()[name];
+  if (!saved || !isFinite(saved.x) || (!isFinite(saved.y) && !isFinite(saved.b))) return;
+  const r = el.getBoundingClientRect();
+  const vh = window.innerHeight || 600;
+  let topY = saved.y;
+  if (el.dataset.dragBottom === '1' && isFinite(saved.b)) topY = vh - saved.b - (r.height || 0);
+  const p = _uiClamp(saved.x, topY, r.width, r.height);
+  _uiPlace(el, p.x, p.y);
+}
+
+function vpDraggable(el, name, opts) {
+  if (!el || !el.dataset || el.dataset.dragName) return;
+  const o = opts || {};
+  const handle = o.handle || null;          // 只有手柄区域可拖（默认整块）
+  el.dataset.dragName = name;
+  if (o.anchorBottom) el.dataset.dragBottom = '1';
+  vpDragApply(el);
+
+  let down = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0;
+  const onDown = (ev) => {
+    if (ev.button !== 0 && ev.button !== undefined) return;
+    if (!el.getClientRects().length) return;          // 隐藏着就别记起点（rect 全是 0）
+    if (el._dragKill) {                                // 新手势开始：撤掉上一次的点击拦截
+      el.removeEventListener('click', el._dragKill, true);
+      el._dragKill = null;
+    }
+    if (handle && !(ev.target.closest && ev.target.closest(handle))) return;
+    const r = el.getBoundingClientRect();
+    down = true; moved = false;
+    sx = ev.clientX; sy = ev.clientY;
+    ox = r.left; oy = r.top;
+  };
+  const onMove = (ev) => {
+    if (!down) return;
+    const dx = ev.clientX - sx;
+    const dy = ev.clientY - sy;
+    if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+    if (!moved) {
+      moved = true;
+      el.classList.add('is-dragging');
+      try { el.setPointerCapture(ev.pointerId); } catch (e) { /* 合成事件没有捕获 */ }
+    }
+    if (ev.cancelable) ev.preventDefault();
+    const r = el.getBoundingClientRect();
+    const p = _uiClamp(ox + dx, oy + dy, r.width, r.height);
+    _uiPlace(el, p.x, p.y);
+  };
+  const onUp = () => {
+    if (!down) return;
+    down = false;
+    if (!moved) return;
+    el.classList.remove('is-dragging');
+    const r2 = el.getBoundingClientRect();
+    const vh = window.innerHeight || 600;
+    _uiDragSave(name, el.dataset.dragBottom === '1'
+      ? {x: r2.left, b: Math.round(vh - r2.bottom)}
+      : {x: r2.left, y: r2.top});    /* 拖完这一下不算点击：吞掉紧随其后的 click，免得误触链接/按钮 */
+    const kill = (e) => { e.stopPropagation(); e.preventDefault(); };
+    el._dragKill = kill;
+    el.addEventListener('click', kill, true);
+    setTimeout(() => {
+      if (el._dragKill === kill) el._dragKill = null;
+      el.removeEventListener('click', kill, true);
+    }, 350);
+  };
+  el.addEventListener('pointerdown', onDown);
+  window.addEventListener('pointermove', onMove, {passive: false});
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+  el.addEventListener('dblclick', (e) => {
+    /* 双击浮层自身回默认位；点在里面的链接/按钮上则让给它们（按钮本体除外，
+       例如 AI 圆钮自己就是 button，双击它就是「复位」） */
+    const t = e.target.closest && e.target.closest('a, button');
+    if (t && t !== el) return;
+    _uiDragSave(name, null);          // 双击：回右下角默认位
+    el.style.left = ''; el.style.top = '';
+    el.style.right = ''; el.style.bottom = '';
+  });
+  window.addEventListener('resize', () => {
+    if (!el.style.left) return;
+    const r = el.getBoundingClientRect();
+    const p = _uiClamp(r.left, r.top, r.width, r.height);
+    _uiPlace(el, p.x, p.y);
+    const vh = window.innerHeight || 600;
+    _uiDragSave(name, el.dataset.dragBottom === '1'
+      ? {x: p.x, b: Math.round(vh - (p.y + r.height))}
+      : {x: p.x, y: p.y});
+  });
+}
+
+/* ================= 样品锚常驻条（2026-10-27 · 第一阶段：只读） ===============
+   把「当前分析的是哪一件样品」常显在右下角（2026-11-02 用户要求：从左侧挪到
+   AI 按钮左边，与运行条、AI 按钮排成右下角一列，并支持拖动），数据全部来自
+   GET /api/anchor/active（run/anchors/ 的只读投影）。锚是记录者、不是判定者：
+   接口不存在、锚文件坏了、字段缺了，这条就整条隐藏，绝不弹错、绝不挡操作。
+   窄屏收起指纹只留样品名，并抬到 AI 按钮上方，避免盖住按钮。 */
+const ANC_POLL_MS = 6000;
+const ANC_DONE_SHOW_MS = 5 * 60 * 1000;   // 结束后仍显示一会儿，便于确认「跑完了」
+let _ancTimer = null;
+let _ancHiddenRun = '';                   // 用户手动藏起来的 run_id
+
+function anchorBarMount() {
+  if (document.getElementById('vpAnchorBar') || !document.body) return;
+  const bar = document.createElement('div');
+  bar.id = 'vpAnchorBar';
+  bar.className = 'anchorbar';
+  bar.hidden = true;
+  bar.innerHTML = '<span class="ab-dot"></span>'
+    + '<span class="ab-main" id="abMain"></span>'
+    + '<a class="ab-link" id="abOpen"></a>'
+    + '<a class="ab-link ab-verify" id="abVerify" target="_blank" rel="noopener"></a>'
+    + '<button class="ab-x" id="abX" type="button"></button>';
+  document.body.appendChild(bar);
+  vpDraggable(bar, 'anchor');            // 可拖动；双击空白处回右下角
+  const x = $('abX');
+  if (x) {
+    x.title = t('anc.hide', '隐藏（不影响分析）');
+    x.textContent = '×';
+    x.onclick = () => {
+      _ancHiddenRun = bar.dataset.run || '';
+      bar.hidden = true;
+    };
+  }
+}
+
+function _ancStamp(s) {                    // '2026-10-27T15:39:31' → ms；失败 0
+  if (!s) return 0;
+  const ts = Date.parse(String(s).replace(' ', 'T'));
+  return isNaN(ts) ? 0 : ts;
+}
+
+function anchorBarPaint(d) {
+  const bar = $('vpAnchorBar');
+  if (!bar) return;
+  let a = ((d && d.running) || [])[0] || null;
+  let finished = false;
+  if (!a) {
+    const rec = ((d && d.recent) || [])[0] || null;
+    if (rec && rec.finished
+        && (Date.now() - _ancStamp(rec.finished)) < ANC_DONE_SHOW_MS) {
+      a = rec;
+      finished = true;
+    }
+  }
+  if (!a) { bar.hidden = true; return; }
+  const key = a.run_id || a.slug || '';
+  if (key && key === _ancHiddenRun) { bar.hidden = true; return; }
+  const st = a.status || '';
+  bar.dataset.run = key;
+  bar.className = 'anchorbar' + ((finished || st === 'ok') ? ' is-done'
+    : st === 'stale' ? ' is-stale'
+      : (st === 'failed' || st === 'error') ? ' is-fail' : ' is-run');
+  const stage = a.stage || a.stage_done || '';
+  const total = a.stages_total || 15;
+  const doneN = a.stages_done || 0;
+  const fp = a.r1_sha8
+    ? `<span class="ab-fp" title="${esc(t('anc.fpTip', 'R1 指纹（sha256 前 8 位）'))}">`
+      + `${esc(t('anc.fp', 'R1'))} ${esc(a.r1_sha8)}</span>`
+    : '';
+  const parts = [
+    `<b>${esc(a.sample || a.slug || '')}</b>`,
+    a.project ? `· ${esc(a.project)}` : '',
+    `· ${esc(t('anc.stage', '阶段'))} ${doneN}/${total}`,
+    stage ? `· ${esc(stage)}` : '',
+    fp ? '· ' + fp : '',
+  ];
+  const main = $('abMain');
+  if (main) main.innerHTML = parts.filter(Boolean).join(' ');
+  const open = $('abOpen');
+  if (open) {
+    open.textContent = finished ? t('anc.recent', '刚完成') : t('anc.running', '正在分析');
+    /* 2026-10-30 用户要求：「正在分析」跳任务中心（进度页） */
+    open.href = '/tasks';
+    open.title = t('anc.openTasks', '打开任务中心查看进度');
+  }
+  const ver = $('abVerify');
+  if (ver) {
+    ver.textContent = t('anc.verify', '核对');
+    ver.title = t('anc.verifyTip2', '打开该样品的结果页');
+    /* 2026-10-30 用户要求：「核对」跳该样品的结果页 */
+    ver.href = '/results?sample=' + encodeURIComponent(a.sample || a.slug || '');
+  }
+  bar.hidden = false;
+  vpDragApply(bar);                      // 显示后才知道尺寸，这里再落一次拖过的位置
+}
+
+
+async function anchorBarTick() {
+  if (!document.getElementById('vpAnchorBar')) anchorBarMount();
+  if (document.hidden) return;            // 后台标签页不轮询
+  try {
+    const r = await fetch('/api/anchor/active?limit=3', {cache: 'no-store'});
+    const bar = $('vpAnchorBar');
+    if (!r.ok) { if (bar) bar.hidden = true; return; }
+    anchorBarPaint(await r.json());
+  } catch (e) {
+    const bar = $('vpAnchorBar');         // 老版本平台没有这个接口：静默隐藏
+    if (bar) bar.hidden = true;
+  }
+}
+
+function anchorBarInit() {
+  anchorBarMount();
+  anchorBarTick();
+  if (!_ancTimer) _ancTimer = setInterval(anchorBarTick, ANC_POLL_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) anchorBarTick();
+  });
+}
+window.anchorBarTick = anchorBarTick;     // 其它页（如管道页）可在切换样品后手动刷一次
+
+/* ================= 全局运行条（2026-11-02） =================
+   背景：任务跑在服务端线程里，切模块只是整页刷新，任务本身不会丢；丢的是
+   「在哪里看」——各模块页只认自己前缀的任务（如 meta.html 的 refreshTasks），
+   工具页干脆没有任务面板，于是用户看到的像「一换模块就被归档了」。
+   这里给每个页面挂一条常驻运行条（右下角、AI 按钮上方）：
+   - 运行中 / 排队中：全部列出，带进度，可停止；
+   - 已结束：继续留在条里，**只有用户点「📦」才进历史归档**（可恢复）；
+   - 数据源 /api/tasks?logs=0（元信息，几百字节），5s 轮询，后台标签页不轮询。
+   口径定案：切换模块 / 切功能 / 整页刷新一律不归档任何任务。 */
+const RUNBAR_POLL_MS = 5000;
+const RUNBAR_DONE_MAX = 6;        // 已完成最多显示 6 条，其余去任务中心看
+let _runbarTimer = null;
+let _runbarOpen = false;
+let _runbarData = [];
+
+function runBarMount() {
+  if (document.getElementById('vpRunBar') || !document.body) return;
+  const bar = document.createElement('div');
+  bar.id = 'vpRunBar';
+  bar.className = 'runbar';
+  bar.hidden = true;
+  bar.innerHTML = '<button class="rb-head" id="rbHead" type="button">'
+    + '<span class="rb-dot"></span><span class="rb-sum" id="rbSum"></span>'
+    + '<span class="rb-caret" id="rbCaret">▴</span></button>'
+    + '<div class="rb-body" id="rbBody" hidden></div>';
+  document.body.appendChild(bar);
+  vpDraggable(bar, 'runbar', {handle: '.rb-head', anchorBottom: true});  // 拖头部；双击回右下角
+  const head = $('rbHead');
+  if (head) {
+    head.title = t('rb.toggle', '展开/收起运行任务（任何模块页都可见）');
+    head.onclick = () => { _runbarOpen = !_runbarOpen; runBarRender(_runbarData); };
+  }
+}
+
+function _rbStat(st) {
+  if (st === 'running' || st === 'queued') return 'running';
+  if (st === 'done') return 'done';
+  return st === 'failed' ? 'failed' : 'cancelled';
+}
+
+function runBarRender(list) {
+  const bar = $('vpRunBar');
+  if (!bar) return;
+  _runbarData = list || [];
+  const running = _runbarData.filter(x => x.status === 'running' || x.status === 'queued');
+  const done = _runbarData.filter(x => x.status !== 'running' && x.status !== 'queued');
+  if (!running.length && !done.length) { bar.hidden = true; return; }
+  bar.hidden = false;
+  vpDragApply(bar);                      // 显示后按实际尺寸落一次拖动位置
+  bar.classList.toggle('open', _runbarOpen);
+  bar.classList.toggle('is-run', running.length > 0);
+  const sum = $('rbSum');
+  if (sum) {
+    sum.textContent = running.length
+      ? t('rb.sumRun', '{n} 个运行中').replace('{n}', running.length)
+      : t('rb.sumDone', '最近完成 {n} 个').replace('{n}', done.length);
+  }
+  const caret = $('rbCaret');
+  if (caret) caret.textContent = _runbarOpen ? '▾' : '▴';
+  const body = $('rbBody');
+  if (!body) return;
+  body.hidden = !_runbarOpen;
+  if (!_runbarOpen) { body.innerHTML = ''; return; }
+  const rows = running.concat(done).map(x => {
+    const st = _rbStat(x.status);
+    const pct = (x.pct != null && x.pct > 0) ? Math.min(100, Math.round(x.pct * 100)) : null;
+    const sub = (x.msg || x.error)
+      ? `<div class="rb-msg">${esc(trTaskMsg(x.msg || x.error))}`
+        + `${(pct != null && st === 'running') ? ' · ' + pct + '%' : ''}</div>` : '';
+    const acts = st === 'running'
+      ? `<button class="btn small danger" data-act="stop" data-tid="${x.id}">⏹ ${t('rb.stop', '停止')}</button>`
+      : x.external
+        ? ''      // 外部任务（下载批次等）的归档/清理由来源模块负责，别给错按钮
+        : `<button class="btn small" data-act="arch" data-tid="${x.id}" data-name="${esc(x.name || '')}"`
+          + ` title="${t('rb.archTip', '移入历史归档（可恢复）')}">📦 ${t('rb.arch', '归档')}</button>`;
+    return `<div class="rb-row ${st}">
+      <div class="rb-top">
+        <span class="rb-name" title="${esc(trTaskName(x.name || ''))}">${esc(trTaskName(x.name || ''))}</span>
+        <span class="rb-st ${st}">${st === 'running' ? t('rb.run', '运行中')
+          : st === 'done' ? t('rb.done', '已完成')
+          : st === 'failed' ? t('rb.failed', '失败') : t('rb.cancelled', '已停止')}</span>
+        <span class="rb-acts">${acts}</span>
+      </div>
+      ${pct != null && st === 'running' ? `<div class="rb-bar"><i style="width:${pct}%"></i></div>` : ''}
+      ${sub}
+    </div>`;
+  }).join('');
+  body.innerHTML = `<div class="rb-rows">${rows}</div>`
+    + `<div class="rb-foot"><a href="/tasks">${t('nav.tasks', '任务中心')} ›</a>`
+    + `<span class="rb-hint">${t('rb.hint', '跑完也留在条里，点 📦 才归档')}</span></div>`;
+  body.querySelectorAll('button[data-act]').forEach(b => {
+    b.onclick = () => {
+      const tid = b.dataset.tid;
+      if (b.dataset.act === 'stop') runBarCancel(tid);
+      else runBarArchive(tid, b.dataset.name || '');
+    };
+  });
+}
+
+async function runBarCancel(tid) {
+  if (!confirm(t('rb.stopConfirm', '停止该任务？（子进程会被一并终止）'))) return;
+  try { await fetch(`/api/task/${tid}/cancel`, { method: 'POST' }); } catch (e) { /* 静默 */ }
+  runBarTick();
+}
+
+async function runBarArchive(tid, name) {
+  const ask = t('rb.archConfirm',
+    '归档任务「{name}」？\n记录移入历史归档（可随时恢复），日志与结果文件保留。');
+  if (!confirm(ask.replace('{name}', name))) return;
+  try {
+    const r = await fetch(`/api/task/${tid}/archive`, { method: 'POST' });
+    if (!r.ok) {
+      let msg = r.statusText;
+      try { msg = (await r.json()).error || msg; } catch (e) { /* ignore */ }
+      throw new Error(msg);
+    }
+    if (typeof toast === 'function') toast(t('rb.archived', '已归档'), name, { ttl: 3000 });
+  } catch (e) {
+    alert(t('rb.archFail', '归档失败') + '：' + (e.message || e));
+  }
+  runBarTick();
+}
+
+async function runBarTick() {
+  if (!document.getElementById('vpRunBar')) runBarMount();
+  if (document.hidden) return;
+  try {
+    const r = await fetch('/api/tasks?logs=0', { cache: 'no-store' });
+    if (!r.ok) return;
+    const d = await r.json();
+    const arr = Array.isArray(d) ? d : (d.active || []);
+    const active = arr.filter(x => x.status === 'running' || x.status === 'queued');
+    const finished = arr.filter(x => x.status !== 'running' && x.status !== 'queued')
+      .sort((a, b) => (b.finished || 0) - (a.finished || 0))
+      .slice(0, RUNBAR_DONE_MAX);
+    runBarRender(active.concat(finished));
+  } catch (e) { /* 服务不可达时静默 */ }
+}
+
+function runBarInit() {
+  runBarMount();
+  runBarTick();
+  if (!_runbarTimer) _runbarTimer = setInterval(runBarTick, RUNBAR_POLL_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) runBarTick();
+  });
+  const fab = $('aiFab');
+  if (fab) vpDraggable(fab, 'fab');      // AI 按钮也可拖走；双击复位（拖动不触发打开）
+}
+window.runBarTick = runBarTick;          // 任务中心归档/恢复后手动刷一次
+
 /* 通用模态框（全局上下文选择 / 全局清理确认共用） */
 function gxModal(titleText, bodyHtml, onMount) {
   const box = document.createElement('div');
@@ -1328,6 +1748,8 @@ document.addEventListener('vp-ctx', () => {
 /* 整页加载后统一接线：注入导航上下文条、回显上一轮清理结果、接上全局样品 */
 function gxApplyPage() {
   injectGlobalCtx();
+  try { anchorBarInit(); } catch (e) { /* 常驻条失败不影响页面 */ }
+  try { runBarInit(); } catch (e) { /* 运行条失败不影响页面 */ }
   try {
     const raw = sessionStorage.getItem('vp_reset_result');
     if (raw) {
@@ -1760,6 +2182,44 @@ async function toggleFiles(sample, btn) {
 }
 
 // ---------------- 主页总览 ----------------
+/* 库卡的第三行：规模 + 参考条数（/api/dbs 的 bytes / n_refs）。
+   拿不到就整行不渲染 —— 源码树里没有 build_info.json 时也能正常显示。 */
+function dbMetaLine(v) {
+  const bits = [];
+  if (v && v.bytes != null) bits.push(fmtSize(v.bytes));
+  if (v && v.n_refs) bits.push(fmtNum(v.n_refs) + ' ' + t('hm.db.nrefs', '条参考'));
+  return bits.length ? `<div class="mc-meta">${esc(bits.join(' · '))}</div>` : '';
+}
+
+function fmtNum(n) {
+  return n == null ? '' : String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+/* 运行中任务：最多 3 条 + 计数。数据由 navTasksBadgeLoop 传进来
+   （同一个 /api/tasks?logs=0 响应，总览不额外轮询）。 */
+function renderRunTasks(arr) {
+  const sec = $('runSec'), box = $('runList');
+  if (!sec || !box) return;
+  const run = (arr || []).filter(x => x.status === 'running');
+  if (!run.length) { sec.hidden = true; box.innerHTML = ''; return; }
+  const rows = run.slice(0, 3).map(x => {
+    const pct = Math.max(0, Math.min(100, Math.round((x.pct || 0) * 100)));
+    const eta = (x.eta != null && x.eta > 0) ? fmtDur(x.eta) : '';
+    const msg = (x.msg || '').replace(/\s+/g, ' ').trim();
+    return `<a class="run-item" href="/tasks">
+      <div class="run-head"><b>${esc(x.name || x.id || '')}</b>
+        <span class="run-stage">${esc(x.stage || '')}</span></div>
+      <div class="run-bar"><i style="width:${pct}%"></i></div>
+      <div class="run-meta">${pct}%${eta ? ' · ' + esc(t('hm.etaLeft', '剩余')) + ' ' + esc(eta) : ''}${
+        msg ? ' · ' + esc(msg.length > 90 ? msg.slice(0, 90) + '…' : msg) : ''}</div></a>`;
+  }).join('');
+  const more = run.length > 3
+    ? `<a class="run-more" href="/tasks">${esc(t('hm.moreTasks', '还有'))} ${run.length - 3} ${esc(t('hm.moreTasksTail', '个任务'))} ›</a>`
+    : '';
+  box.innerHTML = rows + more;
+  sec.hidden = false;
+}
+
 async function loadHome() {
   try {
     const [r, rkv] = await Promise.all([
@@ -1767,6 +2227,15 @@ async function loadHome() {
       fetch('/api/kv_index_list').catch(() => null),
     ]);
     const dbs = await r.json();
+    // 库包构建信息（分发包才有）：写在「数据库模块」标题右侧，一眼看出
+    // 这份库是什么时候打的、对应哪个版本，而不是只有"就绪/未就绪"。
+    const pkg = dbs.meta || {};
+    if ($('dbMeta')) {
+      const bits = [];
+      if (pkg.built_at) bits.push(t('hm.db.builtAt', '构建于') + ' ' + String(pkg.built_at).slice(0, 10));
+      if (pkg.git_rev) bits.push('rev ' + pkg.git_rev);
+      $('dbMeta').textContent = bits.join(' · ');
+    }
     // 病毒鉴定库（salmon 比对索引）不在 /api/dbs 体系内，单独探
     let kvLibs = [];
     try { kvLibs = ((await rkv.json()).libs) || []; } catch (e) {}
@@ -1784,23 +2253,43 @@ async function loadHome() {
         <span class="mc-state ${st ? 'st-ok' : 'st-no'}">${label}</span>
         <div class="mc-icon">${icon}</div>
         <div class="mc-name">${name}</div>
-        <div class="mc-desc">${desc}</div></a>`;
+        <div class="mc-desc">${desc}</div>${dbMetaLine(dbs[key])}</a>`;
     }).join('');
     // 第 4 张：病毒鉴定库（有库才称就绪）
     const kvSt = kvLibs.length > 0;
     const kvEng = (kvLibs[0] && kvLibs[0].salmon) ? 'salmon' : '';
     const kvDesc = t('hm.db.kvidx.d') + (kvSt && kvEng ? ` · ${kvEng}` : '');
+    // 鉴定库没有统一的条数字段（salmon 索引不带），但清单里有 built_at，
+    // 就展示构建日期 —— 比只显示"就绪"更有信息量。
+    const kvBuilt = (kvLibs[0] && kvLibs[0].manifest
+                     && kvLibs[0].manifest.built_at) || '';
     html += `<a class="module-card" href="/build">
       <span class="mc-state ${kvSt ? 'st-ok' : 'st-no'}">
         ${kvSt ? t('hm.db.kvidxN') + ' (' + kvLibs.length + ')' : t('hm.db.kvidxNone')}</span>
       <div class="mc-icon">🔍</div>
       <div class="mc-name">${t('hm.db.kvidx')}</div>
-      <div class="mc-desc">${kvDesc}</div></a>`;
-    $('dbCards').innerHTML = html;
+      <div class="mc-desc">${kvDesc}</div>${
+        kvBuilt ? `<div class="mc-meta">${esc(t('hm.db.builtAt', '构建于'))} ${
+          esc(String(kvBuilt).slice(0, 10))}</div>` : ''}</a>`;
+    /* 2026-10-30：总览不再展示数据库模块（用户要求），#dbCards 可能不存在；
+       存在才渲染，避免每页加载都在控制台留一条 TypeError。 */
+    const dbBox = $('dbCards');
+    if (dbBox) dbBox.innerHTML = html;
   } catch (e) { if (netFail(e)) setConnBanner(true); else console.error('加载失败:', e); }
   try {
     const r = await fetch('/api/samples');
-    const list = (await r.json()).slice(0, 6);
+    const all = await r.json();
+    const list = all.slice(0, 6);
+    /* 样品统计：总数 / 已完成（done>=total）/ 有失败记录（last_status=failed）。
+       原来只有 6 张卡，看不出"一共多少件、整体健康度如何"。 */
+    if ($('sampleStat') && all.length) {
+      const doneN = all.filter(s => (s.done || 0) >= (s.total || 7)).length;
+      const failN = all.filter(s => s.last_status === 'failed').length;
+      const bits = [`${all.length} ${t('hm.stat.total', '个样品')}`,
+                    `${doneN} ${t('hm.stat.done', '个已完成')}`];
+      if (failN) bits.push(`${failN} ${t('hm.stat.failed', '个有失败记录')}`);
+      $('sampleStat').textContent = bits.join(' · ');
+    }
     $('homeSamples').innerHTML = list.length ? list.map(s => {
       const pct = Math.round(s.done / (s.total || 7) * 100);
       /* 2026-10-11：/pipeline 归档后样品卡改跳结果中心（按样品看产物） */
@@ -2159,8 +2648,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const q = new URLSearchParams(location.search);
   // 建库页
   if ($('hostTaxid') !== null) loadDbs();
-  // 主页
-  if ($('dbCards')) loadHome();
+  // 主页：数据库模块已从总览移除（2026-10-30），用「最近样品」作为锚点判断
+  if ($('dbCards') || $('homeSamples')) loadHome();
   // 分析管道页
   if ($('samples')) {
     loadSamples();
@@ -2227,15 +2716,20 @@ function wireStars() {
 // 仅当页面渲染了徽章（topnav）时启用。
 (function navTasksBadgeLoop() {
   const badge = document.getElementById('navTasksBadge');
-  if (!badge) return;
+  // 总览页的「运行中任务」区也吃这份数据（renderRunTasks），所以 badge
+  // 不存在时不能整段跳过 —— 两处共用同一次 /api/tasks 请求。
+  if (!badge && !document.getElementById('runList')) return;
   const tick = async () => {
     try {
       const list = await (await fetch('/api/tasks?logs=0')).json();
       const arr = Array.isArray(list) ? list : (list.active || []);
       const n = arr.filter(x => x.status === 'running').length;
-      badge.textContent = n > 99 ? '99+' : (n || '');
-      badge.style.display = n ? 'inline-block' : 'none';
-      badge.title = n ? ('运行中任务 ' + n + ' 个') : '';
+      if (badge) {
+        badge.textContent = n > 99 ? '99+' : (n || '');
+        badge.style.display = n ? 'inline-block' : 'none';
+        badge.title = n ? ('运行中任务 ' + n + ' 个') : '';
+      }
+      renderRunTasks(arr);
     } catch (e) { /* 服务不可达时静默 */ }
     setTimeout(tick, 15000);
   };

@@ -8,6 +8,7 @@ import sys
 import json
 import glob
 import shutil
+import tempfile
 import threading
 
 if sys.platform == 'win32':
@@ -101,6 +102,83 @@ LEGACY_TOP_DIRS = {
     'vendor': '3rd/vendor',
     'open-virome': '3rd/open-virome',
 }
+
+# ------------------------------------------------------------------
+# 临时目录兜底（2026-10-29 用户实测：拖拽上传报
+#   FileNotFoundError: No usable temporary directory found in [...]
+# Werkzeug 解析 multipart 时会先 spool 到临时文件；系统 TEMP 全不可写时
+# 上传直接 500。引导钩子钉过一次，这里再在**运行期**校准一次：导入 config
+# 的模块几乎覆盖全部入口，所以放在这里最稳。
+# ------------------------------------------------------------------
+def _sys_tempdir():
+    """系统临时目录的真值——**不读 `tempfile.tempdir`**（那是可被改写的缓存）。
+
+    2026-11-02：`ensure_usable_tempdir()` 原来写的是 `if _usable(tempfile.tempdir)`。
+    模块首次导入时 `tempfile.tempdir` 还是 None，`_usable(None)` 直接返回 False，
+    于是**哪怕系统临时目录完全可用**，也会一路落到 `run/tmp` 兜底分支，
+    把 `tempfile.tempdir` 改写成 `<平台根>/run/tmp`，并同步覆盖
+    TMPDIR/TEMP/TMP 三个环境变量。
+
+    后果不只是「临时文件位置不理想」：`hmm_annot._ascii_path()` 用
+    `tempfile.gettempdir()` 建 junction，位置一挪到平台根内部，链接就落进了
+    被链接树自己——自引用环，任何遍历平台根的 os.walk 都会无限复制整棵树
+    直到撞 MAX_PATH（selfcheck 第⑥项依赖审计直接抛 FileNotFoundError）。
+
+    正确口径是「显式设置过就用设置的，没设置过就问系统要」：
+    `tempfile.tempdir` 有值 → 用它；否则回退环境变量里的 TEMP/TMP/TMPDIR
+    （与 CPython `tempfile._candidate_tempdir_list()` 的前半段同序）。
+    """
+    if tempfile.tempdir:
+        return tempfile.tempdir
+    for k in ('TMPDIR', 'TEMP', 'TMP'):
+        v = os.environ.get(k)
+        if v:
+            return v
+    return '/tmp' if os.name != 'nt' else None
+
+
+def ensure_usable_tempdir():
+    """挑一个**真能建目录**的位置给 tempfile 用，返回最终目录（可能为 None）。"""
+    import tempfile
+    n = {'i': 0}
+
+    def _usable(d):
+        if not d:
+            return False
+        try:
+            os.makedirs(d, exist_ok=True)
+            n['i'] += 1
+            p = os.path.join(d, 'vp_tmp_probe_%d_%d' % (os.getpid(), n['i']))
+            os.mkdir(p)
+            os.rmdir(p)
+            return True
+        except OSError:
+            return False
+
+    if _usable(tempfile.tempdir or _sys_tempdir()):
+        return tempfile.tempdir or _sys_tempdir()
+    cands = [os.path.join(PLATFORM_ROOT, 'run', 'tmp'),
+             os.path.join(PLATFORM_ROOT, 'tmp')]
+    local = os.environ.get('LOCALAPPDATA') or ''
+    if local:
+        cands.append(os.path.join(local, 'VirusPlatform', 'tmp'))
+    tmp_env = os.environ.get('TEMP') or ''
+    if tmp_env:
+        cands.append(os.path.join(tmp_env, 'VirusPlatform'))
+    cands.append(PLATFORM_ROOT)
+    for d in cands:
+        if _usable(d):
+            tempfile.tempdir = d
+            for k in ('TMPDIR', 'TEMP', 'TMP'):
+                try:
+                    os.environ[k] = d
+                except (KeyError, ValueError):
+                    pass
+            return d
+    return tempfile.tempdir
+
+
+ensure_usable_tempdir()
 
 # 多段前缀的旧→新映射（单段映射见上一张表）。
 # 这些前缀随目录整理整体搬迁，历史记录 / 旧前端常量里仍可能写旧写法：
@@ -845,6 +923,29 @@ def _glob_first(pattern):
     return os.path.abspath(hits[0]) if hits else None
 
 
+def _srna_target_complete(root=None):
+    """srna-target 三件套是否齐备（miRanda / RNAhybrid / PITA 缺一不可）。
+
+    为什么单独判：srna-target 不是单文件工具，而是一个 vendored 目录
+    （miranda/ rnahybrid/ pita/），各引擎在 mirna_target/bin_engines.py 里
+    分别调用、缺失时各自静默降级（run_* 返回 None）。只命中 miRanda 就把
+    整个键判为「可用」，会让 PITA/RNAhybrid 在运行时悄悄缺席，共识等级
+    （LOW→VERY HIGH）随之失真而不报错 —— 这比直接报缺更危险。
+    所以这里要求三件套路径全部存在，否则整体判不可用。
+
+    root 参数只供测试注入临时目录用；生产路径与 bin_engines.TOOL_ROOT 一致。
+    """
+    base = root or os.path.join(PLATFORM_ROOT, '3rd', 'tools', 'srna-target')
+    need = [
+        os.path.join(base, 'miranda', 'miranda.exe'),
+        os.path.join(base, 'rnahybrid', 'RNAhybrid.exe'),
+        os.path.join(base, 'pita', 'pita_prediction.pl'),
+        os.path.join(base, 'pita', 'perl', 'bin', 'perl.exe'),
+    ]
+    return all(os.path.isfile(p) for p in need)
+
+
+
 def detect_tools():
     """自动探测外部工具路径（仅 PATH 与 3rd/bin、3rd/tools 目录，不访问其他用户目录）。
     3rd/bin/   = 单文件可执行（kunpeng、seqkit、crabz 等）
@@ -867,6 +968,12 @@ def detect_tools():
         'spades': [_glob_first(os.path.join(T, 'SPAdes*', 'bin', 'spades.bat')),
                    _glob_first(os.path.join(R, 'SPAdes*', 'bin', 'spades.bat')),
                    which('spades.bat'), which('spades.py')],
+        # MEGAHIT（2026-10-29）：Windows 移植版，入口是 megahit.bat（Python 驱动），
+        # 走 3rd\python；比 SPAdes 快一个量级，作为组装引擎的可选项。
+        # 目录名带版本号（megahit-1.2.9-win64），故用 glob。
+        'megahit': [_glob_first(os.path.join(T, 'megahit*', 'megahit.bat')),
+                    _glob_first(os.path.join(R, 'megahit*', 'megahit.bat')),
+                    which('megahit.bat'), which('megahit')],
         'blastn':      [_glob_first(os.path.join(T, 'Blast', 'bin', 'blastn.exe')),
                         _glob_first(os.path.join(R, 'Blast', 'bin', 'blastn.exe')),      which('blastn')],
         'makeblastdb': [_glob_first(os.path.join(T, 'Blast', 'bin', 'makeblastdb.exe')),
@@ -991,11 +1098,27 @@ def detect_tools():
                      os.path.join(T, 'dsrnamax', 'dsRNAmax.exe'),
                      os.path.join(BIN, 'dsrnamax.exe'),
                      os.path.join(R, 'dsRNAmax.exe'), which('dsRNAmax')],
+        # srna-target（miRNA 靶标预测三件套 miRanda/RNAhybrid/PITA）不是单文件
+        # 工具，而是一个多子目录的 vendored 包（3rd/tools/srna-target/{miranda,
+        # rnahybrid,pita}）。此前只在 module_deps.MODULE_TOOLS['mirna'] 里声明了
+        # 这个键、探测表却没有条目，于是 tool_status() 永远判它缺失 —— mirna
+        # 工具在源码环境 100% 跑不通，报「缺少必要外部工具：srna-target」，
+        # 而文件其实全在（2026-11-02 全面测试发现）。候选取 miRanda 主二进制，
+        # 但真正的可用性判据见下面 _srna_target_ok()：三个引擎缺一不可。
+        'srna-target': [os.path.join(T, 'srna-target', 'miranda', 'miranda.exe'),
+                        os.path.join(R, 'srna-target', 'miranda', 'miranda.exe'),
+                        which('miranda'), which('miranda.exe')],
         # 注：snpEff（jar）与 SNPGenie（perl 脚本）不是可直接执行的单文件工具，
         # 由 known_virus_suite 自己按 tools/snpeff/snpEff/snpEff.jar、
         # tools/snpgenie/snpgenie.pl 定位，不放进本探测表（避免"jar 当 exe"）。
     }
     out = {name: _first_exist(lst) for name, lst in cands.items()}
+    # srna-target 是「三引擎缺一不可」的复合工具：只命中 miRanda 不代表可用
+    # （bin_engines.py 的 RNAhybrid/PITA 分支会各自降级，共识等级随之失真）。
+    # 这里按三件套齐备与否给出最终裁决；缺任一件就判整体不可用，
+    # 由 module_deps 的自愈流程给出指引，而不是跑到一半才降级。
+    if out.get('srna-target') and not _srna_target_complete():
+        out['srna-target'] = ''
     # 冻结分发：gbdraw 随包的是 Python 引擎（_internal/gbdraw，进程内调用），
     # 不是独立 exe。构建机 PATH 上若装着别版 gbdraw.exe，上面的 which() 会先
     # 命中它 —— 实测取到旧版后 3 张基因组图里有 2 张因编码/参数差异报错，而

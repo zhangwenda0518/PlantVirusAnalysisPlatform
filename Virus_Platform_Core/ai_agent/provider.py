@@ -105,6 +105,20 @@ def _raise_provider_error(resp):
                           status=resp.status_code)
 
 
+def _join_name(cur, add):
+    """拼接流式 tool_call 的 name 碎片，容忍网关重复整名。
+
+    标准 OpenAI 协议只在首片给 name，之后只给 arguments；但有兼容网关每片
+    都重发完整 name，`cur + add` 会拼成 "propose_actionpropose_action"，
+    结果 dispatch 找不到工具、模型被回一句「未知工具」。
+    """
+    if not cur:
+        return add
+    if add in cur or cur.endswith(add):
+        return cur
+    return cur + add
+
+
 def _assemble_tool_calls(frags):
     """流式工具调用碎片按 index 归并 → OpenAI 消息格式的 tool_calls 列表。"""
     out = {}
@@ -116,7 +130,8 @@ def _assemble_tool_calls(frags):
             slot['id'] = f['id']
         fn = f.get('function') or {}
         if fn.get('name'):
-            slot['function']['name'] += fn['name']
+            slot['function']['name'] = _join_name(slot['function']['name'],
+                                                  fn['name'])
         if fn.get('arguments'):
             slot['function']['arguments'] += fn['arguments']
     return [out[k] for k in sorted(out)]
@@ -166,6 +181,9 @@ def chat_stream(ai_cfg, messages, tools=None, temperature=None, max_tokens=None,
             msg = ((data.get('choices') or [{}])[0].get('message')) or {}
             if msg.get('tool_calls'):
                 yield {'type': 'tool_calls', 'tool_calls': msg['tool_calls']}
+            if msg.get('reasoning_content'):
+                yield {'type': 'reasoning',
+                       'content': msg['reasoning_content']}
             if msg.get('content'):
                 yield {'type': 'delta', 'content': msg['content']}
             yield {'type': 'message', 'message': msg}
@@ -173,8 +191,15 @@ def chat_stream(ai_cfg, messages, tools=None, temperature=None, max_tokens=None,
         content_started = False
         frags = []
         finish = ''
+        reasoning_chars = 0
         for raw in resp.iter_lines(decode_unicode=True):
-            if not raw or not raw.startswith('data:'):
+            if not raw:
+                continue
+            # 个别兼容端点不回 charset，requests 的 decode_unicode 就会把
+            # bytes 原样给出（之后 startswith('data:') 直接 TypeError）。
+            if isinstance(raw, bytes):
+                raw = raw.decode('utf-8', 'replace')
+            if not raw.startswith('data:'):
                 continue
             body = raw[5:].strip()
             if body == '[DONE]':
@@ -185,6 +210,12 @@ def chat_stream(ai_cfg, messages, tools=None, temperature=None, max_tokens=None,
                 continue
             choice = (chunk.get('choices') or [{}])[0]
             delta = choice.get('delta') or {}
+            # 推理模型（deepseek-reasoner / 部分网关）把思维链放在
+            # reasoning_content；普通 chat 模型没有这个字段。
+            rsn = delta.get('reasoning_content') or delta.get('reasoning')
+            if rsn:
+                reasoning_chars += len(rsn)
+                yield {'type': 'reasoning', 'content': rsn}
             if delta.get('content'):
                 content_started = True
                 yield {'type': 'delta', 'content': delta['content']}
@@ -192,6 +223,11 @@ def chat_stream(ai_cfg, messages, tools=None, temperature=None, max_tokens=None,
                 frags.extend(delta['tool_calls'])
             if choice.get('finish_reason'):
                 finish = choice['finish_reason']
+                # 显式把结束原因交出去：上层要据此判断「被 max_tokens 截断」
+                # 「只有思考没有正文」（推理模型常见），而不是笼统报
+                # 「模型未返回内容」。
+                yield {'type': 'finish', 'reason': finish,
+                       'reasoning_chars': reasoning_chars}
         if frags:
             tc = _assemble_tool_calls(frags)
             yield {'type': 'tool_calls', 'tool_calls': tc}
@@ -225,9 +261,19 @@ def test_connection(ai_cfg):
                     'latency_ms': int((time.time() - t0) * 1000)}
     try:
         data = resp.json()
-        reply = (((data.get('choices') or [{}])[0].get('message') or {})
-                 .get('content') or '').strip()
+        choice = (data.get('choices') or [{}])[0] or {}
+        reply = ((choice.get('message') or {}).get('content') or '').strip()
     except ValueError:
-        reply = ''
+        data, choice, reply = {}, {}, ''
+    if not reply:
+        # 连通成功但正文为空：推理型模型（deepseek-reasoner/flash 等）把
+        # 预算耗在 reasoning_content 上时就是这样，设置页得说清楚，
+        # 否则用户只会看到「测试成功」却没有回复。
+        fr = str(choice.get('finish_reason') or '') or '未知'
+        return {'ok': True, 'reply': '',
+                'note': f'连通正常，但正文为空（finish_reason={fr}）；'
+                        f'推理型模型的思考可能占满了「最大生成长度」，'
+                        f'建议调到 4096 以上或改用非推理模型',
+                'latency_ms': int((time.time() - t0) * 1000)}
     return {'ok': True, 'reply': reply[:80],
             'latency_ms': int((time.time() - t0) * 1000)}

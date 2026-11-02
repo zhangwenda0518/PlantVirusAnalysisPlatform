@@ -34,11 +34,22 @@
 {% import '_nav_i18n.html' as NI with context %}{%- set _groups = nav_groups or [] -%}
 {%- set _cur_gid = current_group.id if current_group else '' -%}
 
+{# 功能栏位置：top（默认）/ side。必须在 <aside> 之前跑完 —— 位置靠
+   <html data-nav> 驱动 CSS，晚一拍就会先画出侧栏再跳到顶部（闪一下）。
+   放在 _nav.html 而不是每个模板的 <head>：本文件被所有页面 include，
+   改一处全站生效；theme 那套是每页第 8 行各写一遍，25 个模板重复维护。 #}
+<script>try{var _np=localStorage.getItem('vp_nav_pos');document.documentElement.setAttribute('data-nav',_np==='side'?'side':'top')}catch(e){document.documentElement.setAttribute('data-nav','top')}</script>
+
 <aside class="sidenav" id="sideNav" aria-label="{{ 'Main navigation' if lang != 'zh' else '主导航' }}">
   <div class="sn-head">
     <a class="sn-brand" href="/">
       <span class="sn-brand-leaf">🌿</span>
-      <span class="sn-brand-txt">{{ NI.brand() }}</span>
+      {# 2026-10-30 用户定案：品牌位两行 —— 平台名 + 定位语小字。
+         定位语走 hm.heroLead（中英随语言切换）。 #}
+      <span class="sn-brand-txt">
+        <b class="sn-brand-name">{{ NI.brand() }}</b>
+        <small class="sn-brand-tag" data-i18n="hm.heroLead">看见样本里的病毒世界。</small>
+      </span>
     </a>
     {# 窄屏抽屉展开时，顶栏的 ☰ 会被侧栏盖住；这里给一个自己的关闭钮 #}
     <button class="sn-close" id="snClose" type="button"
@@ -47,7 +58,7 @@
 
   <nav class="navlinks sn-links">
     <a class="sn-link{{ ' active' if request.path == '/' }}" href="/"
-       data-i18n="nav.home">总览</a>
+       data-i18n="nav.home">工作台</a>
 
     {%- for g in _groups %}
     {#- 结果中心组不在这里渲染：底部 sn-foot 已有直达入口（旧导航同口径），
@@ -106,6 +117,12 @@
   <button class="sn-toggle" id="snToggle" type="button"
           aria-label="{{ 'Expand or collapse navigation' if lang != 'zh' else '展开或收起导航' }}" aria-expanded="false">☰</button>
   <span class="tb-title" id="tbTitle"></span>
+  {# 环境状态条（2026-10-30 用户要求）：模块/工具/数据库/磁盘搬进顶栏；
+     数据仍由总览页的 /api/selfcheck 填充，其它页面保持隐藏。 #}
+  <div id="envStrip" class="env-strip env-strip-top" hidden>
+    <span id="envStripBody"></span>
+    <a href="/settings#sec-selfcheck" data-i18n="hm.env.selfcheck">环境自检</a>
+  </div>
   <span class="navctx-host" id="navCtxHost"></span>
   <span class="navtail">
     <a href="#" class="iconbtn" title="{{ 'Open the platform folder' if lang != 'zh' else '打开平台目录' }}"
@@ -122,27 +139,22 @@
         id="aiFabBadge" class="ai-fab-badge" hidden></span></button>
 <div id="aiDock" class="ai-dock" hidden>
   <div class="ai-dock-head">
-    <span class="ai-dock-title"><img class="ai-logo-img" alt="" src="/static/ai-logo.png?v={{ asset_v }}"> <span data-i18n="ai.dock.title">AI 助手</span>
+    <span class="ai-dock-title"><img class="ai-logo-img" alt="" src="/static/ai-logo.png?v={{ asset_v }}"> <span data-i18n="ai.dock.title">AI 工作台</span>
       <i id="aiReadyDot" class="ai-dot" hidden></i></span>
     <span class="ai-dock-ops">
-      <button class="ai-ico" onclick="AI.clear()" data-i18n-title="ai.dock.clear"
-              title="清空对话">⟲</button>
-      <a class="ai-ico" href="/settings#aiCard" data-i18n-title="ai.dock.settings"
-         title="AI 设置">⚙</a>
       <button class="ai-ico" onclick="AI.toggle(false)"
               data-i18n-title="ai.dock.close" title="收起">✕</button>
     </span>
   </div>
-  {# 样品 / 模型两个选择器单独一行：430px 宽的坞放不进标题栏。
-     模型切换原先是首页内嵌对话卡独有的能力，2026-10-26 卡片移除后
-     并入全局坞，避免"换个模型还得去设置页"。 #}
-  <div class="ai-dock-ctx">
-    <select id="aiSampleSel" onchange="AI.onSampleChange(this.value)"
-            data-i18n-title="ai.dock.sample" title="样品"></select>
-    <select id="aiModelSel" onchange="AI.onModelChange(this.value)"
-            data-i18n-title="ai.dock.model" title="模型"></select>
+  <!-- 对话区 + 右侧「历史提问导航」（2026-11-02）：
+       外层只负责给导航条定位（消息区自己滚，导航条不跟着滚）。
+       每轮用户提问打一个短点，点击跳到那一轮，滚到哪轮哪个点变长变深；
+       悬停出预览气泡（提问前 120 字）。只在 ≥2 轮提问时出现。 -->
+  <div class="ai-msgs-wrap">
+    <div id="aiMsgs" class="ai-msgs"></div>
+    <nav id="aiTurnNav" class="ai-turn-nav" aria-label="历史提问导航" hidden></nav>
+    <div id="aiTurnTip" class="ai-turn-tip" role="tooltip" hidden></div>
   </div>
-  <div id="aiMsgs" class="ai-msgs"></div>
   <div class="ai-chips">
     <button class="ai-chip" onclick="AI.chip('interpret')"
             data-i18n="ai.dock.chipInterpret">解读这个样品</button>
@@ -153,12 +165,45 @@
     <button class="ai-chip" onclick="AI.chip('params')"
             data-i18n="ai.dock.chipParams">参数建议</button>
   </div>
+  <!-- 附件区（2026-10-30）：输入框上方的文件芯片 + 「＋」选文件。
+       选文件复用全站文件对话框（browse），结果由 app-browse.js 以
+       vp:filepicked 事件回传，app-ai.js 收进 AI.attachments。 -->
+  <div id="aiAttachChips" class="ai-attach-chips" hidden></div>
+  <input id="aiAttachPath" type="hidden" value="">
+  <input id="aiWorkspacePath" type="hidden" value="">
+  <!-- 2026-10-30 布局重排（用户草图）：模型选择与 清空/设置 挪到输入行
+       下方右下角（参考 OmicoOS），顶部只留标题；工作空间在左下角。 -->
   <div class="ai-inputrow">
+    <button class="ai-attach" type="button" onclick="AI.attach()"
+            data-i18n-title="ai.dock.attach" title="附加文件（FASTQ / FASTA / 表格…）">＋</button>
     <textarea id="aiInput" rows="1" data-i18n-ph="ai.dock.inputPh"
-              placeholder="问点什么…（Enter 发送，Shift+Enter 换行）"></textarea>
+              placeholder="问点什么…（Enter 发送，Shift+Enter 粘贴文件路径；也可直接粘贴路径）"></textarea>
     <button id="aiSendBtn" class="ai-send" onclick="AI.sendOrStop()">➤</button>
   </div>
+  <div class="ai-dock-foot">
+    <div class="ai-workspace" id="aiWorkspaceBar">
+      <button type="button" class="ai-ws-btn" onclick="AI.pickWorkspace()">
+        📁 <span data-i18n="ai.ws.pick">选择工作空间</span>
+      </button>
+      <span class="ai-ws-name" id="aiWorkspaceName" hidden></span>
+      <button type="button" class="ai-ws-clear" id="aiWorkspaceClear" hidden
+              onclick="AI.clearWorkspace()" title="取消工作空间">✕</button>
+    </div>
+    <span class="ai-dock-foot-ops">
+      <select id="aiModelSel" class="ai-model-sel" onchange="AI.onModelChange(this.value)"
+              data-i18n-title="ai.dock.model" title="模型"></select>
+      <!-- 2026-11-02（P1-1）：历史会话入口。localStorage 里一直留着最近 12 段
+           会话，但以前界面上没有入口，切个模块就以为「对话没了」。 -->
+      <button class="ai-ico" id="aiConvBtn" type="button" onclick="AI.toggleConvMenu()"
+              data-i18n-title="ai.dock.convs" title="历史会话">🕘</button>
+      <button class="ai-ico" onclick="AI.clear()" data-i18n-title="ai.dock.clear"
+              title="清空当前会话">⟲</button>
+      <a class="ai-ico" href="/settings#aiCard" data-i18n-title="ai.dock.settings"
+         title="AI 设置">⚙</a>
+    </span>
+  </div>
 </div>
+<script src="/static/app-md.js?v={{ asset_v }}"></script>
 <script src="/static/app-nav.js?v={{ asset_v }}"></script>
 <script src="/static/app-ai.js?v={{ asset_v }}"></script>
 

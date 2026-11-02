@@ -212,4 +212,126 @@ def test_write_tsv_bool_format(tmp_path):
     _write_tsv(df, p)
     text = p.read_text(encoding='utf-8')
     assert 'true' in text and 'false' in text
-    assert 'True' not in text and 'False' not in text
+
+
+# ── ④ 共识段的入参契约（2026-11-02 回归）────────────────
+def test_consensus_accepts_pandas_passed_df():
+    """共识段必须能吃 pandas 表。
+
+    2026-11-02：identify/filter 迁回 pandas 后，共识段仍用 polars 的
+    `passed_df.iter_rows(named=True)` → 每次 stage=all 都在共识段
+    AttributeError（任务中心 known_virus_suite 退出码 1）。这条锁死入参
+    兼容性，别再只按一种 DataFrame 实现写死。
+    """
+    from Virus_Platform_Core.known_virus_suite.kv_consensus import \
+        iter_passed_rows
+    df = pd.DataFrame(_rows())
+    rows = list(iter_passed_rows(df))
+    assert len(rows) == len(df)
+    assert all(isinstance(r, dict) for r in rows)
+    assert rows[0]['Accession'] == 'A1'
+    assert set(rows[0]) >= {'Sample', 'Accession', 'Species'}
+
+
+def test_consensus_polars_shaped_input_still_works():
+    """上游若换回 polars（有 iter_rows(named=…)），同一入口仍成立。"""
+    from Virus_Platform_Core.known_virus_suite.kv_consensus import \
+        iter_passed_rows
+
+    class FakePolarsDF:
+        def iter_rows(self, named=False):
+            assert named is True
+            return iter([{'Sample': 'S1', 'Accession': 'P1'}])
+
+    rows = list(iter_passed_rows(FakePolarsDF()))
+    assert rows == [{'Sample': 'S1', 'Accession': 'P1'}]
+
+
+# ── ⑤ _run 必须把 CompletedProcess 交回（2026-11-02 回归）──
+def test_run_returns_completed_process():
+    """_run 的返回值是共识段 0 映射守卫的输入。
+
+    2026-11-02：_run 写完日志就直接结束、**没有 return**，恒返回 None；
+    而 _bam_mapped_count() 用它读 .stdout（check=False 的 samtools view -c）
+    → `AttributeError: 'NoneType' object has no attribute 'stdout'`，
+    共识段在比对完成后必崩，stage=all 永远跑不完。
+    """
+    import sys as _sys
+    from Virus_Platform_Core.known_virus_suite.kv_consensus import _run
+    r = _run([_sys.executable, '-c', 'print(42)'], check=False)
+    assert r is not None, '_run 必须返回 CompletedProcess'
+    assert r.returncode == 0
+    assert (r.stdout or '').strip() == '42'
+
+
+def test_bam_mapped_count_reads_stdout(monkeypatch):
+    """_bam_mapped_count 能解析出数字（真跑一次 samtools view -c 的替代）。"""
+    from Virus_Platform_Core.known_virus_suite import kv_consensus as kc
+
+    class _R:
+        stdout = '  7\n'
+        returncode = 0
+
+    monkeypatch.setattr(kc, '_run', lambda *a, **k: _R())
+    assert kc._bam_mapped_count('x.bam', 'samtools') == 7
+
+    class _Bad:
+        stdout = 'not-a-number'
+        returncode = 0
+
+    monkeypatch.setattr(kc, '_run', lambda *a, **k: _Bad())
+    assert kc._bam_mapped_count('x.bam', 'samtools') == -1
+
+
+# ── ⑥ 参考库 .fai 自检（2026-11-02 回归）───────────────
+def _samtools_exe():
+    from Virus_Platform_Core.known_virus_suite.kv_common import (
+        which_tool, platform_root)
+    exe = which_tool('samtools')
+    if exe:
+        return exe
+    # which_tool 只看 PATH；测试里直接兜到随包工具目录
+    from pathlib import Path
+    cand = Path(platform_root()) / '3rd' / 'tools' / 'samtools' / 'bin' \
+        / 'samtools.exe'
+    return str(cand) if cand.exists() else None
+
+
+def test_ensure_fai_detects_malformed_width(tmp_path):
+    """linewidth < linebases 的坏索引必须被识别并重建。
+
+    线上就是这样坏的：`NC_116488.1 2302 13 60 39` —— 换行宽度被改写过、
+    索引没重建，bcftools mpileup 直接 [E::fai_insert_index] Malformed line。
+    """
+    samtools = _samtools_exe()
+    if not samtools:
+        pytest.skip('samtools 不在 3rd/tools 里，跳过 .fai 重建测试')
+    from Virus_Platform_Core.known_virus_suite.kv_common import ensure_fai
+
+    fa = tmp_path / 'ref.fasta'
+    seq = 'ACGT' * 150                      # 600 bp
+    fa.write_text('>seq1\n' + '\n'.join(seq[i:i + 60]
+                                       for i in range(0, len(seq), 60)) + '\n',
+                  encoding='utf-8')
+    (tmp_path / 'ref.fasta.fai').write_text('seq1\t600\t6\t60\t39\n',
+                                            encoding='utf-8')
+    assert ensure_fai(fa, samtools=samtools) is True
+    cols = (tmp_path / 'ref.fasta.fai').read_text(
+        encoding='utf-8').splitlines()[0].split('\t')
+    assert cols[1] == '600'
+    # 重建后行宽必须 ≥ 碱基数（LF=61 / CRLF=62）
+    assert int(cols[4]) >= int(cols[3])
+
+
+def test_ensure_fai_keeps_good_index(tmp_path):
+    samtools = _samtools_exe()
+    if not samtools:
+        pytest.skip('samtools 不在 3rd/tools 里，跳过 .fai 自检测试')
+    from Virus_Platform_Core.known_virus_suite.kv_common import ensure_fai
+
+    fa = tmp_path / 'ref.fasta'
+    fa.write_text('>seq1\nACGT\n', encoding='utf-8')
+    assert ensure_fai(fa, samtools=samtools) is True      # 先正常建一次
+    stamp = (tmp_path / 'ref.fasta.fai').stat().st_mtime_ns
+    assert ensure_fai(fa, samtools=samtools) is True      # 再判一次：不该重建
+    assert (tmp_path / 'ref.fasta.fai').stat().st_mtime_ns == stamp

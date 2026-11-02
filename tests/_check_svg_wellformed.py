@@ -80,12 +80,18 @@ def _check(cond, msg):
 
 
 def _is_wellformed(path):
-    """返回 (是否良构, 错误串)。只读，不改文件。"""
+    """返回 (是否良构, 错误串, 是否可读)。只读，不改文件。
+
+    第三个返回值区分「打不开」（路径过长 / 扫描途中被删）与「真残缺」：
+    前者不该算残缺，但也不能静默当成良构，调用方要单独记账。
+    """
     try:
         ET.parse(path)
-        return True, ''
+        return True, '', True
     except ET.ParseError as e:
-        return False, str(e)
+        return False, str(e), True
+    except OSError as e:                     # FileNotFoundError / WinError 3（MAX_PATH）
+        return False, f'不可读: {e}', False
 
 
 def _iter_svgs():
@@ -93,10 +99,28 @@ def _iter_svgs():
         root = os.path.join(ROOT, base)
         if not os.path.isdir(root):
             continue
-        for dp, _dirs, files in os.walk(root):
+        for dp, dirs, files in os.walk(root):
+            # 目录链接（junction/symlink）一律不进去：走进去会无限复制整棵树，
+            # 路径也会撞上 MAX_PATH（见下方 _is_link 注释）。
+            dirs[:] = [d for d in dirs if not _is_link(os.path.join(dp, d))]
             for f in files:
                 if f.endswith('.svg'):
                     yield os.path.join(dp, f)
+
+
+# 2026-11-02：扫描时遇到**扫描途中消失**的文件不能整脚本崩。
+# 实测触发口：`run/tmp/vp_ascii_root`（hmm_annot.py:235 建的 `%TEMP%\vp_ascii_root`
+# 目录链接）指向平台根，os.walk 会顺着链接把整棵树再走一遍 → 路径层层嵌套
+# （`run/tmp/vp_ascii_root/run/tmp/vp_ascii_root/...`），长度超 Windows MAX_PATH，
+# 后续 ET.parse 打开就 FileNotFoundError，整个守卫抛异常退出。
+# 判据：链接（junction/symlink）不作为扫描入口；扫描途中消失/打不开的文件记一条
+# 警告后跳过 —— 它既不是"良构"也不是"残缺"，不该让整轮体检失效。
+def _is_link(path):
+    try:
+        return os.path.islink(path) or bool(
+            getattr(os.lstat(path), 'st_file_attributes', 0) & 0x400)
+    except OSError:
+        return False
 
 
 def _rel(p):
@@ -124,15 +148,21 @@ def part_a_scan():
     print('[A] 覆盖范围：examples/ + run/ 全部 SVG 良构（只读，不改文件）')
     n = 0
     bad = []
+    unreadable = []
     for p in _iter_svgs():
         n += 1
-        ok, err = _is_wellformed(p)
+        ok, err, readable = _is_wellformed(p)
         if ok:
             continue
         if _rel(p) in KNOWN_BAD:
             continue
+        if not readable:
+            unreadable.append((_rel(p), err))
+            continue
         bad.append((_rel(p), err))
     print(f'         扫描 {n} 个 SVG（白名单 {len(KNOWN_BAD)} 个故意残缺）')
+    for p, e in unreadable:
+        print(f'  warn 跳过不可读文件: {p}（{e}）')
     for p, e in bad:
         _check(False, f'{p}: {e}')
     _check(not bad, f'非白名单残缺 SVG = {len(bad)} 个（应 0）')
@@ -147,8 +177,8 @@ def part_b_sensitivity(tmpdir):
         f.write(BROKEN_SVG)
     with open(pg, 'w', encoding='utf-8', newline='\n') as f:
         f.write(GOOD_SVG)
-    ok_b, err_b = _is_wellformed(pb)
-    ok_g, _err_g = _is_wellformed(pg)
+    ok_b, err_b, _rb = _is_wellformed(pb)
+    ok_g, _err_g, _rg = _is_wellformed(pg)
     _check(not ok_b, f'残缺 fixture 被判坏（err={err_b or "无"}）')
     _check(ok_g, '良构 fixture 未被误判')
     # 若把残缺 fixture 也判成良构 → 判据失灵，本守卫会恒过
@@ -167,11 +197,11 @@ def part_c_repair(tmpdir):
         _check(False, f'verify_svg 抛异常：{type(e).__name__}: {e}')
         return
     _check(r is True, f'verify_svg 返回 True（实际 {r!r}）')
-    ok, err = _is_wellformed(pc)
+    ok, err, _r = _is_wellformed(pc)
     _check(ok, f'修复后文件可解析（err={err or "无"}）')
     # 幂等：再修一次仍是良构
     verify_svg(pc)
-    ok2, _ = _is_wellformed(pc)
+    ok2, _e2, _r2 = _is_wellformed(pc)
     _check(ok2, '幂等：二次调用后仍良构')
 
 
@@ -186,7 +216,7 @@ def part_d_whitelist():
             n_gone += 1
             print(f'  note  {rel} 不存在（{why}）—— 无待抑制项，跳过')
             continue
-        ok, _err = _is_wellformed(p)
+        ok, _err, _r = _is_wellformed(p)
         if ok:
             stale.append(f'{rel}（已变良构，条目过期 · {why}）')
     for s in stale:

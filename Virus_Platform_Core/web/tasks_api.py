@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """任务状态 API（自 app.py 拆出）。
 
-/api/tasks 列表与详情、日志、SSE 流、取消/删除/清理。"""
+/api/tasks 列表与详情、日志、SSE 流、取消/删除/清理、手动归档/恢复。"""
 import json
 import time
 
@@ -36,6 +36,10 @@ def api_task(tid):
     except (TypeError, ValueError):
         lines = 80
     snap = tm.snapshot(tid, log_lines=lines)
+    if not snap:
+        # 内存里没有（手动归档 / 服务重启前留下的记录）：回落磁盘，
+        # 带 archived=True 返回，免得挂着的任务卡只看到 404。
+        snap = tm.archived_snapshot(tid, log_lines=lines)
     if not snap:
         abort(404)
     return jsonify(snap)
@@ -119,6 +123,28 @@ def api_task_cancel(tid):
 @bp.route('/api/task/<tid>/delete', methods=['POST'])
 def api_task_delete(tid):
     ok, msg = tm.delete(tid)
+    if not ok:
+        abort(400, msg)
+    return jsonify({'ok': True})
+
+
+@bp.route('/api/task/<tid>/archive', methods=['POST'])
+def api_task_archive(tid):
+    """手动归档（用户点「📦 归档」时才走这里）。
+
+    口径（2026-11-02 用户定案）：切换模块 / 切功能 / 整页刷新**一律不归档**；
+    任务跑完继续留在列表与全局运行条里，只有本接口把它移进
+    tasks/_archive/（可恢复），任务中心「历史归档」里才出现。"""
+    ok, msg = tm.archive(tid)
+    if not ok:
+        abort(400, msg)
+    return jsonify({'ok': True})
+
+
+@bp.route('/api/task/<tid>/unarchive', methods=['POST'])
+def api_task_unarchive(tid):
+    """把历史归档里的任务记录恢复到运行列表（不重启任务，只恢复记录）。"""
+    ok, msg = tm.unarchive(tid)
     if not ok:
         abort(400, msg)
     return jsonify({'ok': True})

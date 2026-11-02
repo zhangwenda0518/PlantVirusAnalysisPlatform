@@ -231,9 +231,9 @@ mindmap
 
 ### 1. Install
 
-No installation: unpack the package and start it (Windows 10+, 64-bit). Double-click `VirusPlatform.exe` for the desktop window, or `Start-Web.bat` to open the platform in your browser; `Start-Desktop.bat` is the same as the exe. Command-line equivalents: `VirusPlatform.exe --gui` and `VirusPlatform.exe --web`. The Python runtime, the external tools and the web front end all ship inside the folder.
+No installation: unpack the package and start it (Windows 10+, 64-bit). In the package root, double-click `Start-Desktop.bat` for the desktop window or `Start-Web.bat` to open the platform in your browser; both launch `VirusPlatform\VirusPlatform.exe`. Command-line equivalents: `VirusPlatform.exe --gui` and `VirusPlatform.exe --web`. The Python runtime, the external tools and the web front end all ship inside the folder.
 
-- **Editions**: `VirusPlatform-Standalone` (program only), `VirusPlatform-Platform-and-Database` (program + database package) and `VirusPlatform-Complete` (program + database package + the full 31-tool set). `README-Distribution.txt` in each package lists exactly what is inside.
+- **Editions**: two packages are published — `PlantVirusPlatform` (main-workflow tool set; specialised tools install on demand) and `PlantVirusPlatform_with_Plugin` (full tool set). Both ship the same database package. `README-Distribution.txt` in each package lists exactly what is inside.
 - **First run**: if the package carries the NCBI Taxonomy archive it is unpacked once automatically (about a minute, no network); the console prints `[init] ...` while that happens. Later runs start immediately.
 - **Everything is local**: the platform listens on `127.0.0.1` only and never uploads your data.
 - **Databases** (~3.4 GB) live in the separate `VirusPlatform-Database` folder for editions 02/03; for the standalone edition place that folder next to the program (it is detected automatically), or build the libraries on the Database build page.
@@ -327,7 +327,7 @@ Legacy path compatibility: platform-relative paths such as `tool_runs/` and `res
 
 | Edition | What is inside |
 |---|---|
-| ① `VirusPlatform-Standalone` | Program only: the main workflow runs out of the box (QC fastp / host removal minibwa+blast / assembly spades / identification kunpeng / alignment mafft+trimal / trees fasttree / quantification-consensus minimap2+samtools+bcftools+salmon / candidate verification diamond+mmseqs / datasets CLI + small bin utilities) — stages ⓪–⑩ and the Data Resources and Virus Identification groups need no network; specialised tools (recombination RDP5, phylodynamics iqtree/raxml-ng/lsd2, NCBI submission table2asn …) install on demand as plugins |
+| ① `VirusPlatform-Standalone` | Program only: the main workflow runs out of the box (QC fastp / host removal minibwa+blast / assembly spades / identification kunpeng / alignment mafft+trimal / trees fasttree / quantification-consensus salmon-or-minibwa+samtools+bcftools / candidate verification diamond+mmseqs / datasets CLI + small bin utilities) — stages ⓪–⑩ and the Data Resources and Virus Identification groups need no network; specialised tools (recombination RDP5, phylodynamics iqtree/raxml-ng/lsd2, NCBI submission table2asn …) install on demand as plugins |
 | ② `VirusPlatform-Platform-and-Database` | Edition ① plus the `VirusPlatform-Database` folder: NCBI Taxonomy archive (unpacked on first run), prebuilt virus reference library, annotation libraries, tree references, dsRNA/miRNA libraries |
 | ③ `VirusPlatform-Complete` | Edition ② plus the full 31-tool set — nothing to fetch at run time |
 
@@ -397,6 +397,7 @@ The platform integrates a large number of excellent open-source tools and data r
   <script src="/static/app-batch.js?v={{ asset_v }}"></script>
   <script src="/static/app-storage.js?v={{ asset_v }}"></script>
 <script src="/static/examples.js?v={{ asset_v }}"></script>
+<script src="/static/app-md.js?v={{ asset_v }}"></script>
 <script>
   // Feature map tree (data from feature-tree.js; nodes link to their tool cards)
   if (window.VPFeatureTree) VPFeatureTree.render('vp-ftree-box');
@@ -419,193 +420,7 @@ The platform integrates a large number of excellent open-source tools and data r
 {% endif %}
     // Same convention as esc() in app.js: quotes are escaped too, so the result is
     // safe in attribute contexts.
-    const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-    // Inline elements: bold → inline code → link → italic (order matters; bold
-    // before italic).
-    function inline(s) {
-      let t = esc(s);
-      // Inline code first, its content is not parsed any further
-      t = t.replace(/`([^`]+)`/g, (m, c) =>
-        '<code style="background:#f1f5f2;border:1px solid #e3e8ee;border-radius:4px;' +
-        'padding:1px 5px;font-size:12.5px;font-family:ui-monospace,Consolas,monospace">' + c + '</code>');
-      // Bold
-      t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-      // Italic (avoiding tag attributes generated above)
-      t = t.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
-      // Images ![alt](url): parsed before links (otherwise the leading `!` is left
-      // dangling and README header badges become bogus "!Platform" links). Only
-      // https URLs are allowed (shields badges); on load failure (offline) the
-      // whole image is hidden, and non-https/relative URLs degrade to alt text.
-      t = t.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, url) => {
-        if (!/^https:\/\//i.test(url)) return alt;
-        return '<img src="' + url + '" alt="' + esc(alt) + '" loading="lazy" ' +
-               'style="display:inline-block;height:20px;margin:2px 3px;' +
-               'vertical-align:middle" onerror="this.style.display=\'none\'">';
-      });
-      // Links [text](url): only http(s)/mailto/in-site anchors, blocking javascript:
-      t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, txt, url) => {
-        const ok = /^(https?:\/\/|mailto:|\/|#)/i.test(url);
-        return '<a href="' + (ok ? url : '#') + '" target="_blank" rel="noopener">' + txt + '</a>';
-      });
-      // README allows a little decorative HTML (2026-10 header revamp: <br/>,
-      // <details> blocks and <b> appear directly in the body). After escaping
-      // everything, only this whitelist is restored; every other tag stays escaped
-      // and is shown as-is — the security rule is unchanged.
-      t = t.replace(/&lt;(\/?)(details|summary|b|kbd|sub|sup)([^&]*?)&gt;/g, '<$1$2$3>');
-      t = t.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
-      return t;
-    }
-
-    const lines = RAW.split(/\r?\n/);
-
-    // Bold spanning several lines: merge an unclosed ** with the ** on a later
-    // line so a pair is never split across lines (README.md has 12 such spots,
-    // one of them spanning 3 lines including a blank one).
-    for (let k = 0; k + 1 < lines.length; k++) {
-      const c = (lines[k].match(/\*\*/g) || []).length;
-      if (c % 2 === 1) {
-        // Look ahead for the next non-empty line with an odd number of ** too
-        for (let j = k + 1; j < lines.length; j++) {
-          const cj = (lines[j].match(/\*\*/g) || []).length;
-          if (cj % 2 === 1) {
-            const merged = [lines[k]];
-            for (let t = k + 1; t <= j; t++) if (lines[t].trim()) merged.push(lines[t].trim());
-            lines[k] = merged.join(' ');
-            lines.splice(k + 1, j - k);
-            k--;
-            break;
-          }
-          // Stop at a heading or a fence; never merge across those
-          if (/^\s*(#|```)/.test(lines[j])) break;
-        }
-      }
-    }
-
-    const out = [];
-    let i = 0;
-
-    while (i < lines.length) {
-      const l = lines[i];
-
-      // Code fence ``` ... ```
-      if (/^\s*```/.test(l)) {
-        const lang = l.replace(/^\s*```/, '').trim();
-        const buf = [];
-        i++;
-        while (i < lines.length && !/^\s*```/.test(lines[i])) { buf.push(lines[i]); i++; }
-        i++; // skip the closing fence
-        out.push('<pre' + (lang ? ' data-lang="' + esc(lang) + '"' : '') + '>' +
-                 esc(buf.join('\n')) + '</pre>');
-        continue;
-      }
-
-      // Table: current line has | and the next line is the |---|---| separator
-      if (/\|/.test(l) && i + 1 < lines.length && /^\s*\|?[\s:-]*\|[\s:|-]*$/.test(lines[i + 1])) {
-        const cells = s => s.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
-        const head = cells(l);
-        i += 2;
-        const rows = [];
-        while (i < lines.length && /\|/.test(lines[i]) && lines[i].trim()) {
-          rows.push(cells(lines[i])); i++;
-        }
-        let h = '<div class="doc-tbl-wrap" style="overflow-x:auto;margin:12px 0">' +
-                '<table class="tbl" style="width:100%;border-collapse:collapse;font-size:13px">' +
-                '<thead><tr>' +
-                head.map(c => '<th style="border:1px solid #d9e2dc;background:#f6f9f7;' +
-                              'padding:7px 10px;text-align:left">' + inline(c) + '</th>').join('') +
-                '</tr></thead><tbody>';
-        rows.forEach(r => {
-          h += '<tr>' + r.map(c => '<td style="border:1px solid #d9e2dc;padding:7px 10px">' +
-                                    inline(c) + '</td>').join('') + '</tr>';
-        });
-        out.push(h + '</tbody></table></div>');
-        continue;
-      }
-
-      // Headings
-      if (/^####? /.test(l)) { out.push('<h3>' + inline(l.replace(/^#+ /, '')) + '</h3>'); i++; continue; }
-      if (/^### /.test(l))   { out.push('<h3>' + inline(l.slice(4)) + '</h3>'); i++; continue; }
-      if (/^## /.test(l)) {
-        out.push('<h2 style="color:#14532d;border-left:4px solid #2c7a4b;' +
-                 'padding-left:10px;margin-top:26px">' + inline(l.slice(3)) + '</h2>');
-        i++; continue;
-      }
-      if (/^# /.test(l)) {
-        out.push('<h1 style="color:#14532d;margin-top:0">' + inline(l.slice(2)) + '</h1>');
-        i++; continue;
-      }
-
-      // Unordered list (consecutive items merge into one <ul>)
-      if (/^\s*[-*+] /.test(l)) {
-        const items = [];
-        while (i < lines.length && /^\s*[-*+] /.test(lines[i])) {
-          items.push(inline(lines[i].replace(/^\s*[-*+] /, ''))); i++;
-        }
-        out.push('<ul style="margin:8px 0;padding-left:22px">' +
-                 items.map(x => '<li style="margin:3px 0">' + x + '</li>').join('') + '</ul>');
-        continue;
-      }
-
-      // Ordered list
-      if (/^\s*\d+\. /.test(l)) {
-        const items = [];
-        while (i < lines.length && /^\s*\d+\. /.test(lines[i])) {
-          items.push(inline(lines[i].replace(/^\s*\d+\. /, ''))); i++;
-        }
-        out.push('<ol style="margin:8px 0;padding-left:24px">' +
-                 items.map(x => '<li style="margin:3px 0">' + x + '</li>').join('') + '</ol>');
-        continue;
-      }
-
-      // Quote
-      if (/^> /.test(l)) {
-        const buf = [];
-        while (i < lines.length && /^> ?/.test(lines[i])) {
-          buf.push(inline(lines[i].replace(/^> ?/, ''))); i++;
-        }
-        out.push('<blockquote style="border-left:3px solid #cfe0d5;background:#f8fbf9;' +
-                 'margin:10px 0;padding:8px 14px;color:#4b5a50">' +
-                 buf.join('<br>') + '</blockquote>');
-        continue;
-      }
-
-      // Horizontal rule
-      if (/^\s*([-*_])\1{2,}\s*$/.test(l)) { out.push('<hr style="border:0;border-top:1px solid #e3e8ee;margin:20px 0">'); i++; continue; }
-
-      // GitHub decorative wrapper lines (<div align="center"> / </div>): centering
-      // only matters on the repository page, so drop them entirely
-      if (/^\s*<\/?div[^>]*>\s*$/i.test(l)) { i++; continue; }
-
-      // Standalone badge image lines (README header): merge consecutive lines into
-      // one centred paragraph so it lines up with the GitHub header image
-      if (/^\s*!\[[^\]]*\]\([^)]+\)\s*$/.test(l)) {
-        const imgs = [];
-        while (i < lines.length && /^\s*!\[[^\]]*\]\([^)]+\)\s*$/.test(lines[i])) {
-          imgs.push(inline(lines[i].trim())); i++;
-        }
-        out.push('<p style="text-align:center;margin:8px 0">' + imgs.join('') + '</p>');
-        continue;
-      }
-
-      // <details>/<summary> blocks (used by the README FAQ): the tag lines pass
-      // through unchanged (inline()'s whitelist turns them back into real tags),
-      // the body inside is parsed by block rules as usual
-      if (/^\s*<details[^>]*>\s*$/i.test(l) || /^\s*<\/details>\s*$/i.test(l) ||
-          /^\s*<summary>.*<\/summary>\s*$/i.test(l)) {
-        out.push(inline(l)); i++; continue;
-      }
-
-      // Blank line
-      if (!l.trim()) { i++; continue; }
-
-      // Ordinary paragraph
-      out.push('<p style="margin:6px 0">' + inline(l) + '</p>');
-      i++;
-    }
-
-    document.getElementById('md').innerHTML = out.join('\n');
+    document.getElementById('md').innerHTML = VPMD.render(RAW);
   })();
 </script>
 </body>

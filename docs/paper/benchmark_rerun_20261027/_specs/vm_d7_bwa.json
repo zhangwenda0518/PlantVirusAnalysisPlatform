@@ -1,0 +1,9 @@
+{
+  "type": "kv",
+  "name": "D7",
+  "r1": "E:\\谷歌下载\\测试数据验证\\Dataset_7_R1.fastq.gz",
+  "r2": "E:\\谷歌下载\\测试数据验证\\Dataset_7_R2.fastq.gz",
+  "engine": "minibwa",
+  "db_dir": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref",
+  "out": "D:\\桌面\\植物病毒分析平台\\docs\\paper\\benchmark_rerun_20261027\\vm_d7_bwa"
+}

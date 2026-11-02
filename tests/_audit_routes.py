@@ -51,6 +51,13 @@ DESTRUCTIVE_POST = {
     '/api/set_host_db',             # 空参数 POST 改宿主库配置
     '/api/settings',                # 空参数 POST 保存设置
     '/api/submit/table/<name>/delete',  # 空参数 POST 删提交表数据
+    # 2026-11-02 实测踩坑补登：这两条当时**不在表里**，巡检之外的一个
+    # 「照抄巡检思路、却漏抄本表」的探测脚本空 POST 打过来，先把
+    # run/tool_runs/ 下 74 个运行目录移进归档区（keep 缺省 3 即生效），
+    # 紧接一个空 POST purge 就把它们永久删了。两个接口现已要求 confirm 令牌，
+    # 但这张表仍然要登记——巡检的价值在于「不依赖接口自我保护」。
+    '/api/tool/runs/archive',          # 批量移入归档区（keep 缺省 3）
+    '/api/tool/runs/archived/purge',    # 空 names = 清空整个归档区，不可恢复
 }
 
 

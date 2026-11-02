@@ -1,0 +1,44 @@
+# Citation metadata for the software repository.
+# Validated shape: CFF 1.2.0 (https://citation-file-format.github.io/).
+# TODO(author): confirm the given/family name split, ORCID and affiliation
+# before the Zenodo/DOI release — these three fields propagate into the
+# minted DOI record and cannot be edited afterwards for a tagged release.
+cff-version: 1.2.0
+message: "If you use this platform or its reference libraries, please cite the software record (and the manuscript once published)."
+title: "PlantVirusPlatform: an offline-deployable web platform for end-to-end plant virus detection, quantification and evolutionary analysis on Windows workstations"
+abstract: >-
+  PlantVirusPlatform is a Windows-native, fully offline platform that runs a
+  15-stage plant virus analysis pipeline (host depletion, dual-engine known-virus
+  identification and quantification, de novo assembly, consensus calling, ORF
+  annotation, phylogenetics, recombination and primer design) behind a local web
+  UI, a CLI and an MCP server.
+type: software
+version: 1.2.0
+date-released: "2026-10-26"
+license: MIT
+repository-code: "https://github.com/zhangwenda0518/PlantVirusPlatform"
+url: "https://github.com/zhangwenda0518/PlantVirusPlatform"
+keywords:
+  - plant virology
+  - virus detection
+  - high-throughput sequencing
+  - bioinformatics pipeline
+  - reproducible analysis
+  - offline software
+authors:
+  - family-names: "Zhang"
+    given-names: "Wenda"
+    affiliation: "Peking Union Medical College, Chinese Academy of Medical Sciences, Beijing, China"
+    # TODO(author): add ORCID iD when available, e.g. orcid: "https://orcid.org/0000-0000-0000-0000"
+preferred-citation:
+  type: article
+  title: "Which reference library and which decision tier decide discovery sensitivity: a benchmarked, offline desktop platform for plant virus detection, quantification and evolutionary analysis"
+  authors:
+    - family-names: "Zhang"
+      given-names: "Wenda"
+      affiliation: "Peking Union Medical College, Chinese Academy of Medical Sciences, Beijing, China"
+  # TODO(author): fill journal / DOI once the manuscript is accepted:
+  # journal: ""
+  # doi: "10.xxxx/xxxxx"
+  year: 2026
+  notes: "Manuscript v2.0 in preparation (benchmark-based rewrite of 2026-10-27), deposited under docs/paper/."

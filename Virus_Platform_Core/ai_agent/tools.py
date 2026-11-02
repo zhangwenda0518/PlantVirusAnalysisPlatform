@@ -16,6 +16,8 @@
 import json
 import os
 import re
+import threading
+import time
 
 # OpenAI tools 协议的 schema 声明（provider 层原样透传）
 TOOLS_SPEC = [
@@ -81,6 +83,17 @@ TOOLS_SPEC = [
                          'description': '最多数据行数（默认 12，上限 30）'}},
             'required': ['project', 'relpath']}}},
     {'type': 'function', 'function': {
+        'name': 'wait_task',
+        'description': '等待一个后台任务完成（有界阻塞，最长 240 秒），'
+                       '完成后返回终态与结果摘要。适合"任务快完成了"的收尾——'
+                       '等完直接给结果；可能更久的任务不要等，提交后告知用户'
+                       '在后台运行即可。tid 从 get_task_overview 拿。',
+        'parameters': {'type': 'object', 'properties': {
+            'tid': {'type': 'string', 'description': '任务 id'},
+            'timeout_sec': {'type': 'integer',
+                            'description': '最长等待秒数（10~240，默认 240）'}},
+            'required': ['tid']}}},
+    {'type': 'function', 'function': {
         'name': 'propose_action',
         'description': '发起「AI 执行单」：你**不能直接执行**任何动作，'
                        '只能起草待批执行单（用户在对话坞批准后才会运行）。'
@@ -90,15 +103,27 @@ TOOLS_SPEC = [
                        '到平台；run_tool=运行工具箱任一工具（比对/SDT/RDP/'
                        '引物设计/共识/ORF/系统地理等 ~30 个，params.tool 必填，'
                        '其余键=该工具界面表单的参数名，文件参数传绝对路径）；'
-                       'create_sample=从已落盘的 FASTQ 创建样品。'
+                       'create_sample=从已落盘的 FASTQ 创建样品；'
+                       'build_host_db=用已下载的宿主基因组 FASTA 构建宿主基因组'
+                       '数据库（params.genome + params.taxid，可选 out_dir/'
+                       'threads/rebuild）；'
+                       'plan=多步计划（params.steps 数组，按顺序执行，前一步'
+                       '任务成功结束才进入下一步，最多 6 步；每步形如 '
+                       '{"action":"create_sample","params":{…}} 或 '
+                       '{"action":"run_tool","sample":"…","params":{"tool":"assemble",…}}，'
+                       '支持的动作同本列表但不含 download_runs）。'
+                       '跨模块的链路（建样品→组装→建宿主库）用 plan 一次提出。'
+                       '起草≠执行：发出本调用后对用户只能说「已起草待批执行单」，'
+                       '不得宣称已开始/已完成/已出结果——完成与否以任务中心'
+                       '真实任务终态与落盘产物为准。'
                        '必须在 reason 里写清为什么。',
         'parameters': {'type': 'object', 'properties': {
             'action': {'type': 'string',
                        'enum': ['rerun_stage', 'retry_failed',
                                 'download_runs', 'run_tool',
-                                'create_sample']},
+                                'create_sample', 'build_host_db', 'plan']},
             'sample': {'type': 'string',
-                       'description': '样品名（download_runs 不需要）'},
+                       'description': '样品名（download_runs / build_host_db 不需要）'},
             'stages': {'type': 'array', 'items': {'type': 'string'},
                        'description': '要重跑的阶段键（如 assembly/kvsuite/'
                                       'primer），rerun_stage 必填'},
@@ -112,7 +137,12 @@ TOOLS_SPEC = [
                                       'run/results/<样品>/03_assembly/'
                                       'viral_contigs.fasta}；create_sample='
                                       '{"sample": "名", "r1": "FASTQ 路径", '
-                                      '"r2": "可选", "project": "可选"}',
+                                      '"r2": "可选", "project": "可选"}；'
+                                      'build_host_db={"genome": "宿主基因组 '
+                                      'FASTA 绝对路径", "taxid": 3702, '
+                                      '"out_dir": "可选"}; '
+                                      'plan={"steps": [{"action": …, "sample": …, '
+                                      '"stages": […], "params": {…}}, …]}',
                        },
             'reason': {'type': 'string', 'description': '提案理由（必填）'}},
             'required': ['action', 'reason']}}},
@@ -164,16 +194,21 @@ TOOLS_SPEC = [
                        '工具箱执行 vp_run_tool、流水线 vp_pipeline_start、'
                        'CLI vp_cli_run·vp_cli_submit（建库/公共数据/NCBI提交/'
                        'LOGAN/ICTV/维护）、预筛 vp_prescreen_run、任务与运行'
-                       '查询、vp_read_run_file。填参数前先调本工具查口径',
+                       '查询 vp_list_tasks·vp_list_tool_runs、结果读取 '
+                       'vp_read_sample_file·vp_read_run_file·vp_sample_stages、'
+                       '自检 vp_selfcheck。填参数前先调本工具查口径',
         'parameters': {'type': 'object', 'properties': {}, 'required': []}}},
     {'type': 'function', 'function': {
         'name': 'mcp_call',
         'description': '执行一个 MCP 层 vp_* 工具。任务类(vp_run_tool/'
                        'vp_pipeline_start/vp_cli_submit/vp_prescreen_run)提交即'
-                       '返回 task_id，随后用 mcp_call 调 vp_get_task 轮询到 '
-                       'done/failed，vp_read_run_file 读产物；信封里有 '
-                       'summary/interpretation/next。注意：vp_delete_tool_run '
-                       '被禁用',
+                       '返回 task_id，随后用 mcp_call 调 vp_wait_task 等到终态'
+                       '（或 vp_get_task 轮询），vp_read_sample_file / '
+                       'vp_read_run_file / vp_sample_stages 读产物；信封里有 '
+                       'summary/interpretation/next。归档是手动动作：'
+                       'vp_archive_task / vp_archive_tool_run 只收已结束的对象，'
+                       '归档后仍可读、可 vp_unarchive_task / vp_restore_tool_run '
+                       '恢复。注意：vp_delete_tool_run 被禁用',
         'parameters': {'type': 'object', 'properties': {
             'tool': {'type': 'string', 'description': 'vp_* 工具名'},
             'arguments': {'type': 'object',
@@ -194,6 +229,8 @@ def dispatch(name, args):
             if d is None:
                 return json.dumps({'error': '样品不存在'}, ensure_ascii=False)
             return json.dumps(d, ensure_ascii=False)
+        if name == 'wait_task':
+            return _wait_task_tool(args)
         if name == 'get_task_overview':
             try:
                 limit = max(1, min(30, int(args.get('limit') or 12)))
@@ -208,19 +245,41 @@ def dispatch(name, args):
             return _read_prescreen_file(args)
         if name == 'propose_action':
             from . import executors
+            reason = str(args.get('reason') or '').strip()
+            if not reason:
+                # 审批卡片上「理由」是用户判断的唯一依据，空着等于让用户
+                # 盲批（spec 里 reason 是必填，这里补上执行层校验）。
+                return json.dumps(
+                    {'error': '需要 reason：用一两句话写清「为什么这么做、'
+                              '依据是什么」，用户在对话坞凭它决定批不批'},
+                    ensure_ascii=False)
             rec, err = executors.create_action(
                 str(args.get('action') or ''),
                 str(args.get('sample') or ''),
                 stages=args.get('stages') or None,
                 params=args.get('params') or None,
-                reason=str(args.get('reason') or ''),
+                reason=reason,
                 source='chat')
             if err:
                 return json.dumps({'error': err}, ensure_ascii=False)
-            return json.dumps(
-                {'created': True, 'id': rec['id'], 'status': rec['status'],
-                 'note': '执行单已创建，等待用户在对话坞批准；批准前不会运行'},
-                ensure_ascii=False)
+            # 回显归一化后的动作口径：stages/params 可能被校验改写或拒绝，
+            # 不回显会让模型以为「A+B+C」都排上了（实际只跑了 A）。
+            echo = {'created': True, 'id': rec['id'], 'status': rec['status'],
+                    'action': rec.get('action'),
+                    'sample': rec.get('sample') or '',
+                    'reason': rec.get('reason') or '',
+                    'note': '执行单已创建，等待用户在对话坞批准；批准前不会运行'}
+            if rec.get('stages'):
+                echo['stages'] = rec['stages']
+            if rec.get('params'):
+                echo['params'] = rec['params']
+            if rec.get('steps'):
+                echo['steps'] = [{'action': s.get('action'),
+                                  'sample': s.get('sample') or '',
+                                  'stages': s.get('stages'),
+                                  'params': s.get('params')}
+                                 for s in rec['steps']]
+            return json.dumps(echo, ensure_ascii=False)
         if name == 'list_platform_tools':
             return _list_platform_tools()
         if name == 'list_meta_collections':
@@ -249,7 +308,132 @@ def dispatch(name, args):
 # 任务类工具提交即返回 task_id，LLM 用 mcp_call(vp_get_task) 轮询。
 # ------------------------------------------------------------------
 _MCP_BLOCKED = {'vp_delete_tool_run'}
+# 2026-11-02：只拦 vp_delete_tool_run 不够——mcp_call 还能用 vp_cli_submit/
+# vp_cli_run 把 confirm=true 传给 CLI，从而触发 tool-runs clean（删输出目录）
+# 与 db-migrate 的 copy/move 落盘迁移。这些是不可逆操作，按 AGENTS.md §5/§7
+# 必须先由用户在网页端亲自确认，绝不能让模型一句话跑掉。
+_CLI_DESTRUCTIVE = {
+    'tool-runs': ('clean', 'archive', 'organize'),
+    'db-migrate': ('apply', 'copy', 'move', 'migrate'),
+}
 _MCP_TEXT_CAP = 4000          # 给 LLM 的结果上限（防撑爆上下文）
+
+
+def _mcp_denied(name, a):
+    """对话坞对 MCP 破坏面调用的拦截文案（None = 放行）。"""
+    if name not in ('vp_cli_run', 'vp_cli_submit'):
+        return None
+    cmd = str(a.get('command') or '').strip()
+    sub = a.get('args') if isinstance(a.get('args'), dict) else {}
+    action = str(sub.get('action') or a.get('action') or '').strip().lower()
+    confirm = (a.get('confirm') is True or sub.get('confirm') is True)
+    bad = _CLI_DESTRUCTIVE.get(cmd) or ()
+    if action in bad or (cmd in _CLI_DESTRUCTIVE and confirm):
+        return (f'{cmd} 的「{action or "落盘"}」属不可逆/高破坏面操作，'
+                '对话坞不开放执行。请把这一步交给用户：到「任务中心 → 输出'
+                '目录」或「数据库」页面亲自确认；你可以先把要清理/迁移的'
+                '清单和理由讲清楚。')
+    return None
+
+
+_TASK_WATCH = set()
+
+
+def _watch_task(tid, tool_name):
+    """MCP 提交的后台任务（预筛/检索/建库…）在结束时播报一次。
+
+    2026-10-30：模型被要求"提交后结束本轮、由平台播报"，但此前只有检索
+    （search_public_data）有播报，预筛/CLI 任务没有 —— 承诺落空。这里对
+    mcp_call 返回里的 task_id/task 起一个守护线程轮询，done/failed 时发
+    ai_read 事件（对话坞里就是一条 AI 播报，带未读红点）。
+    """
+    if not tid or tid in _TASK_WATCH:
+        return
+    _TASK_WATCH.add(tid)
+
+    def run():
+        from . import broadcast
+        from Virus_Platform_Core.web.tasks import tm
+        deadline = time.time() + 24 * 3600
+        while time.time() < deadline:
+            try:
+                snap = tm.snapshot(str(tid), log_lines=0,
+                                   include_result=False) or {}
+            except Exception:
+                snap = {}
+            st = str(snap.get('status') or '')
+            if st in ('done', 'failed', 'cancelled'):
+                name = snap.get('name') or tool_name
+                zh = ('✔ 后台任务完成：' if st == 'done'
+                      else ('✘ 后台任务失败：' if st == 'failed'
+                            else '后台任务已取消：')) + str(name)
+                en = ('Background task done: ' if st == 'done'
+                      else ('Background task failed: ' if st == 'failed'
+                            else 'Background task cancelled: ')) + str(name)
+                try:
+                    broadcast.publish(
+                        'ai_read', sample='', stage='task', name=str(name),
+                        text=zh + '（用对应 vp_* 工具读取结果，或直接问我下一步）'
+                             if _is_zh() else
+                             en + ' (read the result with the matching vp_* tool,'
+                                  ' or ask me what to do next)',
+                        failure=(st == 'failed'))
+                except Exception:
+                    pass
+                return
+            time.sleep(3)
+
+    threading.Thread(target=run, daemon=True,
+                     name='ai-task-watch-%s' % tid).start()
+
+
+def _is_zh():
+    try:
+        from Virus_Platform_Core.config import get_config
+        return get_config().lang == 'zh'
+    except Exception:
+        return True
+
+
+def _wait_task_tool(args):
+    """有界等待一个任务结束（2026-10-30）。
+
+    SSE 生成器里没有字节流动会吃读超时（provider 300s），所以等待上限
+    压在 240 秒；更长的任务请提交后结束本轮，平台完成时会播报。
+    """
+    from Virus_Platform_Core.web.tasks import tm
+    tid = str(args.get('tid') or '').strip()
+    if not tid:
+        return json.dumps({'error': '需要 tid（可从 get_task_overview 拿到）'},
+                          ensure_ascii=False)
+    try:
+        timeout = max(10, min(int(args.get('timeout_sec') or 240), 240))
+    except (TypeError, ValueError):
+        timeout = 240
+    end = time.time() + timeout
+    while True:
+        try:
+            snap = tm.snapshot(tid, log_lines=0, include_result=True) or {}
+        except Exception as e:
+            return json.dumps({'error': f'{type(e).__name__}: {e}'},
+                              ensure_ascii=False)
+        st = str(snap.get('status') or '')
+        if st in ('done', 'failed', 'cancelled'):
+            out = {'tid': tid, 'status': st, 'name': snap.get('name'),
+                   'stage': snap.get('stage'), 'pct': snap.get('pct')}
+            res = snap.get('result')
+            if isinstance(res, str):
+                out['result_preview'] = res[:2000]
+            elif res is not None:
+                out['result'] = res
+            return json.dumps(out, ensure_ascii=False)
+        if time.time() >= end:
+            return json.dumps(
+                {'tid': tid, 'status': st or 'running',
+                 'hint': '等待超时（上限 240 秒），任务仍在后台运行；'
+                         '可再调一次 wait_task 继续等，或让用户去任务中心查看'},
+                ensure_ascii=False)
+        time.sleep(2)
 
 
 def _mcp_catalog():
@@ -282,6 +466,10 @@ def _mcp_call(args):
     a = args.get('arguments')
     if not isinstance(a, dict):
         a = {}
+    deny = _mcp_denied(name, a)
+    if deny:
+        return json.dumps({'error': deny, 'blocked': True},
+                          ensure_ascii=False)
     try:
         res = _request('tools/call', {'name': name, 'arguments': a},
                        timeout=330)
@@ -297,10 +485,35 @@ def _mcp_call(args):
         except ValueError:
             data = None
     body = data if data is not None else text
+    # 任务类工具返回 {task_id, ...}：挂一个 watcher，完成时播报到对话坞
+    if isinstance(body, dict) and not res.get('isError'):
+        tid = body.get('task_id') or body.get('task')
+        if isinstance(tid, str) and tid.strip():
+            _watch_task(tid.strip(), name)
     out = json.dumps({'isError': bool(res.get('isError')), 'result': body},
                      ensure_ascii=False)
     if len(out) > _MCP_TEXT_CAP:
-        out = out[:_MCP_TEXT_CAP] + '…[结果过长已截断；可换更具体的查询，'               '或用 vp_read_run_file 按文件读]'
+        # 2026-11-02：以前裸切字符串，JSON 从中间断掉——模型收到半截 JSON，
+        # task_id / status / summary 全可能丢，容易误判成"没结果"。改为
+        # 结构化裁剪：先保住关键字段，再给正文开头的片段，并显式标截断。
+        keep = {}
+        if isinstance(body, dict):
+            for k in ('task_id', 'task', 'status', 'ok', 'isError',
+                      'summary', 'interpretation', 'next', 'count', 'total',
+                      'out_dir', 'run'):
+                if k in body:
+                    keep[k] = body[k]
+        head_text = text[:1200] if text else ''
+        out = json.dumps(
+            {'isError': bool(res.get('isError')),
+             'truncated': True,
+             'full_chars': len(out),
+             'result': keep or None,
+             'result_text_head': head_text or None,
+             'note': '原始结果过长已截断；以上保留了任务号/状态/摘要等关键'
+                     '字段。需要细节请改用 vp_read_run_file / vp_get_task '
+                     '按文件或按任务读，或收紧查询参数。'},
+            ensure_ascii=False)
     return out
 
 
@@ -412,8 +625,12 @@ def _meta_collection_name(species):
 
 
 def _tool_param_hints(job):
-    """从 job 工厂源码提取参数提示：_req('key','说明') = 必填，
-    _opt('key') = 可选。免手写 30 份参数文档，且与界面表单同源。"""
+    """从 job 工厂源码提取 `_req(...)` 必填与 `_opt(...)` 可选（源码正则）。
+
+    注意：这**不是**参数口径的权威来源——同一 job 里互斥分支的必填项会被
+    全算成必填（kvsuite 实测会给出 6 个互斥必填），因此只作为「job 实际
+    校验了什么」的旁证，权威口径用 agent_catalog.TOOL_PARAM_SCHEMAS。
+    """
     import inspect as _inspect
     import re as _re
     try:
@@ -431,13 +648,61 @@ def _tool_param_hints(job):
         if k not in seen:
             seen.add(k)
             req2.append((k, w))
-    req = req2[:8]
-    opt = list(dict.fromkeys(opt))[:10]
+    opt = list(dict.fromkeys(opt))
     out = {}
-    if req:
-        out['required'] = [{'key': k, 'what': w} for k, w in req]
+    if req2:
+        out['required'] = [{'key': k, 'what': w} for k, w in req2]
     if opt:
         out['optional'] = opt
+    return out
+
+
+def _tool_params(tool, job):
+    """工具参数口径：**以 agent_catalog.TOOL_PARAM_SCHEMAS 为准**。
+
+    2026-11-02：以前直接把源码正则结果当参数表给模型，导致
+      * kvsuite 报 6 个「必填」（实际全可选、三选一）→ 模型按 hint 传互斥
+        参数，起草必然失败；
+      * 第 9 个以后的必填项被 `[:8]` 切掉；
+      * pdprep 的 catalog 写 fasta_text/meta_text，job 实际要 fasta/meta
+        文件路径，两边对不上时模型无从判断。
+    这里改为：catalog 条目为主（key/type/required/desc），再用 job 源码
+    双向核对——job 要而 catalog 没有的键显式补上（标 source=job），
+    catalog 说必填而 job 不校验的保留但降级说明，全部截断上限取消。
+    """
+    rows = []
+    try:
+        from Virus_Platform_Core.agent_catalog import TOOL_PARAM_SCHEMAS
+        rows = TOOL_PARAM_SCHEMAS.get(tool) or []
+    except Exception:
+        rows = []
+    hints = _tool_param_hints(job)
+    job_req = [h['key'] for h in hints.get('required', [])]
+    out = []
+    have = set()
+    for row in rows:
+        try:
+            key, typ, req, desc = row[0], row[1], row[2], row[3]
+        except (IndexError, TypeError):
+            continue
+        out.append({'key': str(key), 'type': str(typ),
+                    'required': bool(req), 'desc': str(desc)})
+        have.add(str(key))
+    for h in hints.get('required', []):
+        if h['key'] not in have:
+            # catalog 漏登记的、job 却硬校验的键：补上，避免模型按 catalog
+            # 传参后被「缺少必填参数」打回。
+            out.append({'key': h['key'], 'type': 'str', 'required': True,
+                        'desc': str(h['what']), 'source': 'job'})
+            have.add(h['key'])
+    if not out:
+        # catalog 无此工具：退回源码口径（至少给模型的比没有强）
+        for h in hints.get('required', []):
+            out.append({'key': h['key'], 'type': 'str', 'required': True,
+                        'desc': str(h['what']), 'source': 'job'})
+        for k in hints.get('optional', []):
+            out.append({'key': k, 'type': 'str', 'required': False,
+                        'source': 'job'})
     return out
 
 
@@ -449,14 +714,22 @@ def _list_platform_tools():
             entry = {'tool': k, 'title': v['title'],
                      'need_db': bool(v.get('need_db')),
                      'light': k in LIGHT_TOOLS}
-            hints = _tool_param_hints(v.get('job'))
-            if hints:
-                entry['params_hint'] = hints
+            params = _tool_params(k, v.get('job'))
+            if params:
+                entry['params'] = params
+                req = [x['key'] for x in params if x.get('required')]
+                if req:
+                    entry['required'] = req
             out.append(entry)
         return json.dumps({'count': len(out), 'tools': out,
                            'note': '用 propose_action(action=run_tool, '
-                                   'params={tool:…, …params_hint 里的参数键}) '
-                                   '起草执行单；文件键优先用平台根相对路径'},
+                                   'params={tool:…, 其余键见 params}) 起草'
+                                   '执行单；params 里除本工具自己声明外，'
+                                   '不认识的键会被忽略。很多工具的参数是'
+                                   '「三选一」而不是全部必填（例如 kvsuite 的 '
+                                   'reads / sample_sheet / index_dir），'
+                                   '从 required 列表判断哪些真的必须给；'
+                                   '文件键优先用平台根相对路径'},
                           ensure_ascii=False)
     except Exception as e:
         return json.dumps({'error': f'{type(e).__name__}: {e}'},

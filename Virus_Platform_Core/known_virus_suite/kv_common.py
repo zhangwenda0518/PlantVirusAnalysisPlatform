@@ -13,7 +13,9 @@ _load_reference_lengths / _load_ref_info_smart / setup_logging 等
 import gzip
 import logging
 import os
+import re
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -83,8 +85,8 @@ class ToolRegistry:
 
     用法:
         reg = ToolRegistry(logger)
-        reg.probe('minimap2', extra_dirs=[...])
-        if reg.has('minimap2'): ...
+        reg.probe(extra_dirs=[...])
+        if reg.has('minibwa'): ...
     """
 
     NEEDED = {
@@ -233,6 +235,60 @@ def load_ref_lengths(ref_fasta, logger=None):
     return lengths
 
 
+def ensure_fai(ref_fasta, samtools=None, logger=None, env=None):
+    """确保 ref_fasta 的 .fai 存在**且与当前换行宽度自洽**；必要时重建。
+
+    2026-11-02：参考库曾带着一份对不上号的 .fai（首行
+    `NC_116488.1 2302 13 60 39` —— linebases=60 却 linewidth=39，典型是
+    FASTA 换行宽度被改写过、索引没重建），变异段 bcftools mpileup 直接
+    `[E::fai_insert_index] Malformed line: width (39) less than base count
+    (60)` 整段失败。samtools 只会"不存在才建"，所以坏索引会一直留着；
+    这里补一层自检：宽度不合物理常识（行宽 < 碱基数，或 > 碱基数+2）就重建。
+
+    返回 True 表示 .fai 可用（或已重建成功）；samtools 缺失且索引也不可用
+    时返回 False（调用方自行决定是否致命）。
+    """
+    ref_p = Path(str(ref_fasta))
+    fai = Path(str(ref_fasta) + '.fai')
+    bad = not fai.exists()
+    if not bad:
+        try:
+            with open(fai, 'r', encoding='utf-8', errors='replace') as fh:
+                first = fh.readline().rstrip('\n').split('\t')
+            if len(first) < 5:
+                bad = True            # 空表/半截写入
+            else:
+                linebases = int(first[3])
+                linewidth = int(first[4])
+                # 物理约束：每行字节数 = 碱基数 + 1(LF) 或 +2(CRLF)
+                bad = (linebases <= 0 or linewidth < linebases
+                       or linewidth > linebases + 2)
+        except (OSError, ValueError):
+            bad = True
+    if not bad:
+        return True
+    if not samtools:
+        samtools = which_tool('samtools') or 'samtools'
+    if logger:
+        logger.warning('参考库 .fai 缺失或与 FASTA 换行不自洽，重建: %s', ref_p)
+    try:
+        p = subprocess.run([str(samtools), 'faidx', str(ref_p)],
+                           capture_output=True, text=True,
+                           encoding='utf-8', errors='replace', env=env)
+    except OSError as e:
+        if logger:
+            logger.error('samtools faidx 无法执行（%s），.fai 仍不可用', e)
+        return False
+    if p.returncode != 0:
+        if logger:
+            logger.error('samtools faidx 失败(rc=%s): %s',
+                         p.returncode, ((p.stderr or '').strip() or '')[-300:])
+        return False
+    if logger:
+        logger.info('  参考库 .fai 已重建: %s', fai)
+    return fai.exists()
+
+
 def load_ref_sequences(ref_fasta, only=None):
     """
     读参考 FASTA 序列本体。only 为 accession 集合时只保留这些。
@@ -259,6 +315,73 @@ ACC_SYNONYMS = ['Accession', 'accession', 'Virus GENBANK accession', 'ID']
 TAX_SYNONYMS = ['Taxid', 'taxonomy_id', 'taxid']
 SP_SYNONYMS = ['Species_NCBI', 'Species_ICTV', 'taxonomy', 'Species', 'description', 'Virus name(s)']
 SEG_SYNONYMS = ['Segment', 'segment']
+
+# ── 物种名消毒 ────────────────────────────────────────────
+# 背景（2026-11-02 实测）：virusref_db 的 reference.ref_info.tsv 里有 30 条
+# 「按 accession 直接下载、未经 taxon 注释」的 GenBank 记录，它们的
+# Species_NCBI 与 GenBank_Title 两列填的是同一串标题，形如
+#   "DQ000985.1 Pepino mosaic virus isolate Ch2, complete genome"
+# Species_ICTV 为空。旧实现把它原样当作物种名写进 Species 列，导致
+#   · 同一物种（Pepino mosaic virus）被拆成 6 个「物种」；
+#   · 下游 _genus_of / 同属近缘种比较全部失配；
+#   · 汇总表按 Species 分组会把 159 行拆成上百个伪物种。
+# 这里在建表阶段就把标题还原成物种名，并补回空着的 ICTV 列（同种其它
+# 条目里能查到 ICTV 名的，直接借过来；查不到就置空，绝不编造）。
+_TITLE_ACC_PREFIX = re.compile(r'^[A-Z]{1,2}_?\d{4,}\.\d+\s+')
+# 标题里出现即视为「物种名到此为止」的分隔词
+_BREAK_WORDS = re.compile(
+    r'(?:'
+    r'\bisolate\b|\bstrain\b|\bvariant\b|\bclone\b|\bsegment\b|'
+    r'\bcomplete\b|\bnearly\b|\bpartial\b|\bfull\b|\bgenomic\b|\bgenome\b|'
+    r'\bsequence\b|\bcds\b|\bgene\b|\bgenes\b|\bRNA\b|\bmRNA\b|'
+    r'\bsegment\b|\bDNA[- ]?[AB]\b'
+    r')',
+    re.IGNORECASE,
+)
+
+
+def clean_species_name(raw, accession=''):
+    """把「accession + 描述 + 株系 + complete genome」样式的串还原成物种名。
+
+    做法：去掉开头的 accession，然后在第一个「株系/完整性/序列类型」
+    分隔词处截断。这样既处理 'Pepino mosaic virus isolate Ch2, complete
+    genome'，也处理 'Pepino mosaic virus complete genome'（后者没有
+    逗号，靠 complete 直接截断）。
+
+    只在 raw 明显是 GenBank 标题时动手；正常物种名（如 'Citrus exocortis
+    viroid'、'Pepino mosaic virus'）原样返回，绝不改写。
+    无法安全还原时返回 ''，由调用方决定回退到 accession。
+    """
+    if not raw:
+        return ''
+    s = str(raw).strip()
+    if not s:
+        return ''
+    # 只有 accession、没有任何描述 → 不是物种名
+    if re.match(r'^[A-Z]{1,2}_?\d{4,}\.\d+$', s):
+        return ''
+    looks_like_title = bool(
+        _TITLE_ACC_PREFIX.match(s)
+        or _BREAK_WORDS.search(s)
+        or ',' in s
+    )
+    if not looks_like_title:
+        return s
+    s = _TITLE_ACC_PREFIX.sub('', s)
+    m = _BREAK_WORDS.search(s)
+    if m and m.start() > 0:
+        s = s[:m.start()]
+    # 标题常以基因名收尾（"... dwarf virus G gene for glycoprotein" 截断后
+    # 剩 "Eggplant mottled dwarf virus G"）。物种名末尾的单个大写字母是
+    # 基因符号，不是物种名的一部分。
+    # 但 Potato virus Y / Barley yellow dwarf virus - PAV 这类「种名本身以
+    # 大写字母结尾」的必须保住：只在该字母是独立单词时才认为是基因名。
+    s = re.sub(r'(?<=\s)([A-Z])(?=\s|$)', '', s)
+    s = re.sub(r'\s{2,}', ' ', s)
+    s = s.strip().rstrip(' ,;-')
+    if not s or re.match(r'^[A-Z]{1,2}_?\d{4,}\.\d+$', s):
+        return ''
+    return s
 
 
 def read_text_lossless(path):
@@ -291,6 +414,8 @@ def load_ref_info(ref_info_tsv, logger=None):
 
     idx = {}
     header = None
+    bad_species = []
+    repaired_species = []
     # 编码兜底：GBK 表按 UTF-8+replace 读会把中文列变 U+FFFD（不可逆），
     # 这里用无损解码（utf-8 → gbk 回退，同 kv_variant.read_text_lossless 口径）
     for line in read_text_lossless(ref_info_tsv).splitlines():
@@ -332,9 +457,20 @@ def load_ref_info(ref_info_tsv, logger=None):
             i = idx.get(key, -1)
             return parts[i].strip() if i != -1 and len(parts) > i else ''
 
+        _sp_raw = get('sp')
+        _gbtitle = get('gbtitle')
+        # 物种名消毒：Species_NCBI 被填成 GenBank 标题时还原成物种名
+        # （见 clean_species_name 的实测背景）。Species 为空的条目不消音，
+        # 记下来供收尾统计。
+        _sp = clean_species_name(_sp_raw, acc)
+        if _sp_raw and not _sp:
+            bad_species.append(acc)
+        elif _sp and _sp != _sp_raw:
+            repaired_species.append((acc, _sp_raw, _sp))
+
         rec = {
             'taxid': get('tax') or 'Unannotated',
-            'species': get('sp') or acc,
+            'species': _sp or acc,
             'segment': get('seg'),
             'molecule': get('mol'),
             'ictv': get('ictv'),
@@ -342,7 +478,7 @@ def load_ref_info(ref_info_tsv, logger=None):
             # 用户反馈「提取信息不全」——库里 26 列注释大多被丢掉）
             'host': get('host'),
             'geo': get('geo'),
-            'genbank_title': get('gbtitle'),
+            'genbank_title': _gbtitle,
             'molecule_type': get('mol1'),
         }
         info[acc] = rec
@@ -356,8 +492,35 @@ def load_ref_info(ref_info_tsv, logger=None):
                                f"{rec.get('species')})，使用后者")
         info[bare] = rec  # 去版本号别名
 
+    # ICTV 种名回填：上一步只处理了「标题冒充物种名」的 30 条，它们
+    # 的 Species_ICTV 本来就是空；同种其它正常条目里有 ICTV 名的，借过来。
+    # 借不到就保持空，绝不按属名或标题臆造种名。
+    _ictv_by_species = {}
+    for rec in info.values():
+        _s, _i = (rec or {}).get('species'), (rec or {}).get('ictv')
+        if _s and _i:
+            _ictv_by_species.setdefault(_s.lower(), _i)
+    filled_ictv = 0
+    for rec in info.values():
+        if rec and not rec.get('ictv') and rec.get('species'):
+            _i = _ictv_by_species.get(rec['species'].lower())
+            if _i:
+                rec['ictv'] = _i
+                filled_ictv += 1
+
     if logger:
         logger.info(f"参考注释载入: {len(info)//2} 条（含去版本号别名）")
+        if repaired_species:
+            logger.warning(
+                f"ref_info 有 {len(repaired_species)} 条 Species_NCBI 填的是 GenBank "
+                f"标题，已还原为物种名（例: {repaired_species[0][0]} "
+                f"'{repaired_species[0][1][:40]}...' -> '{repaired_species[0][2]}'）")
+        if bad_species:
+            logger.warning(
+                f"ref_info 有 {len(bad_species)} 条记录无法还原物种名"
+                f"（Species 列将留空，不再用标题顶替）: {bad_species[:5]}")
+        if filled_ictv:
+            logger.info(f"ICTV 种名回填: {filled_ictv} 条（同种其它条目借用）")
     return info
 
 

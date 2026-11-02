@@ -67,6 +67,12 @@ function pickDir() {
   if (browseTarget && $(browseTarget)) {
     $(browseTarget).value = browseCwd;
     pushPathHist(browseTarget, browseCwd);
+    /* 目录选择的自定义事件（与 pickFile 的 vp:filepicked 对称）：
+       AI 工作台的「选择工作空间」靠它拿到目录。 */
+    try {
+      $(browseTarget).dispatchEvent(new CustomEvent('vp:dirpicked', {
+        bubbles: true, detail: {path: browseCwd}}));
+    } catch (e) { /* 老浏览器忽略 */ }
   }
   closeDlg();
 }
@@ -139,6 +145,12 @@ function pickFile(fullPath) {
   if (browseTarget && $(browseTarget)) {
     $(browseTarget).value = fullPath;
     pushPathHist(browseTarget, fullPath);
+    /* 自定义事件：输入框被程序化赋值不会触发 change，需要回调的调用方
+       （如 AI 分析台的附件芯片）监听 vp:filepicked 即可。 */
+    try {
+      $(browseTarget).dispatchEvent(new CustomEvent('vp:filepicked', {
+        bubbles: true, detail: {path: fullPath}}));
+    } catch (e) { /* 老浏览器忽略 */ }
   }
   closeDlg();
 }

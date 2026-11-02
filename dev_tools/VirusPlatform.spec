@@ -40,6 +40,8 @@ datas = _tree(os.path.join(ROOT, 'webapp'), 'webapp',
 # webapp/static/virome（71MB 的开发副本）。冻结版两份都带的话 71MB 永远
 # 读不到——源码模式同样直用 frontend/build，static/virome 两边都是死重。
 datas += [(os.path.join(ROOT, 'README.md'), '.')]
+# 代理自举指南：agent_guide.read_guide() 冻结版从 _MEIPASS 读这份副本
+datas += [(os.path.join(ROOT, 'AGENTS.md'), '.')]
 datas += collect_data_files('plotly')
 datas += collect_data_files('pycirclize')
 datas += collect_data_files('gbdraw')
@@ -205,6 +207,10 @@ a = Analysis(
                    'RNA',
                    'main',            # exe --cli <子命令> 用（打包后自检）
                    'mcp_server',      # exe --mcp-stdio 用（MCP 控制台进程内拉起）
+                   # MEGAHIT 组装（2026-10-29）：--run-engine 进程内执行
+                   # 3rd/tools/megahit*/bin/megahit.py；驱动只用标准库，
+                   # getopt 不是平台自身依赖，须显式登记。
+                   'Virus_Platform_Core.megahit_engine', 'getopt',
                    'mcp', 'mcp.types', 'mcp.server.fastmcp',   # mcp SDK 主链显式兜底
                    'gbdraw', 'Virus_Platform_Core.public_meta.landscape_plot', 'seaborn']
                    + collect_submodules('gbdraw')
@@ -276,6 +282,14 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+# 摘掉 PyInstaller 的 matplotlib 启动钩子（2026-10-28 实抓）：
+# 它是为 **onefile** 写的（_MEIxxxx 每次变化会让 fontList.cache 指向失效
+# 目录），我们是 onedir、_MEIPASS 固定，这条钩子没有收益；但它在进程第一条
+# 指令就调 secure_mkdtemp()（带受限 DACL 的 CreateDirectoryW），一旦被拒会
+# 重试 TMP_MAX(1e4) 次 —— 表现是满 CPU 空转、永不开端口。摘掉即根治，
+# 详细复盘见 dev_tools/rna_early_import_hook.py 的头注释。
+a.scripts = [s for s in a.scripts if s[0] != 'pyi_rth_mplconfig']
+
 pyz = PYZ(a.pure)
 
 exe = EXE(

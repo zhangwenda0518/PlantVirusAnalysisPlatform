@@ -11,6 +11,15 @@
 import os
 import sys
 
+# 控制台编码兜底（同 tests/_run_all.py）：Windows 默认 GBK 编不出 ✗/⚠ 等
+# 字符，旧代码会在「本该打印差异」时抛 UnicodeEncodeError 而不是报差异
+# （2026-11-02 实测：差异行 print 崩掉，退出码 1 却看不到是哪一条）。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors='replace')
+    except (AttributeError, OSError):
+        pass
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 # 外部参照仓（延伸基因组/MMPV-RNA 工作区）：默认仍是维护者本机路径，

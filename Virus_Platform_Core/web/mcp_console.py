@@ -35,9 +35,10 @@ _LOCK = threading.RLock()
 _PROC = None
 _INITED = False
 _REQ_ID = 0
+_STDERR_LOG = None        # MCP stdio 子进程 stderr 的落盘句柄
 _SERVER_SCRIPT = os.path.join(PLATFORM_ROOT, 'mcp_server.py')
 _BOOT_TIMEOUT = 150          # 首次拉起含平台模块导入
-_CALL_TIMEOUT = 330          # 工具全部「提交即返回」；覆盖 vp_cli_run 默认 180s
+_CALL_TIMEOUT = 960          # 提交即返回；覆盖 vp_cli_run(180s) 与 vp_wait_task(≤900s)
 
 # 破坏面工具：网页控制台不开放（与 ai_agent/tools.py 的 _MCP_BLOCKED 同口径）。
 # 不写死总数：工具清单由 mcp_server.py 的 @mcp.tool 决定，任何一处写死数字
@@ -85,7 +86,7 @@ def _read_msg(proc, want_id, deadline):
 
 def _ensure():
     """拉起服务器并完成 initialize 握手。"""
-    global _PROC, _INITED, _REQ_ID
+    global _PROC, _INITED, _REQ_ID, _STDERR_LOG
     if _alive() and _INITED:
         return
     _kill()
@@ -98,10 +99,19 @@ def _ensure():
         cmd = [sys.executable, '--mcp-stdio']
     else:
         cmd = [sys.executable, _SERVER_SCRIPT]
+    try:
+        _logdir = os.path.join(PLATFORM_ROOT, 'run', 'logs')
+        os.makedirs(_logdir, exist_ok=True)
+        if _STDERR_LOG is None or _STDERR_LOG.closed:
+            _STDERR_LOG = open(os.path.join(_logdir,
+                                            'mcp_stdio_stderr.log'), 'ab')
+        _stderr = _STDERR_LOG
+    except OSError:
+        _stderr = subprocess.DEVNULL
     _PROC = subprocess.Popen(
         cmd, cwd=PLATFORM_ROOT,
         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL, text=True, encoding='utf-8',
+        stderr=_stderr, text=True, encoding='utf-8',
         errors='replace', bufsize=1, env=env)
     deadline = time.monotonic() + _BOOT_TIMEOUT
     _REQ_ID += 1

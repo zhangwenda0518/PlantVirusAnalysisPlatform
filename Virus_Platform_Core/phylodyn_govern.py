@@ -322,13 +322,30 @@ class GeoInfo:
         return bool(self.normalized) and self.issue != 'country_only'
 
 
-def split_location(raw) -> List[str]:
-    """拆地理层级：**冒号与逗号都拆**。
+# 地名里要剔除的噪声后缀（数据里常见 `_AI` 之类的来源标记）。
+#
+# ⚠️ 必须要求**分隔符存在**（`_AI` / `-AI` / `.AI`）——只按「结尾是 ai」判断会
+# 误伤以 ai 结尾的真实地名：`Shanghai`→`Shangh`、`Qinghai`→`Qingh`、
+# `Chennai`→`Chenn`。上游同一处注释记录过这个 2026-09-16 实测 bug。
+# 2026-11-02：此前我们整体没做噪声后缀清洗，对拍时 3 条 `..._AI` 全部不一致
+# （`China, Ningxia, Yinchuan_AI` 原样进了 normalized，地图标签会带出 `_AI`）。
+_LOC_NOISE_RE = re.compile(
+    r'[_\-\.](?:ai|v[1-9]|new|final|rev\d*|copy)$', re.IGNORECASE)
 
-    `China:Ningxia` → `['China','Ningxia']`；`China, Ningxia, Yinchuan_AI` → 三段。
-    （上游实测：只拆 `[,;]` 会让 `China:Ningxia` 整串去查表、查不到就静默降级成国家质心。）
+
+def split_location(raw) -> List[str]:
+    """拆地理层级：**冒号与逗号都拆**，并剥离层级内的来源标记。
+
+    `China:Ningxia` → `['China','Ningxia']`；
+    `China, Ningxia, Yinchuan_AI` → `['China','Ningxia','Yinchuan']`。
+    （上游实测：只拆 `[,;]` 会让 `China:Ningxia` 整串去查表、
+    查不到就静默降级成国家质心。）
+
+    原始写法仍完整保存在 `GeoInfo.raw`（审计不受影响）。
     """
-    return [p.strip() for p in re.split(r'[,;:：]', str(raw or '')) if p.strip()]
+    parts = [p.strip() for p in re.split(r'[,;:：]', str(raw or '')) if p.strip()]
+    parts = [_LOC_NOISE_RE.sub('', p).strip() for p in parts]
+    return [p for p in parts if p]
 
 
 def _is_unknown_level(p: str) -> bool:
@@ -340,6 +357,13 @@ def _is_unknown_level(p: str) -> bool:
     t = (p or '').strip().lower()
     if t in UNKNOWN_LEVEL_TOKENS:
         return True
+    # 2026-11-02 修复：上游口径是「占位词 + 来源标记」整段也算占位
+    # （`Unknown_AI` / `Unknown-Region`）。旧判据只认「以 known 开头 + 分隔符」，
+    # `_AI` 挂在 Unknown 后面时尾巴对不上，于是整段被当成真实地名保留下来
+    # （对拍实测：China, Unknown, Yinchuan_AI 未删除层级，normalized 保留 _AI）。
+    for tok in UNKNOWN_LEVEL_TOKENS:
+        if t == tok or t.startswith(tok + '_') or t.startswith(tok + '-'):
+            return True
     return bool(re.match(r'^(unknown|unk|unspecified|未|不详)([_\- ]|$)', t))
 
 

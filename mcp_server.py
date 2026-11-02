@@ -34,6 +34,7 @@ import re
 import sys
 import time
 import uuid
+import importlib                     # 依赖按需探测/安装（importlib.import_module）
 from typing import Annotated, Optional
 
 # 嵌入式 Python（3rd/python，_pth 布局）不自动注入脚本目录——与 app.py /
@@ -72,7 +73,7 @@ def _ensure_mcp_sdk():
                 break
         except OSError:
             continue
-    import mcp  # noqa: F401  再失败就让 ImportError 原样抛给客户端
+    importlib.import_module('mcp')   # 再试一次；仍缺就原样抛 ImportError
 
 
 _ensure_mcp_sdk()
@@ -83,6 +84,7 @@ from mcp.types import ToolAnnotations                            # noqa: E402
 from pydantic import Field                                       # noqa: E402
 
 # ---- 平台模块（脚本位于平台根，sys.path[0] 即根）----
+from Virus_Platform_Core.agent_catalog import TOOL_PARAM_SCHEMAS as _TOOL_PARAM_SCHEMAS
 from Virus_Platform_Core.config import DIRS, PLATFORM_ROOT       # noqa: E402
 from Virus_Platform_Core.utils import (TaskLogger, check_path,   # noqa: E402
                                        safe_open)
@@ -105,7 +107,7 @@ from werkzeug.exceptions import HTTPException                    # noqa: E402
 
 _PLATFORM_OK = None
 
-SERVER_VERSION = '1.2.0'
+SERVER_VERSION = '1.3.0'
 
 
 def _gated_tools():
@@ -162,18 +164,26 @@ mcp = FastMCP(
         '植物病毒分析平台（Windows 本地）的 MCP 入口。'
         '典型流程：vp_platform_info 看环境 → vp_list_samples / vp_list_tools '
         '选目标 → vp_run_tool（工具箱）或 vp_pipeline_start（全流程）提交 → '
-        'vp_get_task 轮询到终态 → vp_read_run_file 读产物文本。'
+        'vp_wait_task 等终态（或 vp_get_task 轮询）→ vp_read_run_file / '
+        'vp_read_sample_file 读产物文本，vp_sample_stages 看某样品 15 阶段'
+        '到哪一步。'
+        '任务归档是手工动作：vp_archive_task 移入历史归档（可 '
+        'vp_unarchive_task 恢复），切模块/重连都不会自动归档；'
+        'vp_list_tasks(include_archived=true) 可连历史一起看。'
         '数据库构建、公共数据检索（NCBI/GenBank/宿主基因组）、NCBI 提交、'
         'LOGAN 溯源、ICTV 库等 CLI 能力：vp_cli_help 查清单与参数，快查用 '
         'vp_cli_run，长任务用 vp_cli_submit。'
         '所有执行类工具提交即返回 task_id，长任务（组装/建树/定量/下载）'
-        '必须轮询，不要重复提交。'
+        '必须等待/轮询，不要重复提交。'
     ),
 )
 
 _RO = ToolAnnotations(readOnlyHint=True, idempotentHint=True)
 _RO_LIVE = ToolAnnotations(readOnlyHint=True)
 _DESTR = ToolAnnotations(destructiveHint=True)
+# 可逆写操作（手动归档/恢复、目录改名）：不是只读，但不动数据内容
+_WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False,
+                         idempotentHint=True)
 
 
 # ======================================================================
@@ -411,12 +421,22 @@ def _task_snapshot(tid, log_lines, result_max_kb=256):
 
     键集合固定，便于 agent 结构化消费；result 超 result_max_kb 时截断为
     {_truncated, _note, _head}，完整结果指回 run/tasks/<tid>.json。
+
+    内存里查不到时回落到「磁盘记录」（手动归档 / 服务重启前的历史）：
+    否则 agent 会以为任务没了，而其实它只是被归档、随时能恢复。
     """
-    snap = tm.snapshot(tid, log_lines=max(0, min(int(log_lines), 500)))
+    n = max(0, min(int(log_lines), 500))
+    snap = tm.snapshot(tid, log_lines=n)
+    archived = False
     if not snap:
-        raise ValueError('任务不存在或已超出内存保留窗口: %s'
-                         '（历史任务可查 run/tasks/%s.json）' % (tid, tid))
+        snap = tm.archived_snapshot(tid, log_lines=n)
+        archived = bool(snap)
+    if not snap:
+        raise ValueError('任务不存在: %s（内存与归档目录都没有这条记录；'
+                         '用 vp_list_tasks(include_archived=true) 查看现有任务）'
+                         % tid)
     snap.pop('restart', None)            # 网页端专用，MCP 无意义
+    snap['archived'] = bool(archived)
     if snap.get('started'):
         snap['started_h'] = time.strftime(
             '%Y-%m-%d %H:%M:%S', time.localtime(snap['started']))
@@ -434,17 +454,22 @@ def _task_snapshot(tid, log_lines, result_max_kb=256):
                                        f'{snap.get("out_dir") or ""}',
                               '_head': text[:kb * 1024]}
     keys = ('id', 'name', 'status', 'stage', 'pct', 'msg', 'error', 'eta',
-            'out_dir', 'link', 'started_h', 'finished_h', 'log', 'result')
+            'out_dir', 'link', 'started_h', 'finished_h', 'log', 'result',
+            'archived', 'external')
     out = {k: snap.get(k) for k in keys}
     # ---- 统一信封：摘要 / 解读 / 下一步（规则生成）----
     st, stage = out['status'], out['stage'] or '—'
     pct = int(round((out['pct'] or 0) * 100))
     out['summary'] = f"{st} · {stage} {pct}% · {out['msg'] or ''}".rstrip()
     interp, nxt = [], []
+    if out['archived']:
+        interp.append('该任务已归档（历史记录，产物与日志仍在磁盘）。')
+        nxt.append(f"需要它回到在册列表就调 vp_unarchive_task("
+                   f"task_id='{tid}')")
     if st == 'running':
         interp.append(f"当前阶段「{stage}」进行到 {pct}%。")
-        nxt.append('稍后再次调用 vp_get_task 轮询，直到 status 变为 '
-                   'done/failed/cancelled')
+        nxt.append('稍后再次调用 vp_get_task 轮询，或直接 vp_wait_task '
+                   '等它到终态')
     elif st == 'done':
         interp.append('任务成功完成；result 字段为各步摘要，产物在 out_dir。')
         nxt.append('用 vp_read_run_file(run, path) 读取关键文本产物')
@@ -463,23 +488,42 @@ def _task_snapshot(tid, log_lines, result_max_kb=256):
     return out
 
 
-def _task_list(limit, include_archived=False):
+_TASK_STATUSES = ('queued', 'running', 'done', 'failed', 'cancelled')
+
+
+def _task_list(limit, include_archived=False, status=None, name=None):
     limit = max(1, min(int(limit), 100))
-    outs = [x for x in tm.list_all(limit=limit, logs=False) if x]
+    st = str(status or '').strip().lower()
+    kw = str(name or '').strip().lower()
+    if st and st not in _TASK_STATUSES:
+        raise ValueError('status 只能是 %s 之一' % '/'.join(_TASK_STATUSES))
+    # 过滤后再截断：多取一些，否则按状态/关键词筛会拿到不足 limit 的页
+    outs = [x for x in tm.list_all(limit=max(limit, 120), logs=False) if x]
     for o in outs:
         o.pop('restart', None)
         o.pop('log', None)
+    if st:
+        outs = [o for o in outs if str(o.get('status')) == st]
+    if kw:
+        outs = [o for o in outs if kw in str(o.get('name') or '').lower()]
+    outs = outs[:limit]
     archived, archived_count = [], 0
     if include_archived:
-        # 内存之外的历史（平台重启后只剩 tasks/*.json）：投影成与在册
-        # 任务同口径的稳定键，剔除 log_tail 大字段
+        # 内存之外的历史（手动归档 / 平台重启后只剩 tasks/*.json）：
+        # 投影成与在册任务同口径的稳定键，剔除 log_tail 大字段
         mem_ids = {o.get('id') for o in outs}
-        for d in tm.list_archived(limit=limit):
+        for d in tm.list_archived(limit=max(limit, 120)):
             if d.get('id') in mem_ids:
+                continue
+            if st and str(d.get('status')) != st:
+                continue
+            if kw and kw not in str(d.get('name') or '').lower():
                 continue
             archived.append({k: d.get(k) for k in
                              ('id', 'name', 'status', 'stage', 'pct', 'msg',
                               'error', 'out_dir', 'started', 'finished')})
+            if len(archived) >= limit:
+                break
         archived_count = tm.count_archived()
     return {'count': len(outs), 'tasks': outs,
             'archived_count': archived_count, 'archived': archived}
@@ -491,361 +535,57 @@ def _task_list(limit, include_archived=False):
 # 未列出的键会被工厂忽略；缺必填项在提交时当场报中文原因。
 # ======================================================================
 
-_TOOL_PARAM_SCHEMAS = {
-    'convert': [
-        ('input', 'path', True, '输入文件（.sra 或 .fastq[.gz]）'),
-        ('input2', 'path', False, 'R2 FASTQ（双端时给）'),
-        ('target', 'str', False, '目标格式 fastq|fasta，默认 fastq（仅 FASTQ 输入可转 fasta）'),
-    ],
-    'fastp': [
-        ('r1', 'path', True, 'R1 FASTQ'),
-        ('r2', 'path', False, 'R2 FASTQ'),
-        ('dedup', 'bool', False, '质控去重'),
-    ],
-    'hostremoval': [
-        ('r1', 'path', True, 'R1 FASTQ'), ('r2', 'path', False, 'R2 FASTQ'),
-        ('confidence', 'float', False, 'kunpeng 分类置信度，默认 0'),
-        ('db', 'path', False, '宿主库目录，缺省平台主宿主库'),
-        ('classify_r1', 'path', False, '预转换 R1 FASTA（跳过质量行解压，可选）'),
-        ('classify_r2', 'path', False, '预转换 R2 FASTA'),
-    ],
-    'orf': [
-        ('fasta', 'path', True, '输入 FASTA（核酸 contigs/基因组）'),
-        ('min_aa', 'int', False, '最短 ORF 氨基酸数，默认 100（1~5000）'),
-        ('annotate', 'bool', False, '连跑 ⑥b 功能注释'),
-        ('orf_tool', 'str', False, 'ORF 预测引擎（透传引擎选择，缺省自动）'),
-        ('model', 'str', False, 'CDS 模型 pyrodigal_rv|pyrodigal'),
-        ('engine', 'str', False, '注释引擎（缺省自动）'),
-        ('db', 'str', False, '注释库路径'),
-        ('libs', 'str', False, '注释层 prot|pfam，空=全部'),
-        ('min_pident', 'float', False, '层1 Identity% 门槛，0=不过滤'),
-        ('min_qcov', 'float', False, '层1 覆盖% 门槛'),
-    ],
-    'orfa': [
-        ('run', 'str', False, '已有 orf_ 运行名（与 fasta 二选一）'),
-        ('fasta', 'path', False, 'FASTA 输入（预测+注释一步）'),
-        ('model', 'str', False, 'pyrodigal_rv|pyrodigal'),
-        ('engine', 'str', False, '注释引擎'), ('db', 'str', False, '注释库'),
-        ('libs', 'str', False, 'prot|pfam，空=全部'),
-        ('min_pident', 'float', False, '层1 Identity% 门槛'),
-        ('min_qcov', 'float', False, '层1 覆盖% 门槛'),
-    ],
-    'genoplot': [
-        ('fasta', 'path', False, 'FASTA（与 ann 至少给一）'),
-        ('ann', 'path', False, 'GFF3（配 fasta）或 GenBank（自带注释，忽略 fasta）'),
-        ('max_plots', 'int', False, '最多出图数，默认 12'),
-        ('mode', 'str', False, 'circular|linear|both，默认 both'),
-        ('gb_opts', 'dict', False, 'gbdraw CLI 透传参数字典'),
-    ],
-    'primer': [
-        ('fasta', 'path', True, '输入 FASTA（plain=基因组全长分窗；conserved=已比对 MSA）'),
-        ('mode', 'str', False, 'plain|conserved，默认 plain'),
-        ('num_return', 'int', False, '每条返回引物对数，默认 3（1~20）'),
-        ('specificity', 'bool', False, '宿主特异性 BLAST 检查（需先建宿主 BLAST 库）'),
-    ],
-    'identify': [
-        ('input', 'path', True, '输入文件（FASTQ 或 contigs FASTA）'),
-        ('input_type', 'str', False, 'pe|single|fasta，默认 pe'),
-        ('input2', 'path', False, 'R2 FASTQ（pe 必填）'),
-        ('confidence', 'float', False, '分类置信度，默认 0'),
-        ('db_virus', 'str', False, '病毒库：内置键 virus|refvirus 或库目录路径'),
-    ],
-    'assemble': [
-        ('r1', 'path', True, 'R1 FASTQ'),
-        ('r2', 'path', False, 'R2 FASTQ（srna 模式可空，其余必填）'),
-        ('mode', 'str', False, 'SPAdes 模式，默认 rnaviral（srna 单端组装）'),
-        ('memory', 'int', False, '内存上限 GB，默认 64'),
-        ('min_len', 'int', False, 'contig 最小长度，默认 200'),
-    ],
-    'contigs': [
-        ('contigs', 'path', True, 'contigs FASTA'),
-        ('min_len', 'int', False, '最小长度，默认 200'),
-        ('confidence', 'float', False, '分类置信度'),
-        ('db_virus', 'str', False, '病毒库：virus|refvirus 或库目录'),
-    ],
-    'structcmp': [
-        ('seqs', 'path', True, '序列 FASTA（≥2 条）'),
-        ('max_n', 'int', False, '最多条数，默认 30'),
-    ],
-    'verify': [
-        ('run', 'str', False, 'contig 分类运行名（与 fasta 二选一）'),
-        ('fasta', 'path', False, '独立候选 FASTA'),
-        ('host', 'str', False, '宿主筛选 all|...，默认 all'),
-        ('methods', 'str', False, '证据方法组合 blastx,bfvd，默认全开'),
-        ('combine', 'str', False, 'union|intersection，默认 union'),
-    ],
-    'consensus': [
-        ('run', 'str', False, 'contig 分类运行名（参考来源）'),
-        ('fasta', 'path', False, '独立参考 FASTA'),
-        ('kv_run', 'str', False, 'kvsuite 运行名（配 kv_refs 选参考）'),
-        ('kv_refs', 'str', False, 'accession 列表，逗号分隔'),
-        ('reads', 'str', False, '回贴 reads 文件/目录，逗号分隔；缺省自动取该运行输入'),
-        ('ambig', 'str', False, '模糊碱基字符，默认 N'),
-        ('min_qual', 'int', False, '碱基质量门槛，默认 20'),
-        ('min_depth', 'int', False, '最小深度，默认 4'),
-        ('min_freq', 'float', False, '共识频率门槛，默认 0.5'),
-        ('min_mapq', 'int', False, '比对质量门槛，默认 10'),
-        ('min_minor_freq', 'float', False, '次要变异频率门槛，默认 0.02'),
-        ('min_cov_pct', 'float', False, '最小覆盖度%，默认 10'),
-    ],
-    'kvsuite': [
-        ('stage', 'str', False, 'identify+filter（默认）|all|index|identify|filter|consensus|plot|variant'),
-        ('samples', 'str', False, '样品名，逗号分隔（与 reads/sample_sheet 三选一）'),
-        ('sample_sheet', 'path', False, '样本表 TSV（name,r1,r2）'),
-        ('reads', 'str', False, 'FASTQ 目录/文件，逗号分隔（自动配对 R1/R2）'),
-        ('kv_lib', 'str', False, '内置鉴定库键（选库优先，忽略零散 reference/index）'),
-        ('reference', 'path', False, '参考序列 FASTA（未选库时）'),
-        ('ref_info', 'path', False, '参考注释 TSV'),
-        ('engine', 'str', False, 'salmon|minibwa，默认 salmon'),
-        ('index_dir', 'path', False, '鉴定库目录（未选库时）'),
-        ('min_cov', 'float', False, '最小覆盖%，默认 10'),
-        ('min_depth', 'float', False, '最小深度，默认 0.5'),
-        ('min_reads', 'int', False, '最小 reads 数，默认 10'),
-        ('min_poisson', 'float', False, '泊松门槛，默认 0.3'),
-        ('variant_qual', 'float', False, '变异质量门槛，默认 3.5'),
-        ('min_freq', 'float', False, '变异频率门槛，默认 0.05'),
-        ('aa_label_cutoff', 'float', False, 'AA 标签阈值，默认 0.5'),
-        ('max_aa_labels', 'int', False, 'AA 标签上限，默认 40'),
-        ('input_vcf', 'path', False, '变异段：外部 VCF（优先于 bam_dir）'),
-        ('bam_dir', 'path', False, '变异段：BAM 目录'),
-        ('ncbi_email', 'str', False, 'NCBI Entrez 邮箱'),
-        ('ncbi_api_key', 'str', False, 'NCBI API key（仅环境变量传递，不进日志）'),
-        ('no_genes', 'bool', False, '跳过基因注释'),
-        ('no_variant_evo', 'bool', False, '跳过变异演化'),
-        ('all_variants', 'bool', False, '输出全部变异'),
-        ('no_snpgenie', 'bool', False, '跳过 SNPGenie'),
-    ],
-    'quicktree': [
-        ('seqs', 'path', True, '序列 FASTA'),
-        ('method', 'str', False, 'nj|fasttree，默认 nj'),
-        ('aligned', 'bool', False, '输入已是比对结果（跳过 MAFFT）'),
-        ('max_n', 'int', False, '最多条数，默认 100'),
-    ],
-    'align': [
-        ('seqs', 'path', True, '序列 FASTA（≥2 条，自动判核酸/蛋白）'),
-        ('seqs_extra', 'path', False, '第二 FASTA（与 seqs 合并比对）'),
-        ('strategy', 'str', False, 'auto|linsi|fast，默认 auto'),
-        ('trimal', 'str', False, 'automated1|gappyout|strict|none，默认 automated1'),
-        ('max_n', 'int', False, '最多条数，默认 200'),
-    ],
-    'sdt': [
-        ('seqs', 'path', True, '序列 FASTA'),
-        ('max_n', 'int', False, '最多条数，默认 30'),
-        ('orient', 'bool', False, '比对前定向，默认开'),
-        ('seqtype', 'str', False, 'auto|nt|aa，默认 auto'),
-        ('palette', 'str', False, '热图配色 sdt|viridis|cividis|coolwarm|magma 等'),
-        ('aligned', 'bool', False, '输入为已比对 MSA（直接算公式）'),
-    ],
-    'identity': [
-        ('nt_seqs', 'path', True, '核苷酸 FASTA'),
-        ('aa_seqs', 'path', False, '氨基酸 FASTA（空=最长 ORF 翻译）'),
-        ('max_n', 'int', False, '最多条数，默认 30'),
-        ('palette', 'str', False, '复合热图配色'),
-        ('aligned', 'bool', False, '输入为已比对 MSA'),
-    ],
-    'virchain': [
-        ('input', 'path', True, '去宿主序列 FASTA'),
-        ('input2', 'path', False, 'R2 FASTA'),
-        ('run_identify', 'bool', False, '连跑 ②b 病毒识别段'),
-        ('do_verify', 'bool', False, '连跑 ③b 候选验证'),
-        ('mode', 'str', False, '组装模式，默认 rnaviral'),
-        ('memory', 'int', False, '组装内存 GB，默认 64'),
-        ('min_len', 'int', False, 'contig 最小长度，默认 200'),
-        ('confidence', 'float', False, '分类置信度'),
-        ('host', 'str', False, '验证宿主筛选，默认 all'),
-        ('methods', 'str', False, '验证方法 blastx,bfvd'),
-        ('combine', 'str', False, 'union|intersection'),
-        ('db_virus', 'str', False, '病毒库：virus|refvirus 或库目录'),
-    ],
-    'kvchain': [],   # 运行时复用 kvsuite（stage 固定 all 全流程）
-    'prepchain': [
-        ('input', 'path', True, '输入文件（.sra 或 FASTQ[.gz]）'),
-        ('input2', 'path', False, 'R2 FASTQ（.sra 输入不需要）'),
-        ('confidence', 'float', False, '宿主去除分类置信度'),
-        ('dedup', 'bool', False, '质控去重'),
-        ('db', 'path', False, '宿主库目录，缺省平台主库'),
-    ],
-    'annochain': [
-        ('fasta', 'path', True, '输入 FASTA（核酸 contigs/基因组）'),
-        ('min_aa', 'int', False, '最短 ORF 氨基酸数，默认 100'),
-    ],
-    'rdp': [
-        ('input', 'path', True, '比对 FASTA'),
-        ('qc', 'bool', False, '比对质控开关，默认开'),
-        ('qc_ref', 'str', False, '质控参考序列名'),
-        ('qc_min_len', 'float', False, '最小覆盖长度比例，默认 0.90'),
-        ('orf_csv', 'path', False, 'ORF 注释 CSV（可选）'),
-    ],
-    'phylogeo': [
-        ('input', 'path', True, '比对 FASTA'),
-        ('meta', 'str', False, '元数据 CSV 路径（性状列）'),
-        ('trait', 'str', False, '离散性状列名'),
-        ('method', 'str', False, 'nj|fasttree，默认 nj'),
-        ('dated_tree', 'path', False, '定年树（可选）'),
-        ('coords', 'path', False, '坐标表（样本点层，可选）'),
-        ('beast_log', 'path', False, 'BEAST .log（导入）'),
-        ('beast_trees', 'path', False, 'BEAST .trees（导入）'),
-        ('date_trait', 'str', False, '日期列，默认 year'),
-        ('motp_bin', 'float', False, '迁移概率分箱，默认 0'),
-    ],
-    'dsrna': [
-        ('input', 'path', True, '目标序列 FASTA'),
-        ('max_mm', 'int', False, 'siRNA 最大错配数'),
-        ('off_targets', 'path', False, '脱靶评估库'),
-        ('panel', 'str', False, '面板输出选项'),
-        ('primer_scope', 'str', False, '引物范围选项'),
-        ('isolates', 'str', False, '分离株比对集'),
-    ],
-    'crispr': [
-        ('input', 'path', True, '目标序列 FASTA'),
-        ('amp_mode', 'str', False, 'RPA|PCR，默认 RPA'),
-        ('profile', 'str', False, '严格度 strict 等，默认 strict'),
-        ('probe_type', 'str', False, '探针类型，默认 none'),
-        ('nuclease', 'str', False, 'cas12a 默认'),
-        ('use_host', 'bool', False, '宿主脱靶检查，默认开'),
-        ('group_by_segment', 'bool', False, '按片段分组，默认开'),
-        ('near_fasta', 'path', False, '近缘参考 FASTA'),
-    ],
-    # 2026-10-20：CONAN-SWIFT（Cas3 / I-E）crRNA 设计（t-conan 卡）。
-    # 引擎 Virus_Platform_Core/conan_design.py；参数面与网页端表单同源。
-    'conan': [
-        ('input', 'path', True, '目标 FASTA（多分离物，可多分体）'),
-        ('negative', 'path', False, '负组 FASTA（近缘非目标病毒，可选）'),
-        ('pam', 'str', False, 'PAM（5′ 前置），默认 AAG'),
-        ('spacer_len', 'int', False, 'spacer 长度，默认 32（24–36）'),
-        ('seed_len', 'int', False, '种子长度（PAM+1 起），默认 8（4–12）'),
-        ('ignored', 'str', False, '种子忽略位（逗号分隔 1 基位置），默认 6'),
-        ('max_nonseed_mm', 'int', False, '目标非种子错配上限，默认 4'),
-        ('exclude_terminal', 'bool', False, '末端排除开关，默认开'),
-        ('terminal_margin', 'int', False, '末端排除 bp，默认 150'),
-        ('select_gc', 'bool', False, 'GC 区间过滤开关，默认开'),
-        ('gc_min', 'int', False, 'GC 下限 %，默认 35'),
-        ('gc_max', 'int', False, 'GC 上限 %，默认 65'),
-        ('exclude_homopolymer', 'bool', False, '种子同碱基 run 过滤，默认开'),
-        ('homopolymer', 'int', False, '种子同碱基 run 阈值，默认 3'),
-        ('group_by_segment', 'bool', False, '按片段标签分组，默认开'),
-        ('top_n', 'int', False, '输出候选数，默认 20'),
-    ],
-    'rtt': [
-        ('input', 'path', True, '比对 FASTA'),
-        ('meta', 'path', True, '元数据 CSV'),
-        ('date_trait', 'str', False, '日期列，默认 year'),
-        ('method', 'str', False, 'nj 默认'),
-    ],
-    'phylodyn': [
-        ('mode', 'str', False, 'pipeline|stage，默认 pipeline'),
-        ('stage', 'str', False, 'stage 模式下的阶段名'),
-        ('from_run', 'str', False, '上一轮专项运行名（断点续跑）'),
-        ('input', 'path', False, '比对 FASTA（stage 模式）'),
-        ('meta', 'path', False, '元数据 CSV'),
-        ('tree', 'path', False, 'Newick 树'),
-        ('rename_map', 'path', False, '重命名映射 TSV'),
-        ('divergence_tree', 'path', False, '分歧时间树'),
-        ('coord_table', 'path', False, '坐标表'),
-        ('trait', 'str', False, '离散性状列，默认 region'),
-        ('date_col', 'str', False, '日期列名'),
-        ('date_trait', 'str', False, '日期解析口径'),
-        ('seq_len', 'int', False, '序列长度'),
-        ('methods', 'str', False, '方法列表，逗号分隔，默认 treetime'),
-        ('reroot', 'str', False, '重新生根方式，默认 least-squares'),
-        ('keep_root', 'bool', False, '保留原根'),
-        ('relax_sigma', 'float', False, '松弛钟 sigma（0=关）'),
-        ('relax_coupling', 'float', False, '松弛钟耦合'),
-        ('drt', 'bool', False, 'DRT 回归，默认开'),
-        ('drt_perm', 'int', False, 'DRT 置换次数，默认 200'),
-        ('clock_rate', 'float', False, '固定速率 1e-12~1.0（与松弛钟互斥）'),
-        ('skyline', 'bool', False, '天际线'),
-        ('n_skyline', 'int', False, '天际线块数，默认 10'),
-        ('gen_per_year', 'float', False, '每年世代数，默认 50'),
-        ('prune', 'bool', False, '剪枝'),
-        ('prune_method', 'str', False, 'fps 等'),
-        ('prune_date_resolution', 'str', False, 'month 等'),
-        ('prune_max_reps', 'int', False, '默认 3'),
-        ('prune_min_snp_diff', 'int', False, '默认 2'),
-        ('prune_clade_cutoff', 'int', False, '默认 5'),
-        ('sampling_bias_correction', 'str', False, 'auto 等'),
-        ('cross_check', 'bool', False, '交叉校验，默认开'),
-        ('rssp_bs', 'int', False, 'RTT bootstrap，默认 0'),
-        ('seed', 'int', False, '随机种子'),
-        ('ancestral', 'bool', False, '祖先状态重构'),
-        ('homoplasy', 'bool', False, '同塑性检查'),
-        ('timeout', 'int', False, '超时秒，默认 3600'),
-    ],
-    'pdprep': [
-        ('source', 'str', False, 'manual|gb|ncbi，默认 manual'),
-        ('fasta_text', 'str', False, '粘贴 FASTA（manual）'),
-        ('meta_text', 'str', False, '粘贴元数据（manual）'),
-        ('species', 'str', False, '物种名（ncbi）'),
-        ('taxid', 'str', False, 'TaxID（ncbi）'),
-        ('full_only', 'bool', False, '仅完整基因组'),
-        ('date_mode', 'str', False, '日期解析 mid 等'),
-        ('date_from', 'str', False, '日期下限'),
-        ('date_to', 'str', False, '日期上限'),
-        ('collection', 'str', False, 'GenBank 集合名（gb）'),
-        ('gb_files', 'path', False, 'GenBank 文件路径'),
-        ('accessions', 'str', False, 'accession 列表'),
-        ('term', 'str', False, 'Entrez 检索式'),
-        ('max_records', 'int', False, '最多条数，默认 200'),
-        ('dedup', 'bool', False, '去冗余'),
-        ('strict', 'bool', False, '严格元数据校验'),
-        ('govern', 'bool', False, '治理规则，默认开'),
-        ('allow_noloc', 'bool', False, '允许无定位'),
-        ('qc', 'str', False, '比对质控 off 等，默认 off'),
-        ('qc_max_gap', 'float', False, '默认 0.10'),
-        ('qc_max_n', 'float', False, '默认 0.05'),
-        ('qc_min_len', 'float', False, '默认 0.90'),
-        ('threads', 'int', False, '比对线程，默认 4'),
-        ('coords', 'str', False, '坐标表'),
-        ('sub', 'bool', False, '抽样'),
-        ('sub_mode', 'str', False, 'random 等'),
-        ('sub_seed', 'int', False, '抽样种子'),
-        ('sub_n', 'int', False, '抽样数'),
-        ('sub_region', 'str', False, '抽样区域'),
-    ],
-    'mirna': [
-        ('mirna_text', 'str', False, '粘贴 miRNA 序列（与 mirna_fasta 二选一）'),
-        ('virus_text', 'str', False, '粘贴病毒序列（与 virus_fasta 二选一）'),
-        ('mirna_fasta', 'path', False, 'miRNA FASTA'),
-        ('virus_fasta', 'path', False, '病毒 FASTA'),
-        ('full_mode', 'bool', False, '全模式'),
-        ('algorithms', 'str', False, '算法列表，逗号/空格分隔'),
-    ],
-    'beastexport': [
-        ('input', 'path', True, '比对 FASTA'),
-        ('meta', 'str', False, '元数据 CSV 路径'),
-        ('trait', 'str', False, '离散性状列，默认 region'),
-        ('date_trait', 'str', False, '日期列，默认 year'),
-        ('virus_tag', 'str', False, '病毒名标签'),
-        ('iqtree_log', 'path', False, 'IQ-TREE 日志（定年用，可选）'),
-        ('coords', 'path', False, '坐标表'),
-        ('prior', 'str', False, '先验 bdsky 等，默认 bdsky'),
-    ],
-}
 _TOOL_PARAM_SCHEMAS['kvchain'] = [
     (k, t, r, ('stage 固定 all；' + d if k == 'stage' else d))
     for (k, t, r, d) in _TOOL_PARAM_SCHEMAS['kvsuite']]
 
 
-def _tool_list_impl():
-    out = []
+def _tool_list_impl(query=None, weight=None, need_db=None,
+                    limit=None, offset=0):
+    """工具箱清单（可按关键词/档位/是否依赖病毒库过滤、分页）。
+
+    过滤在服务端做：32 张卡的 params 全量返回体积不小，agent 通常只找
+    一两张卡，按关键词筛比整包拉回去再过滤省上下文。
+    """
+    kw = str(query or '').strip().lower()
+    w = str(weight or '').strip().lower()
+    if w and w not in ('heavy', 'light'):
+        raise ValueError('weight 只能是 heavy 或 light')
+    rows = []
     for name in sorted(TOOL_REGISTRY):
         spec = TOOL_REGISTRY[name]
         doc = (spec['job'].__doc__ or '').strip()
         params = [{'key': k, 'type': t, 'required': bool(r), 'desc': d}
                   for (k, t, r, d) in _TOOL_PARAM_SCHEMAS.get(name, ())]
-        out.append({'tool': name, 'title': spec['title'],
-                    'title_en': spec['title_en'],
-                    'need_db': bool(spec['need_db']),
-                    'weight': 'light' if name in LIGHT_TOOLS else 'heavy',
-                    'gated': name in _GATED,
-                    'required_params': [p['key'] for p in params
-                                        if p['required']],
-                    'params': params, 'doc': doc[:400]})
-    return {'count': len(out),
+        row = {'tool': name, 'title': spec['title'],
+               'title_en': spec['title_en'],
+               'need_db': bool(spec['need_db']),
+               'weight': 'light' if name in LIGHT_TOOLS else 'heavy',
+               'gated': name in _GATED,
+               'required_params': [p['key'] for p in params
+                                   if p['required']],
+               'params': params, 'doc': doc[:400]}
+        if kw:
+            blob = ' '.join(str(row.get(k) or '') for k in
+                            ('tool', 'title', 'title_en', 'doc')).lower()
+            blob += ' ' + ' '.join((p['key'] + ' ' + p['desc']).lower()
+                                   for p in params)
+            if kw not in blob:
+                continue
+        if w and row['weight'] != w:
+            continue
+        if need_db is not None and row['need_db'] != bool(need_db):
+            continue
+        rows.append(row)
+    total = len(rows)
+    lo = max(0, int(offset or 0))
+    cap = max(0, int(limit or 0))
+    page = rows[lo:lo + cap] if cap else rows[lo:]
+    return {'count': len(page), 'total': total,
             'note': 'params 键值口径与网页端同源；未列出的键被忽略，'
                     '缺必填项提交时当场报中文原因。gated=true 的卡已被'
                     'deferred.json/环境变量下线，调用会被拒，勿选',
-            'tools': out}
+            'tools': page}
 
 
 def _mtime_sorted_dirs(root, skip_underscore=True):
@@ -891,7 +631,32 @@ def _sample_list_impl(limit, offset):
     return {'total': total, 'count': len(out), 'samples': out}
 
 
-def _run_list_impl(limit, offset):
+def _run_brief(name, base=None):
+    """一次运行目录的简报（活区先按 run_real_dir 解析，落空再回落根目录）。"""
+    root = base or tool_runs_root()
+    if base:
+        d = os.path.join(root, name)
+    else:
+        try:
+            d = run_real_dir(name)
+        except Exception:                        # noqa: BLE001
+            d = None
+        if not d or not os.path.isdir(d):
+            d = os.path.join(root, name)
+    if not os.path.isdir(d):
+        return None
+    files = []
+    for cur, _sub, fns in os.walk(d):
+        rel = os.path.relpath(cur, d)
+        for fn in fns:
+            files.append(fn if rel == '.' else
+                         os.path.join(rel, fn).replace(os.sep, '/'))
+    return {'run': name, 'out_dir': d, 'n_files': len(files),
+            'files': sorted(files)[:40],
+            'files_truncated': len(files) > 40}
+
+
+def _run_list_impl(limit, offset, include_archived=False):
     root = tool_runs_root()
     names = _mtime_sorted_dirs(root)
     total = len(names)
@@ -899,22 +664,27 @@ def _run_list_impl(limit, offset):
     page = names[lo:lo + max(1, min(int(limit), 30))]
     out = []
     for n in page:
+        out.append(_run_brief(n))
+    d = {'total': total, 'count': len(out), 'runs': [r for r in out if r]}
+    if include_archived:
+        arch = []
+        anames = []
         try:
-            d = run_real_dir(n)
-        except Exception:
-            d = os.path.join(root, n)
-        if not os.path.isdir(d):
-            continue
-        files = []
-        for cur, _sub, fns in os.walk(d):
-            rel = os.path.relpath(cur, d)
-            for fn in fns:
-                files.append(fn if rel == '.' else
-                             os.path.join(rel, fn).replace(os.sep, '/'))
-        out.append({'run': n, 'out_dir': d, 'n_files': len(files),
-                    'files': sorted(files)[:40],
-                    'files_truncated': len(files) > 40})
-    return {'total': total, 'count': len(out), 'runs': out}
+            aroot = _tool_archive_root(create=False)
+        except Exception:                        # noqa: BLE001
+            aroot = None
+        if aroot and os.path.isdir(aroot):
+            anames = _mtime_sorted_dirs(aroot)
+            for n in anames[:max(1, min(int(limit), 30))]:
+                brief = _run_brief(n, base=aroot)
+                if brief:
+                    brief['archived'] = True
+                    arch.append(brief)
+        d['archived'] = arch
+        d['archived_total'] = len(anames)
+        d['note'] = ('archived 是手动归档区（run/tool_runs/_archive/，'
+                     '可用 vp_restore_tool_run 恢复）')
+    return d
 
 
 _BINARY_EXT = ('.gz', '.zip', '.png', '.jpg', '.jpeg', '.pdf', '.bam',
@@ -922,20 +692,21 @@ _BINARY_EXT = ('.gz', '.zip', '.png', '.jpg', '.jpeg', '.pdf', '.bam',
                '.7z', '.tar', '.bin', '.h5')
 
 
-def _read_run_file_impl(run, path, max_kb):
-    if not re.fullmatch(r'[A-Za-z0-9_\-]+', run):
-        raise ValueError('无效的运行名: %r' % run)
-    base = run_real_dir(run)
-    if not os.path.isdir(base):
-        raise ValueError('运行不存在: %s（用 vp_list_tool_runs 查看现有运行）'
-                         % run)
+def _safe_rel(path):
+    """相对路径的安全化：去首尾斜杠、反斜杠归一，拒绝空值与 .. 段。"""
     rel = (path or '').strip().replace('\\', '/').lstrip('/')
     if not rel or '..' in rel.split('/'):
-        raise ValueError('无效的产物相对路径: %r' % path)
+        raise ValueError('无效的相对路径: %r（只接受目录内相对路径，'
+                         '不允许绝对路径与 ..）' % path)
+    return rel
+
+
+def _read_text_under(base, rel, max_kb):
+    """读 base 目录下 rel 的文本内容（越界/二进制/超限统一在这里拦）。"""
     target = os.path.normpath(os.path.join(base, rel))
     base_n = os.path.normcase(os.path.abspath(base))
     if not os.path.normcase(os.path.abspath(target)).startswith(base_n + os.sep):
-        raise ValueError('产物路径越界（必须在该运行目录内）')
+        raise ValueError('路径越界（必须在该目录内）: %s' % rel)
     target = check_path(target, must_exist=True, in_platform=True)
     if str(target).lower().endswith(_BINARY_EXT):
         raise ValueError('%s 是二进制产物，本工具只读文本（tsv/json/log/'
@@ -948,10 +719,309 @@ def _read_run_file_impl(run, path, max_kb):
     truncated = size > cap
     if truncated:
         text += '\n...[已截断：文件 %d 字节，上限 %d KB]' % (size, cap // 1024)
+    return target, size, text, truncated
+
+
+def _read_run_file_impl(run, path, max_kb, archived=False):
+    if not re.fullmatch(r'[A-Za-z0-9_\-]+', run):
+        raise ValueError('无效的运行名: %r' % run)
+    if archived:
+        aroot = _tool_archive_root(create=False)
+        base = os.path.join(aroot, run) if aroot else ''
+        if not base or not os.path.isdir(base):
+            raise ValueError('归档运行不存在: %s（用 vp_list_tool_runs'
+                             '(include_archived=true) 查归档区）' % run)
+    else:
+        base = run_real_dir(run)
+        if not os.path.isdir(base):
+            raise ValueError('运行不存在: %s（用 vp_list_tool_runs 查看现有'
+                             '运行；已归档的运行加 archived=true）' % run)
+    rel = _safe_rel(path)
+    target, size, text, truncated = _read_text_under(base, rel, max_kb)
     return _fmt(
         'ok', f"{rel}（{size} 字节{'，已截断' if truncated else ''}）",
         result={'run': run, 'path': rel, 'abs': target, 'size': size,
+                'archived': bool(archived),
                 'truncated': truncated, 'text': text})
+
+
+def _sample_dir(sample):
+    """样品名 → run/results/<样品> 目录（不存在时给相近名提示）。"""
+    name = str(sample or '').strip()
+    if (not name or name in ('.', '..') or '/' in name or '\\' in name
+            or ':' in name):
+        raise ValueError('无效的样品名: %r（用 vp_list_samples 查看现有样品）'
+                         % sample)
+    d = os.path.join(DIRS['results'], name)
+    if not os.path.isdir(d):
+        near = [n for n in _mtime_sorted_dirs(DIRS['results'],
+                                              skip_underscore=False)
+                if name.lower() in n.lower()][:5]
+        raise ValueError('样品不存在: %s（用 vp_list_samples 查看现有样品%s）'
+                         % (name, ('；相近：' + '、'.join(near)) if near else ''))
+    return d
+
+
+def _read_sample_file_impl(sample, path, max_kb):
+    base = _sample_dir(sample)
+    rel = _safe_rel(path)
+    target, size, text, truncated = _read_text_under(base, rel, max_kb)
+    return _fmt(
+        'ok', f"{sample}/{rel}（{size} 字节"
+              f"{'，已截断' if truncated else ''}）",
+        result={'sample': sample, 'path': rel, 'abs': target, 'size': size,
+                'truncated': truncated, 'text': text},
+        nxt=['阶段性产物也可以用 vp_sample_stages 先看哪些阶段已 done'])
+
+
+def _stage_disk_state(sample_dir, key, dirname, sfile):
+    """按磁盘判定一个阶段，口径与 `pipeline.pipeline_overview` 一致。
+
+    刻意不 import `pipeline_overview`：它会探测 fastp/seqkit/gbdraw/ORF/共识等
+    引擎，从而把 matplotlib 拉进工作线程——MCP 是异步 server，工作线程里首次
+    import matplotlib 在 Windows 上会卡在字体缓存上（2026-11-02 实测 stdio 调用
+    90s 不返回）。这里只读 summary/html/产物文件，不碰引擎。
+    """
+    import glob as _glob
+    import io as _io
+    from Virus_Platform_Core.pipeline import STAGE_OUTPUTS
+    sdir = os.path.join(sample_dir, dirname)
+    summary, has_summary = None, False
+    if key == 'report':
+        if _glob.glob(os.path.join(sdir, 'report.html')):
+            summary, has_summary = {'report': 'report.html'}, True
+    elif key == 'fastp':
+        if os.path.isfile(os.path.join(sdir, 'fastp_R1.fastq.gz')):
+            summary, has_summary = {}, True
+    elif sfile or key in ('verify', 'consensus', 'hostana', 'orf', 'orfa',
+                          'phylo', 'primer', 'gbdraw', 'subsample', 'fq2fa',
+                          'host', 'kvsuite', 'assembly'):
+        sp = os.path.join(sdir, sfile or 'summary.json')
+        if os.path.isfile(sp):
+            try:
+                with _io.open(sp, encoding='utf-8', errors='replace') as f:
+                    summary = json.load(f)
+                has_summary = isinstance(summary, dict)
+            except (OSError, ValueError):
+                summary, has_summary = None, False
+    skipped_reason = ''
+    failed_reason = ''
+    if has_summary:
+        if summary.get('skipped'):
+            skipped_reason = str(summary.get('reason') or '')
+        if key == 'primer' and not summary.get('n_primers'):
+            skipped_reason = skipped_reason or str(summary.get('reason') or '')
+        if key == 'gbdraw' and not summary.get('plots'):
+            skipped_reason = skipped_reason or str(
+                summary.get('reason') or '未生成基因组图（无可用 contig）')
+        if summary.get('ok') is False:
+            failed_reason = str(summary.get('error') or '阶段失败（详见日志）')
+    is_skipped = bool(has_summary and skipped_reason)
+    ran = bool(has_summary and not failed_reason)
+    outs = []
+    if has_summary:
+        outs = [rel for rel in (STAGE_OUTPUTS.get(key) or [])
+                if os.path.isfile(os.path.join(sdir, rel))]
+    return {'summary': summary if has_summary else None,
+            'has_summary': has_summary, 'ran': ran,
+            'skipped': is_skipped, 'skipped_reason': skipped_reason,
+            'failed': bool(failed_reason), 'failed_reason': failed_reason,
+            'outputs': outs[:8], 'n_outputs': len(outs)}
+
+
+def _sample_stages_impl(sample):
+    """样品 15 阶段状态（纯磁盘判定，与网页同口径，但不探测外部引擎）。
+
+    回答「这个样品跑到哪了 / 还差哪几步 / 为什么卡住」。判定口径与网页
+    `pipeline_overview` 一致（summary 文件 / report.html / fastp 产物 / 依赖表），
+    只是不下探「外部工具装没装」：网页里的 unavailable 在 MCP 侧显示为
+    ready/blocked，工具状态用 vp_selfcheck 或网页「设置 → 工具探测」看。
+    """
+    from Virus_Platform_Core.pipeline import (
+        PIPELINE_STAGES, STAGE_DEPS, STAGE_OUTPUTS, STAGE_VIEW)
+    base = _sample_dir(sample)
+    rows, ran_ids = [], set()
+    for key, name, dirname, sfile in PIPELINE_STAGES:
+        st = _stage_disk_state(base, key, dirname, sfile)
+        if st['ran']:
+            ran_ids.add(key)
+        rows.append({'stage': key, 'name': name, 'dir': dirname, **st,
+                     'view': STAGE_VIEW.get(key)})
+    for r in rows:
+        if r['skipped']:
+            r['status'] = 'skipped'
+        elif r['failed']:
+            r['status'] = 'failed'
+        elif r['has_summary']:
+            r['status'] = 'done'
+        else:
+            need = STAGE_DEPS.get(r['stage']) or []
+            r['status'] = ('ready' if all(d in ran_ids for d in need)
+                           else 'blocked')
+    counts = {}
+    for r in rows:
+        counts[r['status']] = counts.get(r['status'], 0) + 1
+    done = [r['stage'] for r in rows if r['status'] == 'done']
+    ready = [r['stage'] for r in rows if r['status'] == 'ready']
+    blocked = [r['stage'] for r in rows if r['status'] == 'blocked']
+    failed = [r['stage'] for r in rows if r['status'] == 'failed']
+    skipped = [r['stage'] for r in rows if r['status'] == 'skipped']
+    interp = [f"共 {len(rows)} 个阶段：done {len(done)}、failed {len(failed)}、"
+              f"skipped {len(skipped)}、ready {len(ready)}、"
+              f"blocked {len(blocked)}。"]
+    if skipped:
+        interp.append('skipped 是「跑过但没结果」（如无可组装 contig / 无引物）：'
+                      + '、'.join(skipped) + '。')
+    if failed:
+        detail = '；'.join(
+            f"{r['stage']}：{str(r.get('failed_reason'))[:120]}"
+            for r in rows if r['status'] == 'failed')
+        interp.append('失败阶段：' + '、'.join(failed) + '（' + detail +
+                      '）——先看对应目录的 summary/stats 与任务日志。')
+    if blocked:
+        interp.append('blocked 表示上游未跑或上游失败；先补上游，别直接跑下游。')
+    interp.append('判定只按磁盘标记（summary 文件 / report.html / 产物）；'
+                  '不探测外部工具是否安装——网页里的 unavailable 在 MCP 侧'
+                  '显示为 ready/blocked。')
+    nxt = []
+    if ready:
+        nxt.append('可续跑：' + '、'.join(ready) +
+                   f" → vp_pipeline_start(sample='{sample}', r1=..., "
+                   f"stages={ready[:6]})")
+    if failed:
+        nxt.append('失败阶段按报错修正后重跑；CLI 侧 retry_failed 可整批补跑')
+    if not ready and not failed:
+        nxt.append('没有可续跑阶段：要么已跑完，要么被 skipped 卡住（看上面 interp）')
+    return _fmt(
+        'ok', f"{sample}：done {len(done)}/{len(rows)}"
+              f"{' · failed ' + str(len(failed)) if failed else ''}"
+              f"{' · ready ' + str(len(ready)) if ready else ''}",
+        result={'sample': sample, 'dir': base, 'counts': counts,
+                'stages': rows},
+        interpret=interp, nxt=nxt,
+        hint='view 是网页端预览文件（相对阶段目录）；outputs 为已落盘产物名')
+
+
+def _wait_task_impl(task_id, timeout_sec, poll_sec, log_lines):
+    """阻塞等任务到终态（agent 侧最省事的轮询替代品）。"""
+    # 上限 900s：网页控制台一次工具调用最多等 960s（mcp_console._CALL_TIMEOUT），
+    # 再长会让控制台先超时、而 agent 仍卡在循环里。
+    timeout_sec = min(max(1, int(timeout_sec)), 900)
+    poll_sec = min(max(0.5, float(poll_sec)), 30.0)
+    deadline = time.monotonic() + timeout_sec
+    last = None
+    while True:
+        last = _task_snapshot(task_id, log_lines=log_lines,
+                              result_max_kb=128)
+        if last.get('status') in ('done', 'failed', 'cancelled'):
+            last['timed_out'] = False
+            last['waited_sec'] = round(max(0.0, int(timeout_sec) -
+                                           (deadline - time.monotonic())), 1)
+            return last
+        if time.monotonic() >= deadline:
+            last['timed_out'] = True
+            last['next'] = list(last.get('next') or []) + [
+                f'超时未到终态；继续 vp_wait_task(task_id="{task_id}") 或 '
+                f'vp_get_task 轮询']
+            return last
+        time.sleep(max(1, min(int(poll_sec), 15)))
+
+
+def _archive_task_impl(task_id):
+    ok, msg = tm.archive(task_id)
+    if not ok:
+        raise ValueError(msg)
+    return _fmt('ok', f"任务 {task_id} 已归档", result={
+        'task_id': task_id, 'archived': True},
+        nxt=['vp_list_tasks(include_archived=true) 可在历史里看到它',
+             f"要恢复就调 vp_unarchive_task(task_id='{task_id}')"])
+
+
+def _unarchive_task_impl(task_id):
+    ok, msg = tm.unarchive(task_id)
+    if not ok:
+        raise ValueError(msg)
+    return _fmt('ok', f"任务 {task_id} 已从归档恢复到运行列表",
+                result={'task_id': task_id, 'archived': False},
+                nxt=['vp_list_tasks 里可再次看到它'])
+
+
+# ---- 工具箱运行目录的归档/恢复（网页「历史运行」盒同一套语义）----
+
+_TOOL_ARCHIVE_DIR = '_archive'
+
+
+def _tool_archive_root(create=True):
+    p = check_path(os.path.join(tool_runs_root(), _TOOL_ARCHIVE_DIR),
+                   must_exist=False, in_platform=True)
+    if create:
+        os.makedirs(p, exist_ok=True)
+    return p
+
+
+def _busy_on_dir(path):
+    """该目录上有 running/queued 任务时返回那条记录。"""
+    key = os.path.normcase(os.path.abspath(path))
+    with tm.lock:
+        for r in tm.tasks.values():
+            if (r.get('status') in ('running', 'queued') and r.get('out_dir')
+                    and os.path.normcase(
+                        os.path.abspath(str(r['out_dir']))) == key):
+                return r
+    return None
+
+
+def _move_dir_retry(src, dst):
+    import gc as _gc
+    import shutil as _sh
+    for _ in range(2):
+        try:
+            _sh.move(src, dst)
+            return
+        except OSError:
+            _gc.collect()
+            time.sleep(0.3)
+    _sh.move(src, dst)
+
+
+def _archive_tool_run_impl(run):
+    if not re.fullmatch(r'[A-Za-z0-9_\-]+', run) or run.startswith('_'):
+        raise ValueError('无效的运行名: %r' % run)
+    raw = os.path.join(tool_runs_root(), run)
+    if not os.path.isdir(raw):
+        raise ValueError('运行不存在: %s（用 vp_list_tool_runs 查看活动区）'
+                         % run)
+    src = check_path(raw, must_exist=True, in_platform=True)
+    dst = os.path.join(_tool_archive_root(), run)
+    if os.path.exists(dst):
+        raise ValueError(f'归档区已有同名运行：{run}（先 vp_list_tool_runs '
+                         'include_archived=true 看清现状）')
+    busy = _busy_on_dir(src)
+    if busy:
+        raise ValueError('该运行目录上有任务正在跑（%s %s）；请先 '
+                         'vp_cancel_task' % (busy.get('id'), busy.get('name')))
+    _move_dir_retry(src, dst)
+    return _fmt('ok', f"运行 {run} 已移入归档区（可恢复，不删数据）",
+                result={'run': run, 'archived_to': dst},
+                nxt=['vp_list_tool_runs(include_archived=true) 查看归档区',
+                     f"恢复用 vp_restore_tool_run(run='{run}')"])
+
+
+def _restore_tool_run_impl(run):
+    if not re.fullmatch(r'[A-Za-z0-9_\-]+', run) or run.startswith('_'):
+        raise ValueError('无效的运行名: %r' % run)
+    aroot = _tool_archive_root(create=False)
+    raw = os.path.join(aroot, run) if aroot else ''
+    if not raw or not os.path.isdir(raw):
+        raise ValueError('归档记录不存在: %s（用 vp_list_tool_runs'
+                         '(include_archived=true) 查看归档区）' % run)
+    src = check_path(raw, must_exist=True, in_platform=True)
+    dst = os.path.join(tool_runs_root(), run)
+    if os.path.exists(dst):
+        raise ValueError(f'活区已有同名运行：{run}（改不了名，先处理活区那份）')
+    _move_dir_retry(src, dst)
+    return _fmt('ok', f"运行 {run} 已恢复回活区",
+                result={'run': run, 'restored_to': dst})
 
 
 def _platform_info_impl():
@@ -1003,15 +1073,96 @@ async def vp_platform_info() -> dict:
     """
     return await anyio.to_thread.run_sync(_platform_info_impl)
 
-@mcp.tool(name='vp_list_tools', annotations=_RO)
-async def vp_list_tools() -> dict:
-    """工具箱全量清单：名称、中英文标题、是否依赖病毒库、heavy/light
-    档位、参数口径说明（doc）。
+@mcp.tool(name='vp_selfcheck', annotations=_RO)
+async def vp_selfcheck() -> dict:
+    """平台自检（等价 CLI selfcheck）：模块/外部工具/数据库/磁盘/依赖。
 
-    返回 {count, note, tools:[{tool, title, title_en, need_db, weight,
-    doc}]}。提交运行用 vp_run_tool(tool=..., params={...})。
+    返回 {status, checks:[{name, ok, detail}], problems:[...], summary}。
+    接不上任何东西时先跑本工具，比逐个试工具省事；problems 非空即是
+    需要先修的环境问题（缺依赖/库未构建/磁盘不足）。
     """
-    return await anyio.to_thread.run_sync(_tool_list_impl)
+    def _impl():
+        rep = _selfcheck_report()
+        return _fmt('ok' if rep['ok'] else 'warn', rep['summary'],
+                    result={'checks': rep['checks']},
+                    problems=rep['problems'],
+                    nxt=['problems 非空先修环境（缺外部工具看「设置 → 工具探测」）'
+                         if rep['problems'] else ''])
+    return await anyio.to_thread.run_sync(_impl)
+
+@mcp.tool(name='vp_list_tools', annotations=_RO)
+async def vp_list_tools(
+        query: Annotated[Optional[str], Field(
+            max_length=80,
+            description='关键词过滤（工具名/中英标题/说明/参数键）')] = None,
+        weight: Annotated[Optional[str], Field(
+            description='只留 heavy 或 light 档位')] = None,
+        need_db: Annotated[Optional[bool], Field(
+            description='true=只要依赖病毒库的工具；false=只要不依赖的')] =
+        None,
+        limit: Annotated[Optional[int], Field(
+            ge=1, le=64, description='最多返回条数（默认全部）')] = None,
+        offset: Annotated[int, Field(ge=0)] = 0) -> dict:
+    """工具箱清单：名称、中英文标题、是否依赖病毒库、heavy/light 档位、
+    必填参数与参数口径说明（doc）。
+
+    返回 {count, total, note, tools:[{tool, title, title_en, need_db,
+    weight, gated, required_params, params, doc}]}；count 是本页条数、
+    total 是过滤后总数。提交运行用 vp_run_tool(tool=..., params={...})。
+    """
+    return await anyio.to_thread.run_sync(
+        _tool_list_impl, query, weight, need_db, limit, offset)
+
+@mcp.tool(name='vp_search_operations', annotations=_RO)
+async def vp_search_operations(
+        query: Annotated[str, Field(min_length=1, max_length=80,
+                                    description='搜索关键词（中英皆可：'
+                                                '组装 / kvsuite / 引物 / 提交）')],
+        limit: Annotated[Optional[int], Field(
+            ge=1, le=30, description='最多返回条数，默认 8')] = None,
+) -> dict:
+    """在平台操作目录里搜索（工具箱工具 + 管道阶段 + 执行单动作，54+ 条）。
+
+    返回 {query, total, items:[…]}，条目含 id/kind/中英标题/一句话说明/调用
+    口径。不熟悉的操作先搜再调，不要猜 id；单条参数口径用
+    vp_describe_operation(op_id, schema=true)。
+    """
+    from Virus_Platform_Core import agent_catalog
+    d = await anyio.to_thread.run_sync(agent_catalog.search, query,
+                                       int(limit or 8))
+    d['note'] = ('kind=tool→vp_run_tool；kind=stage→vp_pipeline_start；'
+                 'kind=action→坞内 propose_action 起草待批（计划≠已执行）')
+    return d
+
+@mcp.tool(name='vp_describe_operation', annotations=_RO)
+async def vp_describe_operation(
+        op_id: Annotated[str, Field(min_length=1, max_length=60,
+                                    description='操作 id（来自 '
+                                                'vp_search_operations）')],
+        schema: Annotated[Optional[bool], Field(
+            description='true=附参数 schema')] = None,
+) -> dict:
+    """单条操作详情：参数、必填、怎么调（MCP/执行单/HTTP/CLI）。
+
+    schema=true 时附 parameter_schema（工具箱=真实表；阶段=分析请求体
+    白名单+可调键边界；执行单动作=必填键说明）。未知 op_id 返回
+    {found:false, hint}，不报错。
+    """
+    from Virus_Platform_Core import agent_catalog
+
+    def _impl():
+        d = agent_catalog.describe(op_id)
+        if d is None:
+            return {'found': False, 'op_id': op_id,
+                    'hint': '用 vp_search_operations 搜索，'
+                            '或 CLI：python main.py agent-ops'}
+        out = dict(d)
+        out['found'] = True
+        if schema:
+            out['parameter_schema'] = agent_catalog.parameter_schema(op_id)
+        return out
+
+    return await anyio.to_thread.run_sync(_impl)
 
 @mcp.tool(name='vp_run_tool')
 async def vp_run_tool(
@@ -1167,26 +1318,55 @@ async def vp_get_task(
     阶段、百分比、消息、日志尾、终态结果。
 
     返回固定键集合 {id, name, status, stage, pct, msg, error, eta,
-    out_dir, link, started_h, finished_h, log, result}——稳定投影，
-    键恒在；error 非空即失败原因。result 超限时截断并标注完整位置。
+    out_dir, link, started_h, finished_h, log, result, archived,
+    external}——稳定投影，键恒在；error 非空即失败原因。result 超限时
+    截断并标注完整位置。已归档（archived=true）与平台重启前的任务同样
+    可查：内存没有就回落到磁盘归档记录。
     """
     return await anyio.to_thread.run_sync(
         _task_snapshot, task_id, log_lines, result_max_kb)
+
+@mcp.tool(name='vp_wait_task', annotations=_RO_LIVE)
+async def vp_wait_task(
+        task_id: Annotated[str, Field(min_length=4, max_length=32)],
+        timeout_sec: Annotated[int, Field(
+            ge=1, le=3600,
+            description='最长等待秒数；到期返回最后快照并 timed_out=true')] =
+        120,
+        poll_sec: Annotated[int, Field(ge=1, le=60,
+                                       description='轮询间隔秒')] = 3,
+        log_lines: Annotated[int, Field(ge=0, le=500)] = 30) -> dict:
+    """等任务到终态再返回（省掉 agent 侧自己轮询）。
+
+    返回与 vp_get_task 同构的快照，另加 timed_out（bool）与
+    waited_sec。timed_out=false 表示到了 done/failed/cancelled；true 表示
+    超时仍在跑，继续调一次即可，或改 vp_get_task 做非阻塞查看。
+    """
+    return await anyio.to_thread.run_sync(
+        _wait_task_impl, task_id, timeout_sec, poll_sec, log_lines)
 
 @mcp.tool(name='vp_list_tasks', annotations=_RO)
 async def vp_list_tasks(
         limit: Annotated[int, Field(ge=1, le=100)] = 20,
         include_archived: Annotated[bool, Field(
-            description='并入磁盘归档任务（平台重启前的历史，'
-                        'run/tasks/*.json）')] = False) -> dict:
+            description='并入磁盘归档任务（手动归档 + 平台重启前的历史，'
+                        'run/tasks/*.json 与 run/tasks/_archive）')] = False,
+        status: Annotated[Optional[str], Field(
+            description='只留该状态：queued/running/done/failed/cancelled')] =
+        None,
+        name: Annotated[Optional[str], Field(
+            max_length=80,
+            description='任务名关键词（不区分大小写，如「公共检索」）')] = None,
+        ) -> dict:
     """近期任务列表（新到旧，分页）：状态/进度/产物目录，不带日志。
 
     返回 {count, tasks:[...]}；include_archived=true 时另带 archived
-    （稳定键投影）与 archived_count。逐任务日志用 vp_get_task /
-    vp_get_task_log（两者对归档任务均可用）。
+    （稳定键投影）与 archived_count。status/name 过滤对 active 与
+    archived 同时生效。逐任务日志用 vp_get_task / vp_get_task_log
+    （两者对归档任务均可用）。
     """
     return await anyio.to_thread.run_sync(
-        _task_list, limit, include_archived)
+        _task_list, limit, include_archived, status, name)
 
 @mcp.tool(name='vp_cancel_task', annotations=_DESTR)
 async def vp_cancel_task(
@@ -1204,6 +1384,30 @@ async def vp_cancel_task(
                 'status': snap.get('status') or 'unknown',
                 'msg': snap.get('msg') or ''}
     return await anyio.to_thread.run_sync(_impl)
+
+@mcp.tool(name='vp_archive_task', annotations=_WRITE)
+async def vp_archive_task(
+        task_id: Annotated[str, Field(min_length=4, max_length=32,
+                                      description='已结束的任务 id')]) -> dict:
+    """把已结束的任务移入手动归档（可恢复，不删日志与结果文件）。
+
+    归档是**手动动作**：切模块、重连、整页刷新都不会归档任何任务。
+    守卫：运行中/排队中的任务拒绝（先 vp_cancel_task）；外部任务（下载
+    批次等）请在来源模块处理。返回 {task_id, archived}；之后
+    vp_list_tasks(include_archived=true) 可见，vp_get_task 仍可读。
+    """
+    return await anyio.to_thread.run_sync(_archive_task_impl, task_id)
+
+@mcp.tool(name='vp_unarchive_task', annotations=_WRITE)
+async def vp_unarchive_task(
+        task_id: Annotated[str, Field(min_length=4, max_length=32,
+                                      description='已归档任务 id')]) -> dict:
+    """把归档任务恢复到运行列表（重写任务记录，日志/结果文件不动）。
+
+    返回 {task_id, archived: false}；恢复后 vp_get_task /
+    vp_get_task_log 正常可读。
+    """
+    return await anyio.to_thread.run_sync(_unarchive_task_impl, task_id)
 
 @mcp.tool(name='vp_get_task_log', annotations=_RO)
 async def vp_get_task_log(
@@ -1237,15 +1441,19 @@ async def vp_list_samples(
 @mcp.tool(name='vp_list_tool_runs', annotations=_RO)
 async def vp_list_tool_runs(
         limit: Annotated[int, Field(ge=1, le=30)] = 10,
-        offset: Annotated[int, Field(ge=0)] = 0) -> dict:
+        offset: Annotated[int, Field(ge=0)] = 0,
+        include_archived: Annotated[bool, Field(
+            description='并入手动归档区（run/tool_runs/_archive/）的清单')] =
+        False) -> dict:
     """近期工具/链式运行清单（run/tool_runs/，按最近变动倒序，分页）：
     产物目录与文件清单（最多 40 个文件名）。
 
     返回 {total, count, runs:[{run, out_dir, n_files, files,
-    files_truncated}]}。读具体文件内容用 vp_read_run_file。
+    files_truncated}]}；include_archived=true 时另带 archived 与
+    archived_total。读具体文件内容用 vp_read_run_file。
     """
     return await anyio.to_thread.run_sync(
-        _run_list_impl, limit, offset)
+        _run_list_impl, limit, offset, include_archived)
 
 @mcp.tool(name='vp_read_run_file', annotations=_RO)
 async def vp_read_run_file(
@@ -1257,14 +1465,57 @@ async def vp_read_run_file(
                                                'kvsuite/filter/filtered.tsv')],
         max_kb: Annotated[int, Field(
             ge=1, le=4096, description='返回文本上限 KB（超出截断并标注）')] =
-        512) -> dict:
+        512,
+        archived: Annotated[bool, Field(
+            description='true 时从 run/tool_runs/_archive/ 读取已归档的运行')] =
+        False) -> dict:
     """读某次运行的文本产物（tsv/json/log/fasta/nwk/svg 等）内容。
 
     路径限定在该运行目录内（防越界）；二进制产物明确拒收并提示磁盘
-    路径。返回 {run, path, abs, size, truncated, text}。
+    路径。运行被手动归档后用 archived=true 仍可读。
+    返回 {run, path, abs, size, archived, truncated, text}。
     """
     return await anyio.to_thread.run_sync(
-        _read_run_file_impl, run, path, max_kb)
+        _read_run_file_impl, run, path, max_kb, archived)
+
+@mcp.tool(name='vp_read_sample_file', annotations=_RO)
+async def vp_read_sample_file(
+        sample: Annotated[str, Field(min_length=1, max_length=120,
+                                     description='样品名（vp_list_samples 的 '
+                                                 'sample）')],
+        path: Annotated[str, Field(
+            min_length=1, max_length=500,
+            description='样品结果目录内相对路径，如 '
+                        '02b_kvsuite/identify/all_viruses.summary.tsv')],
+        max_kb: Annotated[int, Field(
+            ge=1, le=4096, description='返回文本上限 KB（超出截断并标注）')] =
+        512) -> dict:
+    """读样品结果目录（run/results/<样品>/）里的文本产物内容。
+
+    与网页结果中心读的是同一份落盘文件；路径限定在样品目录内（防
+    越界），二进制产物（图片/压缩包/BAM 等）明确拒收并给磁盘路径。
+    返回 {sample, path, abs, size, truncated, text}。先
+    vp_sample_stages 看哪些阶段已 done，能少走弯路。
+    """
+    return await anyio.to_thread.run_sync(
+        _read_sample_file_impl, sample, path, max_kb)
+
+@mcp.tool(name='vp_sample_stages', annotations=_RO)
+async def vp_sample_stages(
+        sample: Annotated[str, Field(min_length=1, max_length=120,
+                                     description='样品名（vp_list_samples 的 '
+                                                 'sample）')]) -> dict:
+    """样品 15 阶段状态表：done/failed/skipped/ready/blocked、判定摘要、
+    产物名与网页预览文件。
+
+    回答「跑到哪了 / 还差哪步 / 为什么卡住」。返回 {sample, dir,
+    counts, stages:[{stage, name, dir, status, summary, outputs,
+    n_outputs, view}]}；blocked=上游没跑（含上游失败）。判定只按磁盘标记
+    （.done / summary 文件 / 依赖表），不探测外部工具：网页里的
+    unavailable 在 MCP 侧会显示为 ready/blocked，工具装没装用
+    vp_selfcheck 看。可续跑阶段直接给在 next 里。
+    """
+    return await anyio.to_thread.run_sync(_sample_stages_impl, sample)
 
 @mcp.tool(name='vp_delete_tool_run', annotations=_DESTR)
 async def vp_delete_tool_run(
@@ -1311,6 +1562,30 @@ async def vp_delete_tool_run(
             _sh.rmtree(base, ignore_errors=True)
         return {'deleted': True, 'run': run, 'out_dir': str(p)}
     return await anyio.to_thread.run_sync(_impl)
+
+@mcp.tool(name='vp_archive_tool_run', annotations=_WRITE)
+async def vp_archive_tool_run(
+        run: Annotated[str, Field(min_length=1, max_length=80,
+                                  description='运行名（vp_list_tool_runs 的 '
+                                              'run）')]) -> dict:
+    """把一次工具运行目录移入归档区（run/tool_runs/_archive/，可恢复）。
+
+    与网页「历史运行」盒同一语义：只搬目录，不删产物；归档后
+    vp_list_tool_runs(include_archived=true) 可见，恢复用
+    vp_restore_tool_run。守卫：该目录上有任务在跑时拒绝（先取消）。
+    返回 {run, archived_to}。
+    """
+    return await anyio.to_thread.run_sync(_archive_tool_run_impl, run)
+
+@mcp.tool(name='vp_restore_tool_run', annotations=_WRITE)
+async def vp_restore_tool_run(
+        run: Annotated[str, Field(min_length=1, max_length=80,
+                                  description='归档区里的运行名')]) -> dict:
+    """把归档区里的运行恢复回活区（run/tool_runs/<run>）。
+
+    返回 {run, restored_to}；活区已有同名运行时报错（不覆盖）。
+    """
+    return await anyio.to_thread.run_sync(_restore_tool_run_impl, run)
 
 
 # ======================================================================
@@ -2183,7 +2458,7 @@ async def vp_ov_search_runs(
 @mcp.tool(name='vp_ov_counts')
 async def vp_ov_counts(
         run_ids: Annotated[list[str], Field(
-            min_items=1, max_items=5000,
+            min_length=1, max_length=5000,
             description='SRA Run 编号列表（如 vp_ov_search_runs 的结果）')],
         group_by: Annotated[str, Field(
             min_length=2, max_length=40,
@@ -2226,7 +2501,7 @@ async def vp_ov_counts(
 @mcp.tool(name='vp_ov_mwas')
 async def vp_ov_mwas(
         run_ids: Annotated[list[str], Field(
-            min_items=1, max_items=5000,
+            min_length=1, max_length=5000,
             description='SRA Run 编号列表')],
         virus_families: Annotated[Optional[list[str]], Field(
             description='按病毒科过滤（如 ["Virgaviridae"]）；缺省=全部')] = None,
@@ -2324,39 +2599,69 @@ def _run_http(port, token=None):
     else:
         app_to_run = app_inner
 
-    import uvicorn
+    importlib.import_module('uvicorn')
     sys.stderr.write(f'[virusplatform_mcp] streamable-HTTP: '
                      f'http://127.0.0.1:{port}/mcp'
                      f'{"（Bearer 鉴权已开）" if token else ""}\n')
     uvicorn.run(app_to_run, host='127.0.0.1', port=int(port), log_level='warning')
 
 
+def _selfcheck_report():
+    """结构化自检（vp_selfcheck 与 --check 共用同一份判定）。"""
+    checks = []
+
+    def add(name, ok, detail=''):
+        checks.append({'name': name, 'ok': bool(ok),
+                       'detail': str(detail)[:400]})
+
+    add('platform_root', os.path.isdir(PLATFORM_ROOT), PLATFORM_ROOT)
+    try:
+        import mcp as _m
+        add('mcp_sdk', True, getattr(_m, '__version__', 'installed'))
+    except Exception as e:                       # noqa: BLE001
+        add('mcp_sdk', False, repr(e))
+    info = _platform_info_impl()
+    add('host_db', info.get('host_db_ready'),
+        'databases/host' if info.get('host_db_ready') else '未构建或未挂载')
+    add('virus_db', info.get('virus_db_ready'),
+        'databases/virus' if info.get('virus_db_ready') else '未构建')
+    add('toolboxes', len(TOOL_REGISTRY) >= 30,
+        '%d 张工具箱工具卡' % len(TOOL_REGISTRY))
+    add('mcp_tools', info.get('tools_count', 0) > 0,
+        '%d 个启用（指纹 %s）' % (info.get('tools_count'),
+                                  info.get('fingerprint')))
+    for p in (_platform_check() or []):
+        add('platform_check', False, p)
+    try:
+        import shutil as _sh
+        free_gb = _sh.disk_usage(PLATFORM_ROOT).free / 1024 ** 3
+        add('disk_free', free_gb >= 5, '%.1f GB 可用' % free_gb)
+    except Exception as e:                       # noqa: BLE001
+        add('disk_free', False, repr(e))
+    problems = [c['detail'] or c['name'] for c in checks if not c['ok']]
+    return {'checks': checks, 'problems': problems,
+            'ok': not problems,
+            'summary': '自检 %d/%d 项通过' % (
+                len(checks) - len(problems), len(checks))}
+
+
 def _selfcheck():
     """--check：不进服务，打印环境体检结论（stdout）。"""
     print('virusplatform_mcp 自检')
-    print('  python   :', sys.executable)
-    print('  platform :', PLATFORM_ROOT)
-    import mcp as _m
-    print('  mcp sdk  :', getattr(_m, '__version__', 'installed'))
-    info = _platform_info_impl()
-    print('  host_db  :', info.get('host_db_ready'))
-    print('  virus_db :', info.get('virus_db_ready'))
-    print('  toolboxes:', len(TOOL_REGISTRY), '张卡注册')
-    print('  mcp工具  :', info['tools_count'], '个启用',
-          f"（指纹 {info['fingerprint']}）")
-    if info['tools_gated']:
-        print('  已下线   :', ', '.join(info['tools_gated']))
+    rep = _selfcheck_report()
+    for c in rep['checks']:
+        print('  %-14s: %s%s' % (c['name'], 'ok' if c['ok'] else 'FAIL',
+                                 ('  ' + c['detail']) if c['detail'] else ''))
     try:
         import uvicorn
-        print('  http模式  : 可用（uvicorn', uvicorn.__version__ + '；'
+        print('  http模式      : 可用（uvicorn', uvicorn.__version__ + '；'
               '启动加 --http [--token X]）')
     except ImportError:
-        print('  http模式  : 需先 pip install uvicorn（--http 首跑自动装）')
-    problems = _platform_check()
-    if problems:
-        print('  !! 问题:', '; '.join(problems))
+        print('  http模式      : 需先 pip install uvicorn（--http 首跑自动装）')
+    if rep['problems']:
+        print('  !! 问题:', '; '.join(rep['problems']))
         return 1
-    print('  ready    : yes（可直接挂载 stdio 服务）')
+    print('  ready         : yes（可直接挂载 stdio 服务）')
     return 0
 
 

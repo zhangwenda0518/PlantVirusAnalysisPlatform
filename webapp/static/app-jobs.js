@@ -217,6 +217,16 @@ const TOOL_LABELS = {
   // 以下条目 2026-10-26 补齐：/tasks 里这些任务名一直没有英文对照，
   // 英文界面下会原样漏出中文。
   prepchain: ['一键前处理', 'One-click prep'],
+  // 2026-11-02 补齐：以下 7 个工具此前没登记，卡片「输出」区永远空白
+  //（与 2026-09-11 kvchain/virchain 漏登记同类）：任务名匹配不到
+  // TOOL_LABELS，injectStageLogs 就找不到 toolrun-<key> 容器。
+  annochain:  ['注释三连·一键', 'Annotation chain'],
+  beastexport:['BEAST 作业包导出', 'BEAST job export'],
+  conan:      ['CONAN-SWIFT 检测设计', 'CONAN-SWIFT assay design'],
+  crispr:     ['CRISPR 检测试剂设计', 'CRISPR assay design'],
+  dsrna:      ['dsRNA 设计', 'dsRNA design'],
+  rdp:        ['RDP 重组分析', 'RDP recombination'],
+  rtt:        ['时间信号检验', 'Root-to-tip'],
   pdprep:   ['进化动力学数据接入', 'Phylodynamics data prep'],
   phylodyn: ['⚡ 一键分析（定年 → 地理迁移 → 汇总溯源）',
              '⚡ One-click analysis (dating → migration → synthesis)'],
@@ -424,6 +434,10 @@ const TOOL_STAT_LABELS = {
   n_contigs:    ['过滤后 contigs', 'Contigs kept'],
   n_viral:      ['病毒 contigs', 'Viral contigs'],
   total_bp:     ['总长度(bp)', 'Total bp'],
+  // GenBank 检索预览（pdprep 两步导入的第一步）：这两个数是人在勾选前唯一
+  // 需要看的判断依据，给中文标签，别显示成裸键 n_shown=8。
+  n_shown:      ['列出记录', 'Listed'],
+  n_usable:     ['可导入', 'Usable'],
 };
 
 function toolStatChips(res) {
@@ -494,25 +508,74 @@ const CARD_RUN_PREFIX = {
   convert: 'convert', fastp: 'fastp', identify: 'identify', assemble: 'assemble',
   contigs: 'contigs', verify: 'verify', virchain: 'virchain',
   consensus: 'consensus', kvsuite: 'kvsuite', kvchain: 'kvchain',
-  align: 'align', treebuild: 'quicktree', sdt: 'sdt',
+  variant: 'kvsuite', align: 'align', treebuild: 'quicktree', sdt: 'sdt',
   orf: 'orf', orfa: 'orfa', genoplot: 'genoplot', primer: 'primer',
-  hostremoval: 'hostremoval'
+  hostremoval: 'hostremoval', prepchain: 'prepchain', cdsexport: 'cdsexport',
+  rdp: 'rdp', rtt: 'rtt', phylogeo: 'phylogeo', pdprep: 'pdprep',
+  phylodyn: 'phylodyn', dsrna: 'dsrna', crispr: 'crispr', conan: 'conan',
+  mirna: 'mirna', gbimport: 'gbimport', annochain: 'annochain'
 };
-/* 富结果卡的恢复函数（键 = 卡片 id 去掉 t- 前缀） */
+/* 富结果卡的恢复函数：刷新后直接重放渲染（表格/图/度量），而不是只给文件列表。
+   全部是「跑完任务后本来就会调」的同一个函数，重复调用幂等。 */
 const TOOL_RESTORE = {
-  sdt: run => { sdRun = run; sdtExactLoad(); },
-  identity: run => { if (typeof identityLoad === 'function') identityLoad(run); },
-  mirna: run => { if (typeof loadMirnaResult === 'function') loadMirnaResult(run); }
+  sdt: r => { sdRun = r; sdtExactLoad(); },
+  identity: r => { if (typeof identityLoad === 'function') identityLoad(r); },
+  mirna: r => { if (typeof loadMirnaResult === 'function') loadMirnaResult(r); },
+  kvsuite: r => { if (typeof loadKvsuiteResult === 'function') loadKvsuiteResult(r); },
+  variant: r => { if (typeof loadVariantResult === 'function') loadVariantResult(r); },
+  consensus: r => { if (typeof loadConsensusResult === 'function') loadConsensusResult(r); },
+  verify: r => { if (typeof loadVerifyResult === 'function') loadVerifyResult(r); },
+  virchain: r => { if (typeof loadChainResult === 'function') loadChainResult('virchain', r); },
+  kvchain: r => { if (typeof loadChainResult === 'function') loadChainResult('kvchain', r); },
+  rdp: r => { if (typeof loadRdpResult === 'function') loadRdpResult(r); },
+  rtt: r => { if (typeof loadRttResult === 'function') loadRttResult(r); },
+  phylogeo: r => { if (typeof loadPhylogeoResult === 'function') loadPhylogeoResult(r); },
+  pdprep: r => { if (typeof loadPdprepResult === 'function') loadPdprepResult(r); },
+  phylodyn: r => { if (typeof loadPhylodynResult === 'function') loadPhylodynResult(r); },
+  dsrna: r => { if (typeof loadDsrnaResult === 'function') loadDsrnaResult(r); },
+  crispr: r => { if (typeof loadCrisprResult === 'function') loadCrisprResult(r); },
+  conan: r => { if (typeof loadConanResult === 'function') loadConanResult(r); }
 };
-/* 卡片「已有结果」探测：避免覆盖正在跑 / 刚跑完的结果 */
+/* 富结果框：用来判断「这张卡是否已有结果」，避免覆盖用户眼前的内容 */
+const RICH_BOX = {
+  sdt: 'sdExact', identity: 'idtResult', mirna: 'mirResult',
+  kvsuite: 'kvResult', variant: 'vrResult', consensus: 'csResult',
+  verify: 'vfResult', virchain: 'vcResult', kvchain: 'kvChainResult',
+  rdp: 'rdpResult', rtt: 'rttResult', phylogeo: 'pgResult',
+  pdprep: 'pdprepResult', phylodyn: 'pdResult', dsrna: 'dsResult',
+  crispr: 'crResult', conan: 'cnResult'
+};
+/* 没有独立卡片、只能按容器探测的富结果（identity 是 SDT 卡里的另一套面板） */
+const RICH_ONLY = { identity: 'idtResult' };
+function runPrefixOf(name) {
+  const m = String(name || '').match(/^(.+?)_\d{8}_\d{6}/);
+  return m ? m[1] : String(name || '');
+}
+/* 卡片「已有结果」探测：富结果看专用容器，其余看通用结果框 */
 function cardResultFilled(key) {
-  const probe = { sdt: 'sdExact', identity: 'idtResult' }[key];
+  const probe = RICH_BOX[key];
   if (probe) {
     const el = $(probe);
-    return !!(el && el.innerHTML.trim() && el.offsetParent !== null);
+    if (!el) return false;
+    return !!(el.innerHTML.trim() && el.style.display !== 'none');
   }
   const box = $('toolrun-' + key);
   return !!(box && box.innerHTML.trim());
+}
+/* 本页需要恢复哪些卡：可见的通用结果框 + 可见的富容器 */
+function restoreTargets() {
+  const keys = [];
+  document.querySelectorAll('.toolrun[id^="toolrun-"]').forEach(box => {
+    if (box.offsetParent === null) return;          // /tools 一次只显示一个二级模块
+    const key = box.id.slice('toolrun-'.length);
+    if (CARD_RUN_PREFIX[key]) keys.push(key);
+  });
+  for (const key in RICH_ONLY) {
+    if (keys.indexOf(key) >= 0 || !CARD_RUN_PREFIX[key]) continue;
+    const el = $(RICH_ONLY[key]);
+    if (el && el.offsetParent !== null) keys.push(key);
+  }
+  return keys;
 }
 function runRestoreHtml(run) {
   const fake = { status: 'done', out_dir: run.out_dir || '',
@@ -530,25 +593,22 @@ function runRestoreHtml(run) {
 let _restoreBusy = false;
 async function restoreLastResults() {
   if (_restoreBusy) return;
-  const cards = [...document.querySelectorAll('section.card[id^="t-"]')]
-    .filter(c => c.offsetParent !== null);           // /tools 一次只显示一个二级模块
-  if (!cards.length) return;
+  const keys = restoreTargets();
+  if (!keys.length) return;
   _restoreBusy = true;
   try {
-    const tasks = await (await fetch('/api/tasks?logs=0')).json();
-    if ((tasks || []).some(x => x.status === 'running')) return;   // 有任务在跑 → 交给轮询
-    const runs = await (await fetch('/api/tool/runs')).json();
+    /* per=1：每个模块前缀只取最近一次。以前拉默认列表（全局 30 条），
+       align / hostremoval / genoplot 这类老模块的最近运行早就被挤到 30 名
+       之外，于是刷新后一张卡都恢复不出来 —— 看着就像「结果被收走了」。 */
+    const runs = await (await fetch('/api/tool/runs?per=1')).json();
     const newest = {};
     for (const r of (runs || [])) {
-      const m = String(r.name).match(/^(.+?)_\d{8}_\d{6}/);
-      const p = m ? m[1] : String(r.name);
-      if (!newest[p]) newest[p] = r;                 // 接口已按 mtime 倒序
+      const p = r.prefix || runPrefixOf(r.name);
+      if (!newest[p]) newest[p] = r;               // 接口已按 mtime 倒序
     }
-    for (const card of cards) {
-      const key = card.id.slice(2);
-      const prefix = CARD_RUN_PREFIX[key];
-      if (!prefix || cardResultFilled(key)) continue;
-      const run = newest[prefix];
+    for (const key of keys) {
+      if (cardResultFilled(key)) continue;         // 眼前已有结果就不动
+      const run = newest[CARD_RUN_PREFIX[key]];
       if (!run) continue;
       if (TOOL_RESTORE[key]) {
         try { TOOL_RESTORE[key](run.name); } catch (e) { /* 恢复失败不打扰用户 */ }
@@ -560,9 +620,14 @@ async function restoreLastResults() {
   } catch (e) { /* 静默：恢复失败不影响正常使用 */ }
   finally { _restoreBusy = false; }
 }
-/* 页面加载完成 & /tools 模块切换（hash 变化，不重载页面）后各触发一次 */
+/* 页面加载 / 模块切换 / 浏览器前进后退（bfcache）各触发一次。
+   注意：这里只「补空」，不会清掉任何已有结果；换新任务时由任务自身的
+   轮询把旧结果替换掉，所以旧结果会一直留到下一个任务产出为止。 */
 window.addEventListener('load', () => setTimeout(restoreLastResults, 900));
 window.addEventListener('hashchange', () => setTimeout(restoreLastResults, 600));
+window.addEventListener('pageshow', ev => {
+  if (ev.persisted) setTimeout(restoreLastResults, 300);
+});
 
 function stageLogHtml(task) {
   const stat = taskStatusText(task.status);

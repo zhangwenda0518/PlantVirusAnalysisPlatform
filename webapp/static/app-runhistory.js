@@ -200,7 +200,9 @@ const RH_OPEN = new Set();
 
 async function rhRefresh() {
   try {
-    const r = await fetch('/api/tool/runs');
+    // per=8：每个模块各取最近 8 次。用默认的「全局 30 条」时，老模块
+    // （align / hostremoval / rdp …）的历史会被新模块挤空，展开是空的。
+    const r = await fetch('/api/tool/runs?per=8');
     RH_DATA = await r.json();
   } catch (e) { RH_DATA = []; }
   for (const def of RH_DEFS) {
@@ -254,6 +256,7 @@ async function rhRefresh() {
           ${rptBtn}
           <button class="btn small" onclick="rhFiles('${esc(run.name)}')">📁 文件</button>
           <button class="btn small" data-dir="${esc(run.out_dir || '')}" onclick="rhOpenDir(this.dataset.dir)" title="在资源管理器中打开该运行目录（窗口置顶）">📂 打开</button>
+          <button class="btn small" onclick="rhArchive(this, '${esc(run.name)}')" title="${esc(t('ui.rh.archiveTip', '移入归档区（不删数据，可恢复）'))}">${t('ui.rh.archive', '📦 归档')}</button>
           <button class="btn small danger" onclick="rhDel(this, '${esc(run.name)}')" title="删除该运行目录">🗑</button>
         </div>
         ${run.out_dir ? `<div class="hint mono" style="font-size:11px;margin:2px 0 0;word-break:break-all" title="结果输出位置">📍 ${esc(run.out_dir)}</div>` : ''}
@@ -323,6 +326,116 @@ async function rhLoadContigDetail(run) {
       ${n > show.length ? `<p class="hint" style="margin-top:4px">共 ${n} 条，仅显示前 ${show.length} 条（点“📊 报告”看完整）</p>` : ''}`;
   } catch (e) { box.innerHTML = '<p class="hint">明细加载失败</p>'; }
 }
+/* ---------------- 手动清理 / 归档（2026-10-28） ----------------
+   归档 = 把运行目录移进 tool_runs/_archive（列表接口不扫下划线目录），
+   数据还在、随时能恢复；要真腾磁盘再在「归档区」里永久删除。 */
+async function rhArchive(btn, name) {
+  if (!confirm(t('ui.rh.archiveConfirm', '归档运行 {name}？文件移入归档区，可随时恢复。')
+                   .replace('{name}', name))) return;
+  try {
+    const r = await fetch(`/api/tool/runs/${encodeURIComponent(name)}/archive`,
+                          { method: 'POST' });
+    if (!r.ok) { alert((await r.json().catch(() => ({}))).error
+                       || t('ui.common.opFail', '操作失败')); return; }
+    RH_OPEN.delete(name);
+    toast(t('ui.rh.archivedOne', '已归档'), name, { ttl: 4000 });
+    rhRefresh(); rhArchRefresh();
+  } catch (e) { alert(t('ui.common.connShort') + ': ' + e); }
+}
+
+async function rhClean(boxId) {
+  const def = RH_DEFS.find(d => d.box === boxId);
+  const raw = prompt(t('ui.rh.cleanAsk', '每个模块保留最近几次运行？其余移入归档区（不删数据）。'), '3');
+  if (raw === null) return;
+  const keep = parseInt(String(raw).trim(), 10);
+  if (isNaN(keep) || keep < 0) { alert(t('ui.rh.cleanBad', '请输入 0 或正整数')); return; }
+  const prefixes = def ? def.prefixes.map(p => p.replace(/_+$/, '')) : [];
+  try {
+    const r = await fetch('/api/tool/runs/archive', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keep: keep, prefixes: prefixes, confirm: 'archive' }) });
+    if (!r.ok) { alert((await r.json().catch(() => ({}))).error
+                       || t('ui.common.opFail', '操作失败')); return; }
+    const d = await r.json();
+    const n = (d.moved || []).length;
+    toast(n ? t('ui.rh.cleanDone', '已归档 {n} 个运行（每模块保留最近 {k} 次）')
+                .replace('{n}', n).replace('{k}', d.kept)
+             : t('ui.rh.cleanNone', '没有需要归档的运行'),
+          n ? '' : '', { ttl: 6000 });
+    rhRefresh(); rhArchRefresh();
+  } catch (e) { alert(t('ui.common.connShort') + ': ' + e); }
+}
+
+function rhArchToggle(boxId) {
+  const box = $(boxId);
+  if (!box) return;
+  const panel = box.querySelector('.rh-arch');
+  if (!panel) return;
+  const show = panel.style.display === 'none';
+  panel.style.display = show ? '' : 'none';
+  if (show) rhArchRefresh();
+}
+
+async function rhArchRefresh() {
+  const panels = [...document.querySelectorAll('.rh-arch')];
+  if (!panels.length) return;
+  let data = [];
+  try { data = await (await fetch('/api/tool/runs/archived')).json(); }
+  catch (e) { return; }
+  const list = (data || []);
+  const html = list.length
+    ? `<div class="hint" style="margin:2px 0 4px">${esc(t('ui.rh.archHint', '归档只移动目录、不删数据；要释放磁盘请点永久删除'))}</div>`
+      + list.map(x => `<div style="display:flex;gap:6px;align-items:center;padding:3px 0;border-bottom:1px dashed var(--line-100);flex-wrap:wrap">
+          <span class="mono" style="font-size:12px">${esc(x.name)}</span>
+          <span class="hint">${esc(x.size)} · ${x.files || 0} ${esc(t('ui.rh.filesUnit', '文件'))}</span>
+          <button class="btn small" onclick="rhUnarchive('${esc(x.name)}')">${t('ui.rh.unarchive', '↩ 恢复')}</button>
+          <button class="btn small danger" onclick="rhPurge('${esc(x.name)}')">${t('ui.rh.purgeOne', '永久删除')}</button>
+        </div>`).join('')
+      + `<div style="margin-top:6px"><button class="btn small danger" onclick="rhPurgeAll()">${t('ui.rh.purgeAll', '🗑 清空归档（不可恢复）')}</button></div>`
+    : `<p class="hint">${esc(t('ui.rh.archEmpty', '（归档区为空）'))}</p>`;
+  panels.forEach(p => { p.innerHTML = html; });
+}
+
+async function rhUnarchive(name) {
+  try {
+    const r = await fetch(`/api/tool/runs/${encodeURIComponent(name)}/unarchive`,
+                          { method: 'POST' });
+    if (!r.ok) { alert((await r.json().catch(() => ({}))).error
+                       || t('ui.common.opFail', '操作失败')); return; }
+    toast(t('ui.rh.unarchiveDone', '已恢复到运行列表'), name, { ttl: 4000 });
+    rhRefresh(); rhArchRefresh();
+  } catch (e) { alert(t('ui.common.connShort') + ': ' + e); }
+}
+
+async function rhPurge(name) {
+  if (!confirm(t('ui.rh.purgeConfirm', '永久删除归档 {name}？不可恢复。')
+                   .replace('{name}', name))) return;
+  try {
+    const r = await fetch('/api/tool/runs/archived/purge', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names: [name], confirm: 'purge' }) });
+    if (!r.ok) { alert(t('ui.common.opFail', '操作失败')); return; }
+    const d = await r.json();
+    toast(t('ui.rh.purgeDone', '已永久删除 {n} 项').replace('{n}', (d.removed || []).length),
+          name, { ttl: 4000 });
+    rhArchRefresh();
+  } catch (e) { alert(t('ui.common.connShort') + ': ' + e); }
+}
+
+async function rhPurgeAll() {
+  if (!confirm(t('ui.rh.purgeAllConfirm', '永久删除归档区全部内容？不可恢复。'))) return;
+  try {
+    const r = await fetch('/api/tool/runs/archived/purge',
+                          { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ confirm: 'purge' }) });
+    if (!r.ok) { alert(t('ui.common.opFail', '操作失败')); return; }
+    const d = await r.json();
+    toast(t('ui.rh.purgeDone', '已永久删除 {n} 项').replace('{n}', (d.removed || []).length),
+          '', { ttl: 4000 });
+    rhArchRefresh();
+  } catch (e) { alert(t('ui.common.connShort') + ': ' + e); }
+}
+
 async function rhDel(btn, name) {
   if (!confirm(t('ui.rh.delConfirm').replace('{name}', name))) return;
   try {
@@ -396,11 +509,14 @@ function rhInitContainers() {
     const box = $(def.box);
     if (!box || box.dataset.init) continue;
     box.dataset.init = '1';
-    box.innerHTML = `<div class="rh-head" style="display:flex;gap:8px;align-items:center;margin-top:8px">
+    box.innerHTML = `<div class="rh-head" style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
         <button class="btn small" onclick="rhToggle('${def.box}')">${t('ui.rh.btnPre')}<span class="rh-count">…</span>${t('ui.rh.btnPost')}</button>
         <span class="hint">${t('ui.rh.hint')}</span>
+        <button class="btn small" onclick="rhClean('${def.box}')" title="${esc(t('ui.rh.cleanTip', '每个模块保留最近几次，其余归档'))}">${t('ui.rh.clean', '🧹 清理…')}</button>
+        <button class="btn small" onclick="rhArchToggle('${def.box}')" title="${esc(t('ui.rh.archTip', '归档区：可恢复；永久删除才释放磁盘'))}">${t('ui.rh.archBtn', '📦 归档区')}</button>
       </div>
-      <div class="rh-body" style="display:none;margin-top:4px"></div>`;
+      <div class="rh-body" style="display:none;margin-top:4px"></div>
+      <div class="rh-arch" style="display:none;margin-top:6px"></div>`;
   }
 }
 document.addEventListener('DOMContentLoaded', () => {

@@ -175,8 +175,8 @@ MODULES = {
     'kvsuite': {
         'title': '⑨ 已知病毒识别与定量',
         'title_en': 'Known virus suite',
-        'desc': 'minimap2 比对 + samtools 处理 + snpEff 注释 + SNPGenie 选择压力',
-        'plugins': ['minimap2', 'samtools', 'bcftools', 'snpeff',
+        'desc': 'salmon/minibwa 定量 + samtools 处理 + snpEff 注释 + SNPGenie 选择压力',
+        'plugins': ['minibwa', 'samtools', 'bcftools', 'snpeff',
                     'jre-snpeff', 'snpgenie', 'strawberry-perl', 'salmon'],
     },
     'rdp': {

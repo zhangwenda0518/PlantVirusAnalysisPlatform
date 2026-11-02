@@ -23,6 +23,7 @@ plot_distribution / get_safe_leaf_order），口径与 SDT 原版
 import os
 import re
 import hashlib
+import sys
 import warnings
 from pathlib import Path
 
@@ -226,6 +227,9 @@ def _sdt_pair_worker(task):
                    encoding='utf-8', errors='replace',
                    creationflags=getattr(sp, 'CREATE_NO_WINDOW', 0))
         if r.returncode != 0:
+            _tail = (r.stderr or '').strip()[-300:]
+            print('[sdt] mafft 失败 (%d,%d) 退出码 %d：%s'
+                  % (i, j, r.returncode, _tail), file=sys.stderr)
             return i, j, float('nan')
 
         # 解析两条比对序列（命名块循环逐行拼接）

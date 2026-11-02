@@ -735,9 +735,9 @@ def _stage_consensus(C):
         raise RuntimeError('01_host_removal 无配对 reads，请先完成 ①宿主去除阶段')
     log_res_plan(logger, '③c 共识序列与变异', threads=C.threads, mem_gb=2.0,
                  disk_gb=1.0,
-                 note="minimap2 -ax sr 回贴 + 逐位统计；"
+                 note="minibwa -x sr 回贴 + 逐位统计；"
                       "内存只与参考长度相关，与测序深度无关")
-    st.prog('consensus', 0.05, 'minimap2 回贴 reads 到候选 contig')
+    st.prog('consensus', 0.05, 'minibwa 回贴 reads 到候选 contig')
     cs = consensus_and_variants(
         C.sample_dir, vfa, reads, out_subdir='03c_consensus',
         threads=C.threads, logger=logger,
@@ -880,12 +880,27 @@ def _stage_gbdraw(C):
 
 
 def _stage_report(C):
-    """⑩ 可视化报告。"""
+    """⑩ 可视化报告。
+
+    产出两份互不覆盖的报告：
+    - `report.html`：viz 的图表视图（历史入口，多处页面与会话摘要依赖它）；
+    - `report_v2.html`：report_kit 的学术论文风结论文档（任务无关，只描述
+      本次真正落盘的阶段）。
+    v2 失败不得拖垮整条流水线——图表报告能出就仍算成功，原因写进日志。
+    """
     st = C.st
     st.begin('report')
     st.prog('report', 0.2, '生成可视化报告')
     from .viz import build_report
     rpt = build_report(C.sample_dir, logger=C.logger)
+    st.prog('report', 0.7, f"报告: {rpt}")
+    try:
+        from .report_kit import build_enhanced_report
+        v2 = build_enhanced_report(C.sample_dir, logger=C.logger, force=True)
+        st.prog('report', 0.95, f"结论文档: {v2['html']}")
+    except Exception as e:                       # noqa: BLE001 边界：不让 v2 拖垮 ⑩
+        C.logger.log(f"[WARN] 增强报告(report_v2)生成失败，已跳过: "
+                     f"{type(e).__name__}: {e}")
     st.prog('report', 1.0, f"报告: {rpt}")
     st.end('report')
 
@@ -1277,6 +1292,20 @@ def run_analysis(sample, r1, r2, stages, db_host=None, db_virus=None,
     C.vs = None
     C.asm = None
 
+    # 样品锚（2026-10-27 第一步：只读）
+    # 把「本次运行的输入是哪个文件、跑了哪些阶段」落成 run/anchors/<slug>/
+    # 的可核对记录，供「正在分析的项目」常驻条显示。只记录不判定：任何一个
+    # 环节出错都只写锚自己的日志，绝不改变本次分析的走向（见 anchor.py 文档）。
+    _anc = None
+    try:
+        from . import anchor as _anchor
+        _anc = _anchor.start_run(sample, r1, r2, stages=stages,
+                                 sample_dir=sample_dir, logger=logger)
+    except Exception as e:
+        if logger:
+            _lgA = getattr(logger, 'log', None) or logger
+            _lgA(f'样品锚未建立（不影响分析）: {e}', 'WARN')
+
     selected = set(stages)
     # 未选中阶段的断点衔接：读取上一轮已完成产物摘要（与旧实现一致）
     if 'fastp' not in selected:
@@ -1379,8 +1408,19 @@ def run_analysis(sample, r1, r2, stages, db_host=None, db_virus=None,
                 if logger:
                     _lg1 = getattr(logger, 'log', None) or logger
                     _lg1(f"阶段 {key} 依赖自检异常（继续）: {_e}")
+            _st_t0 = time.time()
+            try:
+                if _anc:
+                    _anchor.stage_begin(sample, key)     # 锚：现在跑到哪一步
+            except Exception:
+                pass
             STAGE_REGISTRY[key]['fn'](C)
             _finished.append(key)
+            try:
+                if _anc:
+                    _anchor.stage_done(sample, key, time.time() - _st_t0)
+            except Exception:
+                pass
             _manifest_sync(_finished, 'running')
             if _bc:
                 try:
@@ -1398,6 +1438,12 @@ def run_analysis(sample, r1, r2, stages, db_host=None, db_virus=None,
         # 失败也要留下痕迹：记下已跑完的阶段与实际耗时
         _manifest_sync(_finished, 'failed',
                        duration_s=time.time() - _run_t0)
+        try:
+            if _anc:
+                _anchor.end_run(sample, 'failed', time.time() - _run_t0,
+                                sample_dir)
+        except Exception:
+            pass
         # 闸门"终止"是用户主动收场而非阶段失败，不再发失败播报
         if _bc and not isinstance(e, getattr(_bc, 'GateAborted', ())):
             try:
@@ -1406,6 +1452,11 @@ def run_analysis(sample, r1, r2, stages, db_host=None, db_virus=None,
                 pass
         raise
     _manifest_sync(_finished, 'ok', duration_s=time.time() - _run_t0)
+    try:
+        if _anc:
+            _anchor.end_run(sample, 'ok', time.time() - _run_t0, sample_dir)
+    except Exception:
+        pass
     if _bc:
         try:
             _bc.note_run_done(sample)
@@ -1491,11 +1542,20 @@ def _fresh_converted(sample_dir, cur_r1, cur_r2):
 
 
 def run_report_only(sample, logger=None, force=False):
+    """只重跑 ⑩：图表报告 + 结论文档（report_v2）一起刷新。"""
     sample = _resolve_sample(sample)
     sample_dir = check_path(os.path.join(DIRS['results'], sample),
                             must_exist=True, in_platform=True)
     from .viz import build_report
-    return build_report(sample_dir, logger=logger)
+    rpt = build_report(sample_dir, logger=logger)
+    try:
+        from .report_kit import build_enhanced_report
+        build_enhanced_report(sample_dir, logger=logger, force=True)
+    except Exception as e:                       # noqa: BLE001 边界：v2 失败不阻断
+        if logger:
+            logger.log(f"[WARN] 增强报告(report_v2)生成失败，已跳过: "
+                       f"{type(e).__name__}: {e}")
+    return rpt
 
 
 # ------------------------------------------------------------------

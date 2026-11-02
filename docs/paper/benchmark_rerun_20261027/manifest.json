@@ -1,0 +1,102 @@
+{
+  "created_at": "2026-10-27T17:02:32",
+  "updated_at": "2026-10-27T21:22:50",
+  "note": "VIROMOCK discovery 重跑归档：库=当前交付库 plant_ref；被测对象与 benchmark/run_one.py 完全一致",
+  "host": {
+    "node": "张文达的工作站",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "cpu_logical": 20,
+    "ram_gb": 63.8
+  },
+  "python": {
+    "version": "3.12.10",
+    "executable": "C:\\Python312\\python.exe",
+    "psutil": "7.2.2"
+  },
+  "repo": {
+    "git_rev": "964f0bffa71fb5ec2d143043ae12c679294983ff",
+    "dirty_files": 25
+  },
+  "library": {
+    "dir": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref",
+    "reference_fasta": {
+      "path": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\reference.fasta",
+      "bytes": 45834839,
+      "headers": 12196,
+      "sha256": "5e56e99fe54bd76e0fed89d5e1748c66d115f290799d0d64fa0bc26a33f9b619"
+    },
+    "ref_info_tsv": {
+      "path": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\reference.ref_info.tsv",
+      "bytes": 3621193,
+      "lines": 12197,
+      "sha256": "f9f27d4e8896a3051eb3a7d181dee21e77e361efda2fa1d48be6bdb7ce08251e"
+    },
+    "indexes": {
+      "salmon_k31": {
+        "path": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\salmon_k31",
+        "exists": true,
+        "files_n": 12,
+        "bytes": 925044413,
+        "newest_mtime": "2026-10-19T01:10:24",
+        "newest_mtime_epoch": 1792343424.7286649,
+        "sample_files": [
+          "duplicate_clusters.tsv",
+          "index.ctab",
+          "index.ectab",
+          "index.refinfo",
+          "index.ssi",
+          "index.ssi.mphf"
+        ]
+      },
+      "salmon_k15": {
+        "path": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\salmon_k15",
+        "exists": true,
+        "files_n": 12,
+        "bytes": 1078532105,
+        "newest_mtime": "2026-10-19T01:10:55",
+        "newest_mtime_epoch": 1792343455.232342,
+        "sample_files": [
+          "duplicate_clusters.tsv",
+          "index.ctab",
+          "index.ectab",
+          "index.refinfo",
+          "index.ssi",
+          "index.ssi.mphf"
+        ]
+      },
+      "minibwa": {
+        "path": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\minibwa",
+        "exists": true,
+        "files_n": 4,
+        "bytes": 101428441,
+        "newest_mtime": "2026-10-27T20:50:55",
+        "newest_mtime_epoch": 1793105455.6559255,
+        "sample_files": [
+          "index.log",
+          "ref_fingerprint.json",
+          "reference.l2b",
+          "reference.mbw"
+        ]
+      }
+    },
+    "manifest_json": {
+      "name": "plant_ref",
+      "reference": "reference.fasta",
+      "ref_info": "reference.ref_info.tsv",
+      "engines": [],
+      "failed": [],
+      "source": "http://39.106.101.94/reference/download.html (Plant_Virus_Ref.fasta / Plant_Virus_Ref.Info.tsv, 2026-09-19 hotfix 版)",
+      "notes": "由线上 Plant_Virus_Ref 数据集修复而来：accession 版本号归一对齐（12,159 条表-序列一致）+ 注入 TSWV L/M/S（NC_002052.1/002050.1/002051.1, Orthotospovirus tomatomaculae, taxid 3052585）。引擎索引未预建，首次运行在库目录内自建（kv_stage.index_dir_for）；kunpeng 分类库可在构建页「原始数据集」卡一键构建（落点 databases/kunpeng_db/plant_ref）。",
+      "records": 12159,
+      "built_at": "2026-09-19",
+      "fix_script": "dev_tools/_fix_plant_virus_ref.py",
+      "original_broken_backup": "服务器 docs/data/backup_broken_align_20260919/；本地 databases/_dl_staging/"
+    }
+  },
+  "harness": {
+    "run_one": "D:\\桌面\\植物病毒分析平台\\docs\\paper\\benchmark\\run_one.py",
+    "run_one_sha256": "0123390a2dc5b7a6fb8bf8cd2890200fc759f3f313503718bfcf40b05e071fd0",
+    "align_threads": 4,
+    "engine_default": "salmon"
+  }
+}

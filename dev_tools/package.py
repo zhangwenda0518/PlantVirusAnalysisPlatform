@@ -8,6 +8,14 @@
   <PVAP>/VirusPlatform-Database/   ③ 数据库（仅 --with-db 时生成）
   <PVAP>/VirusPlatform-Source/     ④ 源码包（仅 --with-source 时生成）
 
+发布最终化（2026-10-26）：python dev_tools/finalize_release.py
+  把上面三件硬链接克隆成 PVAP 根目录下的两版（主流程 13 工具 / 全量 26 工具），
+  并删除三件中间产物。最终只保留：
+    <PVAP>/PlantVirusPlatform/                 主流程 13 工具
+    <PVAP>/PlantVirusPlatform_with_Plugin/     全量 26 工具
+    <PVAP>/README.txt                          版本选择说明
+  根目录的 VirusPlatform* 只是构建中间态，不再保留（--keep-build 可保留排查）。
+
 分发口径（2026-09-19 起）：**原始数据集与数据库区分开**——
   * 随包只发「原始数据集」（参考 FASTA + 注释表 + taxonomy dmp + 第三方
     直接使用库），派生索引/分类库一律不预建：
@@ -136,7 +144,10 @@ except Exception:                                     # noqa: BLE001
 # 主流程新增工具时同步这里（并在插件索引确认有对应包）。
 _MAINLINE_KEEP = {'Blast', 'FastTree', 'SPAdes-Windows', 'bcftools',
                   'fastp', 'mafft-win', 'minimap2', 'salmon2', 'samtools',
-                  'trimAl', 'diamond', 'mmseqs', 'datasets'}
+                  'trimAl', 'diamond', 'mmseqs', 'datasets',
+                  # 组装引擎可选项（2026-10-29）：目录名带版本号，
+                  # 与 detect_tools 的 megahit* glob 对应
+                  'megahit-1.2.9-win64'}
 
 # 控制台编码兜底：Windows 默认代码页是 GBK，脚本里若出现 GBK 编不出的字符
 # （实测 2026-09-10：'↳' U+21B3 让 print 抛 UnicodeEncodeError，打包跑到一半中断），
@@ -351,57 +362,202 @@ if _args.dedupe_only:
 
 
 # 启动方式（2026-10-26 补）：分发版里 exe 的默认双击是桌面窗口，浏览器模式
-# 需要 `--web`。用户改名的交付里没有入口，这里随包生成两个英文 .bat，
-# 内容与 `_audit/make_launchers.py` 生成的一致（纯 ASCII + CRLF）。
+# 需要 `--web`。用户改名的交付里没有入口，这里随包生成两个英文 .bat
+# （纯 ASCII + CRLF）。
+# 2026-10-26 用户裁定：启动脚本放在**版本根目录**（程序目录的上一级），
+# `{sub}`（cd 目标）与 `{exe}`（exe 前缀）由 _write_launchers 填入：
+#   三分离 = sub `VirusPlatform` / exe `VirusPlatform\`；--no-split = 都为空。
+#   cd 目标不能带尾部反斜杠——cmd 会把 `\"` 当成转义引号。
 _LAUNCH_WEB = """@echo off
+setlocal enabledelayedexpansion
 chcp 65001 >nul
 title Plant Virus Analysis Platform - Web mode (browser)
-cd /d "%~dp0"
+set "ROOT=%~dp0"
+set "PRG=%~dp0{sub}"
+
+rem ---- recycle leftovers from a previous crashed run ----
+for /d %%D in ("%PRG%\\tmp*") do (
+  rd /s /q "%%~fD" >nul 2>&1
+  if not exist "%%~fD" echo   [cleanup] removed leftover temp dir %%~nxD
+)
+
+cd /d "%PRG%"
+rem ---- auto (re)mount the data folder if one was recorded ----
+if exist "%ROOT%mount-data.bat" call "%ROOT%mount-data.bat"
 echo.
 echo   Plant Virus Analysis Platform -- web mode
 echo   ----------------------------------------
 echo   A browser tab opens automatically at 127.0.0.1.
-echo   The address is printed below as well, so it can be opened
-echo   in another browser or copied for reference.
 echo   Keep this window open; closing it stops the platform.
 echo.
-"%~dp0VirusPlatform.exe" --web
+rem ---- open the page from a console-owning helper ----
+rem  The platform process cannot reliably raise a browser window (it may run
+rem  without a console / inside a job object, and CREATE_NO_WINDOW makes the
+rem  tab open behind).  The helper waits for the port and runs `start <url>`
+rem  from a cmd that owns a console, so Windows grants it the foreground.
+rem
+rem  MUST go through `cmd /c` (2026-10-29, user screenshot): `start "" /min
+rem  "x.bat"` runs the batch through `cmd /K`, so its console stays open
+rem  after the script ends -- an empty prompt that looks like a startup
+rem  error.  `cmd /c` closes the helper window when it finishes.
+start "" /min cmd /c ""%ROOT%open-browser.bat""
+"%ROOT%{exe}VirusPlatform.exe" --web --no-open
 if errorlevel 1 (
   echo.
   echo   The platform exited with an error. See the message above.
   pause
 )
+rem ---- recycle per-run leftovers of this instance (tmp*, .port) ----
+for /d %%D in ("%PRG%\\tmp*") do rd /s /q "%%~fD" >nul 2>&1
+del /q "%PRG%\\run\\.port" >nul 2>&1
+del /q "%PRG%\\_internal\\run\\.port" >nul 2>&1
+echo   [cleanup] platform stopped; temp dirs and port file removed.
+"""
+
+_LAUNCH_MOUNT = r"""@echo off
+rem =====================================================================
+rem  Non-interactive auto-mount, called by Start-Web.bat / Start-Desktop.bat.
+rem
+rem  Re-creates the junction <program>\run\fastq -> <recorded folder> when
+rem  mount_source.txt exists and the junction is missing. Silent no-op when
+rem  nothing is configured, the folder is gone, or the junction already
+rem  exists: startup must never block or fail because of this.
+rem
+rem  mount_source.txt is written by the interactive mount wizard
+rem  (the Chinese-named .bat shipped next to this file).
+rem  KEEP THIS FILE ASCII-ONLY (cmd.exe mis-parses UTF-8 batch files).
+rem =====================================================================
+setlocal enabledelayedexpansion
+set "HERE=%~dp0"
+if not exist "%HERE%mount_source.txt" exit /b 0
+
+set "SRC="
+set /p SRC=<"%HERE%mount_source.txt"
+if not defined SRC exit /b 0
+if not exist "%SRC%" exit /b 0
+
+rem ---- locate the program folder (same order as the interactive wizard) ----
+set "PKG="
+if exist "%HERE%VirusPlatform.exe" set "PKG=%HERE%."
+if not defined PKG if exist "%HERE%VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%VirusPlatform"
+if not defined PKG if exist "%HERE%..\PVAP\VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%..\PVAP\VirusPlatform"
+if not defined PKG for %%D in (C D E F G) do (
+  if not defined PKG if exist "%%D:\PVAP\PlantVirusPlatform\VirusPlatform\VirusPlatform.exe" set "PKG=%%D:\PVAP\PlantVirusPlatform\VirusPlatform"
+)
+if not defined PKG exit /b 0
+if not exist "%PKG%\VirusPlatform.exe" exit /b 0
+
+set "DST=%PKG%\run\fastq"
+if not exist "%PKG%\run" mkdir "%PKG%\run" 2>nul
+if exist "%DST%" (
+  dir /al "%DST%" 2>nul | "%SystemRoot%\System32\find.exe" "<JUNCTION>" >nul
+  if not errorlevel 1 exit /b 0
+  exit /b 0
+)
+mklink /J "%DST%" "%SRC%" >nul 2>&1
+if errorlevel 1 exit /b 1
+echo   [mount] %DST% -^> %SRC%
+exit /b 0
+"""
+
+_LAUNCH_OPEN = """@echo off
+rem ---------------------------------------------------------------------------
+rem  Wait for the platform port, then open the page with the default browser.
+rem
+rem  Started minimized by Start-Web.bat through `cmd /c`, so this window closes
+rem  by itself.  (A plain `start "" x.bat` would use `cmd /K` and leave an empty
+rem  console behind after the script ends -- 2026-10-29 user screenshot.)
+rem
+rem  Port source, in order:
+rem    1. <program>\\run\\.port / <program>\\_internal\\run\\.port written by the
+rem       platform -- also covers non-default / randomly picked ports;
+rem    2. the usual candidates (older builds do not write the port file).
+rem  Polls for up to 180s: the first start can take a while (DB scan), and
+rem  giving up early means "no browser tab" -- the old complaint.
+rem  KEEP THIS FILE ASCII-ONLY (cmd.exe mis-parses UTF-8 batch files).
+rem ---------------------------------------------------------------------------
+setlocal enabledelayedexpansion
+set "ROOT=%~dp0"
+set "PRG=%~dp0{sub}"
+set "LOG=%PRG%\\run\\_browser_open.log"
+for /l %%i in (1,1,180) do (
+  set "PORT="
+  if exist "%PRG%\\run\\.port" set /p PORT=<"%PRG%\\run\\.port"
+  if not defined PORT if exist "%PRG%\\_internal\\run\\.port" set /p PORT=<"%PRG%\\_internal\\run\\.port"
+  if defined PORT (
+    netstat -ano | findstr /C:":!PORT! " | findstr /C:"LISTENING" >nul
+    if not errorlevel 1 (
+      start "" "http://127.0.0.1:!PORT!"
+      >>"%LOG%" echo [%DATE% %TIME%] opened http://127.0.0.1:!PORT!
+      exit
+    )
+  )
+  for %%P in (8765 8766 8767 8900 8989 9600 8888 5050) do (
+    netstat -ano | findstr /C:".0.0.1:%%P " | findstr /C:"LISTENING" >nul
+    if not errorlevel 1 (
+      start "" "http://127.0.0.1:%%P"
+      >>"%LOG%" echo [%DATE% %TIME%] opened http://127.0.0.1:%%P
+      exit
+    )
+  )
+  timeout /t 1 >nul
+)
+>>"%LOG%" echo [%DATE% %TIME%] no listening port found after 180s
+exit
 """
 
 _LAUNCH_DESK = """@echo off
+setlocal enabledelayedexpansion
 chcp 65001 >nul
-title Plant Virus Analysis Platform - Desktop window
-cd /d "%~dp0"
+title Plant Virus Analysis Platform - Desktop mode
+set "ROOT=%~dp0"
+set "PRG=%~dp0{sub}"
+
+rem ---- recycle leftovers from a previous crashed run ----
+for /d %%D in ("%PRG%\\tmp*") do (
+  rd /s /q "%%~fD" >nul 2>&1
+  if not exist "%%~fD" echo   [cleanup] removed leftover temp dir %%~nxD
+)
+
+cd /d "%PRG%"
+rem ---- auto (re)mount the data folder if one was recorded ----
+if exist "%ROOT%mount-data.bat" call "%ROOT%mount-data.bat"
 echo.
-echo   Plant Virus Analysis Platform -- desktop window mode
-echo   ---------------------------------------------------
-echo   Opens in its own window (no address bar).
-echo   If pywebview / WebView2 is unavailable on this machine the
-echo   platform falls back to the system browser instead of failing.
+echo   Plant Virus Analysis Platform -- desktop mode
+echo   ----------------------------------------
+echo   A desktop window opens (pywebview/WebView2; falls back to the browser if unavailable).
 echo   Keep this window open; closing it stops the platform.
 echo.
-"%~dp0VirusPlatform.exe" --gui
+"%ROOT%{exe}VirusPlatform.exe" --gui
 if errorlevel 1 (
   echo.
   echo   The platform exited with an error. See the message above.
   pause
 )
+rem ---- recycle per-run leftovers of this instance (tmp*, .port) ----
+for /d %%D in ("%PRG%\\tmp*") do rd /s /q "%%~fD" >nul 2>&1
+del /q "%PRG%\\run\\.port" >nul 2>&1
+del /q "%PRG%\\_internal\\run\\.port" >nul 2>&1
+echo   [cleanup] platform stopped; temp dirs and port file removed.
 """
 
 
-def _write_launchers(app_dir):
+def _write_launchers(dist_root, sub='', exe=''):
+    """在版本根目录写启动脚本。
+
+    sub = `cd` 目标（不带尾部反斜杠；空串 = 版本根目录本身），
+    exe = exe 前缀（三分离为 `VirusPlatform\\`，--no-split 为空）。
+    """
     for name, text in (("Start-Web.bat", _LAUNCH_WEB),
-                       ("Start-Desktop.bat", _LAUNCH_DESK)):
-        dst = os.path.join(app_dir, name)
+                       ("Start-Desktop.bat", _LAUNCH_DESK),
+                       ("open-browser.bat", _LAUNCH_OPEN),
+                       ("mount-data.bat", _LAUNCH_MOUNT)):
+        dst = os.path.join(dist_root, name)
         if os.path.exists(dst):
             os.remove(dst)
         with open(dst, "wb") as fh:
-            fh.write(text.replace("\n", "\r\n").encode("ascii"))
+            fh.write(text.format(sub=sub, exe=exe).replace("\n", "\r\n")
+                     .encode("ascii"))
         print(f"  + {name}（启动入口：浏览器 / 桌面窗口）")
 
 
@@ -520,33 +676,11 @@ if not (_args.db_only or _args.source_only):
         shutil.copytree(ov_build, dst)
         print('  + 3rd/open-virome/frontend/build/')
 
-    # dsRNA 设计的小型数据文件（2026-09-19；2026-10-03 随功能恢复重新入包）：
-    # lookup.db 热力学查找表 / siRNA 参数 / 致死基因清单 —— 没有它们 dsRNA 卡
-    # 一运行就报「缺少热力学查找表」。合计 <100KB，随程序包开箱即用；大头的
-    # 脱靶面板 panel\（物种 RefSeq RNA，GB 级）走数据库包（见 _DB_TREES）。
-    for _rel in ('databases/dsrna/lookup.db',
-                 'databases/dsrna/siRNA_parameters.txt',
-                 'databases/dsrna/lethal_lists'):
-        _src = os.path.join(ROOT, *_rel.split('/'))
-        _dst = os.path.join(APP, *_rel.split('/'))
-        if os.path.isdir(_src):
-            _rmtree(_dst)
-            shutil.copytree(_src, _dst)
-            print('  +', _rel + '/')
-        elif os.path.isfile(_src):
-            os.makedirs(os.path.dirname(_dst), exist_ok=True)
-            shutil.copy2(_src, _dst)
-            print('  +', _rel)
-
-    # t-mirna 候选 miRNA 库（2026-10-24 入包）：web/tools_api._mirna_lib_rows
-    # 缺库直接 abort 500——此前只活在开发机，分发版 miRNA 靶标卡必坏。
-    # ~13MB 随程序包开箱即用（crispr/near_neighbors 是用户自建数据，不入包）。
-    if os.path.isdir(os.path.join('databases', 'mirna_lib')):
-        _dst_ml = os.path.join(APP, 'databases', 'mirna_lib')
-        _rmtree(_dst_ml)
-        shutil.copytree(os.path.join('databases', 'mirna_lib'), _dst_ml,
-                        ignore=shutil.ignore_patterns('__pycache__'))
-        print('  + databases/mirna_lib/（t-mirna 候选 miRNA 库）')
+    # dsRNA / miRNA 小数据（2026-10-26 用户裁定）：从程序包移入**数据库包**
+    # （见 _DB_TREES 的 dsrna / mirna_lib 两项）。程序目录因此不再有
+    # databases/，与 VirusPlatform-Database 不再同名混淆；运行时经
+    # config.db_asset() 在数据库根下解析。这里只清掉旧包可能残留的副本。
+    _rmtree(os.path.join(APP, 'databases'))
 
     # mcp_server.py（2026-10-24 入包）：MCP 控制台在冻结模式经
     # `VirusPlatform.exe --mcp-stdio` 进程内拉起服务器（见 mcp_console._ensure
@@ -564,7 +698,18 @@ if not (_args.db_only or _args.source_only):
         shutil.copy2(_tpn, os.path.join(APP, 'THIRD_PARTY_NOTICES.md'))
         print('  + THIRD_PARTY_NOTICES.md（第三方组件许可索引）')
 
-    _write_launchers(APP)
+    # 2026-10-26 用户裁定：启动脚本放版本根目录（程序目录上一级）。
+    # 三分离时 dist_root = PVAP/，指向 PVAP/VirusPlatform/VirusPlatform.exe；
+    # --no-split 时就是程序目录本身。旧包里的程序目录副本一并清掉。
+    for _old in ("Start-Web.bat", "Start-Desktop.bat"):
+        _oldp = os.path.join(APP, _old)
+        if os.path.exists(_oldp):
+            os.remove(_oldp)
+    if SPLIT:
+        _write_launchers(os.path.dirname(APP), 'VirusPlatform',
+                         'VirusPlatform\\')
+    else:
+        _write_launchers(APP, '')
 
     # primer3-py 包副本（2026-09-20）：分发版在非 ASCII 安装路径下跑 primer3，
     # 依赖「ASCII 镜像」机制 —— exe 启动时由 app.py 把程序包自带的
@@ -784,9 +929,16 @@ if _args.with_db or _args.db_only:
          ('viroids_v4.nhr', 'viroids_v4.nin', 'viroids_v4.nsq', 'viroids_v4.njs*')),
         ('misc_db/prob',     '← 宿主概率表'),
         # 2026-10-03 用户裁定：dsRNA 脱靶面板（~1.4GB 物种 RefSeq RNA）不再随
-        # 数据库包分发。自备面板放 databases/dsrna/panel/ 即生效；小文件随程序包。
+        # 数据库包分发。自备面板放 databases/dsrna/panel/ 即生效。
         # 2026-10-25：misc_db/suvtk（212M）不随包，转可选件 suvtk-db
         # （BFVD 原生能力随装随用；未装时 bfvd 层优雅降级）。
+        # 2026-10-26 用户裁定：dsRNA / miRNA 小数据从程序包移入数据库包——
+        # 程序目录不再有 databases/，避免与 VirusPlatform-Database 混淆。
+        # panel/ 与 _cache/ 是用户自备的 GB 级面板数据，绝不入包。
+        ('dsrna',           '← dsRNA 设计小数据（热力学查找表 / siRNA 参数 /'
+                            ' 致死基因清单）',
+         ('panel', '_cache')),
+        ('mirna_lib',       '← t-mirna 候选 miRNA 库（80,272 条 / 799 物种）'),
     )
     if _args.with_built_virusdb:
         # 2026-10-25 定案：随包只带 plant 库（改名为 virus_db，唯一默认病毒
@@ -881,6 +1033,9 @@ What it contains (raw datasets first; derived libraries are not pre-built):
   - NCBI Taxonomy / annotation libraries (Pfam, RefSeq proteins) /
     tree-building references / blastn databases and the like are third-party
     libraries used as-is and work straight from the package
+  - dsRNA design data (thermodynamic lookup table + siRNA parameters) and the
+    t-mirna candidate miRNA library; optional dsRNA off-target panels go in
+    databases/dsrna/panel/ and are not shipped
   - the host classification library varies per species; build it yourself on
     the DB building page
 
@@ -1091,6 +1246,9 @@ if SPLIT and os.path.isdir(APP):
         '',
         '1) VirusPlatform\\            The program itself: double-click '
         'VirusPlatform.exe to start',
+        '   - Start-Desktop.bat / Start-Web.bat (next to this file, one level',
+        '     up) launch the desktop window or the browser UI; the exe itself',
+        '     defaults to the desktop window (VirusPlatform.exe --web for browser)',
         '   - Contains the exe + the webapp front end + the external tools in',
         '     bin/ and tools/ + mcp_server.py (the MCP console is launched',
         '     in-process inside the exe via --mcp-stdio, ready out of the box)',
@@ -1119,7 +1277,7 @@ if SPLIT and os.path.isdir(APP):
             '     as VirusPlatform-Standalone (23 of 31 tools: QC fastp / host removal',
             '     minibwa+blast / assembly spades / identification kunpeng /',
             '     alignment mafft+trimal / tree building fasttree / quantification',
-            '     and consensus minimap2+samtools+bcftools+salmon / candidate',
+            '     and consensus salmon-or-minibwa+samtools+bcftools / candidate',
             '     validation diamond+mmseqs). Specialized tools -- recombination',
             '     analysis (RDP5), evolutionary dynamics (iqtree/raxml/lsd2), NCBI',
             '     submission (table2asn), pandepth/viral_consensus/dsrnamax -- are',
@@ -1140,7 +1298,7 @@ if SPLIT and os.path.isdir(APP):
             '     bundled (QC fastp / host removal minibwa+blast / assembly spades /',
             '     identification kunpeng / alignment mafft+trimal / tree building',
             '     fasttree / quantification and consensus',
-            '     minimap2+samtools+bcftools+salmon / candidate validation',
+            '     salmon-or-minibwa+samtools+bcftools / candidate validation',
             '     diamond+mmseqs / datasets CLI + the small items in bin/).',
             '     Specialized tools -- recombination analysis (RDP5), evolutionary',
             '     dynamics (iqtree/raxml/lsd2), NCBI submission (table2asn),',

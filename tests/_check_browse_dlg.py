@@ -31,6 +31,28 @@ def templates():
     return sorted(p for p in TPL.glob('*.html'))
 
 
+def _include_closure(path, seen=None):
+    """模板 path 渲染后真正包含的模板集合（按 {% include %} 递归展开）。
+
+    2026-11-02：共享片段（_samples_new.html 之类）自己调用 browse/browseDir，
+    对话框片段由**宿主页** include。只看单文件源码会误报「调用了却没 include」，
+    这里把 include 链一起算进来（防死循环用 seen）。
+    """
+    seen = set() if seen is None else seen
+    out = {path}
+    try:
+        txt = path.read_text(encoding='utf-8')
+    except OSError:
+        return out
+    for m in re.finditer(r'\{%\s*include\s+"([^"]+)"\s*%\}', txt):
+        child = TPL / m.group(1)
+        if child in seen or child == path:
+            continue
+        seen.add(child)
+        out |= _include_closure(child, seen)
+    return out
+
+
 def callers():
     """调用了 browse/browseDir 的模板（含 app.js 动态生成的用页）。"""
     out = []
@@ -39,19 +61,33 @@ def callers():
             continue
         if CALL_RE.search(p.read_text(encoding='utf-8')):
             out.append(p)
-    return out
+    # 反面：谁 include 了这个模板（反向 include 链）
+    includers = {p: [q for q in templates()
+                     if p in _include_closure(q)]
+                 for p in out}
+    return out, includers
 
 
 def check_static():
     bad = []
     inc = '{% include "_browse_dlg.html" %}'
-    for p in callers():
-        if inc not in p.read_text(encoding='utf-8'):
-            bad.append(f'① {p.name} 调用了 browse/browseDir，却没有 {inc}')
+    partial = TPL / PARTIAL
+    found, includers = callers()
+    for p in found:
+        # 自身 include，或经 include 链的宿主页 include —— 都算兑现
+        if _include_closure(p) & {partial}:
+            continue
+        # 共享片段由宿主页 include：看谁 include 了它，宿主页里必须有对话框
+        hosts = includers.get(p) or []
+        if any(_include_closure(q) & {partial} for q in hosts):
+            continue
+        bad.append(f'① {p.name} 调用了 browse/browseDir，'
+                   f'却没有 {inc}（自身、宿主页 {[q.name for q in hosts] or "无"}'
+                   f'与 include 链都没有）')
     for p in templates():
         if p.name != PARTIAL and 'id="dlgMask"' in p.read_text(encoding='utf-8'):
             bad.append(f'② {p.name} 内联了 #dlgMask，应改为 include 片段')
-    frag = (TPL / PARTIAL).read_text(encoding='utf-8')
+    frag = partial.read_text(encoding='utf-8')
     for i in NEED_IDS:
         if f'id="{i}"' not in frag:
             bad.append(f'③ 片段缺少 id="{i}"')
@@ -95,7 +131,13 @@ def check_runtime(port):
     if not pages:
         return ['④ 没发现任何含浏览按钮的页面（路由表对不上？）']
 
-    from playwright.sync_api import sync_playwright
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        # 2026-11-02：平台自带的 3rd/python 没有装 playwright（浏览器用例统一
+        # 跑在 C:\Python312）。缺依赖只跳过运行时验证，不能把静态结论判成失败。
+        print('④ 跳过运行时检查（当前解释器无 playwright，用 C:/Python312/python.exe 跑）')
+        return []
     bad = []
     with sync_playwright() as pw:
         b = pw.chromium.launch(headless=True)

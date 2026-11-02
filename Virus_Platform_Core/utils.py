@@ -183,6 +183,10 @@ def check_path(path, must_exist=False, in_platform=False):
 
     - 拒绝路径中含 '..' 段（防穿越）
     - in_platform=True 时强制路径位于平台根目录内（用于输出/中间文件）
+    - in_platform='tasks' 额外放行**任务状态记录目录** DIRS['tasks']：它可以在
+      用户自定义位置上（运行时可被改指），自测/临时实例把 DIRS['tasks'] 指到
+      %TEMP% 时任务进度落盘不该被自己的越界守卫拦掉（此前 TaskManager._persist
+      因此静默失败，只在日志里留一句 warning，刷新后进度全丢）
     - must_exist=True 时要求文件/目录已存在
     - 旧顶层目录（tool_runs/ results/ …）自动重定向到 run/ 3rd/（见
       _redirect_legacy_top）
@@ -196,8 +200,17 @@ def check_path(path, must_exist=False, in_platform=False):
     if in_platform:
         # 平台根 + 自定义输出根（若有）均视为合法写入区
         from .config import write_roots
-        for root in write_roots():
-            root = os.path.normpath(root)
+        roots = list(write_roots())
+        if in_platform == 'tasks':
+            try:
+                from .web.tasks import DIRS as _TDIRS
+                tdir = _TDIRS.get('tasks')
+                if tdir:
+                    roots.append(tdir)
+            except Exception:            # 任务模块不可用（纯工具脚本）：不影响其它根
+                pass
+        for root in roots:
+            root = os.path.normpath(os.path.abspath(root))
             if p == root or p.startswith(root + os.sep):
                 break
         else:
@@ -219,11 +232,15 @@ def check_step(step):
 
 
 # ---- 统一文件 I/O 入口（open/os.remove 仅出现在以下两个函数内） ----
-def safe_open(path, mode='rt', compress_level=6):
+def safe_open(path, mode='rt', compress_level=6, allow_outside=False):
     """安全打开文件。
 
     读模式（mode 含 r）：路径必须已存在；
     写模式（mode 含 w/a/x）：路径必须位于平台根目录内，父目录自动创建。
+    allow_outside=True 跳过写模式的平台根校验 —— 只给**已经自己校验过**的
+    调用方用：调用方可能放行的是运行时可变的目录（如 TaskManager 的
+    DIRS['tasks']，用户能改指、自测会指到 %TEMP%），这时写模式再按平台根
+    判一次就必然失败，而且是静默失败（只留一句 warning）。
     自动识别 .gz（读与写均支持；写 gz 需显式以 .gz 结尾）。
     .gz 文件在 crabz.exe 可用时改走 crabz 多线程管道（比 Python gzip
     快数倍，写默认级别 6 而非 gzip 模块的 9），失败自动回退。
@@ -249,7 +266,7 @@ def safe_open(path, mode='rt', compress_level=6):
             return open(p, mode)
         return open(p, mode, encoding='utf-8', errors='replace', newline=None)
     # 写模式：限定平台内（追加模式 gz 不支持 crabz 管道，回退 gzip）
-    p = check_path(path, in_platform=True)
+    p = check_path(path, in_platform=not allow_outside)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     if p.endswith('.gz'):
         cz = crabz_path()
@@ -401,7 +418,10 @@ def _popen_hidden(cmd):
     flags = 0
     if sys.platform == 'win32':
         flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
-    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+    # stderr 用 PIPE 捕获（原 DEVNULL 会把 crabz 的失败原因一起丢掉）：
+    # crabz 正常运行不写 stderr，出错只写一行，读侧在 close() 收尸时读取，
+    # 不会撑爆管道缓冲。
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             stdin=subprocess.PIPE, creationflags=flags)
 
 
@@ -452,7 +472,18 @@ class _GzReadPipe:
             self._proc.wait()
             raise RuntimeError('crabz 解压进程关闭超时（60s），已强制终止')
         if rc not in (0, None):
-            raise RuntimeError(f"crabz 解压失败 (退出码 {rc})")
+            raise RuntimeError('crabz 解压失败 (退出码 %d)%s'
+                               % (rc, _crabz_err_tail(self._proc)))
+
+
+def _crabz_err_tail(proc, cap=400):
+    """读出 crabz 的 stderr 尾部拼进错误消息（进程已退出时调用）。"""
+    try:
+        err = proc.stderr.read() if proc.stderr else b''
+    except OSError:
+        err = b''
+    err = err.decode('utf-8', 'replace').strip()
+    return ('：' + err[-cap:]) if err else ''
 
 
 class _GzWritePipe:
@@ -508,7 +539,8 @@ class _GzWritePipe:
                 os.remove(self._path)
             except OSError:
                 pass
-            raise RuntimeError(f"crabz 压缩失败 (退出码 {rc})")
+            raise RuntimeError('crabz 压缩失败 (退出码 %d)%s'
+                               % (rc, _crabz_err_tail(self._proc)))
 
 
 def dir_size(path):
@@ -784,10 +816,15 @@ def run_cmd(cmd, logger=None, timeout=None, cwd=None, check=True,
         _wd.start()
 
     t0 = time.time()
+    tail = []                       # 末尾输出环存：失败时拼进异常消息
     try:
         for raw_line in proc.stdout:
             # 按字节读入后 lossless 解码：工具若按 GBK 打印中文路径可完整保留
             line = decode_output(raw_line).rstrip()
+            if line:
+                tail.append(line)
+                if len(tail) > 8:
+                    del tail[0]
             if line and not silent:
                 if logger:
                     logger.log(line, "OUT")
@@ -815,7 +852,8 @@ def run_cmd(cmd, logger=None, timeout=None, cwd=None, check=True,
         logger.log(f"[退出码 {rc}] 耗时 {dt:.1f}s", "OUT")
     task_check_cancel()
     if check and rc != 0:
-        raise RuntimeError(f"命令失败 (退出码 {rc}): {subprocess.list2cmdline(cmd)}")
+        tail_s = ('（末尾输出: ' + ' / '.join(tail)[-500:] + '）') if tail else ''
+        raise RuntimeError(f"命令失败 (退出码 {rc}): {subprocess.list2cmdline(cmd)}{tail_s}")
     return rc
 
 

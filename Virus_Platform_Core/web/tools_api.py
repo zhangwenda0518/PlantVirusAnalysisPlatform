@@ -60,6 +60,15 @@ from Virus_Platform_Core.web.tasks import tm
 
 bp = Blueprint('tools', __name__)
 
+# 破坏性箱体操作的「防误触」令牌（对齐 tasks_api.RESET_CONFIRM 的口径）
+# —— 不是鉴权（本地平台没有鉴权概念），只拦「空 body 就打过来」的调用方，
+# 最典型的是 tests/_audit_routes.py 这类对每条路由发一次空 POST 的健壮性
+# 巡检。2026-11-02 实测踩过：空 POST /api/tool/runs/archive（keep 缺省 3）
+# 把 run/tool_runs/ 下 74 个运行目录移进归档区，紧跟一个空 POST
+# /api/tool/runs/archived/purge 就把它们永久删掉了。
+ARCHIVE_CONFIRM = 'archive'
+PURGE_CONFIRM = 'purge'
+
 
 TOOL_REGISTRY = {
     'convert':  {'title': '格式转换', 'title_en': 'Format convert',
@@ -167,7 +176,21 @@ VIRUS_DB_PRESETS = {'virus': ('virus', 'virus_db'),
 
 @bp.route('/tools')
 def page_tools():
-    return render_template('tools.html')
+    # 组装卡按引擎切换「组装模式」：模板要知道这台机器有没有 MEGAHIT
+    # （cfg.tool 缺工具时抛 FileNotFoundError，不能用真值判断）
+    try:
+        cfg.tool('megahit')
+        has_megahit = True
+    except FileNotFoundError:
+        has_megahit = False
+    # 组装内存：默认物理内存的一半，上限 60%（见 assembly.RAM_FRACTION_*）
+    from Virus_Platform_Core.assembly import (assembler_memory_cap_gb,
+                                              default_assembler_memory_gb,
+                                              physical_ram_gb)
+    return render_template('tools.html', has_megahit=has_megahit,
+                           ram_gb=physical_ram_gb(),
+                           asm_mem_default=default_assembler_memory_gb(),
+                           asm_mem_cap=assembler_memory_cap_gb())
 
 
 @bp.route('/tool_runs/<run>/<path:filename>')
@@ -197,13 +220,20 @@ def page_tool_run_file(run, filename):
     return resp
 
 
-# 最近运行列表缓存：{signature: (ts, payload)}
-# 本接口对最近 30 个运行目录做整棵 os.walk + 逐个 getsize，装了大组装/MSA
+# 最近运行列表缓存：{(查询参数, 目录签名): (ts, payload)}
+# 本接口对取到的运行目录做整棵 os.walk + 逐个 getsize，装了大组装/MSA
 # 的运行目录动辄数千文件；而工具页与「结果恢复」都会反复拉它。签名取
 # (运行名, 目录 mtime) 列表 —— 新增/删除运行或顶层变动立刻失效，嵌套变动
 # 由 _RUNS_TTL 兜底。
 _RUNS_CACHE = {}
 _RUNS_TTL = 4.0
+_ARCHIVE_DIR = '_archive'
+
+
+def _run_prefix(name):
+    """运行名的模块前缀：convert_20261028_101500_ab12 → convert。"""
+    m = re.match(r'^(.+?)_\d{8}_\d{6}', str(name))
+    return m.group(1) if m else str(name)
 
 
 def _runs_signature(root):
@@ -225,25 +255,54 @@ def _runs_signature(root):
 
 @bp.route('/api/tool/runs')
 def api_tool_runs():
-    """最近的工具运行列表（按运行目录修改时间倒序，30 条）。
+    """最近的工具运行列表（按运行目录 mtime 倒序）。
 
-    按目录名排序会让字母序靠前的前缀（contigs/genoplot…）挤掉真正
-    最新的运行，这里以 mtime 为准。
+    查询参数（2026-10-28 增，见 tests/_check_run_restore.py）：
+      limit=N     最多 N 条（默认 30，上限 500）
+      per=N       每个「模块前缀」只取最近 N 次。结果恢复与历史区必须用它：
+                  全局 30 条的上限会把老模块（align / hostremoval / genoplot
+                  …）的最近一次运行挤出列表，页面一刷新就「什么都没了」。
+      prefix=a,b  只看这些前缀（前缀不带结尾下划线）
 
-    结果按「(运行名, 目录 mtime) 签名 + 短 TTL」缓存：整棵 os.walk 是本
-    接口的主要开销，而它会被工具页反复轮询。
+    结果按「(参数 + 目录签名) + 短 TTL」缓存：整棵 os.walk 是本接口的
+    主要开销，而它会被工具页反复轮询。
     """
-    import time as _time
+    limit = request.args.get('limit', type=int)
+    per = request.args.get('per', type=int) or 0
+    if limit is None:
+        limit = 300 if per else 30
+    limit = max(1, min(limit, 500))
+    per = max(0, min(per, 50))
+    want = tuple(p for p in (request.args.get('prefix') or '').split(',') if p)
+
     root = _tool_runs_root()
     sig, names = _runs_signature(root)
     if sig is None:
         return jsonify([])
-    hit = _RUNS_CACHE.get(sig[0][0] if sig else '')
-    now = _time.time()
-    if hit and hit[0] == sig and now - hit[1] < _RUNS_TTL:
+
+    if per:
+        picked, seen = [], {}
+        for name in names:
+            pfx = _run_prefix(name)
+            if want and pfx not in want:
+                continue
+            if seen.get(pfx, 0) >= per:
+                continue
+            seen[pfx] = seen.get(pfx, 0) + 1
+            picked.append(name)
+            if len(picked) >= limit:
+                break
+    else:
+        picked = [n for n in names if not want or _run_prefix(n) in want][:limit]
+
+    key = (sig, limit, per, want)
+    now = time.time()
+    hit = _RUNS_CACHE.get('runs')
+    if hit and hit[0] == key and now - hit[1] < _RUNS_TTL:
         return jsonify(hit[2])
+
     out = []
-    for name in names[:30]:
+    for name in picked:
         d = _run_real_dir(name)
         if not os.path.isdir(d):
             continue
@@ -261,9 +320,12 @@ def api_tool_runs():
                 files.append({
                     'path': fn if rel == '.' else os.path.join(rel, fn),
                     'size': fmt_size(size)})
-        out.append({'name': name, 'out_dir': d, 'files': files[:40]})
-    _RUNS_CACHE.clear()                     # 只保留最新签名一份，防内存增长
-    _RUNS_CACHE[sig[0][0] if sig else ''] = (sig, now, out)
+        out.append({'name': name,
+                    'prefix': _run_prefix(name),
+                    'out_dir': d,
+                    'files': files[:40]})
+    _RUNS_CACHE.clear()                     # 只保留最新一份，防内存增长
+    _RUNS_CACHE['runs'] = (key, now, out)
     return jsonify(out)
 
 
@@ -307,6 +369,205 @@ def api_tool_run_delete(run):
         _rmtree_retry(base)
     _RUNS_CACHE.clear()                 # 删了运行，最近运行列表立刻失效
     return jsonify({'ok': True, 'run': run})
+
+# ---------------------------------------------------------------
+# 手动清理 / 归档（2026-10-28）
+# ---------------------------------------------------------------
+# 为什么不直接删：工具产物既是结果也是下游输入，删了不可恢复。归档把登记
+# 目录移进 tool_runs/_archive/（列表接口只认非下划线开头的目录），列表里
+# 干净了、数据还在，随时能恢复；确实要腾磁盘再走 _archive 的永久删除。
+# 外移到用户目录的运行（out_link.json 指针）只归档登记项，产物原地不动。
+
+
+def _busy_run_on(path):
+    """该目录上有 running/queued 任务时返回任务记录，否则 None。"""
+    p_key = os.path.normcase(os.path.abspath(path))
+    with tm.lock:
+        for r in tm.tasks.values():
+            if (r.get('status') in ('running', 'queued') and r.get('out_dir')
+                    and os.path.normcase(os.path.abspath(str(r['out_dir'])))
+                    == p_key):
+                return r
+    return None
+
+
+def _archive_root(create=True):
+    """归档区根；create=False 时只算路径（清单接口用，不能因为建不了
+    目录就把整个面板打成 403 —— 首次使用、只读盘都会走到这里）。"""
+    p = check_path(os.path.join(_tool_runs_root(), _ARCHIVE_DIR),
+                   must_exist=False, in_platform=True)
+    if create:
+        os.makedirs(p, exist_ok=True)
+    return p
+
+
+def _move_dir(src, dst):
+    """同盘 move；刚被下载占用的句柄会让目录短暂锁住，回收后重试一次。"""
+    import shutil as _sh
+    try:
+        _sh.move(src, dst)
+    except OSError:
+        import gc as _gc
+        _gc.collect()
+        time.sleep(0.3)
+        _sh.move(src, dst)
+
+
+def _valid_run_name(run):
+    return bool(re.fullmatch(r'[A-Za-z0-9_\-]+', run)) and not run.startswith('_')
+
+
+@bp.route('/api/tool/runs/<run>/archive', methods=['POST'])
+def api_tool_run_archive(run):
+    """把一个运行收进归档区（可恢复，不删数据）。"""
+    if not _valid_run_name(run):
+        abort(400, '无效的运行名')
+    base = os.path.join(_tool_runs_root(), run)
+    dst = os.path.join(_archive_root(), run)
+    if os.path.exists(dst):
+        abort(409, f'归档区已有同名运行：{run}')
+    base = check_path(base, must_exist=True, in_platform=True)
+    real = _run_real_dir(run)
+    external = os.path.abspath(real) != os.path.abspath(base)
+    busy = _busy_run_on(base) or _busy_run_on(real)
+    if busy:
+        abort(409, f'该运行目录上有任务正在跑（{busy.get("id")} '
+                   f'{busy.get("name")}）；请先停止任务再归档')
+    dst = check_path(dst, must_exist=False, in_platform=True)
+    _move_dir(base, dst)
+    _RUNS_CACHE.clear()
+    return jsonify({'ok': True, 'run': run, 'archived_to': dst,
+                    'external_output': external,
+                    'real_out_dir': real if external else None})
+
+
+@bp.route('/api/tool/runs/archive', methods=['POST'])
+def api_tool_runs_archive():
+    """按「每个模块保留最近 keep 次」批量归档（keep=0 → 该模块全归档）。
+
+    body: {"keep": 3, "prefixes": ["fastp"], "confirm": "archive"}
+    （prefixes 省略 = 全部模块）
+
+    `confirm` 必填且须等于 'archive'：本接口会批量移动运行目录，空 body 下
+    keep 缺省 3 就已经是破坏性效果。见 ARCHIVE_CONFIRM 的说明。
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    if str(body.get('confirm') or '') != ARCHIVE_CONFIRM:
+        abort(400, '批量归档需显式确认：请求体须含 '
+                   f'{{"confirm": "{ARCHIVE_CONFIRM}"}}')
+    try:
+        keep = int(body.get('keep', 3))
+    except (TypeError, ValueError):
+        abort(400, 'keep 必须是整数')
+    keep = max(0, min(keep, 1000))
+    prefixes = tuple(str(p).rstrip('_') for p in (body.get('prefixes') or []) if p)
+
+    root = _tool_runs_root()
+    sig, names = _runs_signature(root)
+    if sig is None:
+        return jsonify({'ok': True, 'moved': [], 'skipped': [], 'kept': keep})
+    kept, moved, skipped = {}, [], []
+    for name in names:
+        pfx = _run_prefix(name)
+        if prefixes and pfx not in prefixes:
+            continue
+        if kept.get(pfx, 0) < keep:
+            kept[pfx] = kept.get(pfx, 0) + 1
+            continue
+        base = os.path.join(root, name)
+        dst = os.path.join(_archive_root(), name)
+        if os.path.exists(dst) or _busy_run_on(base) or _busy_run_on(_run_real_dir(name)):
+            skipped.append(name)
+            continue
+        try:
+            _move_dir(base, dst)
+            moved.append(name)
+        except OSError:
+            skipped.append(name)
+    _RUNS_CACHE.clear()
+    return jsonify({'ok': True, 'moved': moved, 'skipped': skipped, 'kept': keep})
+
+
+@bp.route('/api/tool/runs/archived')
+def api_tool_runs_archived():
+    """归档区清单（名称 / 体积 / 文件数），供「归档区」面板展示。"""
+    try:
+        root = _archive_root(create=False)
+        names = sorted(os.listdir(root), reverse=True)
+    except (OSError, ValueError):
+        return jsonify([])
+    out = []
+    for n in names:
+        d = os.path.join(root, n)
+        if n.startswith('.') or not os.path.isdir(d):
+            continue
+        size, nfiles = 0, 0
+        for cur, _subs, fns in os.walk(d):
+            for fn in fns:
+                try:
+                    size += os.path.getsize(os.path.join(cur, fn))
+                    nfiles += 1
+                except OSError:
+                    pass
+        out.append({'name': n, 'bytes': size,
+                    'size': fmt_size(size), 'files': nfiles})
+    return jsonify(out)
+
+
+@bp.route('/api/tool/runs/<run>/unarchive', methods=['POST'])
+def api_tool_run_unarchive(run):
+    """从归档区恢复到正常运行列表。"""
+    if not _valid_run_name(run):
+        abort(400, '无效的运行名')
+    src = check_path(os.path.join(_archive_root(), run),
+                     must_exist=True, in_platform=True)
+    dst = check_path(os.path.join(_tool_runs_root(), run),
+                     must_exist=False, in_platform=True)
+    if os.path.exists(dst):
+        abort(409, f'运行目录已存在：{run}')
+    _move_dir(src, dst)
+    _RUNS_CACHE.clear()
+    return jsonify({'ok': True, 'run': run})
+
+
+@bp.route('/api/tool/runs/archived/purge', methods=['POST'])
+def api_tool_runs_archive_purge():
+    """永久删除归档区（body.names 省略 = 清空归档）。不可恢复。
+
+    请求体须含 {"confirm": "purge"}：空 body 等价于「清空整个归档区」，
+    是全平台最危险的几个入口之一。见 PURGE_CONFIRM 的说明。
+    """
+    import shutil as _sh
+    body = request.get_json(force=True, silent=True) or {}
+    if str(body.get('confirm') or '') != PURGE_CONFIRM:
+        abort(400, '永久删除归档需显式确认：请求体须含 '
+                   f'{{"confirm": "{PURGE_CONFIRM}"}}')
+    names = body.get('names')
+    root = _archive_root()
+    if names:
+        targets = [str(n) for n in names]
+    else:
+        targets = [n for n in os.listdir(root)
+                   if os.path.isdir(os.path.join(root, n))]
+    removed, failed = [], []
+    for n in targets:
+        if not _valid_run_name(n):
+            failed.append(n)
+            continue
+        d = os.path.join(root, n)
+        if not os.path.isdir(d):
+            failed.append(n)
+            continue
+        _sh.rmtree(d, ignore_errors=True)
+        if os.path.isdir(d):
+            import gc as _gc
+            _gc.collect()
+            time.sleep(0.3)
+            _sh.rmtree(d, ignore_errors=True)
+        (removed if not os.path.isdir(d) else failed).append(n)
+    return jsonify({'ok': True, 'removed': removed, 'failed': failed})
+
+
 
 
 @bp.route('/api/tool/open', methods=['POST'])
