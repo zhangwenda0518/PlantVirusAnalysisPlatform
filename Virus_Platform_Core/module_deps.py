@@ -24,7 +24,7 @@ import threading
 import time
 
 from Virus_Platform_Core import plugin_manager as pm
-from Virus_Platform_Core.config import DIRS, PLATFORM_ROOT
+from Virus_Platform_Core.config import DIRS, PLATFORM_ROOT, RUN_ROOT
 
 # ----------------------------------------------------------------------
 # 模块 → 工具键（唯一真源）
@@ -116,9 +116,10 @@ _NO_PLUGIN_HINT = {
     'orfipy': 'orfipy：pip install orfipy（随 requirements.txt 安装）',
 }
 
-_AUTOFIX_LOG = os.path.join(DIRS.get('run') or
-                            os.path.join(PLATFORM_ROOT, 'run'),
-                            'plugin_autofix.json')
+# 落点必须跟 RUN_ROOT 走：DIRS 里没有 'run' 这个键（只有 results/tool_runs
+# 等子目录），旧写法 `DIRS.get('run') or <平台根>/run` 的 or 分支**永远生效**，
+# 于是 VP_RUN_ROOT 隔离时它照样往真实 run/ 写（测试产物污染用户目录的漏点）。
+_AUTOFIX_LOG = os.path.join(RUN_ROOT, 'plugin_autofix.json')
 _lock = threading.Lock()
 
 

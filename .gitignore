@@ -184,3 +184,6 @@ build_dist/
 # 插件安装台账（plugin_manager 运行态文件，含 installed_at 与本机安装路径）。
 # 仓库只分发插件清单 plugins-dist/index.json。
 plugins/_registry.json
+
+# 测试隔离报告（tests/conftest.py 每次 pytest 覆盖写）——诊断产物，不入库
+tests/_isolation_report.txt

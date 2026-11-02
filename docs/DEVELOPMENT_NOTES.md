@@ -6548,3 +6548,74 @@ boot 先恢复，共 25 条断言，已登记进 `tests/_run_all.py`（60s）。
 变异验证过：把 `_ensureCtx` 开头那句 `AI.restoreOnce()` 删掉（模拟「又被挪回网络之后」），
 守卫立刻 `FAILED: 1 项不变量被改坏`；恢复文件后哈希一致、重新全绿。
 今后改这一带代码，先跑它；红了就是有人把某一环改回去了，不必再等用户切页踩出来。
+
+---
+
+## 批量测试的三条守卫：把「反复」变成机器可拦（2026-11-02）
+
+背景：2026-10-30~11-02 两天里，同一套件的分数摇摆 5 次
+（03:04 98/107 → 03:34 106/107 → 04:06 104/109 → 04:27 109/109 →
+05:10 107/107），期间有人反复「改好又改坏」。复盘发现**大部分不是代码错，
+而是验证本身不可靠**：并发套件互删 `run/` 产物、浏览器残留 localStorage、
+借用的集合恰好全是 hypothetical、改了 config 没重启。这三条规矩此前只写在
+本文件里靠人记，现在做成 `tests/_run_all.py` 的默认行为 + `tests/test_suite_guards.py`
+（24 条断言）锁住行为。
+
+### G1 并发实例检测（默认中止，不再「警告后继续」）
+
+旧行为：拿不到互斥锁（`tests/._run_all.lock`）只打印一句警告就继续跑，
+于是两个套件并发 → `run/` 互毁 → 「单跑全绿、批量随机红」。
+新行为：
+- 拿不到锁**默认 `return 2` 中止**；应急可设 `VP_ALLOW_CONCURRENT=1` 强制。
+- 探测候选端口 `8765/8900/8989/9600/8888/5050/5000`（与 `app.py:_pick_port()`
+  同表）：**≥2 个实例在监听直接拒跑**——多实例并存时无法确定测试打的是哪一个。
+  实测当场命中：本机 8765 与 8900 各有一个平台实例在跑。
+- 写死 `127.0.0.1:8765` 的用例（约 13 个 UI 巡检）在无实例时**标 SKIP 而不是
+  FAIL**：那是环境缺失，不是代码错。判定只认 `= 'http://127.0.0.1:8765…` 这种
+  字面量赋值，`_check_pages_console.py` docstring 里的 `[--base …]` 不会被误判
+  （它正文自起 werkzeug）。
+
+### G2 真实 run/ 归账（隔离 + 点名，不静默）
+
+`Virus_Platform_Core/config.py` 新增 `RUN_ROOT`：读 `VP_RUN_ROOT`，空则
+`<平台根>/run`；`DIRS` 的 13 个 run 系条目与 `apply_output_root()` 默认分支全部
+改由它拼。`tests/_run_all.py` 给每个子进程注入 `VP_RUN_ROOT=<%TEMP%>/vp_suite_<ts>/run`
+（`VP_KEEP_RUN_ROOT=1` 可关掉隔离用于排查），`tests/conftest.py` 给 pytest 做同样的事。
+
+仅隔离还不够——有路径会绕过 `config.DIRS` 自己拼目录。所以每个用例前后对
+`<平台根>/run/{results,tool_runs}` 取快照，**新建条目就挂在那个用例名下**，
+报告末尾汇总点名：
+```
+真实 run/ 归账: ✗ 1 个用例写入了真实目录（tests/_tmp_residue_probe.py）
+```
+本轮靠它（和 pytest 的 `tests/_isolation_report.txt`）抓到两个真实漏点并修掉：
+- `app.py` 的 `.port` 落盘硬拼 `<平台根>/run`（`__file__` 相对）；
+- `module_deps.py:119` 的 `DIRS.get('run') or <平台根>/run` —— `DIRS` 里**根本没有**
+  `'run'` 这个键，`or` 分支永远生效，隔离时照样写真实目录。
+另一个连带修复：`config.write_roots()` 增补 `RUN_ROOT`。隔离根在平台外时，
+`utils.check_path(in_platform=True)` 会把写在隔离根里的 tool_run 判「路径越界」，
+表现为"合法的 mirna 输入被新校验误伤"（5 个用例红）——隔离一上线就暴露的
+真实缺陷，不是测试写错。
+
+### G3 单跑复验（红/绿交给机器判，不靠人再跑一遍）
+
+FAIL / TIMEOUT 的用例自动**单独**再跑一次；单跑通过 → 记 `FLAKY`，
+不计入失败但单独列出，退出码仍为 0。`--no-retry` 或 `VP_NO_RETRY=1` 关闭。
+汇总行因此变成：
+```
+批量测试汇总: 3/3 有效通过（PASS 2 + FLAKY 1（首跑红、单跑绿，不计失败），0 失败）
+```
+`test_suite_guards.py::test_judge_retry_semantics` 锁住四种组合
+（首跑过 / 首跑红单跑绿 / 两次都红 / 关掉复验）。
+
+### 用法
+
+```bash
+python tests/_run_all.py                 # 全套（默认隔离 + 三条守卫）
+python tests/_run_all.py --quick         # 跳过 slow
+python tests/_run_all.py --no-retry      # 不复验，按首跑算
+python tests/_run_all.py --list          # 清单（[需运行实例] 会标出来）
+VP_KEEP_RUN_ROOT=1 python tests/_run_all.py   # 不隔离，直接读写真实 run/
+```
+
+自测：`python -m pytest tests/test_suite_guards.py -q` → 24 passed（0.3s）。

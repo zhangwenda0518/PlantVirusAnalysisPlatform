@@ -316,6 +316,18 @@ del _bp
 from Virus_Platform_Core.web.download import bind_downloads as _bind_downloads  # noqa: E402
 _bind_downloads()
 
+# 子进程事件回传（2026-11-02）：对话坞发起的跑批跑在 MCP 子进程里，它的
+# 阶段事件（📖 开始 / ✔ 完成 / 🏁 全部完成）写进 run/ai_audit/spool/，这里起
+# 一个 daemon 线程 tail 回本进程的广播缓冲，SSE 才推得到对话坞。
+# VP_EVENT_RELAY=0 可关（纯测试/排查用）。
+if os.environ.get('VP_EVENT_RELAY', '1') != '0':
+    try:
+        from Virus_Platform_Core.ai_agent.spool_relay import (
+            start_relay as _start_ai_relay)
+        _start_ai_relay()
+    except Exception as _e:                       # 回传坏了不影响网页
+        sys.stderr.write(f'[app] AI 事件回传启动失败（忽略）: {_e}\n')
+
 
 # ------------------------------------------------------------------
 # 兼容别名：app.py 拆分到 Virus_Platform_Core/web/ 之前，这些名字挂在 app 模块上，
@@ -939,7 +951,10 @@ def main():
     # 平台备选端口 8900/9600/随机段全在扫描区间外——2026-10-04 审查 E4）
     try:
         import pathlib as _pl
-        _port_file = _pl.Path(__file__).resolve().parent / 'run' / '.port'
+        # 必须跟 RUN_ROOT 走：VP_RUN_ROOT 隔离（测试套件/多实例并存）时，
+        # 硬拼 `<平台根>/run` 会把 .port 写进别人的真实目录。
+        from Virus_Platform_Core.config import RUN_ROOT as _RR
+        _port_file = _pl.Path(_RR) / '.port'
         _port_file.parent.mkdir(parents=True, exist_ok=True)
         _port_file.write_text(str(port), encoding='ascii')
     except OSError:

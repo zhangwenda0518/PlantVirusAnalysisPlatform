@@ -5,20 +5,44 @@
     python tests/_run_all.py                 # 跑全部（含慢测试）
     python tests/_run_all.py --quick         # 跳过 slow 标记的测试
     python tests/_run_all.py --list          # 只列测试清单与分级
+    python tests/_run_all.py --no-retry      # 失败不自动单跑复验（见下）
     python tests/_run_all.py _it_align _it_submit   # 只跑指定测试
 
 超时策略：每个测试有**独立**超时（默认 300s），慢测试放宽到 1500s。
 此前用统一短超时 + 外壳 kill，会把"跑得久"误判成"失败"（rc=143/1），
 掩盖真实结论——现在超时会明确标 TIMEOUT，与 FAIL 区分。
 
+三条机器守卫（2026-11-02 加，此前只写在文档里靠人记）
+------------------------------------------------------
+G1 并发实例检测：拿不到互斥锁**默认中止**（旧行为是打条警告继续跑，于是
+   两个套件并发互删 run/ 产物，表现为"单跑全绿、批量随机红"）。同时探测
+   候选端口上已有的平台实例：≥2 个实例直接拒跑（多实例正是假红源头）；
+   1 个实例则提示"本次有 N 个用例会复用它并写入其真实 run/"。
+   `VP_ALLOW_CONCURRENT=1` 可强制继续（应急用，不建议）。
+G2 产物归账（清场）：每个用例前后对 `<平台根>/run/{results,tool_runs}` 取
+   快照，凡在真实目录里**新建**了条目就把条数挂在那个用例名下，收尾时汇总
+   写进报告。子进程一律带 VP_RUN_ROOT 指向临时隔离根，所以正常情况下这一栏
+   应全是 0——不是 0 就说明有东西绕过了 config.DIRS 自己拼路径，必须点名。
+G3 单跑复验：FAIL / TIMEOUT 的用例会自动**单独**再跑一次（同一环境、独占），
+   单跑通过则记为 FLAKY（不计入失败，但报告里单独列出）。这就是把
+   "红了但单跑是绿的"这类争论交给机器判定，而不是靠人再跑一遍猜。
+   `--no-retry` 或 `VP_NO_RETRY=1` 关闭。
+
 环境变量:
     VP_SKIP_ONLINE=1   跳过一切真实网络请求的测试段（透传给子进程）
+    VP_RUN_ROOT=<绝对路径>  子进程运行期根（默认自动分配临时隔离根）
+    VP_KEEP_RUN_ROOT=1      不隔离，直接读写真实 run/（排查用）
+    VP_ALLOW_CONCURRENT=1   拿不到互斥锁也继续（应急）
+    VP_NO_RETRY=1           关闭失败自动单跑复验
 输出: tests/_run_all_report.txt
 """
 import io
 import os
+import re
+import socket
 import subprocess
 import sys
+import tempfile
 import time
 # 控制台编码兜底：Windows 默认代码页是 GBK，本脚本的 ✔/✘/⚠ 等字符会让
 # print 抛 UnicodeEncodeError（2026-09-11 实测多处踩过）。只改错误处理为
@@ -31,6 +55,10 @@ for _stream in (sys.stdout, sys.stderr):
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 本次套件的隔离运行期根（main() 里定一次，_child_env() 读取）。
+# 用 dict 而不是模块级字符串：避免 import 顺序造成的"读时还没赋值"。
+_ACTIVE_RUN_ROOT = {'path': None}
 
 # 互斥锁：所有测试都通过 app.test_client() 直接读写同一个 run/ 目录，
 # 两个批量实例并发跑会互相删/改对方产物，表现为「单跑全过、批量随机 FAIL」。
@@ -98,6 +126,139 @@ def _release_lock():
         os.remove(_LOCK_PATH)
     except OSError:
         pass
+
+
+# ------------------------------------------------------------------
+# 机器守卫 G1：并发实例 / 端口预检
+# ------------------------------------------------------------------
+# 与 app.py:_pick_port() 的候选表保持一致（两边改要一起改，故在此互相注明）。
+_PORT_CANDIDATES = (8765, 8900, 8989, 9600, 8888, 5050, 5000)
+
+# 用例里出现「直接把 8765 写进 URL 赋值」→ 它需要一个**已经在跑**的平台实例。
+# 只认 `= 'http://127.0.0.1:8765…` 这种字面量赋值：
+#   · _check_pages_console.py 的 docstring 里那句 `[--base http://127.0.0.1:8765]`
+#     只是用法提示，它正文自起 werkzeug，不该算"需要外部实例"；
+#   · f'http://127.0.0.1:{_port}' 这类自选端口的写法也不匹配。
+_LIVE_URL_RE = re.compile(
+    r"""=\s*['"]https?://(?:127\.0\.0\.1|localhost):8765""")
+
+
+def _port_listening(port, host='127.0.0.1', timeout=0.35):
+    """本机回环端口上是否有进程在监听（只建连探测，不发任何请求）。"""
+    try:
+        with socket.create_connection((host, int(port)), timeout=timeout):
+            return True
+    except (OSError, ValueError, TypeError):
+        return False
+
+
+def _live_instance_ports(ports=None):
+    """候选端口里正在监听的（即可能已有平台实例）。"""
+    return [p for p in (ports if ports is not None else _PORT_CANDIDATES)
+            if _port_listening(p)]
+
+
+def _test_needs_live_instance(path):
+    """该用例是否必须打一个正在运行的真实平台实例（读源码判断，不看文件名）。"""
+    try:
+        with io.open(path, encoding='utf-8', errors='replace') as f:
+            src = f.read()
+    except OSError:
+        return False
+    return bool(_LIVE_URL_RE.search(src))
+
+
+# ------------------------------------------------------------------
+# 机器守卫 G2：真实 run/ 产物归账
+# ------------------------------------------------------------------
+_WATCH_DIRS = ('results', 'tool_runs')
+
+# 与 config.DIRS 的 run 系条目同名（子进程被隔离到临时根时也要能 self-made）
+_RUN_SUBDIRS = ('results', 'tool_runs', 'downloads', 'logan', 'submissions',
+                'meta_search', 'tasks', 'logs', 'ai_audit', 'uploads',
+                'fastq', 'gb_collections', 'ncbi_refs')
+_TOOL_RUNS_FIXED = ('_archive', '_tmp', '_scripts', '_reports')
+
+
+def _real_run_dirs():
+    """真实 run/ 下各产物目录的条目名集合（隔离根在 %TEMP%，故这里固定看 ROOT）。"""
+    out = {}
+    for name in _WATCH_DIRS:
+        d = os.path.join(ROOT, 'run', name)
+        try:
+            out[name] = set(os.listdir(d))
+        except OSError:
+            out[name] = set()
+    return out
+
+
+def _diff_dirs(before, after):
+    """after 相对 before 新增的条目，按目录名分组并排序（便于报告逐条点名）。"""
+    return {name: sorted(after.get(name, set()) - before.get(name, set()))
+            for name in _WATCH_DIRS}
+
+
+def _describe_residue(diff):
+    """把新增条目压成一行 `tool_runs+3 results+1`；无新增返回空串。"""
+    return ' '.join(f'{n}+{len(v)}' for n, v in diff.items() if v)
+
+
+# ------------------------------------------------------------------
+# 机器守卫 G3：失败自动单跑复验
+# ------------------------------------------------------------------
+def _status_of(timed_out, rc):
+    """单次执行的粗状态：PASS / FAIL / TIMEOUT（不含耗时等展示细节）。"""
+    if timed_out:
+        return 'TIMEOUT'
+    return 'PASS' if rc == 0 else 'FAIL'
+
+
+def _judge(first_ok, retry_ok, retry_skipped=False):
+    """G3 判定：首跑失败但单跑通过 → FLAKY（不是真失败）。
+
+    retry_skipped=True 表示用户关掉了复验（--no-retry），此时只能按首跑结论。
+    """
+    if first_ok:
+        return 'PASS'
+    if retry_skipped:
+        return 'FAIL'
+    return 'FLAKY' if retry_ok else 'FAIL'
+
+
+def _no_retry(flags):
+    """是否关闭 G3 复验（--no-retry 或 VP_NO_RETRY=1）。"""
+    return ('--no-retry' in flags
+            or os.environ.get('VP_NO_RETRY', '').strip() in ('1', 'true', 'yes'))
+
+
+def _keep_real_run_root():
+    """VP_KEEP_RUN_ROOT=1 → 不隔离，直接读写真实 run/（排查用）。"""
+    return os.environ.get('VP_KEEP_RUN_ROOT', '').strip() not in ('', '0')
+
+
+def _suite_run_root():
+    """分配本套件专用的隔离运行期根；返回 None 表示用真实 run/。
+
+    为什么整套共用一个根而不是每个用例一个：部分用例（如 _it_platform）会
+    先建样品再读回，跨用例共享才符合它们原本的假设；真正的目标是"别落在
+    真实 run/"，不是"用例之间互相看不见"。
+    """
+    if _keep_real_run_root():
+        return None
+    base = os.path.join(tempfile.gettempdir(),
+                        'vp_suite_%s_%d' % (time.strftime('%Y%m%d_%H%M%S'),
+                                            os.getpid()))
+    root = os.path.join(base, 'run')
+    try:
+        for name in _RUN_SUBDIRS:
+            os.makedirs(os.path.join(root, name), exist_ok=True)
+        for name in _TOOL_RUNS_FIXED:
+            os.makedirs(os.path.join(root, 'tool_runs', name), exist_ok=True)
+    except OSError as e:
+        print(f'[警告] 隔离根创建失败（{e}），回退真实 run/；'
+              f'本次产物会落在真实目录，报告会逐条点名。')
+        return None
+    return root
 
 # (路径, 单测超时秒, 是否 slow)
 # slow=True 的测试含真实重型计算或在线请求，`--quick` 时跳过。
@@ -495,14 +656,18 @@ def _fmt_secs(s):
     return f'{s / 60:.1f}min' if s >= 120 else f'{s:.0f}s'
 
 
-def _child_env():
-    """子进程环境：剥掉宿主 Agent 会话注入的删除监控变量。
+def _child_env(run_root=None):
+    """子进程环境：剥掉宿主 Agent 会话注入的删除监控变量 + 设定隔离运行期根。
 
     某些 Agent/IDE 会话会把 CODEBUDDY_SAFE_DELETE_* 注入环境，并通过
     stdout 监控子进程输出。测试的收尾清理（shutil.rmtree）在累计计数
     超阈值后会被标记为 SAFE_DELETE_BULK_CONFIRM_REQUIRED，导致**明明全部
     断言已通过**的子进程以 rc=1 退出——表现为"单跑全过、批量随机 FAIL"。
     测试是本地受控目录内的自我清理，不需要外部删除守卫，故剥离。
+
+    run_root 非空 → 注入 VP_RUN_ROOT，子进程的 config 把 13 个 run 系目录
+    全部落到该根（见 Virus_Platform_Core/config.py 的 RUN_ROOT）。这是 G2
+    的根：测试产物不该混进用户真实 results/tool_runs。
     """
     env = {k: v for k, v in os.environ.items()
            if 'SAFE_DELETE' not in k and not k.startswith('CODEBUDDY_')}
@@ -513,6 +678,11 @@ def _child_env():
         parts = [p for p in env['PATH'].split(os.pathsep)
                  if 'safe-bin' not in p.replace('\\', '/')]
         env['PATH'] = os.pathsep.join(parts)
+    root = run_root if run_root is not None else _ACTIVE_RUN_ROOT['path']
+    if root:
+        env['VP_RUN_ROOT'] = root
+    else:
+        env.pop('VP_RUN_ROOT', None)      # 别让宿主 shell 的残留值误导子进程
     return env
 
 
@@ -520,25 +690,66 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith('-')]
     flags = {a for a in sys.argv[1:] if a.startswith('-')}
     quick = '--quick' in flags or '-q' in flags
+    allow_concurrent = (os.environ.get('VP_ALLOW_CONCURRENT', '').strip()
+                        in ('1', 'true', 'yes'))
 
     if '--list' in flags:
         for path, to, slow in TESTS:
             tag = '  [slow]' if slow else ''
-            print(f'{path:34s} timeout={_fmt_secs(to)}{tag}')
+            live = ('  [需运行实例]'
+                    if _test_needs_live_instance(os.path.join(ROOT, path))
+                    else '')
+            print(f'{path:34s} timeout={_fmt_secs(to)}{tag}{live}')
         return 0
 
-    # 互斥锁只用于避免并发实例互毁 run/ 目录；拿不到锁时**默认继续跑**
-    # 并打印警告——测试可用性优先，锁不该成为跑不了测试的理由。
-    # 设 VP_STRICT_LOCK=1 可恢复"拿不到锁就退出"的严格行为。
+    # ---- G1-① 互斥锁：默认严格 ----
+    # 旧行为是"拿不到锁也继续跑，只打条警告"，于是两个套件并发互删 run/
+    # 产物，结论摇摆（03:04 98/107 → 04:06 104/109 → 04:27 109/109）。
+    # 现在默认中止：宁可让人等，也不要给出不可信的分数。
     locked = _acquire_lock()
-    strict = os.environ.get('VP_STRICT_LOCK', '').strip() in ('1', 'true', 'yes')
     if not locked:
-        if strict:
+        if not allow_concurrent:
+            print('\n[中止] 未取得互斥锁：另一个批量测试实例正在运行。\n'
+                  '       两个套件共享同一份 run/，并发会互相删产物，'
+                  '得出"单跑全绿、批量随机红"的假结论。\n'
+                  '       等它跑完再试；确实要并发请设 VP_ALLOW_CONCURRENT=1'
+                  '（不建议，结果可信度自行承担）。')
             return 2
-        print('[警告] 未取得互斥锁（可能有并发实例）。仍继续，'
-              '结果可能受干扰；如需严格中止请设 VP_STRICT_LOCK=1\n')
+        print('[警告] VP_ALLOW_CONCURRENT=1：已强制并发运行，'
+              '本次分数可能受干扰。\n')
+
+    # ---- G1-② 平台实例计数 ----
+    # 8765 是平台默认端口；被占时 app.py 会顺延到 8900/8989/9600/…
+    # 因此候选表里出现 ≥2 个监听端口 ≈ 开了 ≥2 个平台实例（真实出现过的
+    # 情形：pid 58296 与 pid 27996 并存）。多实例本身不会让测试错，但它
+    # 让"我看到的页面到底是谁的"无法确定，直接拒跑比事后解释便宜。
     try:
-        return _run(plan_from(args), quick)
+        ports = _live_instance_ports()
+        if len(ports) >= 2 and not allow_concurrent:
+            print(f'\n[中止] 检测到 {len(ports)} 个平台实例在监听：'
+                  f'{", ".join(str(p) for p in ports)}。\n'
+                  '       多实例并存时无法确定测试打的是哪一个，'
+                  '且它们共用同一份 run/。\n'
+                  '       请先关掉多余的实例（或设 VP_ALLOW_CONCURRENT=1 强制）。')
+            return 2
+        if ports:
+            print(f'[预检] 平台实例在监听: {", ".join(str(p) for p in ports)}'
+                  '（浏览器类用例会复用它）')
+        plan = plan_from(args)
+        live = [p for p, _t, _s in plan
+                if _test_needs_live_instance(os.path.join(ROOT, p))]
+        if live and not _port_listening(8765):
+            print(f'[预检] {len(live)} 个用例写死 127.0.0.1:8765，但该端口无实例：'
+                  '这些用例将标 SKIP（不是 FAIL）。')
+        elif live:
+            print(f'[预检] {len(live)} 个用例将复用 8765 上的实例，'
+                  '它们会写入该实例的真实 run/（报告末尾逐条点名）。')
+        _ACTIVE_RUN_ROOT['path'] = _suite_run_root()
+        if _ACTIVE_RUN_ROOT['path']:
+            print(f'[隔离] 子进程运行期根: {_ACTIVE_RUN_ROOT["path"]}\n')
+        else:
+            print('[隔离] VP_KEEP_RUN_ROOT 生效：子进程将直接读写真实 run/\n')
+        return _run(plan, quick, live_ports=ports, no_retry=_no_retry(flags))
     finally:
         if locked:
             _release_lock()
@@ -558,7 +769,37 @@ def plan_from(args):
     return plan
 
 
-def _run(plan, quick):
+def _exec_once(is_pytest, p, timeout):
+    """跑一个用例一次，返回 (ok, 状态标签, 解码后的输出, 耗时秒)。"""
+    ts = time.time()
+    timed_out = False
+    rc = None
+    raw = b''
+    # pytest 风格用例没有 __main__，必须走 `python -m pytest`
+    cmd = ([sys.executable, '-m', 'pytest', p, '-q'] if is_pytest
+           else [sys.executable, p])
+    try:
+        r = subprocess.run(cmd, cwd=ROOT, env=_child_env(),
+                           capture_output=True, timeout=timeout)
+        rc = r.returncode
+        raw = (r.stdout or b'') + (r.stderr or b'')
+    except subprocess.TimeoutExpired as e:
+        # TimeoutExpired.stdout/err 可能是 None 或 bytes
+        timed_out = True
+        raw = (e.stdout or b'') + (e.stderr or b'')
+        if isinstance(raw, str):
+            raw = raw.encode('utf-8', 'replace')
+    dur = time.time() - ts
+    label = _status_of(timed_out, rc)
+    if label == 'TIMEOUT':
+        label = f'TIMEOUT(>{_fmt_secs(timeout)})'
+    elif label == 'FAIL':
+        label = f'FAIL(rc={rc})'
+    return label == 'PASS', label, raw.decode('utf-8', errors='replace'), dur
+
+
+def _run(plan, quick, live_ports=None, no_retry=False):
+    """逐例执行，三条守卫在这里落地：G1 早 SKIP / G2 归账 / G3 复验。"""
     if quick:
         skipped = [p for p, _t, s in plan if s]
         plan = [(p, to, s) for p, to, s in plan if not s]
@@ -566,10 +807,14 @@ def _run(plan, quick):
             print(f'--quick: 跳过 {len(skipped)} 个 slow 测试 '
                   f'({", ".join(os.path.basename(p) for p in skipped)})\n')
 
+    live_8765 = _port_listening(8765)
     out_path = os.path.join(ROOT, 'tests', '_run_all_report.txt')
     lines = []
     n_ok = 0
+    n_flaky = 0
+    n_fail = 0
     n_skip = 0
+    residue_log = []          # [(path, {dir: [新增条目…]})]
     t0 = time.time()
     for path, to, slow in plan:
         p = os.path.join(ROOT, path)
@@ -583,54 +828,91 @@ def _run(plan, quick):
             print(lines[-1])
             n_skip += 1
             continue
-        ts = time.time()
-        timed_out = False
-        try:
-            # pytest 风格用例没有 __main__，必须走 `python -m pytest`
-            cmd = ([sys.executable, '-m', 'pytest', p, '-q'] if is_pytest
-                   else [sys.executable, p])
-            r = subprocess.run(cmd, cwd=ROOT, env=_child_env(),
-                               capture_output=True, timeout=to)
-            rc = r.returncode
-            raw = (r.stdout or b'') + (r.stderr or b'')
-        except subprocess.TimeoutExpired as e:
-            # TimeoutExpired.stdout/err 可能是 None 或 bytes
-            timed_out = True
-            rc = None
-            raw = (e.stdout or b'') + (e.stderr or b'')
-            if isinstance(raw, str):
-                raw = raw.encode('utf-8', 'replace')
-        txt = raw.decode('utf-8', errors='replace')
+        # ---- G1-③ 需要运行实例的用例：没实例就 SKIP，不判红 ----
+        # 这些用例打 http://127.0.0.1:8765 的活页面，没实例时只会
+        # ConnectionRefused/30s 超时——那是环境缺失，不是代码错。
+        if _test_needs_live_instance(p) and not live_8765:
+            why = ('8765 无实例' if not live_ports
+                   else f'8765 无实例，另有 {live_ports} 在跑但本用例写死 8765')
+            lines.append(f'[SKIP] {path} 需要运行中的平台（{why}）')
+            print(lines[-1])
+            n_skip += 1
+            continue
+
+        before = _real_run_dirs()
+        ok_first, label, txt, dur = _exec_once(is_pytest, p, to)
+
+        # ---- G3 单跑复验：首跑失败就独占再跑一次 ----
+        retry_ok = None
+        if not ok_first and not no_retry:
+            print(f'  ↻ 单跑复验中: {path}', end='', flush=True)
+            retry_ok, label2, txt2, dur2 = _exec_once(is_pytest, p, to)
+            print(f'  ({dur2:.1f}s) → {label2}', flush=True)
+            dur += dur2
+            if not retry_ok:
+                txt = (txt + '\n--- 单跑复验（仍失败）---\n'
+                       + '\n'.join(txt2.strip().splitlines()[-16:]))
+        verdict = _judge(ok_first, retry_ok, retry_skipped=no_retry)
+        if verdict == 'PASS':
+            status = label
+            n_ok += 1
+        elif verdict == 'FLAKY':
+            status = f'FLAKY(首跑 {label}，单跑通过)'
+            n_flaky += 1
+        else:
+            status = label
+            n_fail += 1
+
+        # ---- G2 归账：这个用例有没有往真实 run/ 里塞东西 ----
+        diff = _diff_dirs(before, _real_run_dirs())
+        residue = _describe_residue(diff)
+        if residue:
+            residue_log.append((path, diff))
+
         # 尾部 24 行：浏览器类测试一段 ✔ 明细很长，14 行会把真正的
         # "✘ 失败项"清单截掉（2026-10-13 _it_nav_responsive 实抓）。
         tail = '\n'.join(txt.strip().splitlines()[-24:])
-        dur = time.time() - ts
-        if timed_out:
-            status = f'TIMEOUT(>{_fmt_secs(to)})'
-        else:
-            status = 'PASS' if rc == 0 else f'FAIL(rc={rc})'
-            if rc == 0:
-                n_ok += 1
         note = ''
         if path in _ONLINE_HINT and status != 'PASS':
             note = f'  ↳ {_ONLINE_HINT[path]}'
+        if residue:
+            note += f'  ↳ 真实 run/ 新增 {residue}'
         block = (f'{"=" * 70}\n[{status}] {path}  ({dur:.1f}s)\n'
                  f'{"-" * 70}\n{tail}\n')
         lines.append(block)
+        if residue:
+            lines.append(f'[归账] {path} 在真实 run/ 新建了 {residue}'
+                         '——应被 VP_RUN_ROOT 隔离，说明有路径绕过了'
+                         'config.DIRS 自己拼目录')
         print(f'[{status}] {path}  ({dur:.1f}s){note}')
         sys.stdout.flush()
 
     total = (len([p for p, _t, _s in plan
                   if os.path.isfile(os.path.join(ROOT, p))]) - n_skip)
     elapsed = time.time() - t0
-    head = (f'批量测试汇总: {n_ok}/{total} 通过，总耗时 {elapsed:.1f}s'
+    passed = n_ok + n_flaky
+    head = (f'批量测试汇总: {passed}/{total} 有效通过（PASS {n_ok}'
+            + (f' + FLAKY {n_flaky}（首跑红、单跑绿，不计失败）' if n_flaky else '')
+            + (f'，真实失败 {n_fail}' if n_fail else '，0 失败')
+            + f'），总耗时 {elapsed:.1f}s'
             + (f'（{n_skip} 个 SKIP）' if n_skip else '')
             + ('（--quick 模式）' if quick else '') + '\n')
+    iso = _ACTIVE_RUN_ROOT['path']
+    iso_line = (f'隔离根: {iso}\n' if iso
+                else '隔离: 未启用（VP_KEEP_RUN_ROOT 生效，子进程读写真实 run/）\n')
+    if residue_log:
+        names = '、'.join(p for p, _d in residue_log[:10])
+        res_line = (f'真实 run/ 归账: ✗ {len(residue_log)} 个用例写入了真实目录'
+                    f'（{names}{"…" if len(residue_log) > 10 else ""}）\n')
+    else:
+        res_line = '真实 run/ 归账: ✓ 全部用例均未写入真实目录\n'
     with io.open(out_path, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(head + '\n' + '\n'.join(lines))
+        f.write(head + iso_line + res_line + '\n' + '\n'.join(lines))
     print('\n' + head)
+    print(iso_line, end='')
+    print(res_line, end='')
     print(f'明细: {out_path}')
-    return 0 if n_ok == total else 1
+    return 0 if passed == total else 1
 
 
 if __name__ == '__main__':

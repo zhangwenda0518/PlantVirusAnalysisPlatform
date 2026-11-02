@@ -26,6 +26,30 @@ def _detect_platform_root():
 PLATFORM_ROOT = _detect_platform_root()
 
 
+def _run_root():
+    """运行期根目录（results/tool_runs/tasks/logs… 的父目录）。
+
+    默认 `<平台根>/run`；设 `VP_RUN_ROOT=<绝对路径>` 可整体切走。
+    存在的理由是**测试隔离**：批量测试（tests/_run_all.py 与 pytest）此前直接
+    读写真实 run/，2026-11-02 实测一天就在 run/tool_runs 留下 331 个一次性
+    目录（convert_/fastp_/primer_/pdprep_…），与真实产物混在一起，事后分不清
+    哪个是测试留下的——这本身就是"改对了/改错了"难以判断的一部分原因。
+
+    只接受绝对路径：相对路径会随子进程 cwd 漂移，静默落到别处比报错更糟。
+    """
+    v = (os.environ.get('VP_RUN_ROOT') or '').strip()
+    if not v:
+        return os.path.join(PLATFORM_ROOT, 'run')
+    if not os.path.isabs(v):
+        raise ValueError('VP_RUN_ROOT 需为绝对路径（收到 %r）' % v)
+    v = os.path.normpath(v)
+    os.makedirs(v, exist_ok=True)
+    return v
+
+
+RUN_ROOT = _run_root()
+
+
 def engine_cmd(script_abspath, *args):
     """构造「以子进程运行内部引擎脚本」的命令行。
 
@@ -62,20 +86,22 @@ DIRS = {
     'virus_src': os.path.join(PLATFORM_ROOT, 'databases',
                               'virusref_db'),               # 病毒参考 + 派生索引
     # ---- 运行期数据统一收在 run/ 下（2026-09-10 目录整理）----
-    'results':   os.path.join(PLATFORM_ROOT, 'run', 'results'),   # 样品结果
-    'tool_runs': os.path.join(PLATFORM_ROOT, 'run', 'tool_runs'),  # 工具运行目录
-    'downloads': os.path.join(PLATFORM_ROOT, 'run', 'downloads'),  # 公共数据下载
-    'logan':     os.path.join(PLATFORM_ROOT, 'run', 'logan'),     # LOGAN 溯源任务
-    'submissions': os.path.join(PLATFORM_ROOT, 'run', 'submissions'),  # NCBI 提交准备
-    'meta_search': os.path.join(PLATFORM_ROOT, 'run', 'meta_search'),  # 公共数据检索
-    'tasks':     os.path.join(PLATFORM_ROOT, 'run', 'tasks'),     # GUI 任务状态
-    'logs':      os.path.join(PLATFORM_ROOT, 'run', 'logs'),      # 全局日志
-    'ai_audit':  os.path.join(PLATFORM_ROOT, 'run', 'ai_audit'),  # AI 代理审计留痕
-    'uploads':   os.path.join(PLATFORM_ROOT, 'run', 'uploads'),   # 粘贴/上传中转
-    'fastq':     os.path.join(PLATFORM_ROOT, 'run', 'fastq'),     # 流程 FASTQ 中转
+    # 父目录用 RUN_ROOT 而非写死 PLATFORM_ROOT/run：测试与多实例可经
+    # VP_RUN_ROOT 整体切走，真实 run/ 不受污染（见 _run_root 注释）。
+    'results':   os.path.join(RUN_ROOT, 'results'),   # 样品结果
+    'tool_runs': os.path.join(RUN_ROOT, 'tool_runs'),  # 工具运行目录
+    'downloads': os.path.join(RUN_ROOT, 'downloads'),  # 公共数据下载
+    'logan':     os.path.join(RUN_ROOT, 'logan'),     # LOGAN 溯源任务
+    'submissions': os.path.join(RUN_ROOT, 'submissions'),  # NCBI 提交准备
+    'meta_search': os.path.join(RUN_ROOT, 'meta_search'),  # 公共数据检索
+    'tasks':     os.path.join(RUN_ROOT, 'tasks'),     # GUI 任务状态
+    'logs':      os.path.join(RUN_ROOT, 'logs'),      # 全局日志
+    'ai_audit':  os.path.join(RUN_ROOT, 'ai_audit'),  # AI 代理审计留痕
+    'uploads':   os.path.join(RUN_ROOT, 'uploads'),   # 粘贴/上传中转
+    'fastq':     os.path.join(RUN_ROOT, 'fastq'),     # 流程 FASTQ 中转
     # ---- 用户在平台内产生的「集合」类数据（不是分发的库）----
-    'gb_collections': os.path.join(PLATFORM_ROOT, 'run', 'gb_collections'),
-    'ncbi_refs':      os.path.join(PLATFORM_ROOT, 'run', 'ncbi_refs'),
+    'gb_collections': os.path.join(RUN_ROOT, 'gb_collections'),
+    'ncbi_refs':      os.path.join(RUN_ROOT, 'ncbi_refs'),
     'webapp_static': os.path.join(PLATFORM_ROOT, 'webapp', 'static'),
     # 示例数据根（内置示例 FASTA/GenBank/树）：默认在程序目录内，
     # 但允许外置（打包时「程序 / 数据库 / 示例」三分离）。
@@ -657,7 +683,7 @@ def apply_output_root(root):
         # 「输出目录」清空（set_output_root('')），就会把 results/tool_runs…
         # 悄悄退回平台根下的旧位置，绕开 run/ 整理。
         target = os.path.join(root, name) if root \
-            else os.path.join(PLATFORM_ROOT, 'run', name)
+            else os.path.join(RUN_ROOT, name)
         DIRS[name] = target
         os.makedirs(target, exist_ok=True)
     # 同步预建 tool_runs 固定子目录（_archive/_tmp/_scripts/_reports）；
@@ -750,9 +776,16 @@ def get_examples_root():
 
 
 def write_roots():
-    """允许写入的根目录集合：平台根 + 自定义输出/输入/数据库根 + 已登记的
-    外部库根（若有）。check_path(in_platform=True) 据此放行写入类路径。"""
-    roots = [PLATFORM_ROOT]
+    """允许写入的根目录集合：平台根 + 运行期根 + 自定义输出/输入/数据库根 +
+    已登记的 外部库根（若有）。check_path(in_platform=True) 据此放行写入类路径。
+
+    RUN_ROOT 必须在内：默认它就是 PLATFORM_ROOT/run（包含关系下不加也放行），
+    但测试/多实例会把 VP_RUN_ROOT 指到平台外的隔离目录，此时工具运行的产物
+    路径（run/tool_runs/xxx）落在平台根之外——不放行就会被自己的越界守卫
+    判 400，表现为「明明是自己写的目录却说路径越界」（2026-11-02 隔离改造
+    后 test_tool_mutex_inputs / test_seq_input_cache 立即抓到）。
+    """
+    roots = [PLATFORM_ROOT, RUN_ROOT]
     for r in (*_EXTRA_DB_ROOTS, _OUTPUT_ROOT, _INPUT_ROOT, _DATABASE_ROOT):
         if r:
             roots.append(r)
