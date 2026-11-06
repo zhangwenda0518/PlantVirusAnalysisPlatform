@@ -133,8 +133,8 @@ async def p0_p1(ctx, s):
 
 async def p2_pipeline(s):
     sec('P2 真实全流程流水线（示例双端数据，默认 13 阶段）')
-    r1 = os.path.join(EX, 'example_R1.fastq.gz')
-    r2 = os.path.join(EX, 'example_R2.fastq.gz')
+    r1 = os.path.join(EX, 'example_sim100x_R1.fastq.gz')
+    r2 = os.path.join(EX, 'example_sim100x_R2.fastq.gz')
     err, sub, text = await call(
         s, 'vp_pipeline_start',
         {'sample': 'mcp_night_demo', 'r1': r1, 'r2': r2}, timeout=120)
@@ -182,7 +182,7 @@ TOOL_CARD_RUNS = [
     ('sdt', {'seqs': 'examples/example_cmv.fasta'}),
     ('genoplot', {'fasta': None, 'ann': 'examples/example_genome.gb'}),
     ('primer', {'fasta': 'examples/example_cmv.fasta', 'mode': 'plain'}),
-    ('convert', {'input': 'examples/example_R1.fastq.gz', 'target': 'fasta'}),
+    ('convert', {'input': 'examples/example_sim100x_R1.fastq.gz', 'target': 'fasta'}),
 ]
 
 

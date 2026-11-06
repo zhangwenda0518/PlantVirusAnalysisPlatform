@@ -25,7 +25,23 @@ import shutil
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DIST = os.path.join(os.path.dirname(REPO), 'PVAP')
+
+
+def _resolve_dist():
+    """产物根：--dist / VP_PVAP_DIST > 默认「仓库上一级/PVAP」（2026-11-03）。"""
+    _argv = sys.argv
+    for _i, _a in enumerate(_argv):
+        if _a == '--dist' and _i + 1 < len(_argv):
+            return os.path.abspath(_argv[_i + 1])
+        if _a.startswith('--dist='):
+            return os.path.abspath(_a.split('=', 1)[1])
+    _env = (os.environ.get('VP_PVAP_DIST') or '').strip()
+    if _env:
+        return os.path.abspath(_env)
+    return os.path.join(os.path.dirname(REPO), 'PVAP')
+
+
+DIST = _resolve_dist()
 REL = DIST
 APP = os.path.join(DIST, 'VirusPlatform')
 EX_DIR = os.path.join(DIST, 'VirusPlatform-Examples')
@@ -120,8 +136,9 @@ def write_readme(d, edition, full):
         '     misc_db (viroid refs, submission annotation, host probability tables),',
         '     dsRNA design data (thermodynamic lookup table + siRNA parameters) and',
         '     the t-mirna candidate miRNA library.',
-        '   - NCBI Taxonomy ships as the official new_taxdump.tar.gz and is unpacked',
-        '     automatically on the first run (offline, no download needed)',
+        '   - NCBI Taxonomy ships as the slim virus-subtree archive',
+        '     (new_taxdump_slim.tar.gz) and is unpacked automatically on the',
+        '     first run (offline, no download needed)',
         '   - Derived indexes (BLAST/DMND/salmon/minibwa) are generated on first use',
         '   - No host classification library (species-specific): build one on the DB',
         '     building page or load a prebuilt one with one click',
@@ -182,6 +199,14 @@ def build_edition(edition, tier):
         shutil.copy2(pj, tmp)
         os.replace(tmp, pj)
 
+    # 示例包（2026-11-03 补）：README 与平台自动探测都要求三子目录同层
+    # （program / examples / database），旧实现只克隆了程序与数据库，
+    # 两版目录里根本没有示例 → 示例按钮全部失效。
+    ex_d = os.path.join(d, 'VirusPlatform-Examples')
+    if os.path.isdir(ex_d):
+        shutil.rmtree(ex_d)
+    if os.path.isdir(EX_DIR):
+        clone(EX_DIR, ex_d)
     dbt = os.path.join(d, 'VirusPlatform-Database')
     if os.path.isdir(dbt):
         shutil.rmtree(dbt)
@@ -213,19 +238,20 @@ def write_selector():
         '1) PlantVirusPlatform' + BS,
         '   Program (13 main-workflow tool suites) + Examples + Database.',
         '   Specialised tools install on demand via Settings -> Plugins.',
-        '   Total size: about 1.9 GB  (program 1.13 + examples 0.06 + database 0.69)',
+        '   Total size: about 1.3 GB  (program 0.90 + examples 0.10 + database 0.28)',
         '',
         '2) PlantVirusPlatform_with_Plugin' + BS,
         '   Program (full 26-tool suite) + Examples + Database.',
         '   Everything bundled; nothing to install on demand.',
-        '   Total size: about 2.6 GB  (program 1.82 + examples 0.06 + database 0.69)',
+        '   Total size: about 2.0 GB  (program 1.60 + examples 0.10 + database 0.28)',
         '',
         'In each edition folder, double-click Start-Desktop.bat or Start-Web.bat',
         'to launch the platform. Keep the three sub-folders (program / examples /',
         'database) at the same level - the platform detects them automatically.',
         '',
-        'First run: the bundled NCBI taxonomy archive (new_taxdump.tar.gz) is',
-        'unpacked automatically (about one minute, no network needed).',
+        'First run: the bundled slim NCBI taxonomy archive',
+        '(new_taxdump_slim.tar.gz, virus-subtree-only) is unpacked',
+        'automatically (seconds, no network needed).',
         '',
         'Self-check: VirusPlatform' + BS + 'VirusPlatform.exe --cli selfcheck',
         '',
@@ -252,6 +278,8 @@ def clean_build_root():
             shutil.rmtree(p)
             removed.append(os.path.basename(p))
     for name in ('Start-Web.bat', 'Start-Desktop.bat',
+                 # 2026-11-05：两个助手已内联进入口脚本；旧构建残留一并清掉
+                 'open-browser.bat', 'mount-data.bat',
                  'README-Distribution.txt'):
         p = os.path.join(DIST, name)
         if os.path.isfile(p):
@@ -264,6 +292,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description='组装两版发布目录')
     ap.add_argument('--keep-build', action='store_true',
                     help='保留根目录三件中间产物（默认组装后删除）')
+    ap.add_argument('--dist', metavar='PATH', default='',
+                    help='产物根（默认「仓库上一级/PVAP」；用户机正式位置 D:\\PVAP）')
     a = ap.parse_args(argv)
     try:
         sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -292,7 +322,7 @@ def main(argv=None):
         d = os.path.join(REL, edition)
         for rel in (os.path.join('VirusPlatform', 'VirusPlatform.exe'),
                     os.path.join('VirusPlatform-Database', 'databases',
-                                 'new_taxdump.tar.gz')):
+                                 'new_taxdump_slim.tar.gz')):
             if not os.path.isfile(os.path.join(d, rel)):
                 print(f'✘ {edition} 缺少 {rel}，保留中间产物以便排查')
                 return 1

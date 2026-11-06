@@ -169,8 +169,8 @@ MODULES = {
     'tree': {
         'title': '⑧ 建树',
         'title_en': 'Tree building',
-        'desc': 'RAxML-NG 最大似然 / FastTree 快速 / IQ-TREE 3',
-        'plugins': ['raxml-ng', 'fasttree', 'iqtree', 'trimal'],
+        'desc': 'RAxML-NG 最大似然 / FastTree 快速',
+        'plugins': ['raxml-ng', 'fasttree', 'trimal'],
     },
     'kvsuite': {
         'title': '⑨ 已知病毒识别与定量',
@@ -195,7 +195,7 @@ MODULES = {
         'title': 'SDT 精确分析',
         'title_en': 'SDT identity',
         'desc': 'BLAST 两两比对计算同一性',
-        'plugins': ['blast'],
+        'plugins': ['mafft'],
     },
     'verify': {
         'title': '候选序列验证',

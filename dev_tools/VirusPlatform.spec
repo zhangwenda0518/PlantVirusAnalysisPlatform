@@ -161,6 +161,11 @@ a = Analysis(
                    # 不到；2026-10-07 生产审查补登。冻结版无 primer3 时
                    # 自动降级枚举路，无 ViennaRNA 时跳过结构过滤）
                    'Virus_Platform_Core.crispr_design',
+                   # CONAN-SWIFT（Cas3/I-E）crRNA 设计（tool_jobs 内惰性导入，
+                   # 静态分析不到；2026-11-04 补登）+ cricon 联合编排器
+                   # （同样惰性导入，顶层 import 两引擎）。
+                   'Virus_Platform_Core.conan_design',
+                   'Virus_Platform_Core.detect_kit',
                    # AI 助手（对话驱动智能代理，2026-10-08 补登）：web/ai_assist.py
                    # 顶层 import 了 chat/digest/broadcast/provider（静态分析可达），
                    # 但 **executors 只被函数内惰性 import 引用**

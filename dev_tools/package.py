@@ -70,6 +70,7 @@ dist/VirusPlatform-Source 的内容并入 VirusPlatform 程序目录，双击
 解释器与全部依赖在 3rd/python 里，primer3 亦随包）。exe 分发口径不受影响。
 """
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -105,6 +106,9 @@ _parser.add_argument('--with-plugins', action='store_true',
                           '三档分层轴已改为 3rd 内容本身——独立版用 --slim-tools，'
                           '完整版全量，见下。程序包自带全量 3rd 时预装插件是'
                           '纯冗余：插件只填缺、永不被读）')
+_parser.add_argument('--dist', metavar='PATH', default='',
+                     help='产物输出根（默认「仓库上一级/PVAP」；也可用环境变量 '
+                          'VP_PVAP_DIST。用户机正式分发位置：D:\\PVAP）')
 _parser.add_argument('--slim-tools', action='store_true',
                      help='独立版口径 A：3rd/tools 剔除 6 个「大件进阶工具」'
                           '（srna-target / strawberry-perl / snpeff / jre-snpeff /'
@@ -163,9 +167,21 @@ for _stream in (sys.stdout, sys.stderr):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 
-# 产物目录（2026-10-11 起迁出仓库）：固定在仓库**上一级**的 PVAP/ 独立目录——
-# 产物动辄数 GB，不再放仓库目录里撑体积；按仓库位置动态推导，换机仍成立。
-DIST = os.path.join(os.path.dirname(ROOT), 'PVAP')
+# 产物目录（2026-10-11 起迁出仓库）：产物动辄数 GB，不放仓库目录里撑体积。
+# 解析优先级（2026-11-03 增）：`--dist <path>` / `--dist=<path>` >
+# 环境变量 `VP_PVAP_DIST` > 默认「仓库上一级的 PVAP/」（历史口径，换机成立）。
+# 用户机上的正式分发位置是 `D:\PVAP`，打包时传 `--dist D:\PVAP` 即可。
+def _resolve_dist():
+    _cli = (getattr(_args, 'dist', '') or '').strip()
+    if _cli:
+        return os.path.abspath(_cli)
+    _env = (os.environ.get('VP_PVAP_DIST') or '').strip()
+    if _env:
+        return os.path.abspath(_env)
+    return os.path.join(os.path.dirname(ROOT), 'PVAP')
+
+
+DIST = _resolve_dist()
 APP = os.path.join(DIST, 'VirusPlatform')
 EX_DIR = os.path.join(DIST, 'VirusPlatform-Examples')
 DB_DIR = os.path.join(DIST, 'VirusPlatform-Database')
@@ -285,7 +301,16 @@ def _build_info():
         n, sz = _dir_stat(rel)
         db_dirs[rel + '/'] = {'files': n, 'bytes': sz}
 
+    # 平台版本号（2026-11-05 自动更新）：唯一权威 = Virus_Platform_Core.__version__，
+    # 从源码读出写进产物；自动更新靠它与服务器 manifest 比较（updater.py）。
+    try:
+        sys.path.insert(0, ROOT)
+        from Virus_Platform_Core import __version__ as _platform_version
+    except Exception:
+        _platform_version = ''
+
     return {
+        'version': _platform_version,
         'git_rev': _git('rev-parse', 'HEAD'),
         'built_at_utc': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
         'python': sys.version.split()[0],
@@ -355,6 +380,64 @@ def _dedupe_hardlinks(root, min_size=64 * 1024):
     return saved
 
 
+# ------------------------------------------------------------------
+# 0) 发布边界预检：scratch 不进发布包（2026-11-06）
+# ------------------------------------------------------------------
+# 进源码包的四个树（Virus_Platform_Core / webapp / scripts / dev_tools）
+# 里不允许出现临时文件、截图、构建日志、运行产物 —— 否则整树带进
+# VirusPlatform-Source（历史：examples/results 64MB 与 webapp/static 的
+# .png 是**合法内容**：前者是 tests/make_example_results.py 固化、
+# _check_examples_manifest.py 守着的示例产物分发特性；后者是前端静态
+# 资产。本预检刻意不误伤它们 —— 只抓下表模式）。
+_SCRATCH_DIRS = ('_probe*', '_zz_*', '_test_logs', '_backup*', '_bench*')
+_SCRATCH_FILES = ('*.log', '*.tmp', '*.bak', '*.orig', '*_shot*.png')
+
+# 源码包拷贝的兜底忽略名单（与预检同一份模式；预检命中即中止，这里是
+# 双保险 —— 有人用 --allow 类参数绕过预检或名单漏项时不带 scratch 进包）
+_SRC_IG_BASE = shutil.ignore_patterns(
+    '__pycache__', '*.pyc', '.pytest_cache', '.ruff_cache',
+    *(_SCRATCH_DIRS + _SCRATCH_FILES))
+
+
+def _preflight_release_boundary():
+    """打包前边界预检：源码树里混入 scratch → 打印清单并中止打包。"""
+    offenders = []
+    for rel in ('Virus_Platform_Core', 'webapp', 'dev_tools', 'scripts'):
+        base = os.path.join(ROOT, rel)
+        if not os.path.isdir(base):
+            continue
+        for cur, dirs, files in os.walk(base):
+            dirs[:] = [d for d in dirs if d not in ('__pycache__', '.git')
+                       and not d.startswith('.')]
+            # 目录级 scratch：整个目录计为违例并剪枝（不再下钻）
+            for d in list(dirs):
+                if any(fnmatch.fnmatch(d, p) for p in _SCRATCH_DIRS):
+                    for c2, _ds2, fs2 in os.walk(os.path.join(cur, d)):
+                        offenders.extend(
+                            os.path.relpath(os.path.join(c2, f2), ROOT)
+                            for f2 in fs2)
+                    dirs.remove(d)
+            for fn in files:
+                if any(fnmatch.fnmatch(fn, p) for p in _SCRATCH_FILES):
+                    offenders.append(os.path.relpath(os.path.join(cur, fn),
+                                                     ROOT))
+    if offenders:
+        print('== 发布边界预检失败 ==')
+        for o in sorted(offenders):
+            print(f'  ✘ {o}')
+        print('  → 临时文件 / 截图 / 构建日志 / 运行产物不得进源码包。处置：'
+              '移到仓库根 `.scratch_archive_*/`（审计与打包都不扫点前缀目录）'
+              '或删除；确属发布内容时在 _SCRATCH_DIRS/_SCRATCH_FILES 白名单化。')
+        sys.exit(f'源码树混入 {len(offenders)} 个 scratch 文件，已中止打包'
+                 '（发布包膨胀防护）')
+    print('  ✔ 发布边界预检通过：源码树无 scratch')
+
+
+# 命中即中止，必须在任何拷贝/打包动作之前执行
+if not _args.dedupe_only:
+    _preflight_release_boundary()
+
+
 if _args.dedupe_only:
     _n = _dedupe_hardlinks(os.path.join(APP, '3rd', 'tools'))
     print(f'硬链接去重完成：{APP}/3rd/tools 省下 {_n / 1024 / 1024:.0f} MB')
@@ -368,39 +451,53 @@ if _args.dedupe_only:
 # `{sub}`（cd 目标）与 `{exe}`（exe 前缀）由 _write_launchers 填入：
 #   三分离 = sub `VirusPlatform` / exe `VirusPlatform\`；--no-split = 都为空。
 #   cd 目标不能带尾部反斜杠——cmd 会把 `\"` 当成转义引号。
-_LAUNCH_WEB = """@echo off
+_LAUNCH_WEB = r"""@echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul
 title Plant Virus Analysis Platform - Web mode (browser)
 set "ROOT=%~dp0"
 set "PRG=%~dp0{sub}"
 
+rem ---- helper mode (2026-11-05 merged): the same file is re-invoked with
+rem      --open-browser to wait for the port and open the page from a
+rem      console-owning cmd (Windows grants it the foreground).  The old
+rem      separate open-browser.bat is gone; this branch replaces it.
+if /i "%~1"=="--open-browser" goto open_browser
+
 rem ---- recycle leftovers from a previous crashed run ----
-for /d %%D in ("%PRG%\\tmp*") do (
+for /d %%D in ("%PRG%\tmp*") do (
   rd /s /q "%%~fD" >nul 2>&1
   if not exist "%%~fD" echo   [cleanup] removed leftover temp dir %%~nxD
 )
 
 cd /d "%PRG%"
 rem ---- auto (re)mount the data folder if one was recorded ----
-if exist "%ROOT%mount-data.bat" call "%ROOT%mount-data.bat"
+rem  mount_source.txt = one line, absolute path of the FASTQ data folder.
+rem  Recreates run\fastq junction when missing; silent no-op otherwise
+rem  (startup must never block because of this).  Inlined 2026-11-05.
+if exist "%ROOT%mount_source.txt" (
+  set "MNT_SRC="
+  set /p MNT_SRC=<"%ROOT%mount_source.txt"
+  if defined MNT_SRC if exist "!MNT_SRC!" (
+    set "MNT_DST=%PRG%\run\fastq"
+    if not exist "%PRG%\run" mkdir "%PRG%\run" 2>nul
+    if not exist "!MNT_DST!" (
+      mklink /J "!MNT_DST!" "!MNT_SRC!" >nul 2>&1
+      if not errorlevel 1 echo   [mount] !MNT_DST! -^> !MNT_SRC!
+    )
+  )
+)
 echo.
 echo   Plant Virus Analysis Platform -- web mode
 echo   ----------------------------------------
 echo   A browser tab opens automatically at 127.0.0.1.
 echo   Keep this window open; closing it stops the platform.
 echo.
-rem ---- open the page from a console-owning helper ----
-rem  The platform process cannot reliably raise a browser window (it may run
-rem  without a console / inside a job object, and CREATE_NO_WINDOW makes the
-rem  tab open behind).  The helper waits for the port and runs `start <url>`
-rem  from a cmd that owns a console, so Windows grants it the foreground.
-rem
+rem ---- open the page from a console-owning helper (this file, --open-browser) ----
 rem  MUST go through `cmd /c` (2026-10-29, user screenshot): `start "" /min
 rem  "x.bat"` runs the batch through `cmd /K`, so its console stays open
-rem  after the script ends -- an empty prompt that looks like a startup
-rem  error.  `cmd /c` closes the helper window when it finishes.
-start "" /min cmd /c ""%ROOT%open-browser.bat""
+rem  after the script ends -- an empty prompt that looks like a startup error.
+start "" /min cmd /c ""%~f0" --open-browser"
 "%ROOT%{exe}VirusPlatform.exe" --web --no-open
 if errorlevel 1 (
   echo.
@@ -408,105 +505,41 @@ if errorlevel 1 (
   pause
 )
 rem ---- recycle per-run leftovers of this instance (tmp*, .port) ----
-for /d %%D in ("%PRG%\\tmp*") do rd /s /q "%%~fD" >nul 2>&1
-del /q "%PRG%\\run\\.port" >nul 2>&1
-del /q "%PRG%\\_internal\\run\\.port" >nul 2>&1
+for /d %%D in ("%PRG%\tmp*") do rd /s /q "%%~fD" >nul 2>&1
+del /q "%PRG%\run\.port" >nul 2>&1
+del /q "%PRG%\_internal\run\.port" >nul 2>&1
 echo   [cleanup] platform stopped; temp dirs and port file removed.
-"""
-
-_LAUNCH_MOUNT = r"""@echo off
-rem =====================================================================
-rem  Non-interactive auto-mount, called by Start-Web.bat / Start-Desktop.bat.
-rem
-rem  Re-creates the junction <program>\run\fastq -> <recorded folder> when
-rem  mount_source.txt exists and the junction is missing. Silent no-op when
-rem  nothing is configured, the folder is gone, or the junction already
-rem  exists: startup must never block or fail because of this.
-rem
-rem  mount_source.txt is written by the interactive mount wizard
-rem  (the Chinese-named .bat shipped next to this file).
-rem  KEEP THIS FILE ASCII-ONLY (cmd.exe mis-parses UTF-8 batch files).
-rem =====================================================================
-setlocal enabledelayedexpansion
-set "HERE=%~dp0"
-if not exist "%HERE%mount_source.txt" exit /b 0
-
-set "SRC="
-set /p SRC=<"%HERE%mount_source.txt"
-if not defined SRC exit /b 0
-if not exist "%SRC%" exit /b 0
-
-rem ---- locate the program folder (same order as the interactive wizard) ----
-set "PKG="
-if exist "%HERE%VirusPlatform.exe" set "PKG=%HERE%."
-if not defined PKG if exist "%HERE%VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%VirusPlatform"
-if not defined PKG if exist "%HERE%..\PVAP\VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%..\PVAP\VirusPlatform"
-if not defined PKG for %%D in (C D E F G) do (
-  if not defined PKG if exist "%%D:\PVAP\PlantVirusPlatform\VirusPlatform\VirusPlatform.exe" set "PKG=%%D:\PVAP\PlantVirusPlatform\VirusPlatform"
-)
-if not defined PKG exit /b 0
-if not exist "%PKG%\VirusPlatform.exe" exit /b 0
-
-set "DST=%PKG%\run\fastq"
-if not exist "%PKG%\run" mkdir "%PKG%\run" 2>nul
-if exist "%DST%" (
-  dir /al "%DST%" 2>nul | "%SystemRoot%\System32\find.exe" "<JUNCTION>" >nul
-  if not errorlevel 1 exit /b 0
-  exit /b 0
-)
-mklink /J "%DST%" "%SRC%" >nul 2>&1
-if errorlevel 1 exit /b 1
-echo   [mount] %DST% -^> %SRC%
 exit /b 0
-"""
 
-_LAUNCH_OPEN = """@echo off
-rem ---------------------------------------------------------------------------
-rem  Wait for the platform port, then open the page with the default browser.
-rem
-rem  Started minimized by Start-Web.bat through `cmd /c`, so this window closes
-rem  by itself.  (A plain `start "" x.bat` would use `cmd /K` and leave an empty
-rem  console behind after the script ends -- 2026-10-29 user screenshot.)
-rem
-rem  Port source, in order:
-rem    1. <program>\\run\\.port / <program>\\_internal\\run\\.port written by the
-rem       platform -- also covers non-default / randomly picked ports;
-rem    2. the usual candidates (older builds do not write the port file).
-rem  Polls for up to 180s: the first start can take a while (DB scan), and
-rem  giving up early means "no browser tab" -- the old complaint.
-rem  KEEP THIS FILE ASCII-ONLY (cmd.exe mis-parses UTF-8 batch files).
-rem ---------------------------------------------------------------------------
-setlocal enabledelayedexpansion
-set "ROOT=%~dp0"
-set "PRG=%~dp0{sub}"
-set "LOG=%PRG%\\run\\_browser_open.log"
+rem ---- browser helper: poll the platform port (up to 180s), then open it ----
+:open_browser
+set "BR_LOG=%PRG%\run\_browser_open.log"
 for /l %%i in (1,1,180) do (
   set "PORT="
-  if exist "%PRG%\\run\\.port" set /p PORT=<"%PRG%\\run\\.port"
-  if not defined PORT if exist "%PRG%\\_internal\\run\\.port" set /p PORT=<"%PRG%\\_internal\\run\\.port"
+  if exist "%PRG%\run\.port" set /p PORT=<"%PRG%\run\.port"
+  if not defined PORT if exist "%PRG%\_internal\run\.port" set /p PORT=<"%PRG%\_internal\run\.port"
   if defined PORT (
     netstat -ano | findstr /C:":!PORT! " | findstr /C:"LISTENING" >nul
     if not errorlevel 1 (
       start "" "http://127.0.0.1:!PORT!"
-      >>"%LOG%" echo [%DATE% %TIME%] opened http://127.0.0.1:!PORT!
-      exit
+      >>"%BR_LOG%" echo [%DATE% %TIME%] opened http://127.0.0.1:!PORT!
+      exit /b 0
     )
   )
   for %%P in (8765 8766 8767 8900 8989 9600 8888 5050) do (
     netstat -ano | findstr /C:".0.0.1:%%P " | findstr /C:"LISTENING" >nul
     if not errorlevel 1 (
       start "" "http://127.0.0.1:%%P"
-      >>"%LOG%" echo [%DATE% %TIME%] opened http://127.0.0.1:%%P
-      exit
+      >>"%BR_LOG%" echo [%DATE% %TIME%] opened http://127.0.0.1:%%P
+      exit /b 0
     )
   )
   timeout /t 1 >nul
 )
->>"%LOG%" echo [%DATE% %TIME%] no listening port found after 180s
-exit
-"""
+>>"%BR_LOG%" echo [%DATE% %TIME%] no listening port found after 180s
+exit /b 0"""
 
-_LAUNCH_DESK = """@echo off
+_LAUNCH_DESK = r"""@echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul
 title Plant Virus Analysis Platform - Desktop mode
@@ -514,14 +547,28 @@ set "ROOT=%~dp0"
 set "PRG=%~dp0{sub}"
 
 rem ---- recycle leftovers from a previous crashed run ----
-for /d %%D in ("%PRG%\\tmp*") do (
+for /d %%D in ("%PRG%\tmp*") do (
   rd /s /q "%%~fD" >nul 2>&1
   if not exist "%%~fD" echo   [cleanup] removed leftover temp dir %%~nxD
 )
 
 cd /d "%PRG%"
 rem ---- auto (re)mount the data folder if one was recorded ----
-if exist "%ROOT%mount-data.bat" call "%ROOT%mount-data.bat"
+rem  mount_source.txt = one line, absolute path of the FASTQ data folder.
+rem  Recreates run\fastq junction when missing; silent no-op otherwise
+rem  (startup must never block because of this).  Inlined 2026-11-05.
+if exist "%ROOT%mount_source.txt" (
+  set "MNT_SRC="
+  set /p MNT_SRC=<"%ROOT%mount_source.txt"
+  if defined MNT_SRC if exist "!MNT_SRC!" (
+    set "MNT_DST=%PRG%\run\fastq"
+    if not exist "%PRG%\run" mkdir "%PRG%\run" 2>nul
+    if not exist "!MNT_DST!" (
+      mklink /J "!MNT_DST!" "!MNT_SRC!" >nul 2>&1
+      if not errorlevel 1 echo   [mount] !MNT_DST! -^> !MNT_SRC!
+    )
+  )
+)
 echo.
 echo   Plant Virus Analysis Platform -- desktop mode
 echo   ----------------------------------------
@@ -535,11 +582,10 @@ if errorlevel 1 (
   pause
 )
 rem ---- recycle per-run leftovers of this instance (tmp*, .port) ----
-for /d %%D in ("%PRG%\\tmp*") do rd /s /q "%%~fD" >nul 2>&1
-del /q "%PRG%\\run\\.port" >nul 2>&1
-del /q "%PRG%\\_internal\\run\\.port" >nul 2>&1
-echo   [cleanup] platform stopped; temp dirs and port file removed.
-"""
+for /d %%D in ("%PRG%\tmp*") do rd /s /q "%%~fD" >nul 2>&1
+del /q "%PRG%\run\.port" >nul 2>&1
+del /q "%PRG%\_internal\run\.port" >nul 2>&1
+echo   [cleanup] platform stopped; temp dirs and port file removed."""
 
 
 def _write_launchers(dist_root, sub='', exe=''):
@@ -548,10 +594,9 @@ def _write_launchers(dist_root, sub='', exe=''):
     sub = `cd` 目标（不带尾部反斜杠；空串 = 版本根目录本身），
     exe = exe 前缀（三分离为 `VirusPlatform\\`，--no-split 为空）。
     """
+    # 2026-11-05: open-browser / mount-data inlined into the two entries
     for name, text in (("Start-Web.bat", _LAUNCH_WEB),
-                       ("Start-Desktop.bat", _LAUNCH_DESK),
-                       ("open-browser.bat", _LAUNCH_OPEN),
-                       ("mount-data.bat", _LAUNCH_MOUNT)):
+                       ("Start-Desktop.bat", _LAUNCH_DESK)):
         dst = os.path.join(dist_root, name)
         if os.path.exists(dst):
             os.remove(dst)
@@ -962,27 +1007,28 @@ if _args.with_db or _args.db_only:
                    'virusref_db/blast'):     # v4 索引首跑自建
         _rmtree(os.path.join(target, 'databases', *_stale.split('/')))
     _db_files = _db_bytes = 0
-    # Taxonomy（2026-10-25 定案）：不随包带 546M 解压态 dmp——只带官方
-    # new_taxdump.tar.gz（155M）。prepare_taxonomy() 本就优先查本地 tar
-    # （有则纯本地解压、零联网）；app.py 启动时会后台自动解压（约 1 分钟），
-    # 数据库页一键按钮同效。DB 包 1.6G → ~1.2G。
-    _tar_src = os.path.join('databases', 'new_taxdump.tar.gz')
+    # Taxonomy（2026-11-05 定案）：分发包只带精简档 new_taxdump_slim.tar.gz
+    # （病毒子树，~15M）。首启自解压直接得到病毒子树库；宿主 taxid 校验走
+    # 在线核对（kunpeng 建库入口），联网补装全量走数据库页按钮。
+    # 由 `python main.py init-taxonomy --slim && ... --pack-slim` 生成。
+    _tar_src = os.path.join('databases', 'new_taxdump_slim.tar.gz')
     if os.path.isfile(_tar_src):
         _rmtree(os.path.join(target, 'databases', 'tax_db'))   # 陈旧解压态
         # 全新打包（目标目录尚不存在）时先建 databases/——否则 copy2 报
         # WinError 3（旧包存在时该目录已在，bug 被掩盖；2026-10-26 实测）
         os.makedirs(os.path.join(target, 'databases'), exist_ok=True)
         shutil.copy2(_tar_src, os.path.join(target, 'databases',
-                                            'new_taxdump.tar.gz'))
+                                            'new_taxdump_slim.tar.gz'))
         _sz = os.path.getsize(os.path.join(target, 'databases',
-                                            'new_taxdump.tar.gz'))
+                                            'new_taxdump_slim.tar.gz'))
         _db_files += 1
         _db_bytes += _sz
-        print(f'  + databases/new_taxdump.tar.gz  {_fmt(_sz)}  '
-              '← NCBI Taxonomy 官方压缩包（首启后台自动解压，无需联网）')
+        print(f'  + databases/new_taxdump_slim.tar.gz  {_fmt(_sz)}  '
+              '← NCBI Taxonomy 精简档（病毒子树；首启后台自动解压，无需联网）')
     else:
-        print('  - 未找到 new_taxdump.tar.gz：运行 python main.py '
-              'init-taxonomy --force 生成后再打包')
+        print('  - 未找到 new_taxdump_slim.tar.gz：运行 python main.py '
+              'init-taxonomy --slim && python main.py init-taxonomy '
+              '--pack-slim 生成后再打包')
 
     for _item in _DB_TREES:
         _rel, _note = _item[0], _item[1]
@@ -1135,8 +1181,28 @@ if _args.with_source:
     _rmtree(SRC_DIR)
     os.makedirs(SRC_DIR, exist_ok=True)
 
-    _SRC_IG = shutil.ignore_patterns('__pycache__', '*.pyc',
-                                     '.pytest_cache', '.ruff_cache')
+    def _SRC_IG(directory, names):
+        """源码包拷贝忽略规则。
+
+        2026-11-03 分发瘦身（路径级规则；shutil.ignore_patterns 只匹配
+        basename，路径规则必须自己算）：
+        - playwright（107MB，自带 Node 驱动）只被 tests/ 的 UI 检查使用，
+          产品功能一律走 Selenium —— 不随源码包分发；
+        - gget 的跨平台二进制（bins/Linux 120MB + bins/Darwin 49MB）在
+          Windows 分发里是死重，运行时只取 bins/Windows。
+        """
+        ignored = set(_SRC_IG_BASE(directory, names))
+        norm = os.path.normpath(directory).lower()
+        if norm.endswith(os.path.join('lib', 'site-packages')):
+            for n in names:
+                nl = n.lower()
+                if nl == 'playwright' or nl.startswith('playwright-'):
+                    ignored.add(n)
+        if norm.endswith(os.path.join('gget', 'bins')):
+            for n in names:
+                if n.lower() in ('linux', 'darwin'):
+                    ignored.add(n)
+        return ignored
 
     def _src_tree(rel, note):
         src = os.path.join(ROOT, rel)
@@ -1232,6 +1298,66 @@ Notes:
 # ------------------------------------------------------------------
 # 5) 顶层说明 + 汇总
 # ------------------------------------------------------------------
+# 发布洁净闸门（2026-11-03）：源码仓的运行时状态与开发痕迹一律不得进包。
+# 事故背景：发布包内出现 run/ 下的任务记录（run/tasks/*.json）、AI 对话
+# 审计（run/ai_audit/*.jsonl）、构建日志与截图，以及 node_modules/.mimosa
+# 等开发文件——用户打开包直接看到"源码目录的记录与对话记录"。
+# 这里在各件产物就位后、写说明前统一清一遍，并断言 run/ 为空。
+_PUBLISH_DIRTY_PATHS = (
+    'run/ai_audit', 'run/tasks', 'run/logs', 'run/uploads',
+    'run/tool_runs', 'run/results', 'run/_archive', 'run/queue.json',
+    'run/ai_audit', 'databases/examples/run',
+)
+
+
+def _publish_clean_gate(*roots):
+    """清各产物根下的运行时状态/开发痕迹，返回剔除项数。
+
+    只删「运行时才产生」的东西，不动产品数据（examples/ 的示例数据、
+    databases/ 的库文件都保留）。
+    """
+    import glob as _glob
+    n = 0
+    for root in roots:
+        if not root or not os.path.isdir(root):
+            continue
+        # ① run/：内容全清（任务记录/对话审计/日志/结果/上传件）
+        if os.path.isdir(os.path.join(root, 'run')):
+            n += _clean_run_state(root)
+        # ② 已知脏路径
+        for rel in _PUBLISH_DIRTY_PATHS:
+            p = os.path.join(root, *rel.split('/'))
+            if os.path.exists(p):
+                _rmtree(p) if os.path.isdir(p) else os.remove(p)
+                n += 1
+        # ③ 开发痕迹（递归）：node_modules / .mimosa / __pycache__ /
+        #    审计流 *.jsonl / 手工备份 *.bak / 调试符号 *.pdb
+        for pat in ('**/node_modules', '**/.mimosa', '**/__pycache__',
+                    '**/*.jsonl', '**/*.bak', '**/*.bak_*', '**/*.pdb',
+                    '**/ai_audit', '**/spool/*.jsonl'):
+            for p in _glob.glob(os.path.join(root, pat), recursive=True):
+                try:
+                    _rmtree(p) if os.path.isdir(p) else os.remove(p)
+                    n += 1
+                except OSError:
+                    pass
+    # ④ 断言：run/ 必须不存在或为空（否则说明有进程正在往里写）
+    for root in roots:
+        run_dir = os.path.join(root, 'run') if root else None
+        if run_dir and os.path.isdir(run_dir):
+            left = os.listdir(run_dir)
+            if left:
+                sys.exit(f'发布洁净闸门失败：{run_dir} 仍有 {len(left)} 项'
+                         f'（{left[:5]}）—— 请确认没有平台实例在写该目录')
+    return n
+
+
+_n_clean = _publish_clean_gate(APP if os.path.isdir(APP) else None,
+                               EX_DIR if SPLIT and os.path.isdir(EX_DIR) else None,
+                               DB_DIR if (SPLIT and os.path.isdir(DB_DIR)) else None)
+print(f'== 发布洁净闸门 == 剔除 {_n_clean} 项运行时状态/开发痕迹'
+      '（run/ 任务记录、对话审计、日志、node_modules 等不入包）')
+
 print('== 5/5 说明与汇总 ==')
 if SPLIT and os.path.isdir(APP):
     # 用行列表拼说明文本：隐式字符串拼接里混入 `'=' * 60` 这类**表达式**
@@ -1263,7 +1389,8 @@ if SPLIT and os.path.isdir(APP):
             '     evolutionary dynamics, NCBI submission and the',
             '     consensus / pandepth tools all work out of the box.',
             '   - Comes with the database package: NCBI Taxonomy',
-            '     (new_taxdump.tar.gz, extracted automatically on the first run),',
+            '     (new_taxdump_slim.tar.gz, virus-subtree-only, extracted',
+            '     automatically on the first run),',
             '     the virus reference library (virusref_db: BLAST reference plus the',
             '     plant_ref FASTA and annotation table), the kunpeng virus',
             '     classification library, annotation / tree / misc libraries, and the',
@@ -1284,7 +1411,8 @@ if SPLIT and os.path.isdir(APP):
             '     installed on demand with one click in Settings -> Plugins or',
             '     imported as an offline plugin zip.',
             '   - Comes with the database package: NCBI Taxonomy',
-            '     (new_taxdump.tar.gz, extracted automatically on the first run),',
+            '     (new_taxdump_slim.tar.gz, virus-subtree-only, extracted',
+            '     automatically on the first run),',
             '     the virus reference library (virusref_db: BLAST reference plus the',
             '     plant_ref FASTA and annotation table), the kunpeng virus',
             '     classification library, annotation / tree / misc libraries, and the',
@@ -1323,8 +1451,9 @@ if SPLIT and os.path.isdir(APP):
             '     database and Pfam HMM press files), tree-building references',
             '     (tree_db), misc_db (viroid references, host probability tables,',
             '     genus mean length table) and the dsRNA / miRNA libraries',
-            '   - Raw datasets: NCBI Taxonomy (new_taxdump.tar.gz, unpacked',
-            '     automatically on the first run) and RefSeq / RVDB source FASTA',
+            '   - Raw datasets: NCBI Taxonomy (new_taxdump_slim.tar.gz,',
+            '     virus-subtree-only, unpacked automatically on the first run)',
+            '     and RefSeq / RVDB source FASTA',
             '     (if bundled)',
             '   - The BLAST indexes ship with virusref_db; anything else that is',
             '     derived is generated on first use (seconds)',
@@ -1469,10 +1598,17 @@ if _args.verify:
         r = subprocess.run([os.path.abspath(os.path.join(APP, 'VirusPlatform.exe')),
                             '--cli', 'selfcheck'], cwd=os.path.abspath(APP))
         print('  selfcheck 退出码:', r.returncode)
+        # ⚠️ 验证跑 exe 会**在产物内**创建运行时状态：exe 启动即后台解压
+        # taxonomy（DB 包 546M 解压态）并建 run/（tasks/ai_audit/logs…）。
+        # 旧实现只在 returncode==0 时清 tax_db，而 selfcheck 在"数据库未就绪"
+        # 档位返回 1 → 解压态与 run/ 双双残留进分发包（用户打开包看到
+        # "任务记录/对话记录"，2026-11-03 实测）。这里**无条件**清。
         _tax_dir = os.path.join(DB_DIR if SPLIT else APP, 'databases', 'tax_db')
-        if r.returncode == 0 and os.path.isdir(_tax_dir):
+        if os.path.isdir(_tax_dir):
             _rmtree(_tax_dir)
             print('  （验证用 taxonomy 解压态已清理，分发包内只保留 tar.gz）')
+        _n_post = _publish_clean_gate(APP)
+        print(f'  （验证产生的运行时状态已清理：{_n_post} 项；run/ 断言为空）')
         # 发布门禁（2026-10-25）：开发机重型 ML 栈（torch/transformers/
         # sklearn/opencv/dask）曾被 PyInstaller 经 hooks-contrib 顺带卷进
         # _internal（+600MB，冻结自检 ⑥ 误报数百项）。spec 已 excludes，
