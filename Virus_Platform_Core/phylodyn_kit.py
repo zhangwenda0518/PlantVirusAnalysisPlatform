@@ -375,21 +375,34 @@ def attach_coords(rows, points, region_key='location'):
             continue
         exact.setdefault(rag, (rag, la, lo))
         lower.setdefault(rag.lower(), (rag, la, lo))
-        country.setdefault(rag.split(':')[0].strip().lower(), (rag, la, lo))
+        # 国家兜底的分段候选（2026-11-03）：逗号（治理后 `China, Ningxia`）
+        # 与斜杠（`Asia/China`）与冒号同拆，首段/末段都当国家侧候选。
+        for seg in re.split(r'[,;:：/／，；]', rag):
+            seg = seg.strip().lower()
+            if seg:
+                country.setdefault(seg, (rag, la, lo))
 
     out, used, unmatched = [], set(), {}
     n_matched = 0
     for r in rows:
         r2 = dict(r)
-        has = str(r2.get('lat') or '').strip() and str(r2.get('lon') or '').strip()
+        # lat/lon 是否已有值：显式非空判定（2026-11-03）：旧实现 `or ''`
+        # 把数值 0 当成「没有坐标」→ 赤道/本初子午线样本被坐标表覆盖
+        # （审计 P2-3）。
+        has = str(r2.get('lat') if r2.get('lat') is not None else '') \
+            .strip() and str(r2.get('lon') if r2.get('lon') is not None
+                             else '').strip() != ''
         if not has:
             rag = (r2.get(region_key) or '').strip()
             hit = None
             if rag:
                 hit = exact.get(rag) or lower.get(rag.lower())
                 if not hit:
-                    ck = rag.split(':')[0].strip().lower()
-                    hit = country.get(ck)
+                    for seg in re.split(r'[,;:：/／，；]', rag):
+                        seg = seg.strip().lower()
+                        if seg and seg in country:
+                            hit = country[seg]
+                            break
                 if hit:
                     used.add(hit[0])      # 记**坐标表里那一条的**区划名，才能和 points 对账
                 else:
@@ -986,8 +999,6 @@ def validate_dataset(seqs, rows, strict=False, require_location=True):
             why.append('name 为空')
         elif nm in seen:
             why.append('name 重复')
-        else:
-            seen.add(nm)
         raw_date = (r.get('date') or '').strip()
         ok, _v, err = validate_date_str(raw_date, allow_decimal=True)
         if not raw_date:
@@ -1005,18 +1016,22 @@ def validate_dataset(seqs, rows, strict=False, require_location=True):
         try:
             lav = float(lat) if lat else None
             if lav is not None and not (-90 <= lav <= 90):
-                why.append(f'纬度 {lav} 超出 [-90,90]')
+                why.append(f'纬度 {lat} 超出 [-90,90]')
         except ValueError:
             why.append(f'纬度不是数字: {lat}')
         try:
             lov = float(lon) if lon else None
             if lov is not None and not (-180 <= lov <= 180):
-                why.append(f'经度 {lov} 超出 [-180,180]')
+                why.append(f'经度 {lon} 超出 [-180,180]')
         except ValueError:
             why.append(f'经度不是数字: {lon}')
         if why:
             issues.append({'row': i, 'name': nm or '(空)', 'problems': why})
         else:
+            # 该行确认保留才登记占用（2026-11-03）：旧实现在检查阶段就
+            # seen.add，首行（如有名无日期）被剔除后，后面的合法同名行被
+            # 误判「name 重复」连坐丢弃（审计 P2-2）。
+            seen.add(nm)
             keep_rows.append(r)
     if issues and strict:
         first = issues[0]
@@ -1104,7 +1119,22 @@ def import_from_files(fasta_path, meta_path, out_dir, strict=False, govern=True,
     keep, keep_rows, issues = validate_dataset(
         seqs, rows, strict=strict, require_location=require_location)
     if not keep:
-        raise ValueError('没有一条序列通过校验（时间/地点必须同时给出且格式正确），详见报告')
+        # 全量失败也要把 issues 落盘（2026-11-03）：旧实现提示「详见报告」
+        # 但报告根本没写——issues 只在返回值里，用户无从查起（审计 P2-16）。
+        try:
+            os.makedirs(out_dir, exist_ok=True)
+            import json as _json
+            with open(os.path.join(out_dir, 'import_issues.json'), 'w',
+                      encoding='utf-8') as _f:
+                _json.dump({'n_input': len(seqs),
+                            'n_rows_input': len(rows),
+                            'issues': issues},
+                           _f, ensure_ascii=False, indent=1)
+        except Exception:
+            pass
+        raise ValueError('没有一条序列通过校验（时间/地点必须同时给出且格式'
+                         '正确）；逐行原因见 %s'
+                         % os.path.join(out_dir, 'import_issues.json'))
     fa, cs = _write_dataset(out_dir, keep, keep_rows)
     summ = dataset_summary(keep, keep_rows)
     summ['meta_pick'] = _pick_notes          # 口径纪律：替用户做的选择要看得见

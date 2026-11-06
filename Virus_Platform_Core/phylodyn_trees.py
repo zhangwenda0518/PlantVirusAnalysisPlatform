@@ -453,14 +453,19 @@ def migration_matrix_from_tree(root, out_dir=None, trait_hint=None):
 
     ty = _tip_years(root)
     distinct = sorted(set(ty))
-    if len(distinct) >= 2:
+    if len(distinct) >= 3:
         mostcurrent = int(distinct[-2])   # 复刻 VirPhyKit 第二大（去重）口径
+    elif len(distinct) == 2:
+        # 只有 2 个年份时「第二大年」会把最新样本挤到年轴之外（审计 P2-5）；
+        # 用最大年兜底，年轴仍覆盖全部样本；差异在返回值里如实说明。
+        mostcurrent = int(distinct[-1])
     elif distinct:
         mostcurrent = int(distinct[-1])
     else:
         mostcurrent = 0
     ceilT = math.ceil(T)
     rootyear = int(mostcurrent - ceilT)
+    two_year_note = (len(distinct) == 2)
 
     uniq = sorted(set(states.values()))
     row_keys = [f'{a}_to_{b}' for a in uniq for b in uniq]
@@ -509,6 +514,9 @@ def migration_matrix_from_tree(root, out_dir=None, trait_hint=None):
         'top_migrations': sorted(offd.items(), key=lambda kv: -kv[1])[:12],
         'diag_lineage_years': diag,
         'out_file': out_file,
+        'two_year_note': ('样本只有 2 个不同年份：年轴取最大年（VirPhyKit 的'
+                          '「第二大年」口径会把最新样本挤到年轴外）'
+                          if two_year_note else None),
         'calendar_note': ('分支-年计数：每条分支（父状态→子状态）对其跨越的每个日历年 +1；'
                           '对角线 = 各状态内的谱系-年，非对角线 = 发生状态改变的分支所跨年份'),
     }
@@ -814,6 +822,14 @@ def _rtt_points_and_fit(dates, dists, regions=None):
             % (len(dates), len(names)))
     xs = [dates[n] for n in names]
     ys = [dists[n] for n in names]
+    # n<3 守卫（2026-11-03）：两点必回归出 R²=1.0/p=0.0 的完美假象
+    # （审计 P2-9），必须拒绝而不是给伪信号。
+    if len(names) < 3:
+        raise ValueError(
+            '可比对叶只有 %d 个 —— 至少 3 个才能做有意义的根到尾回归'
+            '（2 个点会给出虚假的 R²=1.0）' % len(names))
+    if len(set(float(x) for x in xs)) < 2:
+        raise ValueError('采样日期完全相同（x 无变化）：无法做根到尾回归')
     reg = linregress(xs, ys)
     r2 = reg.rvalue ** 2
     points = [{'name': n, 'date': dates[n], 'dist': dists[n],
@@ -1394,7 +1410,8 @@ def treedater_available():
         r = subprocess.run(
             [exe, '-e', "cat(requireNamespace('treedater', quietly=TRUE))"],
             capture_output=True, text=True, encoding='utf-8', errors='replace',
-            timeout=180, env=_r_env(exe))
+            timeout=180, env=_r_env(exe),
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         ok = r.stdout.strip().endswith('TRUE')
         msg = ('R 在但缺 treedater 包：Rscript -e '
                + chr(34) + 'install.packages(' + chr(34) + 'treedater' + chr(34) + ')'
@@ -1488,7 +1505,9 @@ def treedater_ltt(tree_path, meta_path, out_dir, seq_len=None, ncpu=1, prog=None
         _r = subprocess.run([exe, r_script, tree_path, meta_csv,
                              str(seq_len), out_dir, str(ncpu)],
                             stdout=_fo, stderr=_fe, shell=False,
-                            timeout=3600, env=_r_env(exe))
+                            timeout=3600, env=_r_env(exe),
+                            creationflags=getattr(
+                                subprocess, 'CREATE_NO_WINDOW', 0))
     with io.open(_r_out, 'r', encoding='utf-8', errors='replace') as f:
         _out_tail = f.read()[-2000:]
     with io.open(_r_err, 'r', encoding='utf-8', errors='replace') as f:
@@ -1548,6 +1567,19 @@ def ltt_from_tree(tree_path, meta_path=None, use_lsd2=False, seq_len=None,
         if prog:
             prog(m)
 
+    def _parse_tree(txt):
+        """newick → 节点树。**必须注解感知**：TreeTime/BEAST 的输出常带
+        `[&mutations="A,B,C",date=…]` 注释，里面有逗号 —— `pg.parse_newick`
+        的名字缓冲见到 `,` 就收手，把注释后半截当成叶名（treetime_ml
+        parse_annotated_newick 文档里的「坑 3」），实测产物是假 tip + 枝长全 0
+        （LTT 曲线塌成两个点）。所以统一走 `tt.parse_annotated_newick`
+        （plain newick 同样兼容），解析失败才退回 pg 口径。"""
+        try:
+            from Virus_Platform_Core import treetime_ml as _tt
+            return _tt.parse_annotated_newick(txt)
+        except Exception:
+            return pg.parse_newick(txt)
+
     dated_note = None
     if use_lsd2:
         if not meta_path:
@@ -1568,7 +1600,7 @@ def ltt_from_tree(tree_path, meta_path=None, use_lsd2=False, seq_len=None,
         else:
             dated_note = 'LSD2 未返回定年树，退回输入树'
 
-    root = pg.parse_newick(read_text(tree_path))
+    root = _parse_tree(read_text(tree_path))
     T = tree_height(root)
     tip_dates = None
     if meta_path:
@@ -1590,7 +1622,8 @@ def ltt_from_tree(tree_path, meta_path=None, use_lsd2=False, seq_len=None,
                 tip_dates = m
             else:
                 dated_note = ('输入树的枝长不是「年」（树高 %.4g < 元数据年跨度 %.4g）：'
-                              'LTT 横轴为遗传距离；要日历年轴请先 LSD2 定年'
+                              'LTT 横轴为遗传距离；要日历年轴请改用时间树'
+                              '（枝长＝年，如 A1 的 clock/timetree.nwk）'
                               % (T, span))
     present = max(tip_dates.values()) if tip_dates else 0.0
 

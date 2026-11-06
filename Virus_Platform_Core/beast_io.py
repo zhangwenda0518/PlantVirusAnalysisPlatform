@@ -82,7 +82,9 @@ def probe_beast(exe=None, timeout=30):
         ver, err = None, None
         try:
             r = subprocess.run([p, '-version'], capture_output=True, text=True,
-                               timeout=timeout)
+                               timeout=timeout,
+                               creationflags=getattr(
+                                   subprocess, 'CREATE_NO_WINDOW', 0))
             out = ((r.stdout or '') + '\n' + (r.stderr or '')).strip()
             for ln in out.splitlines():
                 if ln.strip():

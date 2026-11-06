@@ -876,7 +876,7 @@ def assemble_and_classify(sample_dir, r1, r2, db_virus, mode='rnaviral',
                     f"{b.get('species', '')}\t{b.get('family', '')}\n")
 
     # 5. 完整分类谱系表（8 级 + 属长比）：03b_verify 的宿主归属来源。
-    #    口径与工具④（组装结果再鉴定）一致——两者共用 classify_rows。
+    #    口径与「病毒鉴定」工具一致——两者共用 classify_rows。
     _cls_warn = ''
     try:
         _write_classification_table(out_dir, res.get('kraken'), logger)
@@ -930,7 +930,7 @@ def assemble_and_classify(sample_dir, r1, r2, db_virus, mode='rnaviral',
 def _write_classification_table(out_dir, kraken_txt, logger=None):
     """kunpeng 原始输出 → virus_classification.tsv（8 级谱系 + 属长比）。
 
-    与工具④（组装结果再鉴定）同口径，共用 contig_annot.classify_rows。
+    与「病毒鉴定」工具同口径，共用 contig_annot.classify_rows。
     下游 03b_verify 从本表取宿主归属（family → ICTV 宿主）。
     genus_avg_map 首跑建缓存，失败时退化为空 map（ratio/near_complete 为 0）。
     """

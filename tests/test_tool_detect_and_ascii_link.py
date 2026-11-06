@@ -16,7 +16,9 @@
 两个都只做只读探测/路径计算，不建任务、不落产物。
 """
 import os
+import subprocess
 import sys
+import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -76,7 +78,8 @@ def test_srna_target_declared_by_module_has_detect_entry():
     tools = cfg_mod.detect_tools()
     declared = set()
     for names in module_deps.MODULE_TOOLS.values():
-        declared.update(names)
+        # 允许「任一组」（嵌套列表）：展平后再逐键校验
+        declared.update(module_deps._flat_keys(names))
     # 用 tool_status() 而不是 tools：插件层「填缺」后的最终视图才是执行层
     # 真正看到的；tools 只是本机探测结果。
     status = cfg_mod.get_config().tool_status()
@@ -134,6 +137,38 @@ def test_ascii_link_never_inside_platform_root(monkeypatch, tmp_path):
         # 不能建链接时宁可原样返回，也不能返回一个环内路径
         assert got == path
     monkeypatch.setattr(hmm_annot, '_ASCII_LINK', None)
+
+
+def test_ascii_link_fallback_inside_root_is_rejected(monkeypatch):
+    """回归（2026-11-06）：回退分支 TEMP/TMP 也在平台根内时不得建 junction。
+
+    首选 link 取自 tempfile.gettempdir()，回退取自 TEMP/TMP。系统 temp 不可用
+    时 config.ensure_usable_tempdir() 会把 tempdir **和** TEMP/TMP 一并改写成
+    <平台根>/run/tmp，于是回退拿到的仍是平台根内路径。修复前只对首选分支判环，
+    回退后不再判 → `mklink /J <根>/run/tmp/vp_ascii_root <根>` 造出自引用环。
+    修复后必须直接返回原路径，且绝不调用 mklink。
+    """
+    monkeypatch.setattr(hmm_annot, '_ASCII_LINK', None)
+    inside_tmp = os.path.join(cfg_mod.PLATFORM_ROOT, 'run', 'tmp')
+    monkeypatch.setattr(tempfile, 'tempdir', inside_tmp, raising=False)
+    monkeypatch.setenv('TEMP', inside_tmp)
+    monkeypatch.setenv('TMP', inside_tmp)
+
+    calls = []
+
+    def _fake_run(args, *a, **kw):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(subprocess, 'run', _fake_run)
+    path = os.path.join(cfg_mod.PLATFORM_ROOT, '数据库', 'z.hmm')
+    try:
+        got = hmm_annot._ascii_path(path)
+        assert got == path, '不能返回环内的 ASCII 别名路径'
+        assert hmm_annot._ASCII_LINK == '', '回退仍落在平台根内时必须放弃建链'
+        assert not calls, f'不应调用 mklink 造环：{calls}'
+    finally:
+        monkeypatch.setattr(hmm_annot, '_ASCII_LINK', None)
 
 
 def test_existing_reparse_point_inside_root_is_rejected(monkeypatch):

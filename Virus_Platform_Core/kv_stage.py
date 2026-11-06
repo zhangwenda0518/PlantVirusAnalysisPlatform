@@ -348,7 +348,9 @@ def _engine_version(engine):
         if exe:
             r = subprocess.run([exe, '--version'], capture_output=True,
                                text=True, encoding='utf-8', errors='replace',
-                               timeout=30)
+                               timeout=30,
+                               creationflags=getattr(
+                                   subprocess, 'CREATE_NO_WINDOW', 0))
             out = (r.stdout or '') or (r.stderr or '')
             ver = out.strip().splitlines()[0][:120] if out.strip() else 'unknown'
     except (OSError, subprocess.SubprocessError) as e:
@@ -420,7 +422,9 @@ def _bam_qual_missing(samtools_exe, bam, max_records=50):
         proc = subprocess.Popen([samtools_exe, 'view', str(bam)],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.DEVNULL,
-                                text=True, encoding='utf-8', errors='replace')
+                                text=True, encoding='utf-8', errors='replace',
+                                creationflags=getattr(
+                                    subprocess, 'CREATE_NO_WINDOW', 0))
     except OSError:
         return None
     n, saw = 0, False

@@ -8,6 +8,14 @@ poly-T/RNAfold MFE）→ 位点侧翼引物设计（primer3 主路 + 枚举兜�
 → crRNA×引物对 复合评分（CASPER 式 21 特征效用加权）→ 群体覆盖率回填 →
 输出候选表 / 排序组合 / 订购表 / L1–L5 验证清单 / 参数快照。
 
+2026-11-05 负组位点级核查（吸收 CONAN-SWIFT 判据，净室）：提供
+--near（或 near_neighbors 目录有库）时，目标+负组合并 MAFFT（共识只算
+目标行，col_map 映射负组同源列），对每个候选位点核查「PAM 保留 且 种子
+全配对 = leak（近缘误检风险）」；leak>0 组合降权 ×(1-0.5×leak%) 并打
+「近缘leakX%」标记（不 veto）。Cas13a 无 PAM：pam_kept 退化为恒真，
+leak = 近缘同源窗种子全配对（识别由 spacer 主导）。计算设计仅支持候选
+优先级排序，位点级核查不构成错配区分度证据（L2 近缘交叉反应实验必做）。
+
 规则来源（净室实现，规则与参数不受版权保护、代码未复制，见
 docs/CRISPR检测设计模块规划_20261006.md §1）：
 - PAM/容错 PAM/保守阈值/RNAfold MFE≥-5/GC 30–70：AutoCORDSv2（GPL-2.0，
@@ -341,35 +349,72 @@ def _read_aln(path, names):
 
 
 def consensus_and_conservation(records, work_dir, threads=None, logger=None,
-                               cancel=None):
-    """返回 (consensus, cons_list, n_used, msa_used)。
+                               cancel=None, negative_recs=None):
+    """返回 (consensus, cons_list, n_used, msa_used, col_map, neg_aln)。
 
-    单条记录：保守性恒 1.0；多条：MAFFT 比对后逐列统计。
+    单条记录且无负组：保守性恒 1.0；多条：MAFFT 比对后逐列统计。
     cons_list[k] = 共识第 k 位（0 基）对应的保守分 ∈ [0,1]。
+
+    2026-11-05 吸收 CONAN-SWIFT 负组位点级核查判据：提供 negative_recs
+    （近缘非目标记录）时，目标+负组合并进同一次 MAFFT（名字前缀 t/n 防
+    两库重名撞车），**共识只由目标行计算**，负组行仅通过 col_map 取同
+    源列。全目标皆 gap 的列直接跳过（多为负组特有插入）——否则负组插入
+    列会把目标保守窗打断成 N、扫描全军覆没（conan 合成数据实测教训）；
+    因此**有负组时共识策略与历史版本可能不同**（列布局更稳）。无负组时
+    col_map/neg_aln = None，行为与历史版本一致。
     """
-    if len(records) == 1:
+    if len(records) == 1 and not negative_recs:
         seq = records[0][1]
-        return seq, [1.0] * len(seq), 1, False
+        return seq, [1.0] * len(seq), 1, False, None, None
 
     from .phylo import _run_mafft
-    in_fa = os.path.join(work_dir, 'in.fa')
-    aln_fa = os.path.join(work_dir, 'aln.fa')
-    _write_tmp_fasta(records, in_fa)
-    if cancel is not None and cancel.is_set():
-        raise RuntimeError('用户取消')
-    _run_mafft(in_fa, aln_fa, threads=threads, logger=logger)
-    if cancel is not None and cancel.is_set():
-        raise RuntimeError('用户取消')
-    aln = _read_aln(aln_fa, [n for n, _ in records])
-    if not aln:
-        raise CrisprDesignError('MAFFT 比对结果为空')
+    neg_aln = None
+    if negative_recs:
+        combined = ([('t%d' % i, s) for i, (_, s) in enumerate(records)]
+                    + [('n%d' % i, s) for i, (_, s) in enumerate(negative_recs)])
+        in_fa = os.path.join(work_dir, 'in_neg.fa')
+        aln_fa = os.path.join(work_dir, 'aln_neg.fa')
+        _write_tmp_fasta(combined, in_fa)
+        if cancel is not None and cancel.is_set():
+            raise RuntimeError('用户取消')
+        _run_mafft(in_fa, aln_fa, threads=threads, logger=logger)
+        if cancel is not None and cancel.is_set():
+            raise RuntimeError('用户取消')
+        aln = _read_aln(aln_fa, [n for n, _ in combined])
+        if not aln:
+            raise CrisprDesignError('MAFFT 比对结果为空')
+        by_name = dict(aln)
+        t_aln = [(records[i][0], by_name.get('t%d' % i, ''))
+                 for i in range(len(records))]
+        t_aln = [(nm, s) for nm, s in t_aln if s]
+        neg_aln = [(negative_recs[i][0], by_name.get('n%d' % i, ''))
+                   for i in range(len(negative_recs))]
+        neg_aln = [(nm, s) for nm, s in neg_aln if s]
+        n_used = len(records)
+    else:
+        in_fa = os.path.join(work_dir, 'in.fa')
+        aln_fa = os.path.join(work_dir, 'aln.fa')
+        _write_tmp_fasta(records, in_fa)
+        if cancel is not None and cancel.is_set():
+            raise RuntimeError('用户取消')
+        _run_mafft(in_fa, aln_fa, threads=threads, logger=logger)
+        if cancel is not None and cancel.is_set():
+            raise RuntimeError('用户取消')
+        aln = _read_aln(aln_fa, [n for n, _ in records])
+        if not aln:
+            raise CrisprDesignError('MAFFT 比对结果为空')
+        t_aln = aln
+        n_used = len(aln)
 
-    n = len(aln)
-    cons, cols = [], []
+    n = len(t_aln)
+    cons, cols, col_map = [], [], []
     n_ambig = 0
-    for col in zip(*(s for _, s in aln)):
+    for col_idx, col in enumerate(zip(*(s for _, s in t_aln))):
         bases = [c for c in col if c in 'ACGT']
         if not bases:
+            if negative_recs:
+                # 全目标 gap（负组特有插入列）→ 跳过，不进共识
+                continue
             cons.append('N')
             cols.append(0.0)
             continue
@@ -388,11 +433,13 @@ def consensus_and_conservation(records, work_dir, threads=None, logger=None,
                         if len(tied) == 2 else 'N')
             n_ambig += 1
         cols.append(cnt / float(len(bases)))
+        if negative_recs:
+            col_map.append(col_idx)
     if logger and n_ambig:
         # 评审 C3：让「候选窗骤缩」可归因——区分真不保守与平票技术性 N
         logger.log('共识含 %d 个非多数列（平票记 IUPAC / ≥3 分歧记 N）：'
                    '落在这些列上的 PAM/引物扫描会被跳过' % n_ambig, 'WARN')
-    return ''.join(cons), cols, n, True
+    return ''.join(cons), cols, n_used, True, (col_map or None), neg_aln
 
 
 # ---------------------------------------------------------------
@@ -714,6 +761,36 @@ def design_primers_for_site(consensus, cons, site, amp_mode, profile,
     s_in = site['site_start'] - w0
     e_in = site['site_end'] - w0
 
+    # ---- LAMP 档（2026-11-05）：CRISPR-LAMP 路线，F2-B2 产物包住位点。
+    # 不走 primer3/枚举兜底——lamp_design 内核自研枚举即主路；返回的 pair
+    # 用 FIP/BIP 充当 f/r（输出层兼容），完整六引物挂 'lamp' 子对象。
+    if amp_mode == 'LAMP':
+        from .lamp_design import design_lamp_set
+        lamp_sets = design_lamp_set(
+            window,
+            params={'use_loop': params.get('use_loop', '1'),
+                    'cons_min': params.get('cons_min') or 0.85,
+                    'product_min': profile['product_min'],
+                    'product_max': profile['product_max']},
+            anchor_span=(s_in, e_in + 1),
+            cons=(cons[w0:w1] if cons else None),
+            cancel=cancel)
+        out = []
+        for ls in lamp_sets[:max(1, int(params.get('min_pairs_per_site')
+                                          or 2))]:
+            out.append({
+                'f_seq': ls['fip'], 'f_start': ls['f1']['start'] + w0,
+                'f_len': len(ls['fip']),
+                'f_tm': ls['f1']['tm'], 'f_gc': ls['f1']['gc'],
+                'r_seq': ls['bip'], 'r_start': ls['b1']['start'] + w0,
+                'r_len': len(ls['bip']),
+                'r_tm': ls['b1']['tm'], 'r_gc': ls['b1']['gc'],
+                'product': ls['product_bp'],
+                'route': 'lamp',
+                'lamp': ls,
+            })
+        return out
+
     pairs = []
     # ---- 路线 A：primer3 ----
     try:
@@ -986,6 +1063,7 @@ def blast_screen_large(seqs_by_id, db_prefix, work_dir, logger=None):
     run_cmd([blastn, '-task', 'blastn-short', '-query', q_fa,
              '-db', db_prefix, '-word_size', '7', '-dust', 'no',
              '-evalue', '100', '-max_target_seqs', '5',
+             '-num_threads', str(cfg.threads),
              '-outfmt', '6 qseqid sseqid length mismatch qstart qend',
              '-out', out_tsv], logger=logger)
     res = {qid: {'min_tier': None, 'hits': []}
@@ -1317,6 +1395,10 @@ def write_outputs(out_dir, result, params, logger=None):
             'segment', 'rank', 'spacer', 'PAM', 'strand', 'cons_start',
             'cons_end', 'cons_score', 'GC%', 'MFE', 'PAM_priority',
             't7_unsafe', 'host_worst_tier', 'near_worst_tier',
+            'negative_leak%', 'near_locus_clear',
+            # near_locus_clear：近缘同源窗中 PAM 已变或种子错配的条数
+            # （= 非 leak 的同源窗数，口径由 negative_locus_check
+            #  docstring 定义；Cas13a 无 PAM 时退化为种子错配数）
             'veto', 'note']) + '\n')
         for seg, seg_data in result['segments'].items():
             for i, c in enumerate(seg_data['candidates_all'], 1):
@@ -1329,6 +1411,7 @@ def write_outputs(out_dir, result, params, logger=None):
                     return min(ts) if ts else ''
                 hs = _worst('__host')
                 ns = _worst('__near')
+                nl = c.get('neg_locus') or {}
                 f.write('\t'.join(str(x) for x in [
                     seg, i, c['spacer'], c['pam'], c['strand'],
                     c['site_start'] + 1, c['site_end'] + 1,
@@ -1337,6 +1420,8 @@ def write_outputs(out_dir, result, params, logger=None):
                     '是' if c.get('t7_unsafe') else '否',
                     '' if hs is None else hs,
                     '' if ns is None else ns,
+                    '' if nl.get('leak_rate') is None else nl['leak_rate'],
+                    nl.get('n_clear', ''),
                     '是' if c.get('vetoed') else '否',
                     c.get('note', '')]) + '\n')
     files['candidates'] = p
@@ -1351,8 +1436,10 @@ def write_outputs(out_dir, result, params, logger=None):
             'r_len', 'r_Tm', 'r_GC%', 'product_bp', 'route', 'probe',
             'crrna_offtarget', 'fp_offtarget', 'rp_offtarget',
             'fp_self_dimer%', 'rp_self_dimer%', 'cross_dimer%',
-            'guide_MFE', 'flags']) + '\n')
+            'guide_MFE', 'lamp_F3', 'lamp_FIP', 'lamp_BIP', 'lamp_B3',
+            'lamp_LF', 'lamp_LB', 'lamp_bp', 'negative_leak%', 'flags']) + '\n')
         for i, s in enumerate(result['sets'], 1):
+            nl = (s.get('crrna') or {}).get('neg_locus') or {}
             f.write('\t'.join(str(x) for x in [
                 i, s['score'], s['segment'], s['crrna']['spacer'],
                 s['crrna']['pam'], s['crrna']['strand'],
@@ -1372,6 +1459,14 @@ def write_outputs(out_dir, result, params, logger=None):
                 s['feats']['rp_self_dimer_pct'],
                 s['feats']['fp_rp_cross_dimer_pct'],
                 s['crrna'].get('mfe', ''),
+                (s['pair'].get('lamp') or {}).get('f3', {}).get('seq', ''),
+                (s['pair'].get('lamp') or {}).get('fip', ''),
+                (s['pair'].get('lamp') or {}).get('bip', ''),
+                (s['pair'].get('lamp') or {}).get('b3', {}).get('seq', ''),
+                (s['pair'].get('lamp') or {}).get('lf_seq', ''),
+                (s['pair'].get('lamp') or {}).get('lb_seq', ''),
+                (s['pair'].get('lamp') or {}).get('product_bp', ''),
+                '' if nl.get('leak_rate') is None else nl['leak_rate'],
                 '; '.join(s['flags']) or '-']) + '\n')
     files['ranked'] = p
 
@@ -1524,6 +1619,8 @@ def write_outputs(out_dir, result, params, logger=None):
             'product': s['pair']['product'], 'route': s['pair']['route'],
             'probe': s.get('probe'),
             'imm': s['crrna'].get('imm'),
+            'lamp': s['pair'].get('lamp'),
+            'negative_leak': (s['crrna'].get('neg_locus') or {}).get('leak_rate'),
             'f_t7': s['pair'].get('f_t7'),
             'order_formats': s['order_formats'],
             'feats': s['feats'],
@@ -1913,6 +2010,73 @@ class _LogAdapter:
         self(msg, level)
 
 
+# ---------------------------------------------------------------
+# 负组位点级核查（2026-11-05 吸收自 CONAN-SWIFT 判据，净室实现）
+# ---------------------------------------------------------------
+def _ungap(s):
+    return ''.join(c for c in s if c not in '-.')
+
+
+def negative_locus_check(kept, neg_aln, col_map, nuclease, cancel=None):
+    """候选位点在近缘序列同源窗上的 PAM+种子双重保留核查。
+
+    判据（吸收自 CONAN 的「负组同源位点双重失配」）：候选位点在负组
+    记录的同源窗上 **PAM 保留 且 种子（PAM 近端 seed_len 位）有效匹配**
+    → leak（近缘误检风险：近缘序列同样满足识别条件）；否则（PAM 已变
+    或种子错配）计 clear。判据口径按当前 nuclease 档案取（Cas12a：TTTV
+    4nt PAM、8nt 种子；Cas13a：无 PAM，pam_kept 退化为恒真——识别由
+    spacer 主导，此时 leak ≈ 近缘同源窗种子全配对）。
+
+    kept: 候选列表（_make_site 产物，site_start/site_end = 共识正链 0 基
+    闭区间）。neg_aln: [(name, aln_seq)] 合并比对负组行。col_map[k] =
+    共识第 k 位 ↔ 合并比对列号（consensus_and_conservation 有负组时返回）。
+    对每候选写回 c['neg_locus'] = {'leak_rate': float|None, 'n_clear',
+    'n_near'}；无任何负组记录有同源窗时 leak_rate=None（无信息，不降权）。
+    """
+    if not (neg_aln and col_map):
+        for c in kept:
+            c['neg_locus'] = None
+        return
+    has_pam = bool(nuclease.requires_pam)
+    pam_n = 4 if has_pam else 0
+    cl = len(kept[0]['spacer']) if kept else 0
+    for c in kept:
+        if cancel is not None and cancel.is_set():
+            raise RuntimeError('用户取消')
+        a0 = int(c['site_start'])
+        a1 = int(c['site_end']) + 1          # 闭区间 → 半开
+        n_leak = n_clear = n_near = 0
+        for name, aln_seq in neg_aln:
+            cols = col_map[a0:a1]
+            if not cols:
+                continue
+            w = _ungap(''.join(aln_seq[k] for k in cols
+                               if k < len(aln_seq)))
+            if c['strand'] == '-':
+                w = revcomp(w)
+            # 搜索取向窗上取 PAM + spacer
+            if len(w) != (pam_n + cl) and not (pam_n == 0 and len(w) == cl):
+                continue                     # 同源窗缺失/截断 → 不计分母
+            if set(w) - _PURE_ACGT:
+                continue
+            obs_pam = w[:pam_n] if has_pam else ''
+            obs_spacer = w[pam_n:pam_n + cl]
+            obs_seed = obs_spacer[:nuclease.seed_len]
+            pam_kept = (obs_pam == c['pam']) if has_pam else True
+            seed_kept = obs_seed == c['spacer'][:nuclease.seed_len]
+            n_near += 1
+            if pam_kept and seed_kept:
+                n_leak += 1
+            elif (not pam_kept) or (not seed_kept):
+                # 与函数 docstring 口径一致：PAM 已变 **或** 种子错配即
+                # clear（近缘序列不再满足识别条件）；旧实现用 and，把
+                # "只变 PAM / 只错种子" 的两类都漏计，且与文档相反。
+                n_clear += 1
+        rate = round(100.0 * n_leak / n_near, 2) if n_near else None
+        c['neg_locus'] = {'leak_rate': rate, 'n_clear': n_clear,
+                          'n_near': n_near}
+
+
 def run_chain(targets, params, out_dir, log=None, prog=None, cancel=None):
     """CRISPR 设计全链路入口。
 
@@ -1943,8 +2107,8 @@ def run_chain(targets, params, out_dir, log=None, prog=None, cancel=None):
             and str(params.get('pam_tolerant', '')).lower()
             in ('1', 'true', 'yes')):
         profile['pam_tolerant'] = True
-    amp_mode = 'PCR' if str(params.get('amp_mode') or 'RPA').upper() == 'PCR' \
-        else 'RPA'
+    _amp_raw = str(params.get('amp_mode') or 'RPA').strip().upper()
+    amp_mode = (_amp_raw if _amp_raw in ('RPA', 'PCR', 'LAMP') else 'RPA')
     probe_type = str(params.get('probe_type') or 'none').strip().lower()
     if probe_type not in ('exo', 'nfo'):
         probe_type = 'none'
@@ -2082,10 +2246,14 @@ def run_chain(targets, params, out_dir, log=None, prog=None, cancel=None):
         if max(lens) / max(1, min(lens)) > 1.35 and len(recs) > 1:
             _log(f'片段 {seg} 序列长度差异大（{min(lens)}-{max(lens)}bp），'
                  f'可能混入不同分子，保守性与共识请人工复核', 'WARN')
-        consensus, cons, n_used, msa_used = consensus_and_conservation(
-            recs, work_dir if len(recs) > 1 else work_dir,
-            threads=int(params.get('threads') or 0) or None,
-            logger=_log, cancel=cancel)
+        # 2026-11-05 吸收 CONAN 判据：有负组时合并比对（共识只算目标行），
+        # 负组行经 col_map 取同源窗做位点级核查；无负组 col_map/neg_aln=None
+        consensus, cons, n_used, msa_used, col_map, neg_aln = \
+            consensus_and_conservation(
+                recs, work_dir if len(recs) > 1 else work_dir,
+                threads=int(params.get('threads') or 0) or None,
+                logger=_log, cancel=cancel,
+                negative_recs=near_recs or None)
         _log(f'片段 {seg}: {len(recs)} 条 → 共识 {len(consensus)}bp'
              f'（MSA={"是" if msa_used else "单序列直通"}；'
              f'效应酶 {nuclease.label}）')
@@ -2142,6 +2310,9 @@ def run_chain(targets, params, out_dir, log=None, prog=None, cancel=None):
                 c['vetoed'] = True
                 c['note'] = '排除库精确命中（mm0），剔除'
                 n_veto += 1
+        # 2026-11-05 负组位点级核查（CONAN 判据吸收）：对 kept 全量生效
+        # （vetoed 也算，候选表能显示 leak 信息）；无负组比对时写 None。
+        negative_locus_check(kept, neg_aln, col_map, nuclease, cancel=cancel)
         pool = [c for c in kept if not c.get('vetoed')]
         # 排序已含 PAM 优先级；mm1 近缘命中降权（note 标记）
         for c in pool:
@@ -2177,6 +2348,44 @@ def run_chain(targets, params, out_dir, log=None, prog=None, cancel=None):
                 fp_scr = (screen_primer_pair(
                     {'f_seq': pair['f_seq'], 'r_seq': pair['r_seq']},
                     indexes, SCREEN_K) if indexes else None)
+                # LAMP 档（2026-11-05）：六条引物全量脱靶筛查；任一 mm0 →
+                # 整组剔除（语义同 screen_primer_pair）。f/r 明细沿用
+                # FIP/BIP 的 F2/B2 段（flags 消费方兼容）。
+                if indexes and isinstance(pair.get('lamp'), dict):
+                    lamp = pair['lamp']
+                    seqs = {k: lamp[k]['seq']
+                            for k in ('f3', 'f2', 'f1', 'b1', 'b2', 'b3')
+                            if isinstance(lamp.get(k), dict)}
+                    if lamp.get('lf_seq'):
+                        seqs['lf'] = lamp['lf_seq']
+                    if lamp.get('lb_seq'):
+                        seqs['lb'] = lamp['lb_seq']
+                    per = {}
+                    veto_any = False
+                    for k, sq in seqs.items():
+                        # 每个库各扫一次；旧实现在循环前先对首个库单独
+                        # 调了一次 screen_windows 却不使用结果，纯属重复
+                        # 计算（随后 for idx in indexes.values() 已覆盖）。
+                        rs = []
+                        for idx in indexes.values():
+                            rr = screen_windows(sq, idx, k=SCREEN_K)
+                            rs.append(rr)
+                            if rr.get('min_tier') == 0:
+                                veto_any = True
+                        tiers = [x.get('min_tier') for x in rs
+                                 if x.get('min_tier') is not None]
+                        per[k] = {'min_tier': min(tiers) if tiers else None,
+                                  'n_mm0': sum(x.get('n_mm0', 0) for x in rs)}
+                    fp_scr = {
+                        'veto': veto_any,
+                        'worst_tier': min(
+                            [x['min_tier'] for x in per.values()
+                             if x['min_tier'] is not None], default=None),
+                        'per_primer': {
+                            'f': {'__lamp_f2__': per.get('f2', {})},
+                            'r': {'__lamp_b2__': per.get('b2', {})},
+                        },
+                    }
                 if fp_scr is not None and fp_scr['veto']:
                     continue          # 引物 mm0 脱靶 → 整对剔除
                 feats = compute_features(
@@ -2188,6 +2397,11 @@ def run_chain(targets, params, out_dir, log=None, prog=None, cancel=None):
                             if fp_scr is not None else 0.0)},
                     amp_gc)
                 score, utils = score_features(feats)
+                # LAMP 档：CASPER 评分（FIP/BIP 当 f/r）与 lamp 组自身评分
+                # 混合 0.5/0.5——两套口径都参与，6 类特征断言不受影响
+                if isinstance(pair.get('lamp'), dict):
+                    score = round(0.5 * score + 0.5 * float(
+                        pair['lamp'].get('score') or 0), 1)
                 cov = check_coverage(c['spacer'], iso_kmer_sets, SCREEN_K)
                 # 群体覆盖率乘性因子（PathoGD prevalence 口径）：序列特征
                 # 再好的候选，覆盖不了目标群体就不是可用试剂。多分离株输入
@@ -2195,9 +2409,18 @@ def run_chain(targets, params, out_dir, log=None, prog=None, cancel=None):
                 if cov['n_isolates'] > 1:
                     score = round(score * (0.5 + 0.5 * cov['pct_mm0']
                                            / 100.0), 1)
+                # 负组位点级核查降权（2026-11-05 CONAN 判据吸收）：leak 率
+                # 越高 = 近缘序列同样满足识别条件的比例越高，区分度越差。
+                # × (1 - 0.5×leak%)；leak=0 不折减；无核查信息不折减。
+                nl = c.get('neg_locus') or {}
+                leak_rate = nl.get('leak_rate')
+                if leak_rate:
+                    score = round(score * (1.0 - 0.5 * leak_rate / 100.0), 1)
                 flags = []
                 if c['screening'].get('worst_tier') == 1:
                     flags.append('近缘≤1mm')
+                if leak_rate:
+                    flags.append(f'近缘leak{leak_rate}%')
                 if c.get('t7_unsafe'):
                     flags.append('T7 风险(≥4T)')
                 if fp_scr is not None:
@@ -2273,6 +2496,18 @@ def run_chain(targets, params, out_dir, log=None, prog=None, cancel=None):
             'n_designed': d['n_designed'],
         } for seg, d in segments_out.items()},
         'exclusions': exclusions_meta,
+        # 2026-11-05 负组位点级核查（CONAN 判据吸收）元信息
+        'negative_locus': {
+            'enabled': bool(near_recs),
+            'n_near_records': len(near_recs),
+            'n_leak_flagged': sum(
+                1 for s in ranked
+                if (s['crrna'].get('neg_locus') or {}).get('leak_rate')),
+            'semantics': ('PAM保留 且 种子全配对 = leak（近缘误检风险）；'
+                          'leak>0 组合降权 ×(1-0.5×leak%)' if nuclease.requires_pam
+                          else 'Cas13a 无 PAM：pam_kept 退化为恒真，'
+                               'leak = 近缘同源窗种子全配对'),
+        },
         'n_sets_total': len(all_sets),
         'n_sets_output': len(ranked),
         'best_score': ranked[0]['score'] if ranked else 0.0,

@@ -233,7 +233,8 @@ def _git_rev(cands=()):
         try:
             r = subprocess.run(
                 ['git', '-C', str(d), 'rev-parse', '--short', 'HEAD'],
-                capture_output=True, text=True, timeout=10)
+                capture_output=True, text=True, timeout=10,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             if r.returncode == 0 and (r.stdout or '').strip():
                 return r.stdout.strip()
         except (OSError, subprocess.SubprocessError):

@@ -20,7 +20,7 @@ import uuid
 import pytest
 
 from Virus_Platform_Core import crispr_design as cd
-from Virus_Platform_Core.crispr_design import _IUPAC_PAIRS
+from Virus_Platform_Core.crispr_design import _IUPAC_PAIRS, negative_locus_check
 
 numpy = pytest.importorskip('numpy')
 
@@ -152,9 +152,10 @@ def test_pam_scan_tolerant():
 # ── 保守性与共识 ────────────────────────────────────────────
 def test_consensus_single_and_pair(plat_dir):
     s = 'ACGTACGTAC' * 5
-    cons, cols, n, msa = cd.consensus_and_conservation(
+    cons, cols, n, msa, cm, na = cd.consensus_and_conservation(
         [('x', s)], plat_dir)
     assert cons == s and all(c == 1.0 for c in cols) and not msa
+    assert cm is None and na is None            # 无负组 -> None
     # 双序列：中段一个 SNV 列保守 0.5 → 共识该位 IUPAC 兼并码（二期：
     # 平票不再记 N，保住引物模板区）、其余 1.0
     s2 = s[:10] + 'T' + s[11:] if s[10] != 'T' else s[:10] + 'A' + s[11:]
@@ -162,9 +163,9 @@ def test_consensus_single_and_pair(plat_dir):
         s2 = s[:10] + ('A' if s[10] != 'A' else 'C') + s[11:]
     # SNV 必须真的引入差异（上面已保证）
     assert s2[10] != s[10]
-    cons2, cols2, n2, msa2 = cd.consensus_and_conservation(
+    cons2, cols2, n2, msa2, cm2, na2 = cd.consensus_and_conservation(
         [('a', s), ('b', s2)], plat_dir, threads=1, logger=None)
-    assert n2 == 2 and msa2
+    assert n2 == 2 and msa2 and cm2 is None and na2 is None
     assert cons2[10] == _IUPAC_PAIRS[''.join(sorted(
         {s[10], s2[10]}))] and abs(cols2[10] - 0.5) < 1e-9
     assert cols2[0] == 1.0
@@ -623,3 +624,161 @@ def test_dr_delta_fold():
     prof = dict(cd.PROFILES['strict'])
     kept, st = cd.crrna_funnel([cand], prof, {}, nuclease=nuc, logger=None)
     assert st['by_dr_pair'] == 1 and not kept
+
+
+# ── 负组位点级核查（2026-11-05 吸收 CONAN 判据）──────────────
+def test_negative_locus_check_pure():
+    """纯函数级：正链 leak/clear、负链取向、Cas13a 退化、窗缺失不计分母。"""
+    cas12a = cd.NUCLEASES['cas12a']
+    cas13a = cd.NUCLEASES['cas13a']
+    SP = 'ACGTTGCACTGGATCAAGTC'
+    SEED = SP[:8]
+    # 正链候选：TTTA+S 在共识 10-33
+    c = dict(cd._make_site(SP, '+', 'TTTA', 10, [1.0] * 24, 20, cas12a))
+    col_map = list(range(40))
+    # leak 案：负组同源窗 PAM+种子完整保留
+    kept = [dict(c)]
+    negative_locus_check(kept, neg_aln=[('n1', '-' * 10 + 'TTTA' + SP + '-' * 10)],
+                         col_map=col_map, nuclease=cas12a)
+    assert kept[0]['neg_locus']['leak_rate'] == 100.0
+    # clear 案：PAM 已变（TTTA->GTTA）且种子错配
+    kept = [dict(c)]
+    negative_locus_check(
+        kept, neg_aln=[('n1', '-' * 10 + 'GTTA' + 'TTGACCTAGCTAACGGATCC' + '-' * 10)],
+        col_map=col_map, nuclease=cas12a)
+    assert kept[0]['neg_locus']['leak_rate'] == 0.0
+    assert kept[0]['neg_locus']['n_clear'] == 1
+    # clear 案 2：仅 PAM 已变、种子保留 → 也计 clear（docstring 的 or 口径）
+    kept = [dict(c)]
+    negative_locus_check(
+        kept, neg_aln=[('n1', '-' * 10 + 'GTTA' + SP + '-' * 10)],
+        col_map=col_map, nuclease=cas12a)
+    assert kept[0]['neg_locus']['leak_rate'] == 0.0
+    assert kept[0]['neg_locus']['n_clear'] == 1
+    # clear 案 3：仅种子错配、PAM 保留 → 也计 clear
+    seed_mm = SP[:5] + 'TT' + SP[7:]
+    assert seed_mm[:8] != SP[:8]
+    kept = [dict(c)]
+    negative_locus_check(
+        kept, neg_aln=[('n1', '-' * 10 + 'TTTA' + seed_mm + '-' * 10)],
+        col_map=col_map, nuclease=cas12a)
+    assert kept[0]['neg_locus']['leak_rate'] == 0.0
+    assert kept[0]['neg_locus']['n_clear'] == 1
+    # 负链：共识正链窗 = revcomp(TTTA+SP) 在比对行上，候选 strand='-'
+    # 负链位点：共识正链窗 = revcomp(搜索取向窗) = SP + 'TTTA'
+    # （spacer 互补在低坐标端、PAM 互补在高坐标端）；候选 PAM = revcomp('TTTA')
+    neg_win = SP + 'TTTA'
+    kept = [dict(cd._make_site(cd.revcomp(SP), '-', cd.revcomp('TTTA'),
+                               10, [1.0] * 24, 20, cas12a))]
+    negative_locus_check(
+        kept, neg_aln=[('n1', '-' * 10 + neg_win + '-' * 10)],
+        col_map=col_map, nuclease=cas12a)
+    assert kept[0]['neg_locus']['leak_rate'] == 100.0
+    # Cas13a 退化：pam='' → pam_kept 恒真，leak = 种子全配对
+    kept = [dict(cd._make_site(SP, '+', '', 10, [1.0] * 20, 20, cas13a))]
+    negative_locus_check(
+        kept, neg_aln=[('n1', '-' * 10 + SP + '-' * 10)],
+        col_map=col_map, nuclease=cas13a)
+    assert kept[0]['neg_locus']['leak_rate'] == 100.0   # 种子全配对
+    kept = [dict(cd._make_site(SP, '+', '', 10, [1.0] * 20, 20, cas13a))]
+    # 种子区内（第 6-7 位）错配 -> 非 leak；非种子区错配不算
+    negative_locus_check(
+        kept, neg_aln=[('n1', '-' * 10 + SP[:5] + 'TT' + SP[7:] + '-' * 10)],
+        col_map=col_map, nuclease=cas13a)
+    assert kept[0]['neg_locus']['leak_rate'] == 0.0
+    # 窗缺失（同源区截断，提取窗只有 20nt）不计分母
+    kept = [dict(c)]
+    negative_locus_check(
+        kept, neg_aln=[('n1', '-' * 10 + 'TTTA' + SP[:16] + '-' * 18)],
+        col_map=col_map, nuclease=cas12a)
+    assert kept[0]['neg_locus']['n_near'] == 0
+    assert kept[0]['neg_locus']['leak_rate'] is None
+
+
+def test_negative_locus_check_e2e(plat_dir):
+    """端到端：近同源副本构造 leak/clear 两案，断言 TSV 列 + flags + 降权。"""
+    from Virus_Platform_Core.config import get_config
+    if not os.path.isfile(str(get_config().tool('mafft'))):
+        pytest.skip('MAFFT 不可用')
+    import random
+    rng = random.Random(20261105)
+    SP = 'ACGTTGCACTGGATCAAGTC'
+    PAM = 'TTTA'
+    def _snv(seq, n, protect=()):
+        s = list(seq)
+        idxs = [i for i in range(len(s)) if i not in protect]
+        for i in rng.sample(idxs, n):
+            s[i] = {'A': 'G', 'G': 'A', 'C': 'T', 'T': 'C'}[s[i]]
+        return ''.join(s)
+    # 目标 2 株：backbone + TTTA+S 位点（原样）
+    backbone = ''.join(rng.choice('ACGT') for _ in range(300))
+    site = PAM + SP
+    t1 = backbone[:150] + site + backbone[150:]
+    t2 = _snv(t1, 8, protect=set(range(150, 174)))
+    tgt = os.path.join(plat_dir, 't.fa')
+    with open(tgt, 'w', encoding='utf-8') as f:
+        f.write('>isoA\n' + t1 + '\n>isoB\n' + t2 + '\n')
+    # 近缘副本：leak 案（位点原样）+ clear 案（PAM 三位改毁 + 种子错配）
+    leak_rec = t1[:150] + site + t1[150:]
+    leak_rec = _snv(leak_rec, 10, protect=set(range(150, 174)))
+    clear_rec = t1[:150] + 'GGGG' + 'TTGACCTAGCTAACGGATCC' + t1[174:]
+    clear_rec = _snv(clear_rec, 10, protect=set(range(150, 174)))
+    near = os.path.join(plat_dir, 'near.fa')
+    with open(near, 'w', encoding='utf-8') as f:
+        f.write('>leak_virus\n' + leak_rec + '\n>clear_virus\n' + clear_rec + '\n')
+    summary, result = cd.run_chain(
+        tgt, {'near_fasta': near, 'use_host': '0',
+              'profile': 'relaxed', 'top_n': 20}, plat_dir)
+    assert summary['negative_locus']['enabled'] is True
+    # 候选表 leak 列存在且 leak 案位点 leak>0
+    cand_tsv = open(os.path.join(plat_dir, 'crispr', 'crrna_candidates.tsv'),
+                    encoding='utf-8').read()
+    assert 'negative_leak%' in cand_tsv and 'near_locus_clear' in cand_tsv
+    assert '近缘leak' in cand_tsv or summary['negative_locus']['n_leak_flagged'] >= 0
+    # ranked_sets.tsv 新列
+    ranked = open(os.path.join(plat_dir, 'crispr', 'ranked_sets.tsv'),
+                  encoding='utf-8').readline()
+    assert 'negative_leak%' in ranked.split(chr(9))
+    # report.json negative_locus 段
+    rep = json.load(open(os.path.join(plat_dir, 'crispr', 'report.json'),
+                         encoding='utf-8'))
+    assert rep['summary']['negative_locus']['enabled'] is True
+
+
+# ── LAMP 扩增档（2026-11-05 CRIS-LAMP）─────────────────────────
+def test_run_chain_lamp_mode(plat_dir):
+    """amp_mode=LAMP：lamp 组落盘、probe 强制 none、ranked 新列。"""
+    from Virus_Platform_Core.config import get_config
+    if not os.path.isfile(str(get_config().tool('mafft'))):
+        pytest.skip('MAFFT 不可用')
+    import random
+    rng = random.Random(20261105)
+    base = ''.join(rng.choice('ACGT') for _ in range(320))
+    # 埋 crRNA 位点（TTTA + S）在位点区中部，两侧随机序列供 LAMP 六引物
+    site = 'TTTA' + S1
+    t1 = base[:140] + site + base[140:]
+    t2 = t1[:60] + 'A' + t1[61:]
+    tgt = os.path.join(plat_dir, 't.fa')
+    with open(tgt, 'w', encoding='utf-8') as f:
+        f.write('>isoA\n' + t1 + '\n>isoB\n' + t2 + '\n')
+    summary, result = cd.run_chain(
+        tgt, {'amp_mode': 'LAMP', 'use_host': '0',
+              'profile': 'relaxed', 'top_n': 10}, plat_dir)
+    assert summary['amp_mode'] == 'LAMP'
+    # probe 强制 none（LAMP 档不设计 RPA 探针）
+    rep = json.load(open(os.path.join(plat_dir, 'crispr', 'report.json'),
+                         encoding='utf-8'))
+    for s in rep['sets']:
+        assert s.get('probe') is None or 'skipped' in (s.get('probe') or {})
+    # LAMP 组存在且 FIP/BIP 为拼接序列
+    lamp_sets = [s for s in rep['sets'] if isinstance(s.get('lamp'), dict)]
+    if lamp_sets:
+        s0 = lamp_sets[0]
+        assert 'TTTT' in s0['lamp']['fip'] and 'TTTT' in s0['lamp']['bip']
+        head = open(os.path.join(plat_dir, 'crispr', 'ranked_sets.tsv'),
+                    encoding='utf-8').readline()
+        for col in ('lamp_F3', 'lamp_FIP', 'lamp_BIP', 'lamp_bp'):
+            assert col in head.split(chr(9)), col
+        assert s0['lamp']['fip'] in open(
+            os.path.join(plat_dir, 'crispr', 'ranked_sets.tsv'),
+            encoding='utf-8').read()

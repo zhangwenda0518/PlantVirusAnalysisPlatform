@@ -98,7 +98,9 @@ def _run(cmd, log_path=None, master_log=None, check=True, logger=None, env=None,
     start_time = time.strftime('%Y-%m-%d %H:%M:%S')
     result = subprocess.run(cmd_list, shell=False, capture_output=True,
                             text=True, encoding='utf-8', errors='replace',
-                            env=env, input=stdin_data)
+                            env=env, input=stdin_data,
+                            creationflags=getattr(
+                                subprocess, 'CREATE_NO_WINDOW', 0))
 
     disp = ' '.join(f'"{c}"' if ' ' in str(c) else str(c) for c in cmd_list)
     log_content = f"\n[{start_time}] CMD: {disp}\nEXIT_CODE: {result.returncode}\n"
@@ -351,10 +353,14 @@ def align_sample(fq, index_prefix, out_bam, threads, log_file=None,
     errf.parent.mkdir(parents=True, exist_ok=True)
     with open(errf, 'ab') as ef:
         p_map = subprocess.Popen(map_cmd, stdout=subprocess.PIPE,
-                                 stderr=ef)
+                                 stderr=ef,
+                                 creationflags=getattr(
+                                     subprocess, 'CREATE_NO_WINDOW', 0))
         p_sort = subprocess.Popen([samtools, 'sort', '-@', str(t_io),
                                    '-o', str(out_bam), '-'], stdin=p_map.stdout,
-                                  stdout=subprocess.DEVNULL, stderr=ef)
+                                  stdout=subprocess.DEVNULL, stderr=ef,
+                                  creationflags=getattr(
+                                      subprocess, 'CREATE_NO_WINDOW', 0))
         p_map.stdout.close()                 # 交给 p_sort 后本地关闭写端
         rc_sort = p_sort.wait()
         rc_map = p_map.wait()
@@ -433,7 +439,8 @@ def worker_consensus(args):
         # -> samtools view -b 存 BAM。不用 shell，不需要 awk/sh。
         p_hdr = subprocess.Popen(
             [samtools, 'view', '-@', str(t_io), '-h', str(bam_path), str(virus)],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         sam_out, sam_err = p_hdr.communicate()
         if p_hdr.returncode != 0:
             from Virus_Platform_Core.utils import decode_output as _dec
@@ -446,7 +453,8 @@ def worker_consensus(args):
 
         p_bam = subprocess.Popen(
             [samtools, 'view', '-@', str(t_io), '-b', '-o', str(fixed_bam), '-'],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         _, bam_err = p_bam.communicate(input=filtered.encode('utf-8'))
         _write_cmd_log(log_file, master_log,
                        f"samtools view -h {bam_path} {virus} | "

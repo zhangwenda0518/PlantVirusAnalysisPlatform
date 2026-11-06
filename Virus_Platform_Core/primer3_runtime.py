@@ -35,7 +35,9 @@ def _probe_once():
     global _state, _err
     try:
         r = subprocess.run(_child_cmd(), capture_output=True,
-                           text=True, errors='replace', timeout=180)
+                           text=True, errors='replace', timeout=180,
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
         ok = (r.returncode == 0)
         if not ok:
             tail = ((r.stderr or '') + (r.stdout or '')).strip()[-160:]

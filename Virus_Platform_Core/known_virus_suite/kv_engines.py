@@ -294,7 +294,8 @@ class SalmonEngine(VirusEngine):
                '-k', str(kmer), '-p', str(threads), '--keepDuplicates']
         with open(logf, 'w', encoding='utf-8') as fl:
             try:
-                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200,
+                               creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(
                     f"salmon index 失败（exit {e.returncode}）："
@@ -351,7 +352,9 @@ class SalmonEngine(VirusEngine):
         with open(logf, 'w', encoding='utf-8') as fl:
             try:
                 subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT,
-                               check=True)
+                               check=True,
+                               creationflags=getattr(
+                                   subprocess, 'CREATE_NO_WINDOW', 0))
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(
                     f"salmon quant 失败（exit {e.returncode}）："
@@ -537,7 +540,8 @@ class BwaEngine(VirusEngine):
         _ilog = sub / 'index.log'
         with open(_ilog, 'w', encoding='utf-8') as fl:
             try:
-                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200,
+                               creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(
                     f"minibwa index 失败（exit {e.returncode}）："
@@ -588,16 +592,20 @@ class BwaEngine(VirusEngine):
         # （表现：BAM 停止增长、minibwa/samtools 双进程 0% CPU 永久挂起）。
         with open(logf, 'ab') as ef:
             p_map = subprocess.Popen(map_cmd, stdout=subprocess.PIPE,
-                                     stderr=ef)
+                                     stderr=ef,
+                                     creationflags=getattr(
+                                         subprocess, 'CREATE_NO_WINDOW', 0))
             # 注册进任务取消表：任务硬停止/超时时 TaskManager 可杀到
             # 管道两进程（此前仅靠外层 6h 兜底——2026-10-04 审查 P3）
             from Virus_Platform_Core.utils import task_register_proc
             task_register_proc(p_map)
-            p_bam = subprocess.Popen([self.samtools, 'view', '-b', '-o',
-                                      str(bam_raw), '-'],
-                                     stdin=p_map.stdout,
-                                     stdout=subprocess.DEVNULL,
-                                     stderr=ef)
+            p_bam = subprocess.Popen(
+                [self.samtools, 'view', '-@', str(self.threads), '-b',
+                 '-o', str(bam_raw), '-'],
+                stdin=p_map.stdout,
+                stdout=subprocess.DEVNULL,
+                stderr=ef,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             task_register_proc(p_bam)
             p_map.stdout.close()
             rc_bam = p_bam.wait()
@@ -683,7 +691,8 @@ class BwaEngine(VirusEngine):
         r = subprocess.run(
             [self.samtools, 'view', '-c', '-F', '0x900', str(bam)],
             capture_output=True, text=True, encoding='utf-8',
-            errors='replace')
+            errors='replace',
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         if r.returncode != 0:
             raise RuntimeError(
                 f'samtools view -c 失败 (退出码 {r.returncode})：'
@@ -698,7 +707,8 @@ class BwaEngine(VirusEngine):
         r = subprocess.run(
             [self.samtools, 'view', '-c', '-F', '0x904', str(bam)],
             capture_output=True, text=True, encoding='utf-8',
-            errors='replace')
+            errors='replace',
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         if r.returncode != 0:
             raise RuntimeError(
                 f'samtools view -c 失败 (退出码 {r.returncode})：'
@@ -775,7 +785,8 @@ class BamCoverageBackend:
                    '-o', str(bam), str(sam_path)]
         with open(logf, 'w', encoding='utf-8') as fl:
             try:
-                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200,
+                               creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(
                     f"samtools view -b 失败（exit {e.returncode}）："
@@ -789,16 +800,20 @@ class BamCoverageBackend:
                '-o', str(sorted_bam), str(bam)]
         with open(logf, 'a', encoding='utf-8') as fl:
             try:
-                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200,
+                               creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(
                     f"samtools sort 失败（exit {e.returncode}）："
                     f"{_log_tail(logf)}｜完整日志: {logf}") from e
 
-        cmd = [self.samtools, 'index', str(sorted_bam)]
+        cmd = [self.samtools, 'index', '-@', str(self.threads),
+               str(sorted_bam)]
         with open(logf, 'a', encoding='utf-8') as tf2:
             try:
-                subprocess.run(cmd, stdout=tf2, stderr=subprocess.STDOUT, check=True, timeout=7200)
+                subprocess.run(cmd, stdout=tf2, stderr=subprocess.STDOUT, check=True, timeout=7200,
+                               creationflags=getattr(
+                                   subprocess, 'CREATE_NO_WINDOW', 0))
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(
                     f"samtools index 失败（exit {e.returncode}）："
@@ -829,7 +844,9 @@ class BamCoverageBackend:
         """
         r = subprocess.run([self.samtools, 'idxstats', str(sorted_bam)],
                            capture_output=True, text=True,
-                           encoding='utf-8', errors='replace')
+                           encoding='utf-8', errors='replace',
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
         if r.returncode != 0:
             raise RuntimeError('samtools idxstats 失败 (退出码 %d)：'
                                '%s' % (r.returncode, (r.stderr or '')[-300:]))
@@ -846,7 +863,8 @@ class BamCoverageBackend:
             [self.samtools, 'view', '-F', '0x4', '-F', '0x100', '-c',
              str(sorted_bam)],
             capture_output=True, text=True,
-            encoding='utf-8', errors='replace')
+            encoding='utf-8', errors='replace',
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         if r.returncode != 0:
             raise RuntimeError('samtools view -c 失败 (退出码 %d)：'
                                '%s' % (r.returncode, (r.stderr or '')[-300:]))
@@ -876,9 +894,11 @@ class BamCoverageBackend:
         # 大样品（数百万条比对，数 GB 文本）直接 MemoryError 且 ANI 静默置空
         acc: dict = {}
         proc = subprocess.Popen(
-            [self.samtools, 'view', '-F', '0x904', str(sorted_bam)],
+            [self.samtools, 'view', '-@', str(self.threads),
+             '-F', '0x904', str(sorted_bam)],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, encoding='utf-8', errors='replace')
+            text=True, encoding='utf-8', errors='replace',
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         try:
             for line in proc.stdout:
                 if not line or line.startswith('@'):
@@ -944,7 +964,8 @@ class BamCoverageBackend:
         cmd = [self.samtools, 'coverage', str(sorted_bam)]
         with open(raw, 'w', encoding='utf-8') as fl:
             try:
-                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200)
+                subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True, timeout=7200,
+                               creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(
                     f"samtools coverage 失败（exit {e.returncode}）："
@@ -1002,7 +1023,9 @@ class BamCoverageBackend:
         with open(logf, 'w', encoding='utf-8') as fl:
             try:
                 subprocess.run(cmd, stdout=fl, stderr=subprocess.STDOUT, check=True,
-                               env=env)
+                               env=env,
+                               creationflags=getattr(
+                                   subprocess, 'CREATE_NO_WINDOW', 0))
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(
                     f"pandepth 失败（exit {e.returncode}）："

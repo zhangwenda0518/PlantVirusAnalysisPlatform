@@ -102,7 +102,9 @@ def _write_fasta(path, records):
 
 def _run(cmd, cwd=None, timeout=600):
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
-                          errors='replace', timeout=timeout)
+                          errors='replace', timeout=timeout,
+                          creationflags=getattr(
+                              subprocess, 'CREATE_NO_WINDOW', 0))
 
 
 # ── miRanda ─────────────────────────────────────────────────────────

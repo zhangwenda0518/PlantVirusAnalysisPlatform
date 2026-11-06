@@ -45,23 +45,35 @@ _NAMES_CACHE = None
 _ALLOC_MSGS = ('Can not allocate', 'could not allocate', 'IndexTable')
 
 
+def _resolve_db(p):
+    """platform.json 里的库路径允许相对写法：相对平台根解析。"""
+    if not p:
+        return None
+    p = str(p)
+    if os.path.isabs(p):
+        return p
+    from .config import PLATFORM_ROOT
+    return os.path.join(PLATFORM_ROOT, p)
+
+
 def bfvd_db(logger=None):
     """mmseqs 格式 BFVD 库前缀。优先级：platform.json databases.bfvd 覆盖 >
-    默认 databases/misc_db/suvtk/bfvd（与 SUVTK 提交链共用同一份库）。"""
+    默认 PVDB 自带 BFVD 子集（databases/pvdb/bfvd，2026-11-02 起注释库只留
+    PVDB，原 misc_db/suvtk 已归档）。"""
     cfg = get_config()
-    p = (getattr(cfg, 'databases', {}) or {}).get('bfvd')
+    p = _resolve_db((getattr(cfg, 'databases', {}) or {}).get('bfvd'))
     if p and os.path.isfile(p):
         return p
-    prefix = os.path.join(db_path('misc', 'suvtk'), 'bfvd')
+    prefix = os.path.join(db_path('annot', 'pvdb'), 'bfvd', 'pvdb-v1.0.bfvd')
     return prefix if os.path.isfile(prefix) else None
 
 
 def bfvd_db_dir():
     """BFVD 库所在目录（两张 TSV 名字表同目录）。"""
-    d = (getattr(get_config(), 'databases', {}) or {}).get('bfvd')
+    d = _resolve_db((getattr(get_config(), 'databases', {}) or {}).get('bfvd'))
     if d and os.path.isfile(d):
         return os.path.dirname(d)
-    return db_path('misc', 'suvtk')
+    return os.path.join(db_path('annot', 'pvdb'), 'bfvd')
 
 
 def db_trace():
@@ -130,11 +142,12 @@ def load_names(db_dir=None):
 
 
 def easy_search(mmseqs, query, db, out_tsv, tmp, format_output, evalue,
-                max_seqs=5, threads=4, extra=None, logger=None):
-    """easy-search vs BFVD（整库直搜；内存分配失败按线程阶梯降档重试）。
+                max_seqs=5, threads=4, extra=None, logger=None, label='BFVD'):
+    """easy-search（BFVD / PVDB CDD 等 mmseqs 库通用；内存分配失败按线程阶梯降档重试）。
 
     成功/失败都要清掉 mmseqs 的 tmp 目录：残留的非空 tmp 会让下次重试
     直接报错，还会被 /api/tool/runs 目录遍历扫到（CDD 时代的实测教训）。
+    label 只用于日志文案（区分是哪一路在降线程重试）。
     """
     import shutil
     ladder = []
@@ -153,7 +166,7 @@ def easy_search(mmseqs, query, db, out_tsv, tmp, format_output, evalue,
             try:
                 run_cmd(cmd, logger=logger)
                 if t != ladder[0] and logger:
-                    logger.log(f'BFVD 搜索 {ladder[0]} 线程内存不足，'
+                    logger.log(f'{label} 搜索 {ladder[0]} 线程内存不足，'
                                f'降为 {t} 线程后成功', 'WARN')
                 return
             except RuntimeError as e:
@@ -161,7 +174,7 @@ def easy_search(mmseqs, query, db, out_tsv, tmp, format_output, evalue,
                     raise
                 last = e
                 if logger and t != ladder[-1]:
-                    logger.log(f'BFVD 搜索 {t} 线程内存分配失败，降线程重试',
+                    logger.log(f'{label} 搜索 {t} 线程内存分配失败，降线程重试',
                                'WARN')
         raise last
     finally:
@@ -241,6 +254,19 @@ def search_orfs(faa, out_dir, threads=None, logger=None):
     return by_q
 
 
+def _normalize_span(qs, qe):
+    """mmseqs query 跨段归位 → (低, 高, strand)。
+
+    翻译搜索（核酸 contig vs BFVD 模型库）在**反向链**命中时会输出
+    qstart > qend；直接 `(qe-qs+1)/qlen` 会得到负覆盖度。入表前统一
+    min/max 归位（与 pvdb_search._parse() 同口径），strand 单独保留。
+    """
+    qs, qe = int(qs), int(qe)
+    if qs > qe:
+        return qe, qs, '-'
+    return qs, qe, '+'
+
+
 def search_contigs(fa, out_tsv, threads=None, logger=None):
     """③b 验证 B 路：mmseqs easy-search 核酸 contig vs BFVD（自动翻译）。
 
@@ -275,13 +301,15 @@ def search_contigs(fa, out_tsv, threads=None, logger=None):
                 continue
             if ev > BFVD_EVALUE_MAX:
                 continue
+            qs, qe, strand = _normalize_span(qs, qe)
+            cov = round((qe - qs + 1) / max(qlen, 1), 3)
+            cov = min(1.0, max(0.0, cov))       # 覆盖度口径：0..1
             info = names.get(target, {})
             by_q.setdefault(q, []).append({
                 'target': target, 'acc': info.get('uniref', ''),
                 'product': info.get('product', ''),
                 'organism': info.get('organism', ''),
-                'evalue': ev,
-                'cov': round((qe - qs + 1) / max(qlen, 1), 3),
+                'evalue': ev, 'cov': cov, 'strand': strand,
             })
     for q in by_q:
         by_q[q].sort(key=lambda h: h['evalue'])

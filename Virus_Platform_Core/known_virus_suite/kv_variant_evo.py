@@ -926,7 +926,9 @@ def run_snpgenie(fasta: Path, gtf: Path, vcf: Path, workdir_en: Path,
     try:
         p = subprocess.run(args, cwd=str(workdir_en), capture_output=True,
                            text=True, encoding='utf-8', errors='replace',
-                           timeout=timeout)
+                           timeout=timeout,
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
     except subprocess.TimeoutExpired:
         if logger:
             logger.warning('  SNPGenie 超时 (%ds)', timeout)

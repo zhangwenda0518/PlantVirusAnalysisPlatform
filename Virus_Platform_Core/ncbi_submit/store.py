@@ -945,6 +945,44 @@ _RUN_FIELD_MAP = {
 }
 
 
+def import_from_fasta(name, fasta_path):
+    """FASTA 头 → 表行（一键「注释→图谱→NCBI 提交」链的第②段建档用）。
+
+    sequence_name = 头行首词（与 export_submission_fasta 的提取键一致）；
+    其余列留空（organism 等由提交页人工填写），幂等：已有同名 sequence_name
+    行跳过。返回 {added, skipped, names}。
+    """
+    from ..utils import iter_fasta
+    check_path(fasta_path, must_exist=True, in_platform=True)
+    names, seen = [], set()
+    for h, _s in iter_fasta(fasta_path):
+        sid = str(h).split()[0] if str(h).split() else ''
+        if sid and sid not in seen:
+            seen.add(sid)
+            names.append(sid)
+    if not names:
+        raise ValueError(f'输入 FASTA 中没有序列: {fasta_path}')
+    with table_lock(name):
+        df = load_table(name)
+        cols = list(UNIFIED_COLUMNS.keys())
+        for c in cols:
+            if c not in df.columns:
+                df[c] = ''
+        existing = {str(v or '').strip() for v in df['sequence_name'].tolist()}
+        added = skipped = 0
+        for sid in names:
+            if sid in existing:
+                skipped += 1
+                continue
+            row = {c: '' for c in cols}
+            row['sequence_name'] = sid
+            df.loc[len(df)] = row
+            existing.add(sid)
+            added += 1
+        save_df(df[_align_columns(df).columns], _csv_path(name))
+    return {'added': added, 'skipped': skipped, 'names': names}
+
+
 def import_from_run(name, run):
     """把运行/样品分类表的病毒 contigs 导入为表行。
 
@@ -1202,10 +1240,10 @@ def adopt_sample(sample):
         # link_orf_run 对"目录在但没注释产物"不报错（n_cds=0/gffs 空）——
         # 那只是空关联，如实归入缺产物，引导先跑注释段
         if not linked.get('n_cds') and not linked.get('gffs'):
-            missing.append('orf 注释产物（先跑「注释三连」段）')
+            missing.append('orf 注释产物（先跑「功能注释」）')
             linked = None
     except (OSError, ValueError, KeyError):
-        missing.append('orf 注释产物（先跑「注释三连」段）')
+        missing.append('orf 注释产物（先跑「功能注释」）')
     if imported is None and linked is None:
         raise ValueError(f'样品 {name} 暂无可认领的注释产物：'
                          + '；'.join(missing))

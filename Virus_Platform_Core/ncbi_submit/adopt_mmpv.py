@@ -1070,7 +1070,9 @@ def _run(cmd, log, timeout=600):
     import subprocess
     try:
         r = subprocess.run(cmd, capture_output=True, text=True,
-                           timeout=timeout, encoding='utf-8', errors='replace')
+                           timeout=timeout, encoding='utf-8', errors='replace',
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
     except (OSError, subprocess.SubprocessError) as e:
         return 1, '', f'{type(e).__name__}: {e}'
     for line in (r.stdout or '').splitlines():

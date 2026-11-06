@@ -124,7 +124,9 @@ def _run_rdp5cl_impl(fasta, out_dir, prefix='rdp5', timeout=3600,
     # 按字节迭代再 decode_output（utf-8→GBK 兜底）：RDP5CL 把含中文路径的
     # 提示行按系统 ANSI 打印，text=True+utf-8 会在捕获时打成 U+FFFD（不可逆）
     proc = subprocess.Popen(cmd, cwd=bin_dir, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT,
+                            creationflags=getattr(
+                                subprocess, 'CREATE_NO_WINDOW', 0))
     deadline = time.time() + timeout
     # ⚠️ cancel/超时不能只在"读到新输出行"时检查（2026-10-03 修复）：
     #    RDP5CL 可能长时间**静默**（大比对 / 捆绑工具计算中），旧实现下
@@ -421,13 +423,80 @@ def synthesize_breakpoint_distribution(csv_path, events, aln_len=None,
     return n_rows
 
 
+def _aln_nt2col(aln_fasta, ref_id=None):
+    """读比对 FASTA，建参考行的 nt→比对列映射（1-based）。
+
+    参考行取 ref_id 前缀匹配的序列，缺省用比对第一条；参考行里的 gap
+    列自动跨过（与 RDP5 断点坐标同一坐标系）。
+    ref_id 给了却一条都不匹配时**报错**（中文列出现有序列名），不再静默
+    退回第一条——退错参考行会让基因坐标整体错位（2026-11-06 修复）。
+    返回 (nt2col, ref_name, n_nt)。比对为空抛 ValueError。
+    """
+    cur_name, buf = None, []
+    rows_fa = []
+    with open(aln_fasta, encoding='utf-8', errors='replace') as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith('>'):
+                if cur_name is not None:
+                    rows_fa.append((cur_name, ''.join(buf)))
+                cur_name = line[1:].split()[0] if line[1:].split() else line[1:]
+                buf = []
+            elif line:
+                buf.append(line)
+    if cur_name is not None:
+        rows_fa.append((cur_name, ''.join(buf)))
+    if not rows_fa:
+        raise ValueError('比对 FASTA 为空，无法映射基因坐标')
+    ref_name, ref_seq = rows_fa[0]
+    if ref_id:
+        hit = next(((nm, sq) for nm, sq in rows_fa if nm.startswith(ref_id)),
+                   None)
+        if hit is None:
+            avail = '、'.join(nm for nm, _ in rows_fa[:8])
+            raise ValueError(
+                f'比对 FASTA 中没有与参考 ID「{ref_id}」匹配的序列'
+                f'（现有：{avail}）。请检查参考序列名，或清空 ref 选择让'
+                '平台默认用第一条序列')
+        ref_name, ref_seq = hit
+    nt2col, n = {}, 0
+    for i, ch in enumerate(ref_seq, 1):
+        if ch != '-':
+            n += 1
+            nt2col[n] = i
+    return nt2col, ref_name, n
+
+
+def _map_genes_to_aln(genes, aln_fasta, ref_id=None, skipped=0):
+    """参考序列 nt 坐标基因列表 → 比对坐标（公共映射，CSV/GenBank 共用）。
+
+    skipped 传入上游（如 CSV 畸形行）已累计的跳过数，映射越界数累加其上。
+    strand: 每条基因带 'strand'（'+' / '-' / '?'），缺失按 '+' 处理
+    （CSV 无链信息）。坐标仍是 min/max 归位后的比对列，链方向单独保留，
+    供断点分布图基因轨道画方向箭头。
+    """
+    nt2col, ref_name, n = _aln_nt2col(aln_fasta, ref_id)
+    out = []
+    for g in genes:
+        s, e = nt2col.get(g['ref_start']), nt2col.get(g['ref_stop'])
+        if s is None or e is None:
+            skipped += 1
+            continue
+        out.append({'name': g['name'], 'start': min(s, e), 'end': max(s, e),
+                    'strand': g.get('strand') or '+'})
+    if not out:
+        raise ValueError(f'基因坐标全部越界（参考序列 {ref_name} 共 {n} nt，'
+                         f'{skipped} 行无法映射）——坐标应按参考序列 nt 给')
+    return {'genes': out, 'skipped': skipped, 'ref': ref_name,
+            'ref_nt_count': n}
+
+
 def orf_csv_to_aln_map(orf_csv, aln_fasta, ref_id=None):
     """基因坐标 CSV（Rgrapher ORFCoords 风格）→ 比对坐标基因图谱。
 
     CSV 表头按 Rgrapher 惯例（Gene.symbol / Start / Stop，大小写不敏感）；
-    坐标是**参考序列**的核苷酸坐标（1-based，GenBank 口径）。参考行取
-    ref_id 前缀匹配的序列，缺省用比对第一条。参考行里的 gap 列自动跨过
-    （与 RDP5 断点坐标同一坐标系）。越界/畸形行跳过并计数。
+    坐标是**参考序列**的核苷酸坐标（1-based，GenBank 口径）。越界/畸形行
+    跳过并计数。映射逻辑见 _map_genes_to_aln。
     返回 {'genes': [{'name','start','end'}, …], 'skipped': int, 'ref': str}。
     """
     import csv as _csv
@@ -445,6 +514,12 @@ def orf_csv_to_aln_map(orf_csv, aln_fasta, ref_id=None):
             start_col = i
         elif h in ('stop', 'end', 'to'):
             stop_col = i
+    # 表头带 Gene 列但缺 Start/Stop（2026-11-03）：旧实现 row[None] 抛
+    # 裸 TypeError，调用方只能退化成含糊告警（审计 P2-17）。
+    if name_col is not None and (start_col is None or stop_col is None):
+        raise ValueError(
+            '基因坐标 CSV 有基因名列但缺 Start/Stop 列 —— '
+            'Rgrapher 风格表头应为 Gene.symbol,Start,Stop（可加任意列）')
     for row in (rows[1:] if name_col is not None else rows):
         try:
             if name_col is not None:
@@ -470,46 +545,88 @@ def orf_csv_to_aln_map(orf_csv, aln_fasta, ref_id=None):
         if skipped:
             raise ValueError(f'基因坐标 CSV 无有效行（{skipped} 行畸形已跳过）')
         raise ValueError('基因坐标 CSV 无有效行')
+    return _map_genes_to_aln(genes, aln_fasta, ref_id, skipped=skipped)
 
-    # 参考行 → nt→col 映射
-    cur_name, buf = None, []
-    rows_fa = []
-    with open(aln_fasta, encoding='utf-8', errors='replace') as f:
-        for line in f:
-            line = line.strip()
-            if line.startswith('>'):
-                if cur_name is not None:
-                    rows_fa.append((cur_name, ''.join(buf)))
-                cur_name = line[1:].split()[0] if line[1:].split() else line[1:]
-                buf = []
-            elif line:
-                buf.append(line)
-    if cur_name is not None:
-        rows_fa.append((cur_name, ''.join(buf)))
-    if not rows_fa:
-        raise ValueError('比对 FASTA 为空，无法映射基因坐标')
-    ref_name, ref_seq = rows_fa[0]
-    for nm, sq in rows_fa:
-        if ref_id and nm.startswith(ref_id):
-            ref_name, ref_seq = nm, sq
-            break
-    nt2col, n = {}, 0
-    for i, ch in enumerate(ref_seq, 1):
-        if ch != '-':
-            n += 1
-            nt2col[n] = i
-    mapped, out = 0, []
-    for g in genes:
-        s, e = nt2col.get(g['ref_start']), nt2col.get(g['ref_stop'])
-        if s is None or e is None:
-            skipped += 1
+
+def gbk_cds_to_aln_map(gbk_path, aln_fasta, ref_id=None):
+    """GenBank 文件的 CDS 特征 → 比对坐标基因图谱（断点分布图轨道）。
+
+    直接吃 GenBank 注释，免手工整理 ORFCoords CSV：取记录（ref_id 前缀
+    匹配 rec.id/name/description 首词，缺省第一条）的全部 CDS 特征
+    （无 CDS 时退 gene 特征），基因名按 /gene → /label → /product
+    （截 10 字符）→ CDS{n} 取短名。坐标经 nt→比对列映射
+    （同 orf_csv_to_aln_map 的坐标系与返回结构）。
+
+    strand: 记录 f.location.strand（1/-1/0），映射为 '+'/'-'/'?' 随基因
+    输出，供断点分布图基因轨道画方向（2026-11-06 修复：此前丢弃链方向）。
+    ref_id 在记录里一条都不匹配时**报错**（中文列出现有记录），不再静默
+    退回第一条——退错记录会让整张基因轨道错位。
+    """
+    try:
+        from Bio import SeqIO
+    except ImportError:
+        raise RuntimeError('需要 Biopython 解析 GenBank（pip install biopython）')
+    records = list(SeqIO.parse(gbk_path, 'genbank'))
+    if not records:
+        raise ValueError(f'GenBank 解析失败或无记录：{gbk_path}')
+    rec = records[0]
+    if ref_id:
+        def _matches(r):
+            desc = (r.description or '').split()
+            first_word = desc[0] if desc else ''
+            return ((r.id or '').startswith(ref_id)
+                    or (r.name or '').startswith(ref_id)
+                    or first_word.startswith(ref_id))
+        hit = next((r for r in records if _matches(r)), None)
+        if hit is None:
+            avail = '、'.join((r.id or r.name or '?') for r in records[:8])
+            raise ValueError(
+                f'GenBank 中没有与参考 ID「{ref_id}」匹配的记录'
+                f'（现有：{avail}）。请检查参考序列名，或清空 ref 选择'
+                '让平台默认用第一条记录')
+        rec = hit
+    feats = [f for f in rec.features if f.type == 'CDS']
+    used_gene = False
+    if not feats:
+        feats = [f for f in rec.features if f.type == 'gene']
+        used_gene = True
+    if not feats:
+        raise ValueError(f'GenBank 记录 {rec.id} 无 CDS/gene 特征')
+    genes = []
+    for i, f in enumerate(feats, 1):
+        try:
+            if f.location is None:      # 畸形位置（如 start>stop）解析为 None
+                continue
+            start = int(f.location.start) + 1
+            end = int(f.location.end)
+        except (TypeError, ValueError):
             continue
-        out.append({'name': g['name'], 'start': min(s, e), 'end': max(s, e)})
-        mapped += 1
-    if not out:
-        raise ValueError(f'基因坐标全部越界（参考序列 {ref_name} 共 {n} nt，'
-                         f'{skipped} 行无法映射）——坐标应按参考序列 nt 给')
-    return {'genes': out, 'skipped': skipped, 'ref': ref_name,
-            'ref_nt_count': n}
+        if end < start:
+            continue
+        # 链方向：BioPython 的 CompoundLocation 与 SimpleLocation 都带 strand
+        # （1=正链 / -1=负链 / 0 或 None=未知）。坐标仍按正链 min/max 归位，
+        # 方向单独随基因输出，绘制端据此画箭头。
+        _st = getattr(f.location, 'strand', None)
+        strand = '+' if _st == 1 else ('-' if _st == -1 else '?')
+        qualifiers = f.qualifiers or {}
+        name = None
+        for k in ('gene', 'label', 'product'):
+            v = qualifiers.get(k)
+            if v and v[0]:
+                name = str(v[0]).strip()
+                if k == 'product':
+                    name = name.split()[0][:10] if name.split() else None
+                break
+        if not name:
+            name = f'CDS{i}'
+        genes.append({'name': name, 'ref_start': start, 'ref_stop': end,
+                      'strand': strand})
+    if not genes:
+        raise ValueError(f'GenBank 记录 {rec.id} 的 CDS 坐标全部无法解析')
+    res = _map_genes_to_aln(genes, aln_fasta, ref_id)
+    res['source'] = 'genbank'
+    res['record'] = rec.id
+    res['feature'] = 'gene' if used_gene else 'CDS'
+    return res
 
 

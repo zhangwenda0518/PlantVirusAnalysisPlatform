@@ -906,7 +906,9 @@ def _snipit_one(acc, vcf_path, out_dir, gbk_dirs, plot_dir, runner,
                             '--sort-by-mutation-number', '--show-indels',
                             '--solid-background']
             p = subprocess.run(cmd, capture_output=True, text=True,
-                               encoding='utf-8', errors='replace')
+                               encoding='utf-8', errors='replace',
+                               creationflags=getattr(
+                                   subprocess, 'CREATE_NO_WINDOW', 0))
             src = Path(td) / f'{stem}.{ext}'
             if p.returncode != 0 or not src.is_file():
                 tail = ((p.stderr or p.stdout or '').strip().splitlines()

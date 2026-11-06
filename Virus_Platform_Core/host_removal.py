@@ -144,9 +144,11 @@ def _seqkit_filter(seqkit, r1, r2, out_r1, out_r2, ids, threads, work_dir,
 
     def _count_total(path):
         r = subprocess.run(
-            [seqkit, 'stats', '-T', check_path(path, must_exist=True)],
+            [seqkit, 'stats', '-T', '-j', str(threads or 4),
+             check_path(path, must_exist=True)],
             capture_output=True, text=True, encoding='utf-8',
-            errors='replace')
+            errors='replace',
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         if r.returncode != 0:
             raise RuntimeError(f"seqkit stats 失败: {r.stderr[-200:]}")
         lines = r.stdout.strip().splitlines()

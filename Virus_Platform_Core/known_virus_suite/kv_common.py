@@ -274,7 +274,9 @@ def ensure_fai(ref_fasta, samtools=None, logger=None, env=None):
     try:
         p = subprocess.run([str(samtools), 'faidx', str(ref_p)],
                            capture_output=True, text=True,
-                           encoding='utf-8', errors='replace', env=env)
+                           encoding='utf-8', errors='replace', env=env,
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
     except OSError as e:
         if logger:
             logger.error('samtools faidx 无法执行（%s），.fai 仍不可用', e)

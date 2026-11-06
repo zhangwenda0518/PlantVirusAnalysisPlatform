@@ -43,9 +43,18 @@ from .config import DIRS, get_config, db_path
 from .utils import (check_path, safe_open, safe_remove, run_cmd, iter_fasta,
                     count_fasta_seqs, is_step_done, mark_step_done, db_trace)
 from .hmm_annot import (hmm_available, annotate_orfs_hmm,
-                        merge_layer2, available_libs, lib_trace)
+                        merge_layer2, available_libs, lib_trace,
+                        lib_z_map as hmm_lib_z_map)
 from .bfvd_search import (search_orfs as bfvd_search_orfs, bfvd_db,
                           db_trace as bfvd_db_trace)
+from .cdd_search import (search_orfs as cdd_search_orfs, cdd_db,
+                         format_hit_cell as cdd_hit_cell)
+from .pvdb_search import (PROJ_PROFILES as _PROJ_PROFILES,
+                          SEQ_MIN_PIDENT as _PVDB_MIN_PIDENT,
+                          SEQ_MIN_QCOV as _PVDB_MIN_QCOV,
+                          search_orfs as pvdb_search_orfs,
+                          annotate_rows as pvdb_annotate_rows,
+                          pvdb_ready, db_trace as pvdb_db_trace)
 from .genome_diag import render_sample_diagrams
 from .sci_palette import category_color
 
@@ -712,60 +721,97 @@ def _pick_orf_input(sample_dir, model=None):
 # OOM，2026-09-29 移除；同日改接 'bfvd'（BFVD 病毒域，与 SUVTK 提交链
 # 同库同命名，见 Virus_Platform_Core/bfvd_search.py）。旧调用传入 'cdd'
 # 会按无法识别的层忽略并告警。
-ANNOT_LIBS = ('prot', 'pfam', 'bfvd')
+# 2026-11-02 新增 'pvdb'：PVDB 植物病毒专属库（23,292 条蛋白 + 参考
+# 多聚蛋白切点），序列同源 + canonical_function 命名 + 切点投影分段，
+# 见 Virus_Platform_Core/pvdb_search.py。
+# 2026-11-02 定稿：平台只做植物病毒，注释层全部由 PVDB 提供——
+#   pvdb = 序列同源 + 切点投影分段；hmm = PVDB 三库（Pfam/VOG/VFAM，932 模型）；
+#   cdd = PVDB CDD profile（455）；bfvd = PVDB BFVD 子集（13,900）。
+# prot / 原 Pfam-A-Viruses 已归档。
+ANNOT_LIBS = ('pvdb', 'hmm', 'cdd', 'bfvd')
 LIB_LABELS = {
-    'prot': '层1 序列同源（RefSeq 病毒蛋白）',
-    'pfam': '层2 Pfam HMM（Pfam-A-Viruses）',
-    'bfvd': '层2 BFVD 病毒域（mmseqs2，与 NCBI 提交同源）',
+    'pvdb': '层1b PVDB 植物专属库（23,292 蛋白 / 多聚蛋白分段）',
+    'hmm': '层2 PVDB HMM 域（Pfam 387 + VOG 150 + VFAM 395）',
+    'cdd': '层2c PVDB CDD 域（455 个 profile）',
+    'bfvd': '层2b PVDB BFVD 病毒域（13,900 模型）',
 }
-#: 兼容别名 → 规范层名（大小写不敏感）。
+#: 已归档（曾存在、现已移除）的层名。历史文档/脚本里仍会出现，如
+#: `--libs prot` / `--libs pfam`：必须**明确报错**，不能再悄悄映射到别的层
+#: 或回退为全部层（2026-11-06 修复：此前 `prot` 走"无法识别"分支，picked
+#: 为空 → 回退四层，用户以为只跑了序列同源，实际四层全开）。
+#: 注：PVDB 的 Pfam 子库已并入 'hmm'（Pfam+VOG+VFAM 三库），要它请用 hmm。
+ARCHIVED_LIBS = {
+    'prot', 'seq', 'homolog', 'homology', 'blast', 'blastp', 'diamond',
+    'mmseqs', 'mmseqs2', 'refseq', 'protein', 'layer1', 'l1',
+    'pfam', 'pfam-a', 'pfam_a', 'pfam-a-viruses',
+}
+#: 兼容别名 → 规范层名（大小写不敏感）。只保留**仍存在**的层之间的别名。
 _LIB_ALIASES = {
-    'seq': 'prot', 'homolog': 'prot', 'homology': 'prot', 'blast': 'prot',
-    'blastp': 'prot', 'diamond': 'prot', 'mmseqs': 'prot', 'mmseqs2': 'prot',
-    'refseq': 'prot', 'protein': 'prot', 'layer1': 'prot', 'l1': 'prot',
-    'hmm': 'pfam', 'hmmer': 'pfam', 'pyhmmer': 'pfam', 'pfam-a': 'pfam',
-    'pfam_a': 'pfam', 'pfam-a-viruses': 'pfam', 'layer2': 'pfam',
+    'hmm': 'hmm', 'hmmer': 'hmm', 'pyhmmer': 'hmm',
+    'vog': 'hmm', 'vfam': 'hmm', 'hmm_domain': 'hmm', 'layer2': 'hmm',
+    'cdd': 'cdd', 'cdd_profile': 'cdd',
     'domain': 'bfvd', 'domains': 'bfvd', 'bfvd': 'bfvd',
     'bfvd_domain': 'bfvd',
+    'plant': 'pvdb', 'plantdb': 'pvdb', 'plant_db': 'pvdb',
+    'pvdb-v1.0': 'pvdb', 'layer1b': 'pvdb', 'l1b': 'pvdb',
 }
 
 
 def normalize_libs(libs=None):
-    """规范化注释层选择，返回 (规范层元组, 无法识别的原始项列表)。
+    """规范化注释层选择，返回 (规范层元组, 被忽略的原始项列表)。
 
-    libs: None / '' / [] → 全部层；'prot,pfam' 字符串；['prot','bfvd'] 列表。
-    已识别的层按 ANNOT_LIBS 顺序去重返回；全部无法识别时回退为全部层。
+    libs: None / '' / [] → 全部层；'pvdb,hmm' 字符串；['pvdb','bfvd'] 列表。
+    已识别的层按 ANNOT_LIBS 顺序去重返回。
+
+    无效（含已归档）层名**不回退为全部层**：一个都识别不出时直接
+    RuntimeError，中文列出现存层与归档说明（2026-11-06 修复）。混合输入
+    （如 'pvdb,prot'）保留有效层，归档/无法识别的项作为第二个返回值由
+    调用方记 WARN。
     """
     if libs is None or libs == '' or libs == []:
         return tuple(ANNOT_LIBS), []
     parts = (re.split(r'[,;+|/\s]+', libs) if isinstance(libs, str)
              else list(libs))
-    picked, bad = [], []
+    picked, bad, archived = [], [], []
     for raw in parts:
         k = str(raw).strip().lower()
         if not k:
             continue
         k = _LIB_ALIASES.get(k, k)
-        if k in ANNOT_LIBS:
+        if k in ARCHIVED_LIBS:
+            archived.append(str(raw).strip())
+        elif k in ANNOT_LIBS:
             if k not in picked:
                 picked.append(k)
         else:
             bad.append(str(raw).strip())
+    ignored = archived + bad
     if not picked:
-        return tuple(ANNOT_LIBS), bad
-    return tuple(l for l in ANNOT_LIBS if l in picked), bad
+        avail = '、'.join(f'{l}（{LIB_LABELS[l]}）' for l in ANNOT_LIBS)
+        detail = '、'.join(ignored) if ignored else '（空）'
+        msg = f'注释层无效：{detail}。可用层：{avail}。'
+        if archived:
+            msg += (' 注：prot（原 RefSeq 序列同源）与原 Pfam-A-Viruses '
+                    '层已归档；PVDB 的 Pfam/VOG/VFAM 三库请用 hmm。')
+        raise RuntimeError(msg)
+    return tuple(l for l in ANNOT_LIBS if l in picked), ignored
 
 
 def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
                        progress=None, min_pident=None, engine=None, db=None,
-                       model=None, libs=None, min_qcov=None):
+                       model=None, libs=None, min_qcov=None, profile=None):
     """⑥b ORF 功能注释主入口。返回 summary dict。
 
     engine: 指定搜索引擎（'diamond'/'mmseqs'/'blastp'），None 自动探测。
     db: 参考蛋白库。None=默认 RefSeq 病毒蛋白；路径=自备本地蛋白 FASTA。
     model: ORF 基因模型。'pyrodigal_rv'（默认优先）/ 'pyrodigal'；None=rv 优先。
-    libs: 启用的注释层，见 ANNOT_LIBS。None/空=全部层（prot+pfam+bfvd）。
-          只选 'pfam'/'bfvd' 时不触发 DIAMOND/库下载，纯 HMM/域注释。
+    libs: 启用的注释层，见 ANNOT_LIBS（pvdb/hmm/cdd/bfvd）。
+          None/空=全部层。只选 'hmm'/'bfvd' 时不触发 DIAMOND/库下载，
+          纯 HMM/域注释；'pvdb' 需要 databases/pvdb（PVDB 植物专属库），
+          缺失时该层跳过并告警。
+          **无效或已归档的层名直接报错**（中文列出现存层）；不再静默回退
+          为全部层。'prot' 与 'pfam' 均属已归档层（RefSeq 序列同源层 /
+          原 Pfam-A-Viruses 库），PVDB 的 Pfam 子库请用 'hmm'。
     min_pident / min_qcov: 层1 命中的 identity / query 覆盖度过滤门槛，
           百分数（0-100，与输出 pident/qcov 列同量纲）。默认 None=不过滤，
           与历史结果完全一致。搜索引擎侧默认只有 e≤1e-5 一道门槛（DIAMOND
@@ -792,9 +838,11 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
     except (OSError, ValueError):
         n_orfs = 0
     sel, bad_libs = normalize_libs(libs)
-    do_prot, do_pfam, do_bfvd = ('prot' in sel, 'pfam' in sel, 'bfvd' in sel)
+    do_prot, do_pvdb, do_hmm, do_cdd, do_bfvd = (
+        'prot' in sel, 'pvdb' in sel, 'hmm' in sel, 'cdd' in sel,
+        'bfvd' in sel)
     if bad_libs and logger:
-        logger.log("忽略无法识别的注释层: " + ', '.join(bad_libs), "WARN")
+        logger.log("忽略不可用/已归档的注释层: " + ', '.join(bad_libs), "WARN")
     if logger:
         logger.log(f"阶段⑥b ORF 功能注释: {n_orfs} 个 ORF（{model} 基因模型，"
                    f"启用层 {'+'.join(sel)}）")
@@ -834,6 +882,22 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
         by_q = _parse_search(engine_name, hits_tsv, logger=logger)
     elif logger:
         logger.log("层1 序列同源搜索按选择跳过")
+
+    # ---- 层1b：PVDB 植物病毒专属库（可选） ----
+    # 与层1 并行使用：序列同源搜索 + canonical_function 命名，命中还带
+    # 参考多聚蛋白切点，供逐 ORF 投影出 segments（下游合并见 annotate_rows）。
+    pvdb_by_q = {}
+    if do_pvdb:
+        if pvdb_ready():
+            if progress:
+                progress(0.5, 'PVDB 植物专属库搜索')
+            pvdb_by_q = pvdb_search_orfs(
+                faa, out_dir, threads=threads, logger=logger, engine=engine,
+                min_pident=min_pident, min_qcov=min_qcov, profile=profile)
+        elif logger:
+            logger.log("pvdb 层跳过（databases/pvdb 缺失）", "WARN")
+    elif logger:
+        logger.log("层1b PVDB 植物专属库按选择跳过")
     # ORF 坐标与所属 contig：搜索引擎 qseqid 只保留首词，pyrodigal/orfipy
     # 的坐标在 faa 头部空白后的描述里。contig 优先取 GFF 的 ID=→seqid
     # 权威映射，无 GFF 时按命名约定剥离基因编号后缀
@@ -851,6 +915,7 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
                 if m:
                     gff_map[m.group(1)] = p[0]
     orf_meta = {}
+    orf_seqs = {}
     for h, _seq in iter_fasta(faa):
         qid = h.split()[0]
         cid, s0, e, strand = _parse_orf_header(h)
@@ -858,6 +923,7 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
             cid = (re.sub(r'_ORF\.\d+$', '', qid) if '_ORF.' in qid
                    else re.sub(r'_\d+$', '', qid))
         orf_meta[qid] = (gff_map.get(qid) or cid, s0, e, strand)
+        orf_seqs[qid] = _seq
     org2tax = {}
     if info and info.get('tax_tsv'):
         with safe_open(info['tax_tsv']) as f:
@@ -916,7 +982,10 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
             'pident': '', 'qcov': 0.0, 'bitscore': '', 'evalue': '',
             'genus': '', 'family': '', 'host_source': '',
             'genome_composition': '', 'category': _UNKNOWN,
-            'informative': 'N', 'hmm_hits': '', 'bfvd_hits': '',
+            'informative': 'N', 'hmm_hits': '', 'cdd_hits': '',
+            'bfvd_hits': '',
+            'pvdb_hits': '', 'segments': '', 'seg_method': '',
+            'cs_support': '',
             'evidence': '',
         }
         if hits:
@@ -951,18 +1020,23 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
     # 过滤口径：域级 i-Evalue ≤ 1e-3 且 HMM 模型覆盖率 ≥ 0.5
     # 两层各自独立开关：BFVD 不依赖 HMM 库，反之亦然。
     hmm_by_q, bfvd_by_q = {}, {}
+    cdd_by_q = {}
     pfam_libs = []
-    if do_pfam:
+    hmm_z = {}
+    if do_hmm:
         if hmm_available() and available_libs():
             if logger:
-                logger.log("层2 HMM 扫描（Pfam-A-Viruses）...")
+                logger.log("层2 PVDB HMM 扫描（Pfam/VOG/VFAM）...")
             hmm_by_q, pfam_libs = annotate_orfs_hmm(
                 faa, threads=threads, logger=logger,
                 progress=(lambda p, m: progress(0.62 + p * 0.2, '层2 ' + m))
                 if progress else None)
             pfam_libs = list(pfam_libs or ())
+            # 各库实际使用的 hmmscan Z（PVDB 三库规模不同）——写进 summary，
+            # 便于复现 E 值口径（2026-11-06）。
+            hmm_z = hmm_lib_z_map()
         elif logger:
-            logger.log("层2 Pfam HMM 跳过（pyhmmer 未安装或无 HMM 库）", "WARN")
+            logger.log("层2 PVDB HMM 跳过（pyhmmer 未安装或无 HMM 库）", "WARN")
     if do_bfvd:
         if bfvd_db():
             if progress:
@@ -971,8 +1045,31 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
                                          logger=logger) or {}
         elif logger:
             logger.log("层2 BFVD 病毒域跳过（mmseqs2 或 BFVD 库不可用）", "WARN")
+    if do_cdd:
+        if cdd_db():
+            if progress:
+                progress(0.9, 'CDD 结构域搜索（mmseqs2）')
+            cdd_by_q = cdd_search_orfs(faa, out_dir, threads=threads,
+                                       logger=logger) or {}
+        elif logger:
+            logger.log("层2c CDD 跳过（mmseqs2 或 CDD 库不可用）", "WARN")
     n_hmm_only, n_bfvd_only = merge_layer2(rows, hmm_by_q, bfvd_by_q,
                                            classify_product)
+    # CDD 只作域证据：不覆盖已有命名，仅给仍无结论的行挂 evidence='cdd'
+    for r in rows:
+        _c = cdd_by_q.get(r['orf_id'])
+        r['cdd_hits'] = cdd_hit_cell(_c) if _c else ''
+        if _c and (r.get('evidence') in (None, '', 'none')):
+            r['evidence'] = 'cdd'
+    # ---- 层1b 合并：PVDB 命名 + 多聚蛋白切点投影分段 ----
+    # 放在层2 之后：PVDB 是植物专属策展库，过门槛（pident≥40 & qcov≥60）
+    # 的序列命中应压过 HMM/域兜底；但不能压低 identity 的 RefSeq 精确注释
+    # （annotate_rows 内部的 prefer 规则）。
+    n_pvdb_named = n_pvdb_seg = 0
+    if do_pvdb and pvdb_by_q:
+        n_pvdb_named, n_pvdb_seg = pvdb_annotate_rows(
+            rows, pvdb_by_q, seqs=orf_seqs, classify_product=classify_product,
+            logger=logger)
     # 层2 兜底行可能新给出科：补查 ICTV 宿主/基因组类型
     for r in rows:
         if r.get('family') and not r.get('host_source'):
@@ -986,7 +1083,8 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
               'hit_accession', 'product', 'organism', 'pident', 'qcov',
               'bitscore', 'evalue', 'genus', 'family', 'host_source',
               'genome_composition', 'category', 'informative',
-              'evidence', 'hmm_hits', 'bfvd_hits']
+              'evidence', 'hmm_hits', 'cdd_hits', 'bfvd_hits', 'pvdb_hits',
+              'segments', 'seg_method', 'cs_support']
     with safe_open(os.path.join(out_dir, 'orf_annotation.tsv'), 'wt') as f:
         f.write('\t'.join(fields) + '\n')
         for r in rows:
@@ -1057,7 +1155,13 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
                              + (f";hmm={_gff_val(r['hmm_hits'])}"
                                 if r.get('hmm_hits') else '')
                              + (f";bfvd={_gff_val(r['bfvd_hits'])}"
-                                if r.get('bfvd_hits') else ''))
+                                if r.get('bfvd_hits') else '')
+                             + (f";pvdb={_gff_val(r['pvdb_hits'])}"
+                                if r.get('pvdb_hits') else '')
+                             + (f";segments={_gff_val(r['segments'])}"
+                                if r.get('segments') else '')
+                             + (f";seg_method={_gff_val(r['seg_method'])}"
+                                if r.get('seg_method') else ''))
                     n_gff += 1
                 else:
                     attrs = p[8]
@@ -1102,6 +1206,14 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
         except Exception as e:
             if logger:
                 logger.log(f"BFVD 库版本记录失败: {e}", "WARN")
+    if do_pvdb:
+        try:
+            _f, _v = pvdb_db_trace()
+            db_files.update(_f)
+            db_versions.update(_v)
+        except Exception as e:
+            if logger:
+                logger.log(f"PVDB 库版本记录失败: {e}", "WARN")
 
     summary = {
         'stage': step,
@@ -1110,6 +1222,7 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
         'libs': list(sel),
         'libs_labels': [LIB_LABELS[l] for l in sel],
         'pfam_libs': pfam_libs,
+        'hmm_z': hmm_z,
         'filters': {'min_pident': min_pident, 'min_qcov': min_qcov,
                     'n_hits_filtered': n_hits_filtered},
         'db_files': db_files,
@@ -1120,6 +1233,24 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
         'gff_annotated': n_gff,
         'n_hmm_only': n_hmm_only,
         'n_bfvd_only': n_bfvd_only,
+        'n_pvdb_named': n_pvdb_named,
+        'n_pvdb_segments': n_pvdb_seg,
+        'pvdb_thresholds': {
+            # 与 pvdb_search.qualifies() 同源：默认门槛直接引用常量，
+            # 不再在 summary 里写第二份 40/60（2026-11-06 修复）。
+            # 注：这两个门槛是 PVDB **命名/采用**门槛；层1（RefSeq）的
+            # min_pident/min_qcov 是独立口径，见上面的 filters。
+            'min_pident': (float(min_pident) if min_pident is not None
+                           else float(_PVDB_MIN_PIDENT)),
+            'min_qcov': (float(min_qcov) if min_qcov is not None
+                         else float(_PVDB_MIN_QCOV)),
+            'profile': (profile or 'balanced').lower(),
+            'proj_strong': list(_PROJ_PROFILES.get(
+                (profile or 'balanced').lower(),
+                _PROJ_PROFILES['balanced'])[:2]),
+            'proj_mid': list(_PROJ_PROFILES.get(
+                (profile or 'balanced').lower(),
+                _PROJ_PROFILES['balanced'])[2:])},
         'evidence': dict(sorted(ev_counts.items())),
         'categories': dict(sorted(cats.items(), key=lambda x: -x[1])),
         'families': dict(sorted(fams.items(), key=lambda x: -x[1])),
@@ -1128,7 +1259,9 @@ def run_orf_annotation(sample_dir, threads=None, logger=None, force=False,
         'rows_preview': [
             {k: r[k] for k in ('orf_id', 'product', 'organism', 'family',
                                'category', 'pident', 'qcov', 'bitscore',
-                               'evidence')}
+                               'evidence', 'hit_accession', 'pvdb_hits',
+                               'hmm_hits', 'cdd_hits', 'bfvd_hits')
+             + (('segments',) if r.get('segments') else ())}
             for r in sorted((r for r in rows if r['informative'] == 'Y'),
                             key=_preview_rank)[:20]
         ],

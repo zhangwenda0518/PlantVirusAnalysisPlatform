@@ -73,6 +73,8 @@ EXACT = {
     "Biopython 缺失，无法解析 GenBank 注释": "Biopython missing: cannot parse GenBank annotations",
     "Biopython 缺失，跳过 virus-annotations 导出": "Biopython missing: skipping the virus-annotations export",
     "CRISPR/Cas12a 检测试剂设计（crRNA × RPA/PCR 引物协同，与 GUI「检测与防治→CRISPR 检测试剂设计」同引擎）": "CRISPR/Cas12a detection assay design (crRNA x RPA/PCR primer pairing, same engine as GUI \"Detection & Control → CRISPR detection assay design\")",
+    "目标 FASTA（多分离物；header 含 RNA1/S2 等标签自动分片段）": "Target FASTA (multi-isolate; headers with RNA1/S2 segment tags are auto-grouped)",
+    "近缘 FASTA（双喂：crispr 排除库筛查 + conan 负组同源位点评分）": "Near-relative FASTA (dual-feed: crispr exclusion screening + conan negative-group locus scoring)",
     "DOM 结果页探测失败(忽略): %s: %s": "DOM result page probe failed (ignored): %s: %s",
     "DeepSeek API Key（AI 元数据清洗，可选）": "DeepSeek API key (AI metadata cleanup, optional)",
     "E-utilities 未找到参考组装": "E-utilities found no reference assembly",
@@ -379,7 +381,8 @@ EXACT = {
     "同属比较至少需要 2 条 GenBank 记录": "Genus-level comparison requires at least 2 GenBank records",
     "同时下载叶绿体/线粒体基因组（仅 NCBI 源）": "also download chloroplast/mitochondrial genomes (NCBI source only)",
     "后验集里没有可解析的树": "no parseable tree in the posterior set",
-    "启用的注释层，逗号分隔：prot（层1 序列同源）/ pfam（层2 Pfam HMM）/ bfvd（层2 BFVD 病毒域，与 NCBI 提交同源）；缺省=全部启用。例：--libs prot,pfam": "annotation layers to enable, comma-separated: prot (layer 1 sequence homology) / pfam (layer 2 Pfam HMM) / bfvd (layer 2 BFVD viral domains, same source as NCBI submissions); default=all enabled. E.g. --libs prot,pfam",
+    "启用的注释层，逗号分隔：pvdb（PVDB 序列同源 + 多聚蛋白分段）/ hmm（PVDB Pfam+VOG+VFAM 共 932 模型）/ cdd（PVDB CDD 455 个 profile）/ bfvd（PVDB BFVD 13,900 模型）；缺省=全部启用。例：--libs pvdb,hmm": "annotation layers to enable, comma-separated: pvdb (PVDB sequence homology + polyprotein segmentation) / hmm (PVDB Pfam+VOG+VFAM, 932 models) / cdd (PVDB CDD, 455 profiles) / bfvd (PVDB BFVD, 13,900 models); default=all enabled. E.g. --libs pvdb,hmm",
+    "PVDB 多聚蛋白分段投影档位（默认 balanced）：strict 更严 80/90·60/80 / balanced 70/80·50/70 / recall 更宽 60/70·40/60（强档 pident/qcov，中档 pident/qcov）；只影响 segments/seg_method，不改 PVDB 命名门槛": "PVDB polyprotein segmentation projection profile (default balanced): strict 80/90 & 60/80 / balanced 70/80 & 50/70 / recall 60/70 & 40/60 (strong pident/qcov, mid pident/qcov); affects segments/seg_method only, not the PVDB naming thresholds",
     "固定区:": "fixed region:",
     "图表输出目录": "plot output directory",
     "在线下载需要提供 accession 列表或检索式；也可给本地 .gb 文件/集合名": "Online download requires an accession list or a search query; alternatively give a local .gb file/collection name",
@@ -795,9 +798,34 @@ EXACT = {
     "📊 [详细模式] 正在向 CNCB 提交 Excel 级联解析请求...": "📊 [Detailed mode] Submitting an Excel cascade parse request to CNCB...",
     "🤖 启动 AI 洗髓引擎 (深度规范 Tissue, Age_GrowthStage, Location)...": "🤖 Starting the AI refinement engine (deep normalization of Tissue, Age_GrowthStage, Location)...",
     "🧬 [详细模式] 正在批量拉取 SRA XML 获取深层生物学特征...": "🧬 [Detailed mode] Batch-fetching SRA XML for deep biological traits...",
+
+    # —— 自动更新 CLI（2026-11-05，cmd_update）——
+    "✔ 已是最新版本": "Already the latest version",
+    "已取消": "Cancelled",
+    "校验通过，已暂存。": "Verified and staged.",
+    "确认下载并安装更新？[y/N] ": "Download and install update? [y/N] ",
+    "✘ 源码模式不支持自更新（请用 git pull）":
+        "Self-update unavailable in source mode (use git pull)",
 }
 
 RULES = {
+    # —— 自动更新 CLI（2026-11-05，cmd_update）——
+    "当前版本: {cur}（版本档 {info.get('edition') or '-'}）":
+        "Current version: {cur} (edition {info.get('edition') or '-'})",
+    "✘ 检查失败: {info.get('error')}": "✘ Check failed: {info.get('error')}",
+    "↑ 发现新版本: {info['latest']}":
+        "↑ New version available: {info['latest']}",
+    "↑ 发现新版本: {info['latest']}（已跳过，手动安装仍可继续）":
+        "↑ New version available: {info['latest']} (skipped; manual install still works)",
+    "开始下载 {info['latest']} 更新包（多源回退，断点续传）…":
+        "Downloading {info['latest']} update package (multi-source fallback, resumable)…",
+    "△ 有 {len(active)} 个运行中/排队任务，本次不换装；任务结束后重新运行本命令即可。":
+        "△ {len(active)} running/queued task(s); swap postponed. Re-run this command after tasks finish.",
+    "正在换装（本进程退出后由脚本完成，完成后请手动启动平台）…":
+        "Swapping in the new build (a script finishes the swap after this process exits; start the platform manually afterwards)…",
+    "✘ 换装未执行: {r.get('error')}": "✘ Swap not executed: {r.get('error')}",
+    "✘ 更新失败: {type(e).__name__}: {e}":
+        "✘ Update failed: {type(e).__name__}: {e}",
     "  共 {len(samples)} 个样品: {_lst}": "total {len(samples)} samples: {_lst}",
     "--from-server 只接受相对数据集名/路径，收到 {args.from_server}": "--from-server only accepts a relative dataset name/path, got {args.from_server}",
     ".sqn 生成完成: {sqn_p}（Error {errs_v} / Warning {warns_v} / Info {infos_v}）": ".sqn generation done: {sqn_p} (Error {errs_v} / Warning {warns_v} / Info {infos_v})",
@@ -894,6 +922,8 @@ RULES = {
     "SVG 非良构，已自动修复 {n_fix} 处闭合标签: {path}": "SVG malformed; auto-repaired {n_fix} closing tags: {path}",
     "Spatial 表需要 Region/Latitude/Longitude 列；实际表头: {list(rows[0])}": "the Spatial table needs Region/Latitude/Longitude columns; actual header: {list(rows[0])}",
     "TaxID {taxid} 不在 NCBI 分类库中。请核对编号（https://www.ncbi.nlm.nih.gov/taxonomy 搜索物种），或到「数据库构建」页更新 taxonomy 后重试": "TaxID {taxid} is not in the NCBI taxonomy database. Verify the number (search the species at https://www.ncbi.nlm.nih.gov/taxonomy), or update taxonomy on the \"Database build\" page and retry",
+    "TaxID {taxid} = {nm}（本地精简库外，在线核对通过）": "TaxID {taxid} = {nm} (outside the slim local taxonomy; verified online)",
+    "TaxID {taxid} 本地精简 taxonomy 查无且在线核对不可用——按输入值继续建库；建议在 https://www.ncbi.nlm.nih.gov/taxonomy 核对编号": "TaxID {taxid} is not in the slim local taxonomy and online verification is unavailable — proceeding with the given value; verify the number at https://www.ncbi.nlm.nih.gov/taxonomy",
     "TaxID {taxid} 已被 NCBI 合并到 {extra}，请改用 {extra} 重新构建": "TaxID {taxid} has been merged into {extra} by NCBI; rebuild with {extra} instead",
     "TaxID 必须是数字（NCBI 物种编号），收到: {taxid}": "TaxID must be a number (an NCBI taxon ID), got: {taxid}",
     "Taxonomy 准备完成: {tax_dir}": "Taxonomy preparation done: {tax_dir}",

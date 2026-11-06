@@ -167,6 +167,11 @@ _W = {}          # 子进程全局：{'mafft': 路径, 'seqs': 序列列表}
 # 不擅自把 '?' 纳入 —— 如需统一到 `-.?`，须先由老师定方向（属判定语义改动）。
 _SDT_GAP = '-.'
 
+# 2026-11-04 identity 公式统一：`_sdt_formula` 已委托
+# `seq_identity.pair_identity`（gap 判据 = `seq_identity.GAP_CHARS`，同为
+# `-.`）。本常量保留为「SDT 页 gap 口径」的具名引用/向后兼容，**不再是
+# 公式的真实来源**——要改 gap 口径请改 `seq_identity.GAP_CHARS`。
+
 
 def _w_init(mafft, seqs):
     _W['mafft'] = mafft
@@ -176,16 +181,14 @@ def _w_init(mafft, seqs):
 def _sdt_formula(a, b):
     """SDT Get_Similarity：分母 = 非双 gap 列（含两端修剪语义一致）。
 
-    gap 判据走 `_SDT_GAP`（`-.`），与 `phylo.pairwise_identity_matrix` 同口径。
+    gap 判据为 `-.`（= `seq_identity.GAP_CHARS`），与
+    `phylo.pairwise_identity_matrix` 同口径。公式本体已委托
+    `seq_identity.pair_identity`（全平台唯一实现，2026-11-04 统一）；
+    空分母仍返回 NaN——这是 SDT 口径与矩阵页 0.0 的唯一语义差异。
     """
-    dist = gaps = 0
-    for x, y in zip(a, b):
-        if x in _SDT_GAP or y in _SDT_GAP:
-            gaps += 1
-        elif x != y:
-            dist += 1
-    denom = min(len(a), len(b)) - gaps
-    return (1.0 - dist / denom) * 100.0 if denom > 0 else float('nan')
+    # 延迟导入：sdt_exact 导入链较重，不为一个纯函数再加一层模块依赖
+    from .seq_identity import pair_identity
+    return pair_identity(a, b, empty=float('nan'))
 
 
 def _msa_pair_worker(task):
@@ -222,7 +225,11 @@ def _sdt_pair_worker(task):
         # mafft 输出到 stdout（--quiet）。编码/errors 显式给足：MAFFT 日志里
         # 可能混入非 UTF-8 字节，Windows 下 text=True 用 locale 解码会**直接抛**
         # （比对失败被吞成 NaN 的常见根因）；CREATE_NO_WINDOW 防止 GUI 弹黑框。
-        r = sp.run([_W['mafft'], '--quiet', '--auto', in_f],
+        # --thread 恒传（2026-11-03）：成对比较是 SDT 的主要耗时，
+        # MAFFT --thread N 对短序列自动收拢，恒传无副作用。
+        from .config import get_config as _gcfg
+        r = sp.run([_W['mafft'], '--quiet', '--auto',
+                    '--thread', str(_gcfg().threads), in_f],
                    capture_output=True, text=True, timeout=1800,
                    encoding='utf-8', errors='replace',
                    creationflags=getattr(sp, 'CREATE_NO_WINDOW', 0))
@@ -608,7 +615,10 @@ def run_sdt_exact(in_fasta, run_dir, mafft, max_n=30, orient=True,
     recs = []
     seen = {}
     for h, s in iter_fasta(in_fasta):
-        name = (h or '').strip().split()[0][:56] or f'seq{len(recs) + 1}'
+        _parts = (h or '').strip().split()
+        # 空标题（`>` 或 `>   `）时 split() 为空列表，[0] 会 IndexError
+        # （2026-11-03 模拟实测：全链报英文 IndexError）。降级 seqN。
+        name = (_parts[0][:56] if _parts else '') or f'seq{len(recs) + 1}'
         name = ''.join(c if c.isalnum() or c in '_-.' else '_' for c in name)
         if name in seen:
             # ⚠️ 必须循环到候选名**确实未被占用**为止（2026-10-03 修复）：
@@ -866,7 +876,9 @@ def _read_fasta_recs(in_fasta, max_n, logger=None):
     from .utils import iter_fasta
     recs, seen = [], {}
     for h, s in iter_fasta(in_fasta):
-        name = (h or '').strip().split()[0][:56] or f'seq{len(recs) + 1}'
+        _parts = (h or '').strip().split()
+        # 空标题降级 seqN（同 run_sdt_exact，2026-11-03）
+        name = (_parts[0][:56] if _parts else '') or f'seq{len(recs) + 1}'
         name = ''.join(c if c.isalnum() or c in '_-.' else '_' for c in name)
         if name in seen:
             # 同 run_sdt_exact 的修法：循环 +1 直到候选名未被占用（避免重名）
@@ -1008,8 +1020,17 @@ def run_identity_table(nt_fasta, run_dir, mafft, aa_fasta=None, max_n=30,
     if need:
         sub_idx = need
         sub_mat = mat_nt[np.ix_(sub_idx, sub_idx)]
+        # aligned 模式必须先去掉比对 gap 再翻译：原实现把带 gap 的 MSA 直接
+        # 送锚定翻译，gap 被替换成 N 保留在密码子流里 → 之后的读码框整体
+        # 移位，各序列 AA 不再同源（2026-11-03 审计发现）。
+        # 去掉 `-.` 后每条恢复自身读码框（MSA 的 gap 是插入/缺失记号）。
+        if aligned:
+            aa_nt_seqs = [s.replace('-', '').replace('.', '')
+                          for s in (nt_seqs[i] for i in sub_idx)]
+        else:
+            aa_nt_seqs = [nt_seqs[i] for i in sub_idx]
         anchored, n_fallback = _anchored_aa_seqs(
-            [nt_names[i] for i in sub_idx], [nt_seqs[i] for i in sub_idx],
+            [nt_names[i] for i in sub_idx], aa_nt_seqs,
             sub_mat, mafft, min_aa=min_aa, logger=logger,
             progress=(lambda p, m: progress(0.53 + p * 0.02, m))
             if progress else None)

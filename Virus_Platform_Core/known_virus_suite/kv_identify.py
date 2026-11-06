@@ -142,7 +142,9 @@ class IdentifyStage:
                 r = subprocess.run([self.engine.exe, '--version'],
                                    capture_output=True, text=True,
                                    encoding='utf-8', errors='replace',
-                                   timeout=30)
+                                   timeout=30,
+                                   creationflags=getattr(
+                                       subprocess, 'CREATE_NO_WINDOW', 0))
                 out = (r.stdout or '') or (r.stderr or '')
                 ver = out.strip().splitlines()[0] if out.strip() else ''
             except (OSError, subprocess.SubprocessError) as e:

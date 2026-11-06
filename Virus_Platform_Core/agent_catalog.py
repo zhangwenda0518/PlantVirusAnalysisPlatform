@@ -53,7 +53,7 @@ TOOL_PARAM_SCHEMAS = {
         ('model', 'str', False, 'CDS 模型 pyrodigal_rv|pyrodigal'),
         ('engine', 'str', False, '注释引擎（缺省自动）'),
         ('db', 'str', False, '注释库路径'),
-        ('libs', 'str', False, '注释层 prot|pfam，空=全部'),
+        ('libs', 'str', False, '注释层 pvdb|hmm|cdd|bfvd（逗号分隔），空=全部'),
         ('min_pident', 'float', False, '层1 Identity% 门槛，0=不过滤'),
         ('min_qcov', 'float', False, '层1 覆盖% 门槛'),
     ],
@@ -62,9 +62,12 @@ TOOL_PARAM_SCHEMAS = {
         ('fasta', 'path', False, 'FASTA 输入（预测+注释一步）'),
         ('model', 'str', False, 'pyrodigal_rv|pyrodigal'),
         ('engine', 'str', False, '注释引擎'), ('db', 'str', False, '注释库'),
-        ('libs', 'str', False, 'prot|pfam，空=全部'),
+        ('libs', 'str', False, '注释层 pvdb|hmm|cdd|bfvd（逗号分隔），空=全部'),
         ('min_pident', 'float', False, '层1 Identity% 门槛'),
         ('min_qcov', 'float', False, '层1 覆盖% 门槛'),
+        ('profile', 'str', False, 'PVDB 分段投影档位 strict|balanced|recall，'
+                                  '默认 balanced（只改 segments 分段，'
+                                  '不改 PVDB 命名门槛）'),
     ],
     'genoplot': [
         ('fasta', 'path', False, 'FASTA（与 ann 至少给一）'),
@@ -99,6 +102,15 @@ TOOL_PARAM_SCHEMAS = {
         ('confidence', 'float', False, '分类置信度'),
         ('db_virus', 'str', False, '病毒库：virus|refvirus 或库目录'),
     ],
+    'loganfetch': [
+        ('accessions', 'str', True,
+         'SRA accession（SRR/ERR/DRR），逗号/换行/空格分隔，最多 50 个'),
+        ('min_len', 'int', False, '最短 contig 长度，默认 0（不过滤）'),
+        ('circles_only', 'bool', False, '仅保留环形序列（DTR/ITR 判定），默认关'),
+        ('fix_circles', 'bool', False, '修 concatemeric 环形序列（31-mer 截断），默认关'),
+        ('host_filter', 'bool', False,
+         '宿主 contig 过滤：kunpeng 主宿主库分类，丢弃宿主 taxid contigs（需已建宿主库）'),
+    ],
     'structcmp': [
         ('seqs', 'path', True, '序列 FASTA（≥2 条）'),
         ('max_n', 'int', False, '最多条数，默认 30'),
@@ -107,8 +119,17 @@ TOOL_PARAM_SCHEMAS = {
         ('run', 'str', False, 'contig 分类运行名（与 fasta 二选一）'),
         ('fasta', 'path', False, '独立候选 FASTA'),
         ('host', 'str', False, '宿主筛选 all|...，默认 all'),
-        ('methods', 'str', False, '证据方法组合 blastx,bfvd，默认全开'),
+        ('methods', 'str', False,
+         '证据方法组合 blastx,bfvd,cdd，默认三路全开'),
         ('combine', 'str', False, 'union|intersection，默认 union'),
+    ],
+    # 2026-11-03：原 t-hom 卡并入 t-verify 后升级为正式工具 hom
+    # （单条深查：blastn vs 病毒参考核酸库 + DIAMOND blastx vs PVDB + BFVD 可选）
+    'hom': [
+        ('seq_text', 'str', False, 'FASTA 文本（与 fasta 二选一，多记录逐条处理）'),
+        ('fasta', 'path', False, 'FASTA 文件（与 seq_text 二选一）'),
+        ('engine', 'str', False, 'local（默认，离线秒级）|online（NCBI，限病毒）'),
+        ('actions', 'str', False, 'blastn,blastx 组合，默认全开'),
     ],
     'consensus': [
         ('run', 'str', False, 'contig 分类运行名（参考来源）'),
@@ -153,7 +174,7 @@ TOOL_PARAM_SCHEMAS = {
     ],
     'quicktree': [
         ('seqs', 'path', True, '序列 FASTA'),
-        ('method', 'str', False, 'nj|fasttree，默认 nj'),
+        ('method', 'str', False, 'nj|fasttree|raxml-ng，默认 nj'),
         ('aligned', 'bool', False, '输入已是比对结果（跳过 MAFFT）'),
         ('max_n', 'int', False, '最多条数，默认 100'),
     ],
@@ -179,38 +200,75 @@ TOOL_PARAM_SCHEMAS = {
         ('palette', 'str', False, '复合热图配色'),
         ('aligned', 'bool', False, '输入为已比对 MSA'),
     ],
+    'cmpchain': [
+        ('mode', 'str', False, 'collection|ictv|accessions，缺省自动推断'),
+        ('coll', 'str', False, 'GenBank 集合名（已有集合模式；其余模式为新建集合名，空则自动命名）'),
+        ('ranks', 'dict', False, "ICTV 分类过滤（如 {'Genus':'Potyvirus'}）"),
+        ('accessions', 'str', False, 'accession 列表（逗号/空格分隔）'),
+        ('db', 'str', False, 'plant|ictv，默认 plant'),
+        ('genome', 'str', False, 'complete|any，默认 complete'),
+        ('limit', 'int', False, 'ICTV 模式最多条数，默认 200'),
+        ('per_genus', 'int', False, 'ICTV 模式每属上限（0=不限）'),
+        ('per_species', 'int', False, 'ICTV 模式每种上限（0=不限）'),
+        ('tree_tool', 'str', False, 'nj|fasttree|raxml-ng，默认 fasttree'),
+        ('mafft_strategy', 'str', False, 'auto|linsi|fast，默认 auto'),
+        ('trimal', 'str', False, 'automated1|gappyout|strict|none，默认 automated1'),
+        ('sdt_max_n', 'int', False, 'SDT 最多条数，默认 30'),
+        ('do_cds', 'bool', False, 'CDS 提取与下游阶段总开关（默认开）；false 时只跑参考集（refs），cds/align/tree/sdt 全部跳过'),
+        ('do_gene_cds', 'bool', False, '保守基因树（CDS 核酸），默认开'),
+        ('do_gene_pep', 'bool', False, '保守基因树（PEP 蛋白），默认开'),
+        ('do_sdt', 'bool', False, 'SDT 同一性矩阵，默认开'),
+    ],
     'virchain': [
-        ('input', 'path', True, '去宿主序列 FASTA'),
-        ('input2', 'path', False, 'R2 FASTA'),
-        ('run_identify', 'bool', False, '连跑 ②b 病毒识别段'),
-        ('do_verify', 'bool', False, '连跑 ③b 候选验证'),
+        ('input', 'path', False,
+         '去宿主序列 FASTA（单文件模式；与 input_dir 二选一）'),
+        ('input2', 'path', False, 'R2 FASTA（双端去宿主序列时可选）'),
+        ('input_dir', 'path', False,
+         '输入目录（批量：只收 FASTA，按 _R1/_R1_001/_1 配对单双端；'
+         'FASTQ 请先在「样本处理」组做非宿主提取/病毒序列提取）'),
+        ('samples', 'str', False, '目录模式只跑勾选的样本名（逗号/分号分隔；留空=全部）'),
+        ('steps', 'str', False,
+         '要跑的步骤，逗号分隔，默认 1,2,3：1=病毒组装 2=病毒鉴定 '
+         '3=候选序列验证（2 依赖 1、3 依赖 2）。2026-11-03 起旧编号（1识别/'
+         '2组装/3再鉴定/4验证）废止'),
         ('mode', 'str', False, '组装模式，默认 rnaviral'),
         ('memory', 'int', False, '组装内存 GB，默认 64'),
         ('min_len', 'int', False, 'contig 最小长度，默认 200'),
         ('confidence', 'float', False, '分类置信度'),
         ('host', 'str', False, '验证宿主筛选，默认 all'),
-        ('methods', 'str', False, '验证方法 blastx,bfvd'),
+        ('methods', 'str', False, '验证方法 blastx,bfvd,cdd'),
         ('combine', 'str', False, 'union|intersection'),
         ('db_virus', 'str', False, '病毒库：virus|refvirus 或库目录'),
     ],
     'kvchain': [],   # 运行时复用 kvsuite（stage 固定 all 全流程）
     'prepchain': [
-        ('input', 'path', True, '输入文件（.sra 或 FASTQ[.gz]）'),
+        ('input', 'path', False, '输入文件（.sra 或 FASTQ[.gz]）；与 input_dir 二选一'),
         ('input2', 'path', False, 'R2 FASTQ（.sra 输入不需要）'),
+        ('input_dir', 'path', False,
+         '输入目录（批量：自动解析目录内 .sra / FASTQ，按 _R1/_R1_001/_1 配对单双端）'),
+        ('samples', 'str', False, '目录模式只跑勾选的样本名（逗号/分号分隔；留空=全部）'),
         ('confidence', 'float', False, '宿主去除分类置信度'),
         ('dedup', 'bool', False, '质控去重'),
         ('db', 'path', False, '宿主库目录，缺省平台主库'),
+        ('do_identify', 'bool', False,
+         '跑第⑤步病毒序列提取（样本分析），默认开；病毒库未就绪自动跳过'),
+        ('db_virus', 'str', False,
+         '病毒库：virus|refvirus 或库目录（第⑤步病毒序列提取用）'),
     ],
     'annochain': [
-        ('fasta', 'path', True, '输入 FASTA（核酸 contigs/基因组）'),
+        ('fasta', 'path', True, '输入 FASTA（核酸 contigs/基因组）；'
+         '链 = 功能注释 → 基因组图谱 → NCBI 提交准备（自动建档）'),
         ('min_aa', 'int', False, '最短 ORF 氨基酸数，默认 100'),
+        ('classify', 'str', False, "「1」= 链首跑 kunpeng 病毒库分类，"
+         "提交表 organism/family 自动回填（库未就绪自动降级为留空手动填写）；"
+         "默认空 = 手动填写"),
     ],
     'rdp': [
         ('input', 'path', True, '比对 FASTA'),
         ('qc', 'bool', False, '比对质控开关，默认开'),
         ('qc_ref', 'str', False, '质控参考序列名'),
         ('qc_min_len', 'float', False, '最小覆盖长度比例，默认 0.90'),
-        ('orf_csv', 'path', False, 'ORF 注释 CSV（可选）'),
+        ('orf_csv', 'path', False, 'ORF 注释 CSV 或 GenBank 文件（可选，供断点分布图基因轨道）'),
     ],
     'phylogeo': [
         ('input', 'path', True, '比对 FASTA'),
@@ -221,8 +279,17 @@ TOOL_PARAM_SCHEMAS = {
         ('coords', 'path', False, '坐标表（样本点层，可选）'),
         ('beast_log', 'path', False, 'BEAST .log（导入）'),
         ('beast_trees', 'path', False, 'BEAST .trees（导入）'),
-        ('date_trait', 'str', False, '日期列，默认 year'),
+        ('date_trait', 'str', False,
+         '日期列；不传时自动识别（date > year > 常见日期列名）'),
         ('motp_bin', 'float', False, '迁移概率分箱，默认 0'),
+        # 以下参数 job 一直在消费但 schema 此前未登记（审计 P2-12，MCP/agent
+        # 侧不可发现）：
+        ('rrt_perm', 'int', False, '区域随机化检验置换次数（0=不做）'),
+        ('rssp_bs', 'int', False, '根状态 bootstrap 复本数（0=不做）'),
+        ('seed', 'int', False, '置换/bootstrap 随机种子'),
+        ('beast_burnin', 'float', False, 'BEAST 导入丢弃的开头比例，默认 0.1'),
+        ('beast_min_prob', 'float', False, '只统计两端后验≥阈值的枝，默认 0'),
+        ('beast_max_trees', 'int', False, '.trees 最多用多少棵，默认 2000'),
     ],
     'dsrna': [
         ('input', 'path', True, '目标序列 FASTA'),
@@ -234,45 +301,42 @@ TOOL_PARAM_SCHEMAS = {
     ],
     'crispr': [
         ('input', 'path', True, '目标序列 FASTA'),
-        ('amp_mode', 'str', False, 'RPA|PCR，默认 RPA'),
+        ('amp_mode', 'str', False, 'RPA|PCR|LAMP，默认 RPA（LAMP=CRISPR-LAMP 档）'),
         ('profile', 'str', False, '严格度 strict 等，默认 strict'),
         ('probe_type', 'str', False, '探针类型，默认 none'),
         ('nuclease', 'str', False, 'cas12a 默认'),
         ('use_host', 'bool', False, '宿主脱靶检查，默认开'),
         ('group_by_segment', 'bool', False, '按片段分组，默认开'),
-        ('near_fasta', 'path', False, '近缘参考 FASTA'),
+        ('near_fasta', 'path', False, '近缘 FASTA（k-mer 排除筛查 + 位点级 leak 核查双重生效）'),
     ],
-    # 2026-10-20：CONAN-SWIFT（Cas3 / I-E）crRNA 设计（t-conan 卡）。
-    # 引擎 Virus_Platform_Core/conan_design.py；参数面与网页端表单同源。
-    'conan': [
+    # 2026-11-05：LAMP 引物组设计（t-lamp 卡）。引擎 lamp_design.py；
+    # 与 crispr 的 --amp LAMP 档共享内核。
+    'lamp': [
         ('input', 'path', True, '目标 FASTA（多分离物，可多分体）'),
-        ('negative', 'path', False, '负组 FASTA（近缘非目标病毒，可选）'),
-        ('pam', 'str', False, 'PAM（5′ 前置），默认 AAG'),
-        ('spacer_len', 'int', False, 'spacer 长度，默认 32（24–36）'),
-        ('seed_len', 'int', False, '种子长度（PAM+1 起），默认 8（4–12）'),
-        ('ignored', 'str', False, '种子忽略位（逗号分隔 1 基位置），默认 6'),
-        ('max_nonseed_mm', 'int', False, '目标非种子错配上限，默认 4'),
-        ('exclude_terminal', 'bool', False, '末端排除开关，默认开'),
-        ('terminal_margin', 'int', False, '末端排除 bp，默认 150'),
-        ('select_gc', 'bool', False, 'GC 区间过滤开关，默认开'),
-        ('gc_min', 'int', False, 'GC 下限 %，默认 35'),
-        ('gc_max', 'int', False, 'GC 上限 %，默认 65'),
-        ('exclude_homopolymer', 'bool', False, '种子同碱基 run 过滤，默认开'),
-        ('homopolymer', 'int', False, '种子同碱基 run 阈值，默认 3'),
+        ('product_min', 'int', False, 'F2-B2 产物下限 bp，默认 120'),
+        ('product_max', 'int', False, 'F2-B2 产物的上限 bp，默认 180'),
+        ('use_loop', 'bool', False, '设计 LF/LB 环引物，默认开'),
+        ('cons_min', 'float', False, '段窗保守分下限，默认 0.85'),
+        ('gc_min', 'float', False, '引物 GC 下限 %，默认 40（高AT靶标可 20）'),
+        ('gc_max', 'float', False, '引物 GC 上限 %，默认 60（高GC靶标可 75）'),
+        ('tm_offset', 'float', False, 'Tm 区间偏移 -6~+6（只放宽对应侧），默认 0'),
         ('group_by_segment', 'bool', False, '按片段标签分组，默认开'),
-        ('top_n', 'int', False, '输出候选数，默认 20'),
+        ('top_n', 'int', False, '输出组数，默认 20'),
+        ('threads', 'int', False, '线程数（MAFFT）'),
     ],
     'rtt': [
         ('input', 'path', True, '比对 FASTA'),
         ('meta', 'path', True, '元数据 CSV'),
-        ('date_trait', 'str', False, '日期列，默认 year'),
+        ('date_trait', 'str', False,
+         '日期列；不传时自动识别（date > year > 常见日期列名）'),
         ('method', 'str', False, 'nj 默认'),
     ],
     'phylodyn': [
         ('mode', 'str', False, 'pipeline|stage，默认 pipeline'),
         ('stage', 'str', False, 'stage 模式下的阶段名'),
         ('from_run', 'str', False, '上一轮专项运行名（断点续跑）'),
-        ('input', 'path', False, '比对 FASTA（stage 模式）'),
+        ('input', 'path', False,
+         '比对 FASTA（pipeline 必填；stage 模式配 from_run 可省）'),
         ('meta', 'path', False, '元数据 CSV'),
         ('tree', 'path', False, 'Newick 树'),
         ('rename_map', 'path', False, '重命名映射 TSV'),
@@ -289,6 +353,8 @@ TOOL_PARAM_SCHEMAS = {
         ('relax_coupling', 'float', False, '松弛钟耦合'),
         ('drt', 'bool', False, 'DRT 回归，默认开'),
         ('drt_perm', 'int', False, 'DRT 置换次数，默认 200'),
+        ('ltt', 'bool', False,
+         'LTT 谱系-时间曲线（对齐 VirPhyKit TreeDater-LTT，免 MCMC 口径），默认开'),
         ('clock_rate', 'float', False, '固定速率 1e-12~1.0（与松弛钟互斥）'),
         ('skyline', 'bool', False, '天际线'),
         ('n_skyline', 'int', False, '天际线块数，默认 10'),
@@ -308,8 +374,10 @@ TOOL_PARAM_SCHEMAS = {
         ('timeout', 'int', False, '超时秒，默认 3600'),
     ],
     'pdprep': [
-        ('source', 'str', False, 'manual|gb|ncbi，默认 manual'),
+        ('source', 'str', False, 'files|manual|genbank，默认 manual'),
         ('mode', 'str', False, 'preview＝只检索出清单（写 pdprep/preview.json）不导入；空＝导入'),
+        ('fasta', 'path', False, '序列 FASTA（source=files 必填）'),
+        ('meta', 'path', False, '元数据 CSV/TSV（source=files 必填）'),
         ('fasta_text', 'str', False, '粘贴 FASTA（manual）'),
         ('meta_text', 'str', False, '粘贴元数据（manual）'),
         ('species', 'str', False, '物种名（ncbi）'),
@@ -351,18 +419,33 @@ TOOL_PARAM_SCHEMAS = {
         ('input', 'path', True, '比对 FASTA'),
         ('meta', 'str', False, '元数据 CSV 路径'),
         ('trait', 'str', False, '离散性状列，默认 region'),
-        ('date_trait', 'str', False, '日期列，默认 year'),
+        ('date_trait', 'str', False,
+         '日期列；不传时自动识别（date > year > 常见日期列名）'),
         ('virus_tag', 'str', False, '病毒名标签'),
         ('iqtree_log', 'path', False, 'IQ-TREE 日志（定年用，可选）'),
         ('coords', 'path', False, '坐标表'),
         ('prior', 'str', False, '先验 bdsky 等，默认 bdsky'),
+        # job 消费但此前未登记（审计 P2-12）：
+        ('chains', 'int', False, 'MCMC 链数，默认 1'),
+        ('beast_threads', 'int', False, 'BEAST 线程数'),
+        ('chain_length', 'int', False, '链长（默认按引擎口径）'),
     ],
 }
 
 # kvchain 是 kvsuite 的一键封装（内部把 stage 固定成 all，参数就是 kvsuite
 # 那套 reads/kv_lib/reference…）。以前这里留空 → list_platform_tools 对
 # kvchain 报「0 个参数」，模型只能瞎猜 reads 的键名。
-TOOL_PARAM_SCHEMAS['kvchain'] = list(TOOL_PARAM_SCHEMAS['kvsuite'])
+TOOL_PARAM_SCHEMAS['kvchain'] = [
+    (k, t, r,
+     ('样品名，逗号分隔（与 reads/sample_sheet/input_dir 四选一）；'
+      '目录模式下改为勾选的解析样本名（逗号/分号分隔；留空=全部）'
+      if k == 'samples' else d))
+    for (k, t, r, d) in TOOL_PARAM_SCHEMAS['kvsuite']
+] + [
+    ('input_dir', 'path', False,
+     '输入目录批量（与样品/测序数据/样本表三选一）：按 _R1/_R1_001/_1 '
+     '命名自动解析单双端，逐样本跑全流程；目录里只能有 FASTQ（.sra 先转换）'),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -396,16 +479,27 @@ def _stage_entries():
         STAGE_NAMES_EN
     out = []
     for key in STAGE_ORDER:
+        invoke = {'mcp': 'vp_pipeline_start',
+                  'order': 'propose_action(rerun_stage)',
+                  'cli': 'main.py analyze --sample S --stages <key>'}
+        desc = '样品管道阶段；重跑走执行单 rerun_stage 或 analyze --stages'
+        if key == 'report':
+            # 2026-11-02：⑩ 现在同时产出图表报告 report.html 与结论文档
+            # report_v2.html；单独重刷结论文档不必重跑分析。
+            desc = ('样品管道阶段（⑩ 会同时产出图表报告 report.html 与'
+                    '结论文档 report_v2.html）；只重刷结论文档用 '
+                    'vp_build_report 或 main.py report')
+            invoke = {'mcp': 'vp_build_report',
+                      'order': 'propose_action(rerun_stage, stages=["report"])',
+                      'cli': 'main.py report --sample S'}
         out.append({
             'id': key, 'kind': 'stage',
             'title': STAGE_NAMES.get(key, key),
             'title_en': STAGE_NAMES_EN.get(key, ''),
-            'desc': '样品管道阶段；重跑走执行单 rerun_stage 或 analyze --stages',
+            'desc': desc,
             'params_note': '参数=分析请求体白名单键（见 parameter_schema），'
                            '边界值见 TUNABLE_PARAMS',
-            'invoke': {'mcp': 'vp_pipeline_start',
-                       'order': 'propose_action(rerun_stage)',
-                       'cli': 'main.py analyze --sample S --stages <key>'},
+            'invoke': invoke,
         })
     return out
 

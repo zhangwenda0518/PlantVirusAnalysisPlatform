@@ -109,8 +109,11 @@ def test_orf_map_ref_nt_coords_skip_gaps(tmp_path):
                     encoding='utf-8')
     out = orf_csv_to_aln_map(str(csvp), str(fa))
     assert out['ref'].startswith('RefSeq') and out['skipped'] == 0
-    assert out['genes'][0] == {'name': 'MP', 'start': 1, 'end': 7}
-    assert out['genes'][1] == {'name': 'CP', 'start': 10, 'end': 12}
+    # CSV 无链信息 → strand 缺省 '+'（2026-11-06 起基因记录带 strand）
+    assert out['genes'][0] == {'name': 'MP', 'start': 1, 'end': 7,
+                               'strand': '+'}
+    assert out['genes'][1] == {'name': 'CP', 'start': 10, 'end': 12,
+                               'strand': '+'}
 
 
 def test_orf_map_header_case_and_ref_pick(tmp_path):
@@ -123,7 +126,8 @@ def test_orf_map_header_case_and_ref_pick(tmp_path):
     csvp.write_text('gene.symbol,start,stop\n3A,2,6\n', encoding='utf-8')
     out = orf_csv_to_aln_map(str(csvp), str(fa), ref_id='NC_001440.1')
     assert out['ref'].startswith('NC_001440.1')
-    assert out['genes'] == [{'name': '3A', 'start': 2, 'end': 6}]
+    assert out['genes'] == [{'name': '3A', 'start': 2, 'end': 6,
+                             'strand': '+'}]
 
 
 def test_orf_map_skips_out_of_range_and_junk(tmp_path):
@@ -145,3 +149,62 @@ def test_orf_map_all_invalid_raises(tmp_path):
     import pytest
     with pytest.raises(ValueError):
         orf_csv_to_aln_map(str(csvp), str(fa))
+
+
+# ── GenBank 基因图谱：链方向与 ref_id 失配（2026-11-06 修复）─────────
+_GB = """LOCUS       NC_TEST1                   30 bp    DNA     linear   VRL 01-JAN-2020
+DEFINITION  Test virus segment 1.
+ACCESSION   NC_TEST1
+FEATURES             Location/Qualifiers
+     CDS             1..9
+                     /gene="MP"
+     CDS             complement(10..21)
+                     /gene="CP"
+ORIGIN
+        1 acgtacgtac gtacgtacgt acgtacgtac
+//
+"""
+
+
+def test_gbk_records_negative_strand(tmp_path):
+    """GenBank complement() CDS 的链方向必须保留为 '-'（此前被 min/max 丢掉）。"""
+    from Virus_Platform_Core.rdp5_engine import gbk_cds_to_aln_map
+    fa = tmp_path / 'a.fasta'
+    _write_aln(fa)
+    fa.write_text('>NC_TEST1\n' + 'ACGT' * 9 + 'AC\n>Other\n'
+                  + 'ACGT' * 9 + 'AC\n', encoding='utf-8')
+    gb = tmp_path / 'a.gbk'
+    gb.write_text(_GB, encoding='utf-8')
+    out = gbk_cds_to_aln_map(str(gb), str(fa), ref_id='NC_TEST1')
+    by_name = {g['name']: g for g in out['genes']}
+    assert by_name['MP']['strand'] == '+'
+    assert by_name['CP']['strand'] == '-'
+    # 坐标仍按正链 min/max 归位（10..21）
+    assert (by_name['CP']['start'], by_name['CP']['end']) == (10, 21)
+
+
+def test_gbk_ref_id_mismatch_raises(tmp_path):
+    """ref_id 在 GenBank 记录里一条都不匹配 → 中文报错，不能静默取首条。"""
+    import pytest
+    from Virus_Platform_Core.rdp5_engine import gbk_cds_to_aln_map
+    fa = tmp_path / 'a.fasta'
+    _write_aln(fa)
+    gb = tmp_path / 'a.gbk'
+    gb.write_text(_GB, encoding='utf-8')
+    with pytest.raises(ValueError) as ei:
+        gbk_cds_to_aln_map(str(gb), str(fa), ref_id='NC_DOES_NOT_EXIST')
+    msg = str(ei.value)
+    assert 'NC_DOES_NOT_EXIST' in msg and 'NC_TEST1' in msg
+
+
+def test_aln_ref_id_mismatch_raises(tmp_path):
+    """比对参考行 ref_id 失配同样报错（退错参考行会让基因坐标整体错位）。"""
+    import pytest
+    from Virus_Platform_Core.rdp5_engine import orf_csv_to_aln_map
+    fa = tmp_path / 'a.fasta'
+    _write_aln(fa)
+    csvp = tmp_path / 'orf.csv'
+    csvp.write_text('Gene.symbol,Start,Stop\nMP,1,5\n', encoding='utf-8')
+    with pytest.raises(ValueError) as ei:
+        orf_csv_to_aln_map(str(csvp), str(fa), ref_id='NC_MISSING')
+    assert 'NC_MISSING' in str(ei.value)

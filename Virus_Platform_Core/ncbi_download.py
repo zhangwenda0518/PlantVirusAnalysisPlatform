@@ -157,6 +157,29 @@ def summarize_ids(ids, db='nucleotide'):
     return rows
 
 
+def esummary_taxonomy(taxids):
+    """按 taxid 批量取学名（esummary db=taxonomy）→ {taxid(str): 学名}。
+
+    taxonomy 库的 esummary 字段与 nucleotide 不同：学名在 ScientificName
+    字段；v2.0 XML 里字段可能是子元素 <ScientificName> 或 <Item Name=...>
+    两种形态，解析时都兼容。走同一限速/重试/白名单通路。
+    """
+    out = {}
+    for i in range(0, len(taxids), SUMMARY_BATCH):
+        batch = [str(x) for x in taxids[i:i + SUMMARY_BATCH]]
+        xml_text = _open_eutils(f'{EUTILS_BASE}/esummary.fcgi',
+                                {'db': 'taxonomy', 'id': ','.join(batch),
+                                 'version': '2.0'})
+        root = _safe_xml(xml_text, 'esummary')
+        for doc in root.findall('DocumentSummarySet/DocumentSummary'):
+            tid = (doc.findtext('Id') or doc.get('uid') or '').strip()
+            name = (doc.findtext('ScientificName')
+                    or doc.findtext('Item[@Name="ScientificName"]') or '')
+            if tid:
+                out[tid] = name
+    return out
+
+
 def search_preview(term, db='nucleotide', limit=50):
     """检索 + 前 limit 条元数据预览（GUI 表格用）。"""
     limit = max(1, min(int(limit), 500))

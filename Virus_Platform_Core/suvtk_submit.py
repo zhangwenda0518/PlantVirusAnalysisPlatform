@@ -39,7 +39,7 @@ from .utils import safe_open, iter_fasta, write_fasta_record
 # 同级），于是 _MMSEQS_BIN / _T2A_BIN 全指向空目录，NCBI 提交（SUVTK/BFVD）
 # 预检必然报「mmseqs 缺失 / table2asn 缺失」，功能在分发版不可用。
 # 实测于 2026-09-11。改回 config.PLATFORM_ROOT 后两种模式口径一致。
-SUVTK_DB_DEFAULT = db_path('misc', 'suvtk')
+SUVTK_DB_DEFAULT = os.path.join(db_path('annot', 'pvdb'), 'bfvd')
 _MMSEQS_BIN = os.path.join(PLATFORM_ROOT, '3rd', 'tools', 'mmseqs', 'bin')
 _T2A_BIN = os.path.join(PLATFORM_ROOT, '3rd', 'tools', 'table2asn')
 
@@ -51,7 +51,7 @@ def refresh_paths():
     BFVD 库仍指旧位置。工具目录（_MMSEQS_BIN/_T2A_BIN）随程序走，不重算。
     """
     global SUVTK_DB_DEFAULT
-    SUVTK_DB_DEFAULT = db_path('misc', 'suvtk')
+    SUVTK_DB_DEFAULT = os.path.join(db_path('annot', 'pvdb'), 'bfvd')
 
 # NCBI MIUVIG:5.0 结构化注释字段（行级 collection_date/geo_loc_name/lat_lon 由
 # taxonomy.tsv 提供，文件级参数由本表提供）。软件字段须 `软件;版本;参数` 三段格式。
@@ -130,7 +130,9 @@ def default_miuvig(project_name=None, samp_taxon_id=None, log=None):
             exe = os.path.join(_MMSEQS_BIN,
                                'mmseqs.exe' if os.name == 'nt' else 'mmseqs')
             r = subprocess.run([exe, 'version'], capture_output=True,
-                               text=True, timeout=30)
+                               text=True, timeout=30,
+                               creationflags=getattr(
+                                   subprocess, 'CREATE_NO_WINDOW', 0))
             ver = ((r.stdout or '').strip().splitlines() or [''])[0].strip()
             if r.returncode == 0 and ver:
                 mv['sim_search_meth'] = f'MMseqs2;{ver};default parameters'
@@ -186,7 +188,9 @@ def _suvtk_python():
         if os.path.isfile(c):
             try:
                 r = subprocess.run([c, '-c', 'import suvtk'], capture_output=True,
-                                   timeout=30)
+                                   timeout=30,
+                                   creationflags=getattr(
+                                       subprocess, 'CREATE_NO_WINDOW', 0))
                 if r.returncode == 0:
                     return c
             except (OSError, subprocess.TimeoutExpired):
@@ -207,7 +211,9 @@ def suvtk_module_available():
     if _SUVTK_MOD_CACHE['ok'] is None:
         try:
             r = subprocess.run([_suvtk_python(), '-c', 'import suvtk'],
-                               capture_output=True, timeout=30)
+                               capture_output=True, timeout=30,
+                               creationflags=getattr(
+                                   subprocess, 'CREATE_NO_WINDOW', 0))
             _SUVTK_MOD_CACHE['ok'] = (r.returncode == 0)
         except (OSError, subprocess.TimeoutExpired):
             _SUVTK_MOD_CACHE['ok'] = False
@@ -272,7 +278,9 @@ def _run_suvtk(args, cwd, log=None, timeout=None):
     proc = subprocess.Popen(cmd, cwd=cwd, env=_env(),
                             stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True,
-                            encoding='utf-8', errors='replace', bufsize=1)
+                            encoding='utf-8', errors='replace', bufsize=1,
+                            creationflags=getattr(
+                                subprocess, 'CREATE_NO_WINDOW', 0))
     task_register_proc(proc)
     lines = []
     t0 = time.time()
@@ -652,22 +660,31 @@ def build_sqn(run_dir, *, seq_fasta=None, rows=None, author=None,
     with safe_open(tax_p, 'wt') as f:
         f.write(build_taxonomy_tsv(rows, gtype_default=gtype))
 
-    # ---- 6) suvtk comments → .cmt（编辑复用：已存在则不覆盖）----
+    # ---- 6) comments → .cmt（编辑复用：已存在则不覆盖）----
     cmt = os.path.join(out_dir, 'sqn')
     cmt_p = cmt + '.cmt'
     if os.path.isfile(cmt_p) and os.path.getsize(cmt_p) > 0:
         log(f'  sqn.cmt 已存在，复用: {cmt_p}')
-    elif not suvtk_module_available():
-        # 2026-10-25：分发版无 suvtk 模块——comments 是 table2asn 可选的
-        # -w 输入，跳过只少 MIUVIG 结构化注释块，.sqn 照常生成；自备
-        # sqn.cmt 放项目目录后重新生成即复用（上方复用分支）。
-        log('  跳过 suvtk comments（suvtk 模块未装）——.sqn 不含 MIUVIG '
-            '结构化注释块；自备 sqn.cmt 后重新生成即可复用', 'WARN')
-        cmt_p = None
     else:
-        _run_suvtk(['comments', '-t', tax_p, '-f', feat_miuvig, '-m', mv_p,
-                    '-a', asm_p, '-o', cmt],
-                   cwd=out_dir, log=log, timeout=300)
+        # 2026-11-03 vendor 化（对齐 28.ncbi_submission/vendor_suvtk 方案，
+        # 同步自该仓库；上游 suvtk 0.2.0，GPLv3，见 vendor_suvtk/LICENSE）：
+        # comments 进程内直调，不再依赖 suvtk pip 包（原 [<py>, -m, suvtk,
+        # comments...] 子进程与「模块未装则整段跳过」分支废除）——默认 .sqn
+        # 链从此只需要 table2asn.exe。BFVD features 链（use_features=True）
+        # 仍走原就绪门（suvtk 模块 + mmseqs + bfvd 库，开发机专属）。
+        from .vendor_suvtk import comments as _vc
+        try:
+            _vc.comments(taxonomy=tax_p, features=feat_miuvig, miuvig=mv_p,
+                         assembly=asm_p, checkv=None, output=cmt)
+        except Exception as e:                      # noqa: BLE001
+            # comments 是 table2asn 可选的 -w 输入：跳过只少 MIUVIG 结构化
+            # 注释块，.sqn 照常生成；自备 sqn.cmt 放项目目录重新生成即复用。
+            log(f'  comments 生成失败（跳过，仅少 MIUVIG 注释块）: {e}', 'WARN')
+            cmt_p = None
+        else:
+            if not (os.path.isfile(cmt_p) and os.path.getsize(cmt_p) > 0):
+                log('  comments 未产出 .cmt（按缺失处理）', 'WARN')
+                cmt_p = None
 
     # ---- 7) table2asn → .sqn ----
     # 直接调 NCBI table2asn.exe（绕过 suvtk wrapper：wrapper 仅拼命令+读 .val，
@@ -691,7 +708,9 @@ def build_sqn(run_dir, *, seq_fasta=None, rows=None, author=None,
     from .utils import task_register_proc
     _p = subprocess.Popen(t2a_cmd, cwd=out_dir, stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT, text=True,
-                          encoding='utf-8', errors='replace')
+                          encoding='utf-8', errors='replace',
+                          creationflags=getattr(
+                              subprocess, 'CREATE_NO_WINDOW', 0))
     task_register_proc(_p)                       # 取消时硬停止 table2asn
     try:
         t2a_out, _ = _p.communicate(timeout=600)

@@ -127,19 +127,15 @@ def consensus(seqs: "OrderedDict[str, str]") -> str:
 
 
 def pairwise_identity(a: str, b: str) -> Optional[float]:
-    """两位点均非 gap 时才计入分母（与上游 `pairwise_identity` 同口径）。"""
-    if not a or not b:
-        return None
-    m = min(len(a), len(b))
-    same = tot = 0
-    for i in range(m):
-        x, y = a[i], b[i]
-        if x == '-' or y == '-':
-            continue
-        tot += 1
-        if x == y:
-            same += 1
-    return (same / tot) if tot else None
+    """两位点均非 gap 时才计入分母（与上游 `pairwise_identity` 同口径）。
+
+    公式本体委托 `seq_identity.pair_identity`（2026-11-04 全平台统一）：
+    仅 `'-'` 为 gap、按 zip 截断到较短序列、返回 **0-1 小数**（不是百分比），
+    无可比位点 → None。
+    """
+    from .seq_identity import pair_identity
+    r = pair_identity(a, b, gap_chars='-', empty=None, scale=1.0)
+    return None if r is None else float(r)
 
 
 # ══════════════════════════════════════════════════════════════════════

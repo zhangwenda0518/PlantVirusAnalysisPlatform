@@ -42,16 +42,17 @@ DEFAULT_MAX_IDENTITY_DROP = 0.02
 
 
 def pairwise_identity(s1, s2):
-    """SDT 公式: (1 - dist/denom) * 100，双方非 gap 才计入（与参照管道同）。"""
-    dist, gaps = 0, 0
-    for a, b in zip(s1, s2):
-        if a != '-' and b != '-':
-            if a != b:
-                dist += 1
-        else:
-            gaps += 1
-    denom = len(s1) - gaps
-    return (1 - dist / denom) * 100 if denom > 0 else 0.0
+    """与参照管道同口径（**仅 '-' 为 gap**），结果 = 百分比 0-100。
+
+    公式本体委托 `seq_identity.pair_identity`（2026-11-04 全平台统一）。
+    本模块 `qc_alignment` 对输入强制等长（不等长直接 raise），而等长时
+    `len(s1) - gaps`（gaps 按 '-' 计）≡ 双方均非 gap 的列数，故与
+    `pair_identity(gap_chars='-')` 逐位等价；这里显式传 `gap_chars='-'`
+    只为保住参照管道口径（该管道里 '.' 算碱基、不算 gap，与 GAP_CHARS 不同）。
+    空分母（无可比位点）→ 0.0（与矩阵页一致，区别于 SDT 页的 NaN）。
+    """
+    from .seq_identity import pair_identity
+    return pair_identity(s1, s2, gap_chars='-', empty=0.0)
 
 
 def _read_alignment(path):

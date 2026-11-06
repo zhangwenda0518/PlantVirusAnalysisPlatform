@@ -118,7 +118,9 @@ def java_major_version(java: Path) -> int | None:
     """探测 java 主版本号。"""
     try:
         p = subprocess.run([str(java), '-version'], capture_output=True, text=True,
-                           encoding='utf-8', errors='replace', timeout=60)
+                           encoding='utf-8', errors='replace', timeout=60,
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
     except (OSError, subprocess.SubprocessError):
         return None
     text = (p.stderr or '') + (p.stdout or '')
@@ -190,7 +192,9 @@ class BcftoolsCaller:
         cmd = [self.bcftools] + args
         p = subprocess.run(cmd, capture_output=True, text=True,
                            encoding='utf-8', errors='replace',
-                           env=self.env)
+                           env=self.env,
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
         if log_file is not None:
             log_file = Path(log_file)
             log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -361,7 +365,9 @@ class SnpEffRunner:
         self.log.info('  [SnpEff] %s: %s', label, ' '.join(args[:6]))
         # 不用 text=True：SnpEff 的 header 行含路径，可能是 GBK 字节，
         # 交给调用方用 read_text_lossless 统一解码，避免在这里被 replace 掉。
-        p = subprocess.run(cmd, cwd=str(self.work_dir), capture_output=True)
+        p = subprocess.run(cmd, cwd=str(self.work_dir), capture_output=True,
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
         out = (p.stdout or b'')
         err = (p.stderr or b'')
         for enc in ('utf-8', 'gbk'):
@@ -634,7 +640,9 @@ def export_ref_fastas(ref, accessions, out_dir, samtools=None, logger=None,
             if samtools and Path(str(samtools)).is_file():
                 try:
                     _r = subprocess.run([str(samtools), 'faidx', str(ref_fa)],
-                                        capture_output=True, env=env, check=False)
+                                        capture_output=True, env=env, check=False,
+                                        creationflags=getattr(
+                                            subprocess, 'CREATE_NO_WINDOW', 0))
                     if _r.returncode != 0:
                         LOGGER.warning(
                             'samtools faidx 失败 (退出码 %d)：'
@@ -1005,7 +1013,9 @@ class VariantStage:
         try:
             p = subprocess.run([str(samtools), 'depth', '-a'] + [str(b) for b in bams],
                                capture_output=True, text=True, encoding='utf-8',
-                               errors='replace', env=self.cfg.get('env'))
+                               errors='replace', env=self.cfg.get('env'),
+                               creationflags=getattr(
+                                   subprocess, 'CREATE_NO_WINDOW', 0))
         except OSError as e:
             self.log.warning('samtools depth 无法启动（%s），按 dp=10/saf=2 处理', e)
             return 0.0

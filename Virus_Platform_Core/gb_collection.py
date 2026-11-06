@@ -735,17 +735,63 @@ def _taxonomy_ranks(rec):
     return family, genus
 
 
-def extract_collection_features(name, logger=None, prog=None):
-    """集合 .gb → 分类分目录特征提取（PhyloSuite 布局）。
+# ------------------------------------------------------------------
+# 保守基因（marker）归组：植物病毒科/属特异基因别名表 + 提取
+# ------------------------------------------------------------------
+MARKER_GENES = {
+    # RdRp：正链（NIb/ORF1b/replicase）与负链（L protein）口径都收
+    'RdRp': ('RNA-directed RNA polymerase', 'RNA-dependent RNA polymerase',
+             'RdRp', 'RDRP', 'NIb', 'nuclear inclusion b', 'ORF1b',
+             'replicase', 'polymerase', 'L protein'),
+    # CP：CAP=衣壳；boundary 规则会排除 nucleocapsid（前邻字母）
+    'CP': ('coat protein', 'capsid protein', 'capsid', 'CP'),
+    'MP': ('movement protein', 'MP'),
+    'TGBp1': ('TGBp1', 'TGB1', 'triple gene block 1',
+              'triple gene block protein 1'),
+    'TGBp2': ('TGBp2', 'TGB2', 'triple gene block 2',
+              'triple gene block protein 2'),
+    'TGBp3': ('TGBp3', 'TGB3', 'triple gene block 3',
+              'triple gene block protein 3'),
+    'HC-Pro': ('HC-Pro', 'HCPro', 'helper component'),
+    'CI': ('cylindrical inclusion', 'cytoplasmic inclusion', 'CI'),
+    'Helicase': ('helicase',),
+    'Protease': ('protease', 'proteinase', 'NIa', 'nuclear inclusion a'),
+    'VPg': ('VPg', 'genome-linked'),
+}
+# (组, 别名, 编译后边界正则)——长别名优先（更特异），同长按组名字典序
+_MARKER_MATCHERS = sorted(
+    ((grp, alias,
+      re.compile(r'(?<![A-Za-z0-9])' + re.escape(alias.lower())
+                 + r'(?![A-Za-z0-9])'))
+     for grp, aliases in MARKER_GENES.items() for alias in aliases),
+    key=lambda t: (-len(t[1]), t[0]))
 
-    extract/
-      genome.fa            全基因组核酸
-      CDS.fa / PEP.fa      全部 CDS 核酸 / 蛋白（汇总）
-      CDS/<基因>.fa        按基因拆分的核酸（同源基因各基因组一份）
-      PEP/<基因>.fa        按基因拆分的蛋白
-      genes.tsv            基因 × 基因组矩阵摘要（条数/长度/产物示例）
-    序列 id = <accession>|<基因>；PEP 优先 translation，缺则 transl_table 翻译。
-    返回 summary dict（文件清单 + 基因统计）。
+
+def marker_group_of(text):
+    """product/gene/note 文本 → 保守基因组名（RdRp/CP/MP/...）。
+
+    长别名优先（如 helper component-protease 归 HC-Pro 而非 Protease）；
+    别名按词边界匹配（防 capsid 误吞 nucleocapsid、cap-independent 误命中）。
+    不命中返回 None。
+    """
+    t = (text or '').strip().lower()
+    if not t:
+        return None
+    for grp, _alias, rx in _MARKER_MATCHERS:
+        if rx.search(t):
+            return grp
+    return None
+
+
+def extract_marker_features(name, out_dir=None, logger=None, prog=None):
+    """集合 .gb → 保守基因（marker）归组提取（RdRp/CP/MP 等科/属特异基因）。
+
+    扫 CDS + mat_peptide 两类特征（多聚蛋白基因组的 RdRp/CP 多注释在
+    mat_peptide），按 MARKER_GENES 别名表归组；同一记录同组多条取最长
+    PEP。产物（目录：out_dir/marker/，缺省为集合 extract/marker/）：
+      marker/<组>_CDS.fa / marker/<组>_PEP.fa
+      marker_report.tsv（组 × 命中基因组数 × 平均长度 × 产物示例）
+    序列 id = <accession>|<组>。返回 summary dict。
     """
     from Bio import SeqIO
     from Bio.Seq import Seq as BioSeq
@@ -756,7 +802,105 @@ def extract_collection_features(name, logger=None, prog=None):
             logger.log(msg, level)
 
     cdir = gb_collection_dir(name)
-    out = extract_dir(name)
+    root = (check_path(out_dir, must_exist=False, in_platform=True)
+            if out_dir else extract_dir(name))
+    mdir = os.path.join(root, 'marker')
+    os.makedirs(mdir, exist_ok=True)
+
+    hits = {}                      # 组 -> {rec_id: (sid, nt, aa, product)}
+    gbs = [fn for fn in sorted(os.listdir(cdir))
+           if fn.lower().endswith(_GB_EXTS)]
+    if prog:
+        prog('marker', 0.05, f'扫描 {len(gbs)} 个 GenBank 记录的保守基因')
+    for i, fn in enumerate(gbs, 1):
+        for rec in SeqIO.parse(os.path.join(cdir, fn), 'genbank'):
+            best = {}               # 组 -> (aa_len, sid, nt, aa, product)
+            for feat in rec.features:
+                if feat.type not in ('CDS', 'mat_peptide'):
+                    continue
+                q = feat.qualifiers
+                text = ' '.join(str(v) for k in ('product', 'gene', 'note')
+                                for v in q.get(k, [])).lower()
+                grp = marker_group_of(text)
+                if not grp:
+                    continue
+                product = next((str(v) for v in q.get('product', [''])), '')
+                nt = str(feat.extract(rec.seq)).upper()
+                tr = next((str(v) for v in q.get('translation', [])), None)
+                if tr:
+                    aa = tr.upper()
+                else:
+                    table = next((str(v) for v in q.get('transl_table',
+                                                       ['11'])), '11')
+                    aa = str(BioSeq(nt).translate(table=table,
+                                                  cds=False)).rstrip('*')
+                aa = aa.rstrip('*').replace('*', 'X')   # 内部终止子 → X
+                if len(aa) < 30 or len(nt) < 90:
+                    continue
+                prev = best.get(grp)
+                if prev is None or len(aa) > prev[0]:
+                    best[grp] = (len(aa), f"{rec.id}|{grp}", nt, aa, product)
+            for grp, (_l, sid, nt, aa, product) in best.items():
+                hits.setdefault(grp, {})[rec.id] = (sid, nt, aa, product)
+        if prog:
+            prog('marker', 0.05 + 0.8 * i / max(len(gbs), 1),
+                 f'扫描 {i}/{len(gbs)}')
+
+    report_rows = []
+    for grp, per_rec in sorted(hits.items()):
+        with safe_open(os.path.join(mdir, f'{grp}_CDS.fa'), 'wt') as f:
+            for sid, nt, _aa, _p in per_rec.values():
+                write_fasta_record(f, sid, nt)
+        with safe_open(os.path.join(mdir, f'{grp}_PEP.fa'), 'wt') as f:
+            for sid, _nt, aa, _p in per_rec.values():
+                write_fasta_record(f, sid, aa)
+        aalens = [len(aa) for _sid, _nt, aa, _p in per_rec.values()]
+        prods = '; '.join(sorted({p[:60] for _sid, _nt, _aa, p
+                                  in per_rec.values() if p}))[:160]
+        report_rows.append((grp, len(per_rec), len(per_rec), len(per_rec),
+                            sum(aalens) // max(len(aalens), 1), prods))
+
+    with safe_open(os.path.join(mdir, 'marker_report.tsv'), 'wt') as f:
+        f.write('marker\tn_genomes\tn_cds\tn_pep\tavg_len_aa\tproducts\n')
+        for row in report_rows:
+            f.write('\t'.join(str(x) for x in row) + '\n')
+
+    n = len(report_rows)
+    log(f'保守基因提取完成: {n} 组'
+        + (f'（{", ".join(g for g, *_ in report_rows)}）' if n else '（无命中）'))
+    if prog:
+        prog('done', 1.0, f'保守基因 {n} 组')
+    return {'marker_dir': 'marker/', 'markers': {g: n_gen for g, n_gen, *_ in
+                                                 report_rows},
+            'n_markers': n, 'report': 'marker/marker_report.tsv'}
+
+
+def extract_collection_features(name, logger=None, prog=None, out_dir=None):
+    """集合 .gb → 分类分目录特征提取（PhyloSuite 布局）。
+
+    extract/
+      genome.fa            全基因组核酸
+      CDS.fa / PEP.fa      全部 CDS 核酸 / 蛋白（汇总）
+      CDS/<基因>.fa        按基因拆分的核酸（同源基因各基因组一份）
+      PEP/<基因>.fa        按基因拆分的蛋白
+      genes.tsv            基因 × 基因组矩阵摘要（条数/长度/产物示例）
+      marker/              保守基因归组（RdRp/CP/MP…，见
+                           extract_marker_features）
+    out_dir 缺省写集合 extract/ 目录；compare_suite 一键链传自有目录，
+    产物布局完全一致。序列 id = <accession>|<基因>；PEP 优先 translation，
+    缺则 transl_table 翻译。返回 summary dict（文件清单 + 基因统计 + marker）。
+    """
+    from Bio import SeqIO
+    from Bio.Seq import Seq as BioSeq
+    from .utils import write_fasta_record
+
+    def log(msg, level='INFO'):
+        if logger:
+            logger.log(msg, level)
+
+    cdir = gb_collection_dir(name)
+    out = (check_path(out_dir, must_exist=False, in_platform=True)
+           if out_dir else extract_dir(name))
     cds_dir = os.path.join(out, 'CDS')
     pep_dir = os.path.join(out, 'PEP')
     for d in (out, cds_dir, pep_dir):
@@ -837,14 +981,22 @@ def extract_collection_features(name, logger=None, prog=None):
                     f"{len(pep_by_gene.get(tag, []))}\t{prods}\n")
 
     n_gene_files = len(set(cds_by_gene) | set(pep_by_gene))
+    marker_res = extract_marker_features(name, out_dir=out,
+                                         logger=logger, prog=None)
+    n_genome_marker = len(marker_res.get('markers') or {})
     log(f'提取完成: 基因组 {n_genome} · CDS {n_cds} · PEP {n_pep} · '
-        f'基因 {n_gene_files} 个（extract/ 分类分目录）')
+        f'基因 {n_gene_files} 个 · 保守基因 {n_genome_marker} 组'
+        '（extract/ 分类分目录）')
     if prog:
-        prog('done', 1.0, f'完成：{n_gene_files} 个基因')
+        prog('done', 1.0, f'完成：{n_gene_files} 个基因 + 保守基因 '
+                     f'{n_genome_marker} 组')
     return {'collection': name, 'n_genome': n_genome, 'n_cds': n_cds,
             'n_pep': n_pep, 'n_genes': n_gene_files,
+            'n_markers': n_genome_marker,
+            'markers': marker_res.get('markers') or {},
             'files': {k: os.path.basename(v) for k, v in files.items()},
-            'gene_dirs': {'cds': 'CDS/', 'pep': 'PEP/'}}
+            'gene_dirs': {'cds': 'CDS/', 'pep': 'PEP/',
+                          'marker': 'marker/'}}
 
 
 def build_collection_phylo(name, tree_tool='fasttree', trim=True, threads=None,

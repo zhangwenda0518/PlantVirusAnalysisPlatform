@@ -33,23 +33,29 @@ from Virus_Platform_Core.pipeline import DEFAULT_ANALYZE_STAGES
 def _bootstrap_taxonomy():
     """First-run extraction of the bundled NCBI taxonomy archive.
 
-    The database package ships NCBI's official new_taxdump.tar.gz (155 MB) and
-    app.py unpacks it in a background thread when the web UI starts.  Buyers are
-    told to run `VirusPlatform.exe --cli selfcheck` as their very first command,
-    so without this bootstrap that command reported "NCBI Taxonomy: not ready"
-    (exit 1) on a cold product until the web UI had been opened once.
-    Extraction is pure local work - no network access, about a minute.
+    The database package ships the slim NCBI taxonomy archive
+    (new_taxdump_slim.tar.gz, virus-subtree-only) and app.py unpacks it in a
+    background thread when the web UI starts.  Buyers are told to run
+    `VirusPlatform.exe --cli selfcheck` as their very first command, so without
+    this bootstrap that command reported "NCBI Taxonomy: not ready" (exit 1)
+    on a cold product until the web UI had been opened once.
+    Extraction is pure local work - no network access, seconds.
     """
     try:
         from Virus_Platform_Core.config import DIRS
         from Virus_Platform_Core.taxonomy import prepare_taxonomy, taxonomy_ready
         if taxonomy_ready():
             return
-        tar = os.path.join(DIRS['databases'], 'new_taxdump.tar.gz')
-        if not os.path.isfile(tar):
+        tar = None
+        for _name in ('new_taxdump_slim.tar.gz', 'new_taxdump.tar.gz'):
+            _p = os.path.join(DIRS['databases'], _name)
+            if os.path.isfile(_p):
+                tar = _p
+                break
+        if not tar:
             return
         _say('[init] extracting the bundled NCBI taxonomy archive '
-              '(first run only, about a minute)...')
+              '(first run only, seconds)...')
         prepare_taxonomy()
         _say('[init] NCBI taxonomy is ready.')
     except Exception as e:                              # noqa: BLE001
@@ -81,8 +87,45 @@ def make_logger(name, echo=True):
 
 
 def cmd_init_taxonomy(args):
-    from Virus_Platform_Core.taxonomy import prepare_taxonomy, taxonomy_ready
+    import time as _time
+    from Virus_Platform_Core.taxonomy import (prepare_taxonomy,
+                                              taxonomy_ready,
+                                              build_slim_taxonomy,
+                                              pack_slim_archive,
+                                              TaxonomyGraph)
+    from Virus_Platform_Core.config import DIRS
     logger = make_logger('taxonomy')
+
+    if getattr(args, 'pack_slim', False):
+        # 打包分发档（当前库须已是精简口径）
+        out = pack_slim_archive(logger=logger)
+        _say(f"\n✔ 精简分发档: {out}")
+        logger.close()
+        return
+
+    if getattr(args, 'slim', False):
+        # ---- 精简模式：全量就绪 → 裁病毒子树 → 校验 → 备份换库 ----
+        if not taxonomy_ready():
+            prepare_taxonomy(logger=logger)          # 无全量先拉官方档
+        info = build_slim_taxonomy(logger=logger)    # → databases/tax_db_slim
+        TaxonomyGraph(info['dst']).load()            # 裁剪产物整库加载校验
+        if info['n_nodes'] < 1000:
+            raise RuntimeError(f"精简库仅 {info['n_nodes']} 个 taxon，异常中止"
+                               f"（原库未动: {DIRS['taxonomy']}）")
+        stamp = _time.strftime('%Y%m%d_%H%M%S')
+        backup = os.path.join(DIRS['databases'], f'tax_db_full_{stamp}')
+        os.rename(DIRS['taxonomy'], backup)
+        os.rename(info['dst'], DIRS['taxonomy'])
+        _say(f"\n✔ 精简完成: 全库 {info['n_total']:,} → {info['n_nodes']:,} taxon"
+             f"（病毒子树+祖先链）")
+        _say(f"  nodes {info['bytes_nodes']/1048576:.0f}MB / "
+             f"names {info['bytes_names']/1048576:.0f}MB（原 ~578MB）")
+        _say(f"  全量备份: {backup}")
+        _say("  回滚: 删 tax_db 后把备份目录改名回 tax_db 即可")
+        _say(f"\n✔ Taxonomy 就绪:", taxonomy_ready())
+        logger.close()
+        return
+
     prepare_taxonomy(logger=logger, force=args.force)
     _say("\n✔ Taxonomy 就绪:", taxonomy_ready())
     logger.close()
@@ -235,10 +278,48 @@ def cmd_gb_check(args):
 
 
 def cmd_report(args):
-    from Virus_Platform_Core.pipeline import run_report_only
+    import os
+    from Virus_Platform_Core.config import DIRS
+    from Virus_Platform_Core.pipeline import run_report_only, _resolve_sample
     logger = make_logger(f'report_{args.sample}')
     run_report_only(args.sample, logger=logger, force=args.force)
     logger.close()
+    if getattr(args, 'pdf', False):
+        from Virus_Platform_Core.pdf_export import html_to_pdf
+        html = os.path.join(DIRS['results'], _resolve_sample(args.sample),
+                            '07_report', 'report_v2.html')
+        _say(f'PDF: {html_to_pdf(html)}')
+
+
+def cmd_module_report(args):
+    """模块结果页：样品阶段目录或工具运行目录 → results.html。"""
+    import os as _os
+    from Virus_Platform_Core.config import DIRS
+    from Virus_Platform_Core.report_kit import module_page
+    if args.run:
+        p = _os.path.join(DIRS['tool_runs'], args.run)
+        if not _os.path.isdir(p):
+            p = _os.path.join(DIRS['tool_runs'], '_archive', args.run)
+        logger = make_logger(f'modrep_{args.run[:20]}')
+        out = module_page.build_tool_run_page(p, logger=logger)
+        logger.close()
+    elif args.sample:
+        logger = make_logger(f'modrep_{args.sample}')
+        out = module_page.build_stage_page(
+            _os.path.join(DIRS['results'], args.sample),
+            stage=args.stage, logger=logger)
+        logger.close()
+    else:
+        print('需要 --sample 或 --run（二选一）', file=sys.stderr)
+        sys.exit(2)
+        return
+    if not out:
+        print('没有可整理的产物目录', file=sys.stderr)
+        sys.exit(1)
+    _say(f'模块结果页: {out}')
+    if getattr(args, 'pdf', False):
+        from Virus_Platform_Core.pdf_export import html_to_pdf
+        _say(f'PDF: {html_to_pdf(out)}')
 
 
 def cmd_host_analysis(args):
@@ -258,6 +339,12 @@ def cmd_host_analysis(args):
               f"{s.get('n_low_confidence', 0)} 条标注 Low_confidence")
     for cat, n in s['categories'].items():
         _say(f"  {cat:15s}: {n}")
+    try:                                  # 阶段结果页顺带刷新（失败不阻断）
+        from Virus_Platform_Core.report_kit import module_page
+        _say("模块结果页: " + str(module_page.build_stage_page(
+            sample_dir, stage='hostana')))
+    except Exception:
+        pass
 
 
 def cmd_orfa(args):
@@ -271,7 +358,8 @@ def cmd_orfa(args):
     s = run_orf_annotation(sample_dir, threads=args.threads, logger=logger,
                            force=args.force, libs=args.libs,
                            min_pident=args.min_pident,
-                           min_qcov=args.min_qcov)
+                           min_qcov=args.min_qcov,
+                           profile=getattr(args, 'profile', None))
     logger.close()
     used = s.get('libs') or []
     _say("启用注释层: " + '、'.join(LIB_LABELS.get(l, l) for l in used))
@@ -280,6 +368,12 @@ def cmd_orfa(args):
           f"有效注释，覆盖 {s['n_families']} 个病毒科（引擎 {eng}）")
     for c, n in list(s['categories'].items())[:10]:
         _say(f"  {c:20s}: {n}")
+    try:                                  # 阶段结果页顺带刷新（失败不阻断）
+        from Virus_Platform_Core.report_kit import module_page
+        _say("模块结果页: " + str(module_page.build_stage_page(
+            sample_dir, stage='orfa')))
+    except Exception:
+        pass
 
 
 def cmd_logan_create(args):
@@ -641,6 +735,62 @@ def cmd_tools(args):
     _say(f"病毒库: {cfg.databases['virus']}")
 
 
+def cmd_update(args):
+    """检查/安装平台更新（分发包自更新；机制见 updater.py）。"""
+    from Virus_Platform_Core import updater
+    import json as _json
+    cur = updater.current_version()
+    info = updater.check_update(force=True)
+    if args.json:
+        _say(_json.dumps(info, ensure_ascii=False))
+    else:
+        _say(f"当前版本: {cur}（版本档 {info.get('edition') or '-'}）")
+        if not info.get('ok'):
+            _say(f"✘ 检查失败: {info.get('error')}")
+            return False
+        if info.get('has_update'):
+            _say(f"↑ 发现新版本: {info['latest']}"
+                 + ('（已跳过，手动安装仍可继续）' if info.get('skipped') else ''))
+            if info.get('notes_zh'):
+                _say(info['notes_zh'])
+        else:
+            _say('✔ 已是最新版本')
+    if args.check or not info.get('has_update'):
+        return None if info.get('ok') else False
+
+    # —— 安装路径（--check 不走到这里）——
+    if not updater._is_frozen():
+        _say('✘ 源码模式不支持自更新（请用 git pull）')
+        return False
+    if not args.yes:
+        try:
+            a = input('确认下载并安装更新？[y/N] ').strip().lower()
+        except EOFError:
+            a = ''
+        if a not in ('y', 'yes'):
+            _say('已取消')
+            return None
+    try:
+        _say(f"开始下载 {info['latest']} 更新包（多源回退，断点续传）…")
+        updater.download_package(info)
+        _say('校验通过，已暂存。')
+        active = updater.tasks_active()
+        if active:
+            _say(f"△ 有 {len(active)} 个运行中/排队任务，本次不换装；"
+                 '任务结束后重新运行本命令即可。')
+            return False
+        _say('正在换装（本进程退出后由脚本完成，完成后请手动启动平台）…')
+        r = updater.install_update(mode='none')
+        if not r.get('ok'):
+            _say(f"✘ 换装未执行: {r.get('error')}")
+            return False
+        updater.request_shutdown()   # 提示已送出，硬退让 bat 接手换装
+        return None
+    except Exception as e:   # noqa: BLE001
+        _say(f'✘ 更新失败: {type(e).__name__}: {e}')
+        return False
+
+
 def cmd_db_migrate(args):
     """数据库迁移/对接：把 databases（含 virusref_db/）与 host-db 复制或搬移到
     外置位置，并切换 database_root，实现软件与数据库分离部署。"""
@@ -764,6 +914,42 @@ def cmd_crispr_design(args):
               f" → 组合 {d['n_designed']}")
     _say(f"产物目录: {summary['out_dir']}")
     _say("⚠ " + summary['evidence_note'])
+    return None
+
+
+def cmd_lamp_design(args):
+    """LAMP 引物组设计（与 GUI 工具卡 t-lamp 同引擎同产物）。"""
+    import time as _time
+    from Virus_Platform_Core import lamp_design as ld
+    get_config()
+    out_dir = args.out or os.path.join(
+        DIRS['tool_runs'],
+        'lamp_cli_' + _time.strftime('%Y%m%d_%H%M%S'))
+    logger = make_logger('lamp_design')
+    params = {
+        'product_min': args.product_min, 'product_max': args.product_max,
+        'use_loop': '0' if args.no_loop else '1',
+        'cons_min': args.cons_min,
+        'gc_min': args.gc_min if args.gc_min is not None else '',
+        'gc_max': args.gc_max if args.gc_max is not None else '',
+        'tm_offset': args.tm_offset if args.tm_offset is not None else '',
+        'preset': args.preset,
+        'group_by_segment': '0' if args.no_group else '1',
+        'top_n': args.top_n,
+        'threads': args.threads or 0,
+    }
+
+    def _prog(stage, frac, msg=''):
+        _say(f'  [{stage:8s}] {int(frac * 100):3d}%  {msg}')
+
+    summary, _result = ld.run_chain(args.input, params, out_dir,
+                                    logger, _prog)
+    logger.close()
+    _say(f"LAMP 设计完成: {summary['n_sets_output']} 组"
+         f"（最优评分 {summary['best_score']}，耗时 "
+         f"{summary['elapsed_sec']}s）")
+    _say(f"产物目录: {summary['out_dir']}")
+    _say('⚠ ' + summary['evidence_note'])
     return None
 
 
@@ -913,8 +1099,8 @@ def cmd_selfcheck(args):
         if name.startswith('NCBI Taxonomy') and not ok:
             # 单独版不含数据库包：✘ 之外必须给出口，否则买家只看到一个红叉
             _say('      提示: 「数据库构建」页可一键下载；离线时把 '
-                  'new_taxdump.tar.gz 放到 databases/ 下，'
-                  '任一条命令首次运行会自动解压')
+                  'new_taxdump_slim.tar.gz（精简）或 new_taxdump.tar.gz（全量）'
+                  '放到 databases/ 下，任一条命令首次运行会自动解压')
         if name.startswith('宿主库'):
             # 宿主库"是谁"必须可见：库本体不记录物种，历史上出过
             # "目录名是枸杞、库却按 4081 番茄建"的事故，用错宿主是静默的。
@@ -1014,6 +1200,12 @@ def build_parser(cfg):
 
     sp = sub.add_parser('init-taxonomy', help='下载/准备 NCBI taxonomy（首次必做）')
     sp.add_argument('--force', action='store_true')
+    sp.add_argument('--slim', action='store_true',
+                    help='精简 taxonomy：只留病毒子树+祖先链+merged'
+                         '（~578MB→~46MB，宿主 taxid 改在线核对）')
+    sp.add_argument('--pack-slim', action='store_true',
+                    help='把当前（精简）库打包成 databases/new_taxdump_slim.tar.gz'
+                         ' 分发档')
     sp.set_defaults(func=cmd_init_taxonomy)
 
     sp = sub.add_parser('build-host-db', help='kunpeng 宿主数据库构建')
@@ -1123,7 +1315,7 @@ def build_parser(cfg):
                     help='跳过宿主基因组筛查（默认启用 host-db）')
     sp.add_argument('--no-group', action='store_true',
                     help='不按片段标签分组（全部记录视为同一分子）')
-    sp.add_argument('--amp', default='RPA', choices=['RPA', 'PCR'],
+    sp.add_argument('--amp', default='RPA', choices=['RPA', 'PCR', 'LAMP'],
                     help='扩增方式（默认 RPA）')
     sp.add_argument('--profile', default='strict',
                     choices=['strict', 'relaxed'],
@@ -1150,6 +1342,36 @@ def build_parser(cfg):
                     help='产物根目录（默认 run/tool_runs/crispr_cli_<时间戳>）')
     sp.add_argument('-t', '--threads', type=int, default=0)
     sp.set_defaults(func=cmd_crispr_design)
+
+    sp = sub.add_parser(
+        'lamp-design',
+        help='LAMP 引物组设计（F3/F2/F1/B1/B2/B3 + LF/LB，与 GUI 工具卡 '
+             't-lamp 同引擎）')
+    sp.add_argument('-i', '--input', required=True,
+                    help='目标 FASTA（多分离物；header 含 RNA1/S2 等标签自动分片段）')
+    sp.add_argument('--product-min', type=int, default=120,
+                    help='F2-B2 产物下限 bp（默认 120）')
+    sp.add_argument('--product-max', type=int, default=180,
+                    help='F2-B2 产物上限 bp（默认 180）')
+    sp.add_argument('--no-loop', action='store_true',
+                    help='不设计 LF/LB 环引物')
+    sp.add_argument('--cons-min', type=float, default=0.85,
+                    help='段窗保守分下限（默认 0.85）')
+    sp.add_argument('--gc-min', type=float, default=None,
+                    help='引物 GC 下限 %%（默认 30；高AT靶标可 20）')
+    sp.add_argument('--gc-max', type=float, default=None,
+                    help='引物 GC 上限 %%（默认 65；高GC靶标可 75）')
+    sp.add_argument('--tm-offset', type=float, default=None,
+                    help='Tm 区间偏移 -6~+6（只放宽对应侧，默认 0）')
+    sp.add_argument('--preset', default='', choices=['', 'high_gc', 'high_at'],
+                    help='智能预设（high_gc/high_at）')
+    sp.add_argument('--no-group', action='store_true',
+                    help='不按片段标签分组（全部记录视为同一分子）')
+    sp.add_argument('--top-n', type=int, default=20, help='输出组数（默认 20）')
+    sp.add_argument('-o', '--out', default=None,
+                    help='产物根目录（默认 run/tool_runs/lamp_cli_<时间戳>）')
+    sp.add_argument('-t', '--threads', type=int, default=0)
+    sp.set_defaults(func=cmd_lamp_design)
 
     sp = sub.add_parser('gb-dl',
                         help='下载 GenBank 集合（同属共线性比较输入）')
@@ -1180,7 +1402,23 @@ def build_parser(cfg):
     sp = sub.add_parser('report', help='对已有结果重新生成可视化报告')
     sp.add_argument('--sample', required=True)
     sp.add_argument('--force', action='store_true')
+    sp.add_argument('--pdf', action='store_true',
+                    help='顺带打印一份 report_v2.pdf（本机 Chrome 无头模式，'
+                         '版式与网页一致，不新增依赖）')
     sp.set_defaults(func=cmd_report)
+
+    sp = sub.add_parser('module-report',
+                        help='生成模块结果页：每个阶段目录/工具运行目录一份 '
+                             'results.html（输入/图表/表格/交互页全整理）')
+    sp.add_argument('--sample', default=None, help='样品名（与 --run 二选一）')
+    sp.add_argument('--stage', default=None,
+                    help='只生成某个阶段（阶段键或目录名，如 kvsuite 或 '
+                         '02b_kvsuite）；缺省=全部阶段')
+    sp.add_argument('--run', default=None,
+                    help='工具运行目录名（run/tool_runs/ 下；与 --sample 二选一）')
+    sp.add_argument('--pdf', action='store_true',
+                    help='顺带把 results.html 打印成 PDF（本机 Chrome 无头模式）')
+    sp.set_defaults(func=cmd_module_report)
 
     sp = sub.add_parser('host-analysis',
                         help='对已有 ③组装 结果做 ICTV 宿主预测')
@@ -1193,13 +1431,14 @@ def build_parser(cfg):
     sp.set_defaults(func=cmd_host_analysis)
 
 
-    sp = sub.add_parser('orfa', help='ORF 功能注释（⑥b，RefSeq 病毒蛋白搜索）')
+    sp = sub.add_parser('orfa', help='ORF 功能注释（⑥b，PVDB 植物病毒专属库）')
     sp.add_argument('--sample', required=True)
     sp.add_argument('--threads', type=int, default=None)
     sp.add_argument('--libs', default=None,
-                    help='启用的注释层，逗号分隔：prot（层1 序列同源）/ '
-                         'pfam（层2 Pfam HMM）/ bfvd（层2 BFVD 病毒域，'
-                         '与 NCBI 提交同源）；缺省=全部启用。例：--libs prot,pfam')
+                    help='启用的注释层，逗号分隔：pvdb（PVDB 序列同源 + 多聚'
+                         '蛋白分段）/ hmm（PVDB Pfam+VOG+VFAM 共 932 模型）/ '
+                         'cdd（PVDB CDD 455 个 profile）/ bfvd（PVDB BFVD '
+                         '13,900 模型）；缺省=全部启用。例：--libs pvdb,hmm')
     sp.add_argument('--min-pident', type=float, default=None,
                     help='层1 命中 identity 门槛（百分数 0-100，默认不过滤）；'
                          'DIAMOND 侧默认只有 e≤1e-5 一道门槛，收紧可减少'
@@ -1207,6 +1446,13 @@ def build_parser(cfg):
     sp.add_argument('--min-qcov', type=float, default=None,
                     help='层1 命中 query 覆盖度门槛（百分数 0-100，默认不过滤；'
                          '经验起点 50）')
+    sp.add_argument('--profile', default=None,
+                    choices=['strict', 'balanced', 'recall'],
+                    help='PVDB 多聚蛋白分段投影档位（默认 balanced）：'
+                         'strict 更严 80/90·60/80 / balanced 70/80·50/70 / '
+                         'recall 更宽 60/70·40/60（强档 pident/qcov，'
+                         '中档 pident/qcov）；只影响 segments/seg_method，'
+                         '不改 PVDB 命名门槛')
     sp.add_argument('--force', action='store_true')
     sp.set_defaults(func=cmd_orfa)
 
@@ -1489,6 +1735,14 @@ def build_parser(cfg):
     sp = sub.add_parser('selfcheck', help='环境自检（模块/工具/数据库/磁盘/依赖）')
     sp.set_defaults(func=cmd_selfcheck)
 
+    sp = sub.add_parser('update', help='检查/安装平台更新（分发包自更新）')
+    sp.add_argument('--check', action='store_true',
+                    help='只检查，不下载安装')
+    sp.add_argument('--yes', action='store_true',
+                    help='跳过交互确认，直接下载安装')
+    sp.add_argument('--json', action='store_true', help='机器可读 JSON 输出')
+    sp.set_defaults(func=cmd_update)
+
     sp = sub.add_parser('importprobe', help='内部命令：逐模块导入探测（供 selfcheck 子进程调用）')
     sp.add_argument('modules', help='逗号分隔的模块名清单')
     sp.set_defaults(func=cmd_importprobe)
@@ -1516,8 +1770,9 @@ def main():
     args = p.parse_args()
     if _i18n is not None and getattr(args, "lang", None):
         _i18n.set_lang(args.lang)    # --lang 覆盖本次运行
-    # 首次运行把随包的 new_taxdump.tar.gz 解压出来（网页端是后台线程做的，
-    # CLI 先跑 selfcheck/analyze 时也必须就绪，否则首条命令就报 Taxonomy ✘）
+    # 首次运行把随包的精简 taxonomy 档（new_taxdump_slim.tar.gz；离线手工
+    # 放官方全量档也认）解压出来（网页端是后台线程做的，CLI 先跑
+    # selfcheck/analyze 时也必须就绪，否则首条命令就报 Taxonomy ✘）
     if args.cmd != 'init-taxonomy':
         _bootstrap_taxonomy()
     # 顶层异常包装（2026-10-04 审查 E5）：此前 cmd_* 异常裸抛 traceback，

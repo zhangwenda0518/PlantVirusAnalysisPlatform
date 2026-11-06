@@ -244,18 +244,29 @@ def build_host_db(genome_fasta, taxid, db_dir=None, hash_capacity='256M',
         taxid = int(taxid)
     except (TypeError, ValueError):
         raise ValueError(f"TaxID 必须是数字（NCBI 物种编号），收到: {taxid!r}")
-    from .taxonomy import taxid_lookup
+    from .taxonomy import taxid_lookup, taxid_online_check
     try:
         status, extra = taxid_lookup(taxid)
     except (FileNotFoundError, NotADirectoryError):
-        raise RuntimeError("NCBI taxonomy 未初始化：请先在「数据库构建」页"
-                           "下载 NCBI 分类库（宿主/病毒建库都需要）")
+        # 本地 taxonomy 缺失（未安装/精简库查无宿主）不再阻断建库：
+        # 精简库只含病毒子树，宿主 taxid 查无是预期，走在线核对兜底。
+        status, extra = 'missing', None
     if status == 'missing':
-        raise ValueError(
-            f"TaxID {taxid} 不在 NCBI 分类库中。请核对编号"
-            f"（https://www.ncbi.nlm.nih.gov/taxonomy 搜索物种），"
-            f"或到「数据库构建」页更新 taxonomy 后重试")
+        # 精简 taxonomy 只含病毒子树：宿主（植物/传毒介体）taxid 查无是预期。
+        # 在线核对（成功即缓存，之后离线也能过）+ 学名入清单；失败则警告放行
+        # （taxid 只是建库目录名与序列标签，类型打错只影响标注，不影响比对）。
+        ok, name = taxid_online_check(taxid)
+        nm = name or '?'
+        if logger:
+            if ok:
+                logger.log(f"TaxID {taxid} = {nm}（本地精简库外，在线核对通过）")
+            else:
+                logger.log(
+                    f"TaxID {taxid} 本地精简 taxonomy 查无且在线核对不可用"
+                    f"——按输入值继续建库；建议在 "
+                    f"https://www.ncbi.nlm.nih.gov/taxonomy 核对编号", "WARN")
     if status == 'merged':
+        # merged.dmp 整份保留，此判断纯本地、语义不变。
         raise ValueError(
             f"TaxID {taxid} 已被 NCBI 合并到 {extra}，请改用 {extra} 重新构建")
     work = os.path.join(db_dir, 'prep')

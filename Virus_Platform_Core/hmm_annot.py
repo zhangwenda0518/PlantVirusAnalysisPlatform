@@ -81,13 +81,27 @@ def _hmm_lib_usable(entry_path):
 #
 # 2026-09-10: 支持「只保留 press 产物」——配上 .h3m/.h3i/.h3f/.h3p 后，
 #   107MB 的 .hmm 纯文本可删（省空间），库仍判定为可用（见 _hmm_lib_usable）。
-PFAM_PATH = os.path.join(HMM_DIR, 'pfam', 'Pfam-A-Viruses.hmm')
-# 该库是「自描述」HMM（DESC 内嵌在 HMM 文件里）——Pfam-A-Viruses 属此类
-PFAM_SELF_DESC = os.path.basename(PFAM_PATH).startswith('Pfam-A-')
+# 2026-11-02：HMM 层改接 PVDB 三库（Pfam 387 / VOG 150 / VFAM 395，i-E≤1e-3
+# 裁剪版）。原 annot_db/hmm 的 Pfam-A-Viruses 已归档。
+PVDB_HMM_DIR = os.path.join(db_path('annot', 'pvdb'), 'hmm')
+PFAM_PATH = os.path.join(PVDB_HMM_DIR, 'pvdb-v1.0.pfam.hmm')
+# Pfam 为自描述 HMM（DESC 内嵌）；VOG/VFAM 无 DESC，只作域证据不参与命名
+PFAM_SELF_DESC = True
 
 HMM_LIBS = [
     ('pfam', PFAM_PATH),
+    ('vog', os.path.join(PVDB_HMM_DIR, 'pvdb-v1.0.vog.hmm')),
+    ('vfam', os.path.join(PVDB_HMM_DIR, 'pvdb-v1.0.vfam.hmm')),
 ]
+# E 值校准：PVDB HMM 子集是按 i-E≤1e-3 从全量库裁出来的，hmmscan 的
+# E=P×Z 会随库变小而整体变显著；若把三个子库都钉回全量 6,538 个模型，
+# 小库（VOG 150 / VFAM 395）的 E 会被整体放大 ~16-43 倍，等于人为放宽
+# 判定。正确口径是**每个库用各自的模型数**：manifest 有规模就取规模，
+# 读不到 manifest 时退回 PVDB_HMM_REF_Z（默认 6538，历史口径）。
+# 2026-11-06 修复：此前三个库统一 Z=6538。
+HMM_REF_Z = int(os.environ.get('PVDB_HMM_REF_Z', '6538'))
+#: manifest 缓存：{abspath: (mtime_ns, size, {basename: models})}
+_HMM_MANIFEST_CACHE = {}
 PFAM_ANNOT_DIR = os.path.join(HMM_DIR, 'pfam', 'annot')
 
 _PFAM_META_CACHE = None
@@ -103,19 +117,24 @@ def refresh_paths():
     Virus_Platform_Core/config.py::_refresh_module_paths()。
     """
     global HMM_DIR, HMM_LIBS
+    global PVDB_HMM_DIR
     global PFAM_ANNOT_DIR
     global PFAM_PATH, PFAM_SELF_DESC
-    global _PFAM_META_CACHE
+    global _PFAM_META_CACHE, _HMM_MANIFEST_CACHE
 
     HMM_DIR = db_path('annot', 'hmm')
-    PFAM_PATH = os.path.join(HMM_DIR, 'pfam', 'Pfam-A-Viruses.hmm')
-    PFAM_SELF_DESC = os.path.basename(PFAM_PATH).startswith('Pfam-A-')
+    PVDB_HMM_DIR = os.path.join(db_path('annot', 'pvdb'), 'hmm')
+    PFAM_PATH = os.path.join(PVDB_HMM_DIR, 'pvdb-v1.0.pfam.hmm')
+    PFAM_SELF_DESC = True
     HMM_LIBS = [
         ('pfam', PFAM_PATH),
+        ('vog', os.path.join(PVDB_HMM_DIR, 'pvdb-v1.0.vog.hmm')),
+        ('vfam', os.path.join(PVDB_HMM_DIR, 'pvdb-v1.0.vfam.hmm')),
     ]
     PFAM_ANNOT_DIR = os.path.join(HMM_DIR, 'pfam', 'annot')
     # 缓存按旧库内容构建，一并失效
     _PFAM_META_CACHE = None
+    _HMM_MANIFEST_CACHE.clear()
 
 
 def hmm_available():
@@ -247,19 +266,32 @@ def _ascii_path(path):
     if _ASCII_LINK is None:
         import tempfile
         import subprocess
+
+        def _inside_root(p):
+            """p 是否落在平台根内部（判定失败按「在内部」处理，宁可不建链）。"""
+            try:
+                return os.path.normcase(os.path.abspath(p)).startswith(
+                    os.path.normcase(os.path.abspath(PLATFORM_ROOT)) + os.sep)
+            except (OSError, ValueError):
+                return True
+
         link = os.path.join(tempfile.gettempdir(), 'vp_ascii_root')
         # 环检查：链接不得落在被链接的树内部
-        try:
-            inside = os.path.normcase(os.path.abspath(link)).startswith(
-                os.path.normcase(os.path.abspath(PLATFORM_ROOT)) + os.sep)
-        except (OSError, ValueError):
-            inside = True
-        if inside:
+        if _inside_root(link):
             alt = os.environ.get('TEMP') or os.environ.get('TMP')
             link = os.path.join(alt, 'vp_ascii_root') if alt else ''
+        # 2026-11-06 修复：回退分支必须**二次判环**。config.ensure_usable_tempdir()
+        # 在系统 temp 不可用时会把 TEMP/TMP 一并改写成 <平台根>/run/tmp，
+        # 于是回退拿到的仍是平台根内路径 —— 只判首选分支等于没判：
+        # `mklink /J <根>/run/tmp/vp_ascii_root <根>` 照样成环。
+        # 回退后仍在内 → 直接放弃建链，返回原路径。
+        if link and _inside_root(link):
+            link = ''
         if link and not os.path.isdir(link):
             subprocess.run(['cmd', '/c', 'mklink', '/J', link, PLATFORM_ROOT],
-                           capture_output=True)
+                           capture_output=True,
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
         _ASCII_LINK = link if (link and os.path.isdir(link)) else ''
     if not _ASCII_LINK:
         return path
@@ -278,6 +310,79 @@ def _press_in_progress(lib_path):
     h3i = lib_path + '.h3i'
     return (os.path.isfile(lib_path + '.h3m')
             and (not os.path.isfile(h3i) or os.path.getsize(h3i) == 0))
+
+
+def _manifest_hmm_sizes():
+    """PVDB manifest 里各 HMM 子库的模型数 → {hmm 文件名: 模型数}。
+
+    读取 <pvdb>/meta/pvdb-v1.0.manifest.json 的 layers 段：
+      layers.pfam[].kept / layers.vog_vfam[].kept，按 file 的 basename 建索引。
+    读不到（文件缺失/JSON 坏/结构变化）返回 {} —— 调用方退回 HMM_REF_Z。
+    缓存按 (路径, mtime_ns, size) 指纹失效，长驻 Web 进程换库后自动重读。
+    """
+    import io
+    import json
+    man = os.path.join(os.path.dirname(PVDB_HMM_DIR), 'meta',
+                       'pvdb-v1.0.manifest.json')
+    try:
+        st = os.stat(man)
+        sig = (getattr(st, 'st_mtime_ns', int(st.st_mtime * 1e9)), st.st_size)
+    except OSError:
+        return {}
+    hit = _HMM_MANIFEST_CACHE.get(man)
+    if hit and hit[0] == sig:
+        return hit[1]
+    sizes = {}
+    try:
+        with io.open(man, encoding='utf-8', errors='replace') as fh:
+            data = json.load(fh)
+        layers = data.get('layers') or {}
+        for key in ('pfam', 'vog_vfam'):
+            for item in layers.get(key) or []:
+                if not isinstance(item, dict):
+                    continue
+                name = os.path.basename(str(item.get('file') or ''))
+                n = item.get('kept', item.get('models'))
+                try:
+                    n = int(n)
+                except (TypeError, ValueError):
+                    continue
+                if name and n > 0:
+                    sizes[name] = n
+    except (OSError, ValueError):
+        sizes = {}
+    _HMM_MANIFEST_CACHE[man] = (sig, sizes)
+    return sizes
+
+
+def lib_z(lib_name, lib_path):
+    """该 HMM 库的 hmmscan Z（E 值校准用），返回 (Z, 来源说明)。
+
+    口径：PVDB 三个子库规模不同（Pfam 387 / VOG 150 / VFAM 395），
+    hmmscan 的 E=P×Z —— 统一用 6538 会把小库的 E 整体放大，等于放宽判定。
+    优先取 manifest 里该库的 kept 模型数；manifest 不可用时退回
+    HMM_REF_Z（PVDB_HMM_REF_Z，默认 6538，历史口径）。显式设置环境变量
+    PVDB_HMM_REF_Z 时它优先于 manifest（复现旧口径/调参用）。
+    """
+    env = (os.environ.get('PVDB_HMM_REF_Z') or '').strip()
+    if env:
+        try:
+            return int(env), 'env'
+        except ValueError:
+            pass
+    n = _manifest_hmm_sizes().get(os.path.basename(str(lib_path)))
+    if n:
+        return n, 'manifest'
+    return HMM_REF_Z, 'default'
+
+
+def lib_z_map():
+    """当前可用 HMM 库 → {库名: {'z': int, 'source': str}}（summary 记录用）。"""
+    out = {}
+    for name, path in available_libs():
+        z, src = lib_z(name, path)
+        out[name] = {'z': z, 'source': src}
+    return out
 
 
 def _scan_library(faa, lib_name, lib_path, threads, logger=None):
@@ -300,9 +405,17 @@ def _scan_library(faa, lib_name, lib_path, threads, logger=None):
     if not seqs:
         return by_q
     with pyhmmer.plan7.HMMFile(lib_path) as hf:
-        targets = hf.optimized_profiles() if pressed else hf
+        # 2026-11-02：Windows 上 optimized_profiles() 对上千个模型会原生崩溃
+        # （进程直接退出 127），且 pressed 与否不影响正确性——统一物化为
+        # HMM 列表再扫；Z 用**该库自己的模型数**（manifest 优先），
+        # 保证 E 值与库规模同口径（2026-11-06 修复：此前三库共用 6538）。
+        targets = list(hf)
+        z, z_src = lib_z(lib_name, lib_path)
+        if logger:
+            logger.log(f"  [{lib_name}] {len(targets)} 个模型，"
+                       f"Z={z}（{z_src}）")
         for hits in pyhmmer.hmmer.hmmscan(seqs, targets, cpus=threads,
-                                          E=SCAN_PREFILTER_E):
+                                          E=SCAN_PREFILTER_E, Z=z):
             qname = hits.query.name
             qname = qname.decode() if isinstance(qname, bytes) else qname
             found = []
@@ -373,9 +486,18 @@ def annotate_orfs_hmm(faa, threads=None, logger=None, progress=None,
         for q, hits in by_q.items():
             ent = merged.setdefault(q, {'hits': [], 'best': None})
             ent['hits'].extend(hits)
+            cand = hits[0]
             cur = ent['best']
-            if cur is None or hits[0]['evalue'] < cur['evalue']:
-                ent['best'] = hits[0]
+            if cur is None:
+                ent['best'] = cand
+            else:
+                # 命名优先：带 DESC 的命中（Pfam）优先于无描述的 VOG/VFAM，
+                # 同档再比 i-Evalue。
+                def _rank(h):
+                    return (0 if (h.get('desc') or '').strip() else 1,
+                            h['evalue'])
+                if _rank(cand) < _rank(cur):
+                    ent['best'] = cand
         if progress:
             progress(frac_from + (frac_to - frac_from) * (i + 1) / len(libs),
                      f'HMM 扫描 {lib_name} 完成')
@@ -396,7 +518,13 @@ def format_hit_cell(hits, max_targets=5, max_doms_per_target=3):
     for h in (hits or []):
         name = h['target']
         if h.get('lib') == 'bfvd' and h.get('desc'):
-            name = h['desc']
+            # 前缀 UniProt acc：网页可据此挂 UniProt 链接（G9HZB8:产物(...)）
+            acc = (h.get('acc') or '').split('.')[0]
+            name = f"{acc}:{h['desc']}" if acc else h['desc']
+        elif h.get('acc') and h['acc'] != name:
+            # Pfam：ACC:NAME —— SIG 部分挂 InterPro 链接，NAME 保可读
+            name = f"{h['acc']}:{name}"
+
         if name not in per_target:
             if len(order) >= max_targets:
                 continue
@@ -427,28 +555,23 @@ def merge_layer2(rows, hmm_by_q, bfvd_by_q, classify_product):
         if hh:
             best = hh['best']
             target = best['target']
-            # HMM 层当前仅 pfam（Pfam-A-Viruses 自描述，DESC 直接来自 HMM 文件）
+            # 只有 Pfam 自描述命中能给出可读产物名；VOG/VFAM 没有 DESC，
+            # 只作为域证据记录在 hmm_hits 里，不参与命名（否则 product 会
+            # 变成 VOG12345 这类无意义代号），留给后面的 BFVD 兜底。
             hit_desc = (best.get('desc') or '').strip()
             if hit_desc:
-                # 自描述库（Pfam-A-Viruses）：DESC 直接来自 HMM 文件，
-                # 干净可读（如 "RNA-dependent RNA polymerase"），
-                # 无需 annot/ 外部元数据。
                 desc = hit_desc
                 meta = {}
-            else:
-                meta = load_pfam_meta([target]).get(target, {})
-                # 兜底标签用命中代号本身（Pfam 库自描述，正常走不到这里）
-                desc = meta.get('desc') or target
-            family = meta.get('family', '')
-            cat = classify_product(desc)
-            r['product'] = desc or target
-            r['category'] = cat
-            if not r.get('family'):
-                r['family'] = family
-            r['informative'] = 'Y'
-            r['evidence'] = 'hmm'
-            n_hmm_only += 1
-            continue
+                family = meta.get('family', '')
+                cat = classify_product(desc)
+                r['product'] = desc or target
+                r['category'] = cat
+                if not r.get('family'):
+                    r['family'] = family
+                r['informative'] = 'Y'
+                r['evidence'] = 'hmm'
+                n_hmm_only += 1
+                continue
         if bb:
             best = bb[0]
             name = best.get('desc') or best['target']

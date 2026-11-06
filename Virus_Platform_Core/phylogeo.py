@@ -475,17 +475,21 @@ def region_name_candidates(region):
     （`Russia: Stavropol`、`China: Ningxia`），而内置质心表只到国家一级 ——
     不做前缀兜底时这些区划会**全部**落进 `coord_missing`，迁移弧线地图近乎空白
     （实测 10/10 条真实地点都是"全名不命中、国家命中"）。
-    候选顺序保证**先精确后粗**：① 原名 ② 「国家: 子区」的国家部分 ③ 去括号后的名字。
-    兜底命中在 `merge_coords` 的 src 里标 `user_prefix` / `builtin_prefix` ——
-    **不许当成精确命中**：落点是国家（或粗一级名字）的近似质心，比数据说的粗。
+    候选顺序保证**先精确后粗**：① 原名 ② 分段后的「国家」侧候选 ③ 去括号后的名字。
+    2026-11-03 扩：治理后地点会归一成 `China, Ningxia`（逗号），GenBank/ISA
+    惯用 `Asia/China`（斜杠）—— 三种分隔符都拆，且「首段/末段都当国家候选」
+    （冒号风格国家在前、斜杠风格国家在后）。兜底命中在 merge_coords 的 src 里
+    标 `user_prefix` / `builtin_prefix` —— **不许当成精确命中**：落点是国家
+    （或粗一级名字）的近似质心，比数据说的粗。
     """
     r = str(region or '').strip()
     out = [r] if r else []
-    for sep in (':', '：'):
-        if sep in r:
-            head = r.split(sep, 1)[0].strip()
-            if head and head not in out:
-                out.append(head)
+    # 分段：冒号（含中文）、逗号（含中文）、斜杠（含全角）都拆
+    parts = [p.strip() for p in re.split(r'[,;:：/／，；]', r) if p.strip()]
+    if len(parts) >= 2:
+        for cand in (parts[0], parts[-1]):   # 国家侧两个方向都试
+            if cand and cand not in out:
+                out.append(cand)
     base = re.sub(r'[（(][^)）]*[)）]', '', r).strip()
     if base and base not in out:
         out.append(base)
@@ -592,8 +596,14 @@ def match_sample_coords(leaf_names, safe2header, meta, coord_rows):
             h = next((hh for k, hh in safe2header.items()
                       if n.startswith(k) or k in n), n)
         pt, hit = None, ''
+        _hit_meta = False
+        # 精确键优先（2026-11-03，同 match_states_and_years 的修法：
+        # `S10` 会被更短的 `S1` 前缀抢先命中静默拿错坐标）。
+        # ⚠️ 两段循环用 _hit_meta 互斥：精确命中过的样本**不再**走前缀段，
+        # 否则坏坐标会被两段各计一次 n_bad（回归套件抓过）。
         for k, v in items:
-            if k and (h.startswith(k) or k in h or n.startswith(k)):
+            if k and (k == h or k == n):
+                _hit_meta = True
                 lk = _pick_col(v.keys(), _LAT_ALIASES)
                 ok_ = _pick_col(v.keys(), _LON_ALIASES)
                 if lk and ok_ and str(v.get(lk) or '').strip() \
@@ -602,6 +612,18 @@ def match_sample_coords(leaf_names, safe2header, meta, coord_rows):
                     if pt is None:
                         n_bad += 1
                 break                       # 与区划匹配同口径：取第一个命中行
+        if not _hit_meta:
+            for k, v in items:
+                if k and (h.startswith(k) or k in h or n.startswith(k)):
+                    _hit_meta = True
+                    lk = _pick_col(v.keys(), _LAT_ALIASES)
+                    ok_ = _pick_col(v.keys(), _LON_ALIASES)
+                    if lk and ok_ and str(v.get(lk) or '').strip() \
+                            and str(v.get(ok_) or '').strip():
+                        pt = _coord_pair(v.get(lk), v.get(ok_))
+                        if pt is None:
+                            n_bad += 1
+                    break                   # 与区划匹配同口径：取第一个命中行
         if pt is not None:
             hit = 'meta'
         elif coord_rows:
@@ -781,12 +803,23 @@ def match_states_and_years(leaf_names, safe2header, meta, trait='region',
             h = next((hh for k, hh in safe2header.items()
                       if n.startswith(k) or k in n), n)
         st, yr_raw, hit_key = '', '', ''
+        # 精确键优先（2026-11-03 修复静默错配）：`S10` 必须先尝试精确命中
+        # 元数据键 `S10`，旧实现按插入序取第一个前缀/包含命中 → `S1` 抢先，
+        # S10 拿到 S1 的区划与年份且毫无提示（模拟实测实锤：states={'S10':
+        # 'S1 的区划'}）。精确未中才走前缀/包含。
         for k, v in items:
-            if k and (h.startswith(k) or k in h or n.startswith(k)):
+            if k and (k == h or k == n):
                 st = v.get(trait, '')
                 yr_raw = v.get(date_trait, '')
                 hit_key = k
                 break
+        if not hit_key:
+            for k, v in items:
+                if k and (h.startswith(k) or k in h or n.startswith(k)):
+                    st = v.get(trait, '')
+                    yr_raw = v.get(date_trait, '')
+                    hit_key = k
+                    break
         src = 'meta' if hit_key else ''
         traits = _header_traits(h) or {}
         if not st:
@@ -1213,6 +1246,16 @@ def region_permutation_test(root, states, n_perm=1000, seed=0):
     import random as _random
 
     labels = sorted({v for v in states.values() if v and v != 'Unknown'})
+    # n_perm<=0 守卫（2026-11-03）：公有函数直接给 0 会 ZeroDivisionError
+    # （审计 P2-18；analyze 调用侧有守卫，但公有函数应自守）。
+    n_perm = max(0, int(n_perm))
+    if n_perm == 0:
+        observed = count_transitions(root, states)
+        return {'observed': observed, 'n_perm': 0, 'p_low': None,
+                'p_high': None, 'null_mean': None, 'null_sd': None,
+                'null_min': None, 'null_max': None, 'seed': seed,
+                'n_regions': len(labels), 'null_counts': [],
+                'interpretation': '未做置换检验（n_perm=0）'}
     # 只打乱「有区划」的叶；缺数据的叶保持缺数据（Fitch 里=任意状态，不影响计数）
     keys = [k for k, v in states.items() if v and v != 'Unknown']
     observed = count_transitions(root, states)
@@ -2786,7 +2829,9 @@ def lsd2_dating(tree_path, dates, seq_len, out_dir, exe=None, extra_args=None,
             # 路径的提示行按系统 ANSI 打印，text=True+utf-8 会在捕获时就
             # 把那些行打成 U+FFFD（不可逆），log_tail 进报告后无法挽回
             p = subprocess.run(cmd_, cwd=out_dir, capture_output=True,
-                               timeout=timeout)
+                               timeout=timeout,
+                               creationflags=getattr(
+                                   subprocess, 'CREATE_NO_WINDOW', 0))
         except subprocess.TimeoutExpired:
             raise RuntimeError(f'LSD2 超时（>{timeout}s）')
         from Virus_Platform_Core.utils import decode_output
@@ -2922,9 +2967,19 @@ def resolve_years(leaf_names, dates, date_trait='year'):
             continue
         raw = hit[1].get(date_trait) if isinstance(hit[1], dict) else hit[1]
         if raw:
+            _s = str(raw).strip()
+            # 十进制年（2026-11-03）：`2008.58197` / `2020.5` 形式此前按
+            # 「点号不是日期分隔符」口径取前 4 位 → 截成整数年，年内信息
+            # 全丢（模拟实测：同一数据 ISO 日期 R²=0.75 vs 小数年 R²=0.52）。
+            # 现在纯十进制年直接转 float（年份范围 sanity 检查后）。
+            _dm = re.match(r'^(\d{4})\.\d{1,6}$', _s)
+            if _dm:
+                _fy = float(_s)
+                if 1000 <= _fy < 3000:
+                    out[nm] = _fy
+                    continue
             m = re.match(
-                r'(\d{4})(?:[-/](\d{1,2})(?:[-/](\d{1,2}))?)?',
-                str(raw).strip())
+                r'(\d{4})(?:[-/](\d{1,2})(?:[-/](\d{1,2}))?)?', _s)
             if m:
                 y = int(m.group(1))
                 if not m.group(2):
@@ -3469,11 +3524,20 @@ def root_to_tip(tree_path, dates, date_trait='year'):
             if best is None or r2 > best['r2']:
                 best = {'slope': slope, 'intercept': my - slope * mx,
                         'r2': round(r2, 4), 'n': n, 'root_branch': key,
+                        # 年份保留小数（2026-11-03）：int 截断让同一年不同
+                        # 月的散点在图上重叠、回归线与散点 x 不一致（审计 P2-7）
                         'points': [{'name': nm, 'dist': round(d, 6),
-                                    'year': int(yr)} for nm, d, yr in pts]}
+                                    'year': round(float(yr), 4)}
+                                   for nm, d, yr in pts]}
     if best is None:
-        raise RuntimeError('有年份的样本不足（≥5）或采样年份无变化：'
-                           '无法做根到尾回归')
+        # 区分「没年份」与「有年份但根距无差异（如序列完全相同）」（2026-11-03，
+        # 模拟实测：identical 序列被误报成「采样年份无变化」）。
+        if len(year_by_leaf) >= 5:
+            raise RuntimeError(
+                '有年份的样本 ≥5 个，但根到尾距离无差异 —— 序列可能完全相同'
+                '（零分歧）或树退化成星状：无法做根到尾回归')
+        raise RuntimeError('有年份的样本不足（≥5）：无法做根到尾回归'
+                           '（需要至少 5 条同时带年份的序列）')
     best['r2'] = round(best['r2'], 4)
     return best
 

@@ -231,6 +231,11 @@ def run_fastp(sample_dir, r1, r2, threads=None, logger=None, force=False,
     if r2:
         cmd += ['-I', check_path(r2, must_exist=True), '-O', o2,
                 '--detect_adapter_for_pe']
+        if logger:
+            # adapter 检测阶段静默无输出，2026-11-03 GQMIX 实测 7 分钟
+            # 无一行日志，被误判为进程挂死。提前打招呼，别等用户猜。
+            logger.log("提示: 双端模式带 --detect_adapter_for_pe，开头"
+                       "接头检测可能数分钟无任何输出，属正常，不是卡死")
     run_cmd(cmd, logger=logger)
     # 质控后 0 条 reads：后续所有阶段必然失败，这里给出直接原因
     s = _summary(out_dir)

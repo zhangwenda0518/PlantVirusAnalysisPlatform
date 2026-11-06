@@ -21,6 +21,7 @@ sample 样品分布模块按需求裁掉，绘图对象 = 通过过滤（确认�
     auto-dodge 在有序 Categorical 下仍会把箱体挤成细条（实测）。
 """
 
+import logging
 import os
 import textwrap
 from pathlib import Path
@@ -126,8 +127,13 @@ def _save(fig, out_dir, stem):
 
 # ── 模块 1: 丰度分布（综合多指标面板）─────────────────────────
 def fig_freq(df, out_dir, metrics=None):
-    """Comprehensive Multi-metric Virus Abundance 四联面板（箱线+散点，
-    按 MeanDepth 中位数排序，log10 轴，标签带检出率 n=X/Y (Z%)）。"""
+    """Comprehensive Multi-metric Virus Abundance 四联面板。
+
+    批量（样本数 ≥2）：箱线+散点，按 MeanDepth 中位数排序，log10 轴，
+    标签带检出率 n=X/Y (Z%)。
+    单样本（样本数 =1）：箱线对单值无意义（退化成一条竖线）——只画散点，
+    标签不带检出率（n=1/1 (100%) 对单样本是废话）。（2026-11-04）
+    """
     tax_col = _resolve_taxonomy_col(df)
     acc_col = _resolve_acc_col(df)
     df = df.copy()
@@ -136,10 +142,12 @@ def fig_freq(df, out_dir, metrics=None):
     df['Display_Name'] = df['Display_Name'].apply(
         lambda x: '\n'.join(textwrap.wrap(str(x), width=40)))
     total_samples = df['Sample'].nunique()
-    prevalence = df.groupby('Display_Name')['Sample'].nunique()
-    df['Display_Name'] = df['Display_Name'].apply(
-        lambda x: f"{x}\nn={prevalence[x]}/{total_samples} "
-                  f"({prevalence[x] / total_samples * 100:.0f}%)")
+    single_sample = total_samples <= 1
+    if not single_sample:
+        prevalence = df.groupby('Display_Name')['Sample'].nunique()
+        df['Display_Name'] = df['Display_Name'].apply(
+            lambda x: f"{x}\nn={prevalence[x]}/{total_samples} "
+                      f"({prevalence[x] / total_samples * 100:.0f}%)")
 
     metrics = [m for m in (metrics or ['MeanDepth', 'RPM', 'FPKM', 'TPM'])
                if m in df.columns]
@@ -162,41 +170,117 @@ def fig_freq(df, out_dir, metrics=None):
 
     plot_data = df.melt(id_vars=['Display_Name'], value_vars=metrics,
                         var_name='Metric', value_name='Value').dropna()
+    # 只保留正值：log10 轴上 0 值画到 -inf 会被整块裁掉（2026-11-04：
+    # 检出但深度/定量为 0 的参考行在图上“凭空消失”，框与标签对不上号）
+    plot_data = plot_data[plot_data['Value'] > 0]
+    # 2026-11-06 修复：某指标全 0 时过滤后可能没有任何行 → 旧实现把空
+    # DataFrame 直接交给 seaborn，抛 ValueError 整图失败；此处提前退出。
+    if plot_data.empty:
+        logging.getLogger(__name__).warning(
+            'kv 丰度图：所选指标（%s）全部为 0 或缺失，跳过该图',
+            ', '.join(metrics))
+        return 0
     base_metric = metrics[0]
     medians = (plot_data[plot_data['Metric'] == base_metric]
                .groupby('Display_Name')['Value'].median().sort_values())
+    if medians.empty:
+        # 基准指标（默认 MeanDepth）全 0：换用第一个有正值的指标做排序，
+        # 避免整张图因一个指标静默全 0 而丢；
+        # 若所有指标都没有正值 → 上面已 return 0。
+        for _m in metrics[1:]:
+            _md = (plot_data[plot_data['Metric'] == _m]
+                   .groupby('Display_Name')['Value'].median().sort_values())
+            if not _md.empty:
+                base_metric, medians = _m, _md
+                logging.getLogger(__name__).info(
+                    'kv 丰度图：基准指标无正值，改用 %s 排序', _m)
+                break
+    if medians.empty:
+        logging.getLogger(__name__).warning(
+            'kv 丰度图：所有指标均无正值，跳过该图')
+        return 0
     plot_data['Display_Name'] = pd.Categorical(
         plot_data['Display_Name'], categories=medians.index, ordered=True)
 
     n_cols = len(metrics)
-    fig, axes = plt.subplots(
-        1, n_cols,
-        figsize=(12 * 1.8, max(8, unique_count * 0.65)))
+    # 行距按"3 行标签"留足：0.65in/类曾让相邻物种名的多行 y 标签互叠
+    # （check_figures 实抓 9 处文字重叠，2026-11-04）；y 标签字号同步降 10。
+    fig_h = max(8, unique_count * 1.05)
+    fig, axes = plt.subplots(1, n_cols, figsize=(12 * 1.8, fig_h))
+    # 顶/底边距按绝对英寸收紧：默认 12% 边距在百英寸级高图上 = 十几英寸
+    # 纯空白（bbox_inches='tight' 只裁外沿不裁内部空隙，2026-11-04 实测
+    # 98 类目图顶部留白 ~13in，用户见「图中间是空的」即此）
+    fig.subplots_adjust(top=1 - 0.55 / fig_h, bottom=max(0.015, 0.9 / fig_h),
+                        left=0.30 if unique_count > 12 else 0.22, right=0.995)
     if n_cols == 1:
         axes = [axes]
     for i, (ax, m) in enumerate(zip(axes, metrics)):
         mdf = plot_data[plot_data['Metric'] == m]
+        # 基准指标排序里没有的 Display_Name 在 Categorical 下是 NaN，seaborn
+        # 拿到全 NaN 的 y 同样会报错，先剔除再判空。
+        mdf = mdf[mdf['Display_Name'].notna()]
+        # 该指标全 0/缺失：本面板只放占位文案，不把空 DataFrame 交 seaborn
+        # （boxplot/stripplot 对空数据抛 ValueError，会连累其余面板）。
+        if mdf.empty:
+            logging.getLogger(__name__).warning(
+                'kv 丰度图：指标 %s 无正值，跳过该面板', m)
+            ax.text(0.5, 0.5, 'No positive value for this metric\n'
+                              '(all 0 or missing)',
+                    transform=ax.transAxes, ha='center', va='center',
+                    fontsize=11, color='gray')
+            ax.set_title(m, fontweight='bold', fontsize=13)
+            ax.set_xscale('log')
+            ax.set_yticks([])
+            if HAS_SEABORN:
+                sns.despine(ax=ax)
+            continue
         if HAS_SEABORN:
-            sns.boxplot(data=mdf, y='Display_Name', x='Value',
-                        hue='Display_Name', ax=ax, palette=palette,
-                        legend=False, width=0.6, linewidth=1.0,
-                        fliersize=0, saturation=0.85, dodge=False)
-            sns.stripplot(data=mdf, y='Display_Name', x='Value',
-                          hue='Display_Name', ax=ax, palette=palette,
-                          legend=False, size=2.5, alpha=0.55, jitter=0.2,
-                          edgecolor='white', linewidth=0.2, dodge=False)
+            if single_sample:
+                # 单样本：箱线对单值退化为一条竖线、无信息量——只画散点
+                sns.stripplot(data=mdf, y='Display_Name', x='Value',
+                              hue='Display_Name', ax=ax, palette=palette,
+                              legend=False, size=6, alpha=0.85, jitter=False,
+                              edgecolor='white', linewidth=0.4, dodge=False)
+            else:
+                sns.boxplot(data=mdf, y='Display_Name', x='Value',
+                            hue='Display_Name', ax=ax, palette=palette,
+                            legend=False, width=0.6, linewidth=1.0,
+                            fliersize=0, saturation=0.85, dodge=False)
+                sns.stripplot(data=mdf, y='Display_Name', x='Value',
+                              hue='Display_Name', ax=ax, palette=palette,
+                              legend=False, size=2.5, alpha=0.55, jitter=0.2,
+                              edgecolor='white', linewidth=0.2, dodge=False)
         else:
             positions = list(range(len(medians)))
-            bp = ax.boxplot(
-                [mdf[mdf['Display_Name'] == n]['Value'].values
-                 for n in medians.index],
-                positions=positions, patch_artist=True, widths=0.6,
-                showfliers=False, vert=False)
-            for pi, (patch, _) in enumerate(zip(bp['boxes'], medians.index)):
-                patch.set_facecolor(palette[pi % len(palette)])
-                patch.set_alpha(0.6)
+            # 无 seaborn 时也要与上面同口径：单样本只画散点（2026-11-06
+            # 修复——旧实现 non-seaborn 分支单样本仍画退化箱线）。
+            if single_sample:
+                for pi, nm in enumerate(medians.index):
+                    vals = mdf[mdf['Display_Name'] == nm]['Value'].values
+                    if not len(vals):
+                        continue
+                    ax.scatter(vals, [positions[pi]] * len(vals), s=22,
+                               color=palette[pi % len(palette)], alpha=0.85,
+                               edgecolors='white', linewidths=0.4)
+                ax.set_yticks(positions)
+                ax.set_yticklabels([str(nm) for nm in medians.index],
+                                   fontsize=10)
+            else:
+                bp = ax.boxplot(
+                    [mdf[mdf['Display_Name'] == n]['Value'].values
+                     for n in medians.index],
+                    positions=positions, patch_artist=True, widths=0.6,
+                    showfliers=False, vert=False)
+                ax.set_yticks(positions)
+                ax.set_yticklabels([str(nm) for nm in medians.index],
+                                   fontsize=10)
+                for pi, (patch, _) in enumerate(zip(bp['boxes'],
+                                                    medians.index)):
+                    patch.set_facecolor(palette[pi % len(palette)])
+                    patch.set_alpha(0.6)
         ax.set_title(m, fontweight='bold', fontsize=13)
         ax.set_xscale('log')
+        ax.tick_params(axis='y', labelsize=10)
         # 数据常挤在不足 1 个数量级内（如 5.2e4~6.2e4）：默认刻度会密成一串
         # 互叠的 5.2×10⁴/5.3×10⁴/…（check_figures 体检实抓），只留主刻度又
         # 会一个数字都没有。窄跨度（<1.5 个数量级）改为首/中/尾 3 个
@@ -225,7 +309,8 @@ def fig_freq(df, out_dir, metrics=None):
         axes[i].tick_params(left=False, labelleft=False)
     axes[0].set_ylabel('')
     fig.suptitle('Comprehensive Multi-metric Virus Abundance',
-                 fontweight='bold', fontsize=18, y=1.01)
+                 fontweight='bold', fontsize=18,
+                 y=1 + 0.12 / fig_h)   # 总标题悬于图框上方（va=top 下垂），与列标题隔 ~0.5in；tight bbox 会收进来
     _save(fig, out_dir, 'freq_multi_metrics')
     return 1
 

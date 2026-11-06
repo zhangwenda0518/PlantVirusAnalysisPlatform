@@ -197,7 +197,9 @@ def _has_module(python_exe, mod, timeout=60):
     try:
         p = subprocess.run([python_exe, '-c', f'import {mod}'],
                            capture_output=True, env=clean_env(),
-                           timeout=timeout)
+                           timeout=timeout,
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
     except (OSError, subprocess.TimeoutExpired):
         return False
     return p.returncode == 0

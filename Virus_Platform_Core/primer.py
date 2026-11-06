@@ -164,6 +164,7 @@ def check_specificity_blast(amplicons_fasta, host_genome=None, logger=None):
     # -max_target_seqs 1 → 10：宿主基因组高度重复时 1 条命中可能不是最强
     # 的那条，只留 1 条会低估脱靶（2026-10-03 修复 P2-14③）
     run_cmd([blastn, '-query', amplicons_fasta, '-db', prefix,
+             '-num_threads', str(cfg.threads),
              '-outfmt', '6 qseqid sseqid pident length', '-evalue', '1e-5',
              '-max_target_seqs', '10', '-out', out_tsv], logger=logger)
     hits = {}

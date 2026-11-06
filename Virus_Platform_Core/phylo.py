@@ -148,7 +148,8 @@ def _ascii_stage(path, work_dir, suffix):
     (暂存路径, 是否中转)。用后由调用方 _ascii_fetch / _ascii_drop 清理。
 
     中转目录按**每次调用**唯一（work_dir 只是逻辑名如 mafft_in/trimal）：
-    平台允许多任务并发（defaults 里 max_heavy_tasks=2 / max_light_tasks=4），
+    平台任务闸门 defaults 里 max_heavy_tasks / max_light_tasks 可并发
+    （2026-11-03 起缺省 1/1 串行，调大后仍需防共用暂存互踩），
     若共用同一个 in.fasta，两个任务会互相写/删对方的暂存文件。实测两个测试
     并发跑时必现：
       [Errno 2] No such file or directory: ...\\Temp\\vp_mafft\\mafft_in\\in.fasta
@@ -257,10 +258,12 @@ def _run_mafft(in_fasta, out_fasta, threads=None, logger=None,
     """MAFFT 比对。strategy: auto（缺省）/ linsi（L-INS-i 精确，
     适合 <200 条）/ fast（FFT-NS-1 极速）。
 
-    auto 会按体量再决策：MAFFT 的 --auto 在「序列数中等 + 位点数大」时
-    可能选到迭代法（L-INS-i/E-INS-i），实测 34 条 × 最长 41kb（合计 ~1Mb）
-    跑 20 分钟无输出；此时降级为 FFT-NS-2 级（--retree 2 --maxiterate 0），
-    把可预期性放在精度之前（建树参考同源性高，差异极小）。
+    所有策略都按体量保护：>100 条或 >500kb 时一律改用 FFT-NS-2 级
+    （--retree 2 --maxiterate 0）并记 WARN。依据：MAFFT 迭代法/--auto 在
+    「序列数中等 + 位点数大」时可能长期无输出（实测 34 条 × 最长 41kb、
+    合计 ~1Mb 跑 20 分钟无结果），linsi（--localpair --maxiterate 16）
+    同属迭代法且更慢，因此不能只保护 auto；把可预期性放在精度之前
+    （建树参考同源性高，差异极小）。
     """
     cfg = get_config()
     mafft = cfg.tool('mafft')
@@ -270,22 +273,34 @@ def _run_mafft(in_fasta, out_fasta, threads=None, logger=None,
         os.path.splitext(in_fasta)[1] or '.fa')
     aln_input = _orient_normalize(staged_in, logger=logger)
     extra = {'auto': ['--auto'],
-             # 'linsi' 仅为工具页参数兼容而保留，统一走 --auto
-             # （L-INS-i 对长参考序列过慢）
-             'linsi': ['--auto'],
+             # 2026-11-03：linsi 真正映射 L-INS-i（此前「仅为参数兼容」
+             # 静默降级 --auto，schema/UI 宣传的能力与实现不符——审计发现）。
+             'linsi': ['--localpair', '--maxiterate', '16'],
              'fast': ['--retree', '1', '--maxiterate', '0']}.get(
                  strategy, ['--auto'])
-    if strategy == 'auto':
-        _n, _bp = _fasta_size(aln_input)
-        if _n > 100 or _bp > 500_000:
-            extra = ['--retree', '2', '--maxiterate', '0']
-            if logger:
-                logger.log(f"MAFFT 体量较大（{_n} 条 / {_bp / 1e3:.0f} kb），"
-                           f"自动降级为 FFT-NS-2（--retree 2 --maxiterate 0）",
-                           "PLAN")
+    # 体量保护在 strategy 分支之外（2026-11-06 修复）：此前只有 auto 判
+    # 体量，linsi 真接线后没有上限，长参考/多序列会跑到不可预期；注释
+    # 却声称 linsi 也会降级。现在 auto/linsi/fast 一律按体量改用 FFT-NS-2
+    # 并记 WARN（fast 本就是非迭代法，改用 retree 2 仍属可预期档）。
+    _n, _bp = _fasta_size(aln_input)
+    if _n > 100 or _bp > 500_000:
+        extra = ['--retree', '2', '--maxiterate', '0']
+        if logger:
+            if strategy == 'auto':
+                # 保持原文案（i18n_cli_catalog 的既有规则按此模板翻译）
+                msg = (f"MAFFT 体量较大（{_n} 条 / {_bp / 1000.0:.0f} kb），"
+                       f"自动降级为 FFT-NS-2（--retree 2 --maxiterate 0）")
+            else:
+                # linsi/fast 如实点名被替换的请求策略
+                msg = (f"MAFFT 体量较大（{_n} 条 / {_bp / 1000.0:.0f} kb），"
+                       f"{strategy} 策略改用 FFT-NS-2"
+                       f"（--retree 2 --maxiterate 0）")
+            logger.log(msg, "WARN")
     cmd = [mafft] + extra + ['--quiet', '--inputorder']
-    if threads:
-        cmd += ['--thread', str(threads)]
+    # 线程数恒定传入（2026-11-03）：原来只在调用方显式传 threads 时才加
+    # --thread，漏传的调用链（设计模块部分入口）会静默跑单线程。
+    # MAFFT --thread N 对短序列也安全（不足 N 时自动收拢），统一拉满。
+    cmd += ['--thread', str(threads or cfg.threads)]
     cmd.append(aln_input)
     if logger:
         logger.log(f"MAFFT 比对: {os.path.basename(in_fasta)}"
@@ -329,14 +344,18 @@ def _alignment_cols(aln_fasta):
     return 0
 
 
-def _run_trimal(in_aln, out_aln, logger=None, min_frac=0.3, min_cols=100):
-    """trimAl automated1 自动清剪。
+def _run_trimal(in_aln, out_aln, logger=None, min_frac=0.3, min_cols=100,
+                method='automated1'):
+    """trimAl 清剪（automated1 / gappyout / strict；none 不进本函数）。
 
     过度修剪保护：修剪后列数 < 原 30% 或 < min_cols 时回退原比对
     （病毒远缘 contigs 混合比对常触发激进修剪，直接建树会失真）。
-    返回 (实际使用的比对路径, 修剪信息 dict)；工具缺失时静默跳过。
+    返回 (实际使用的比对路径, 修剪信息 dict)；工具缺失时跳过并记日志。
+    method 参数 2026-11-03 接线：此前调用方选 gappyout/strict 也一律跑
+    automated1（审计发现的静默降级）。
     """
-    info = {'applied': False, 'cols_before': None, 'cols_after': None}
+    info = {'applied': False, 'cols_before': None, 'cols_after': None,
+            'method': method}
     cols_before = _alignment_cols(in_aln)
     info['cols_before'] = cols_before
     try:
@@ -350,14 +369,14 @@ def _run_trimal(in_aln, out_aln, logger=None, min_frac=0.3, min_cols=100):
             logger.log(f"比对仅 {cols_before} 列，无需清剪")
         return in_aln, info
     if logger:
-        logger.log("trimAl 清剪 (automated1)")
+        logger.log(f"trimAl 清剪 ({method})")
     staged_in, staged = _ascii_stage(
         check_path(in_aln, must_exist=True), 'trimal', '.aln')
     staged_out = (os.path.join(os.path.dirname(staged_in),
                                'trimmed.aln') if staged else out_aln)
     try:
         run_cmd([trimal, '-in', staged_in,
-                 '-out', staged_out, '-automated1'], logger=logger)
+                 '-out', staged_out, '-%s' % method], logger=logger)
         if staged:
             _ascii_fetch(staged_out, out_aln, True)
             _ascii_drop(staged_in)      # trimal 的暂存输入也要回收（否则留空目录）
@@ -419,11 +438,15 @@ def _nj_distance_matrix(aln_fasta):
     距离 = 1 - identity，identity 用 SDT 口径（仅统计两序列均非 gap 的
     位点，精确字符相等记匹配；无可比位点的对记最大距离 1.0）。
     numpy 按行向量化，几百条序列 × 数万列秒级完成。
+
+    ⚠️ gap 判据（`-` / `.`）与分母语义 = `seq_identity.count_matches` 的
+    numpy 向量化等价实现（性能路径，刻意不逐位调用 Python 版）；
+    改 identity 口径时必须与 `seq_identity` 同步修改。
     """
     import numpy as np
     names, seqs = [], []
     for h, s in iter_fasta(aln_fasta):
-        names.append(h.split()[0])
+        names.append(h.split()[0] if h.split() else f'seq{len(names) + 1}')
         seqs.append(s.upper())
     n = len(names)
     if n < 2:
@@ -584,9 +607,10 @@ def pairwise_identity_matrix(aln_fasta):
 
     返回 (names, matrix) matrix[i][j] = 百分比。
     """
+    from .seq_identity import count_matches
     names, seqs = [], []
     for h, s in iter_fasta(aln_fasta):
-        names.append(h.split()[0])
+        names.append(h.split()[0] if h.split() else f'seq{len(names) + 1}')
         seqs.append(s.upper())
     n = len(names)
     mat = [[100.0 if i == j else 0.0 for j in range(n)] for i in range(n)]
@@ -600,14 +624,10 @@ def pairwise_identity_matrix(aln_fasta):
                 raise ValueError(
                     f'成对 identity 要求等长序列：{names[i]} 长 {len(a)}、'
                     f'{names[j]} 长 {len(b)} —— 请先做多序列比对或裁剪到等长')
-            match = comparable = 0
-            for x, y in zip(a, b):
-                # gap 判定统一 `in '-.'`：'.' 与 '-' 同为 gap（trimAl/BioEdit
-                # 产物常见），旧实现只认 '-'，把 '.' 当成碱基位点参与比较。
-                if x not in '-.' and y not in '-.':
-                    comparable += 1
-                    if x == y:
-                        match += 1
+            # 计数委托 seq_identity.count_matches（全平台唯一 gap/分母实现，
+            # 2026-11-04 统一）：gap 判定 `in '-.'`（'.' 与 '-' 同为 gap，
+            # trimAl/BioEdit 产物常见），任一序列为 gap 的列不计入分母。
+            match, comparable = count_matches(a, b)
             ident = match * 100.0 / comparable if comparable else 0.0
             mat[i][j] = mat[j][i] = ident
     return names, mat

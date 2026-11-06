@@ -31,7 +31,9 @@ BLAST_EVALUE_MAX = 1e-5
 MAX_HITS = 50
 
 REF_INFO_TSV = ref_annotation_path()
-PROT_DMND = os.path.join(db_path('annot', 'prot'), 'viral_prot.dmnd')
+# 2026-11-02：注释库收敛为 PVDB（植物病毒专属），blastx 的蛋白库同步改指
+# PVDB 序列层；原 RefSeq 全病毒库已归档，不再参与本地搜索。
+PROT_DMND = os.path.join(db_path('annot', 'pvdb'), 'seq', 'pvdb-v1.0.prot.dmnd')
 
 
 def refresh_paths():
@@ -39,7 +41,7 @@ def refresh_paths():
     global REF_INFO_TSV, PROT_DMND
     global _REF_INFO_CACHE
     REF_INFO_TSV = ref_annotation_path()
-    PROT_DMND = os.path.join(db_path('annot', 'prot'), 'viral_prot.dmnd')
+    PROT_DMND = os.path.join(db_path('annot', 'pvdb'), 'seq', 'pvdb-v1.0.prot.dmnd')
     # 缓存也要失效：它们按旧库内容构建
     _REF_INFO_CACHE = None
     return REF_INFO_TSV

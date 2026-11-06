@@ -176,40 +176,24 @@ def test_filters_terminal_gc_homopolymer():
 
 
 def test_ui_contract():
-    """t-conan 卡 UI 契约：控件 / i18n 中英成对 / JS 接线 / 注册与导航。"""
+    """t-conan 已于 2026-11-05 归档摘除：本断言防止复活残留。
+
+    保留引擎纯函数测试（conan_design.py 引擎代码仍在，可随时恢复）；
+    UI/注册面应保持「已摘除」状态：注册表无 conan、导航无 t-conan、
+    工具卡与 JS 函数无残留。
+    """
     src = open(TOOLS, encoding='utf-8').read()
-    i = src.index('<section class="card" id="t-conan">')
-    j = src.index('</section>', i)
-    card = src[i:j]
-    for sel in ['id="cn_input"', 'id="cn_negative"', 'id="cn_pam"',
-                'id="cn_spacer"', 'id="cn_seed"', 'id="cn_ignored"',
-                'id="cn_maxmm"', 'id="cn_margin_on"', 'id="cn_gc_on"',
-                'id="cn_homo_on"', 'id="cn_group"', 'id="cn_topn"',
-                'id="toolrun-conan"', 'id="cnResult"', 'id="cnTable"',
-                'id="cnFlow"', 'id="cnMatrices"']:
-        assert sel in card, sel
-    for fn in ('runConan', 'loadConanResult', '_conanRate', 'conanStruct'):
-        assert ('function ' + fn) in src or (fn + '(') in src, fn
-    for key in ('negative:', 'pam:', 'spacer_len:', 'seed_len:', 'ignored:',
-                'max_nonseed_mm:', 'terminal_margin:', 'group_by_segment:',
-                'top_n:'):
-        assert key in src, key
-    i18n = open(I18N, encoding='utf-8').read()
-    keys = set(re.findall(r'data-i18n="(tk\.cn[A-Za-z]+)"', card))
-    keys |= set(re.findall(r'data-i18n-ph="(tk\.cn[A-Za-z]+)"', card))
-    assert keys, '卡内未找到 tk.cn* i18n 锚点'
-    for k in sorted(keys):
-        assert i18n.count("'%s'" % k) >= 2, k + ' 中英不成对'
-    # 注册表与导航卡
+    for gone in ('id="t-conan"', 'runConan', 'loadConanResult',
+                 'id="toolrun-conan"', 'id="cnResult"'):
+        assert gone not in src, gone
     from Virus_Platform_Core.web.tools_api import TOOL_REGISTRY
-    assert 'conan' in TOOL_REGISTRY
+    assert 'conan' not in TOOL_REGISTRY
     from Virus_Platform_Core.web.pages import NAV_GROUPS
     ids = [it.get('id') for g in NAV_GROUPS if isinstance(g, dict)
            for it in g.get('items', []) if isinstance(it, dict)]
-    assert 't-conan' in ids
+    assert 't-conan' not in ids
 
 
-# ── 端到端（需 MAFFT）────────────────────────────────────────
 @pytest.fixture()
 def synth(tmp_path):
     """目标 3 株（位点保留）+ 负组 2 条（1 leak 案 + 1 干净案）。
