@@ -188,7 +188,7 @@ import shutil as _s2  # noqa: E402
 from Virus_Platform_Core.config import PLATFORM_ROOT  # noqa: E402
 
 fake_run = 'structcmp_itsynteny'
-rundir = os.path.join(PLATFORM_ROOT, 'run', 'tool_runs', fake_run)
+rundir = os.path.join(DIRS['tool_runs'], fake_run)
 os.makedirs(rundir, exist_ok=True)
 _s2.copy(os.path.join(pdir, 'aln.fasta'), os.path.join(rundir, 'aln.fasta'))
 r = c.get(f'/api/tool/msa_data?run={fake_run}')
@@ -234,9 +234,9 @@ if r.status_code == 200:
     d2 = r.get_json()
     appmod2.tm.cancel(d2['task'])
     import shutil as _s3  # noqa: E402
-    _s3.rmtree(os.path.join(PLATFORM_ROOT, 'run', 'tool_runs', d2['run']),
+    _s3.rmtree(os.path.join(DIRS['tool_runs'], d2['run']),
                ignore_errors=True)
-    check(not os.path.isdir(os.path.join(PLATFORM_ROOT, 'run', 'tool_runs', d2['run'])),
+    check(not os.path.isdir(os.path.join(DIRS['tool_runs'], d2['run'])),
           '测试运行目录已清理（不污染下拉列表）')
 
 # 工作目录用完即删，不给用户留下任何测试残留

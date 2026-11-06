@@ -24,7 +24,8 @@ def snap(pg):
 
 def main() -> int:
     with sync_playwright() as pw:
-        b = pw.chromium.launch(headless=True)
+        b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
         pg = b.new_page(viewport={'width': 1700, 'height': 1200})
         pg.goto(URL, wait_until='domcontentloaded')
         pg.evaluate("try{localStorage.setItem('vp_example_seen','1')}catch(e){}")

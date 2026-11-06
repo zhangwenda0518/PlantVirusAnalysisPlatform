@@ -112,6 +112,17 @@ _KV_JSON = """{
 
 FAILS = []
 
+# 桩数据：目录解析预览（两卡共用的 /api/tool/chain_scan）
+_SCAN_JSON = """{
+ "folder": "D:/tmp/kv_batch",
+ "n_samples": 2, "n_paired": 1, "n_single": 1, "n_sra": 0,
+ "n_files": 3, "subdirs": 0, "total_bytes": 2048, "orphan_r2": [],
+ "samples": [
+   {"name": "S1", "r1": "S1_R1.fastq.gz", "r2": "S1_R2.fastq.gz",
+    "kind": "fastq", "pe": true, "size": 1024, "r1_size": 512, "r2_size": 512},
+   {"name": "S2", "r1": "S2.fastq.gz", "r2": "",
+    "kind": "fastq", "pe": false, "size": 1024, "r1_size": 1024, "r2_size": 0}]}"""
+
 
 def check(cond, msg):
     print(('  ok   ' if cond else '  FAIL ') + msg, flush=True)
@@ -122,6 +133,13 @@ def check(cond, msg):
 def free_port(start=8791):
     for p in range(start, start + 40):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # connect 探测先行（2026-11-05）：Windows 上 0.0.0.0 已被别的
+            # 进程绑定的端口，bind('127.0.0.1') 探测会误判空闲——起上去后
+            # 请求被 wildcard 持有者截走，测试打到别人的服务上（教训：用户
+            # 常驻的 docs http.server 恰占 8901+ 段，套件实例全 404）。
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as c:
+                if c.connect_ex(('127.0.0.1', p)) == 0:
+                    continue
             try:
                 s.bind(('127.0.0.1', p))
                 return p
@@ -187,7 +205,8 @@ def main() -> int:
 
     try:
         with sync_playwright() as pw:
-            b = pw.chromium.launch(headless=True)
+            b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
             pg = b.new_page(viewport={'width': 1600, 'height': 1100})
             errs = []
             pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -224,8 +243,8 @@ def main() -> int:
                            f'（实际 {v!r}）')
             r1 = pg.eval_on_selector('#kvc_reads_r1', 'e => e.value')
             r2 = pg.eval_on_selector('#kvc_reads_r2', 'e => e.value')
-            check(r1.endswith('example_R1.fastq.gz')
-                  and r2.endswith('example_R2.fastq.gz'),
+            check(r1.endswith('example_sim100x_R1.fastq.gz')
+                  and r2.endswith('example_sim100x_R2.fastq.gz'),
                   f'「示例」填本卡直接 reads R1/R2（实际 {r1!r} / {r2!r}）')
 
             print('\n[4] 「取该卡参数」从 t-kvsuite 卡搬运')
@@ -252,6 +271,50 @@ def main() -> int:
             pg.wait_for_timeout(800)
             check(bool(dialogs) and '样品' in dialogs[0],
                   f'有明确提示（实际 {dialogs[:1]}）')
+
+            print('\n[5b] 目录批量模式：切换 / 解析预览 / 勾选')
+            # 与「一键前处理」同一套扫描 UI：模式分段控件切到目录后，
+            # 单样本输入行隐藏、目录行 + 解析按钮出现，解析结果渲染成表。
+            # seg-item 分段控件：span 盖在 radio 上（label 传导点击），playwright
+            # 严格坐标 check() 会被 span 拦截（element intercepts pointer events）
+            # → 改在 evaluate 里置值并派发 change（与 label 点击同效）。
+            sec.locator('input[name="kvc_mode"][value="dir"]').evaluate(
+                'e => { e.checked = true; e.dispatchEvent(new Event("change", '
+                '{bubbles: true})); }')
+            pg.wait_for_timeout(200)
+            check(pg.eval_on_selector('#kvDirPane',
+                                      "e => getComputedStyle(e).display") != 'none',
+                  '目录模式：目录行可见')
+            check(pg.eval_on_selector('#kvc_input_dir',
+                                      'e => e.offsetParent !== null'),
+                  '目录模式：输入目录框可见')
+            check(pg.eval_on_selector('#kvFilePane',
+                                      "e => getComputedStyle(e).display") == 'none',
+                  '目录模式：单样本输入行隐藏')
+            pg.route('**/api/tool/chain_scan*', lambda route: route.fulfill(
+                status=200, content_type='application/json',
+                body=_SCAN_JSON))
+            pg.evaluate("document.querySelector('#kvc_input_dir').value="
+                        "'D:/tmp/kv_batch'")
+            sec.locator('button', has_text='解析样本').first.click()
+            pg.wait_for_timeout(1500)
+            check(pg.locator('#kvScanTable tbody tr').count() == 2,
+                  '目录模式：预览表渲染 2 个样本')
+            # ⚠️ 取 #kvDirPane（kvScanBox 与 kvScanTable 是兄弟节点，表不在
+            # box 里——2026-11-06 审稿修正：旧断言取 box 文本，结构性必失败）
+            txt = pg.inner_text('#kvDirPane')
+            check('S1' in txt and 'S2' in txt, '目录模式：预览表含样本名')
+            check(pg.locator('#kvScanTable input.sc-pick').count() == 2,
+                  '目录模式：每个样本带勾选框')
+            check(pg.eval_on_selector(
+                'input[name="kvc_mode"][value="dir"]', 'e => e.checked'),
+                '目录模式：分段控件选中目录批量')
+            # 切回单样本模式，后续用例仍按单样本入口验证
+            # 同 [5b]：span 盖 radio，evaluate 置值替代坐标 check()
+            sec.locator('input[name="kvc_mode"][value="file"]').evaluate(
+                'e => { e.checked = true; e.dispatchEvent(new Event("change", '
+                '{bubbles: true})); }')
+            pg.wait_for_timeout(200)
 
             print('\n[6] 内联结果渲染（桩数据：chain_result + kvsuite_result）')
             # 用桩响应打通「汇总清单 → 子运行 → 内联 kvc* 容器」这条链路，

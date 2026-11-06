@@ -106,7 +106,7 @@ try:
     check('点「分类报告」后分类表渲染出来', rows_after and rows_after > 0,
           '%s 行 %s' % (rows_after, diag))
 
-    # ---------- 3) BLASTN 跳转 ----------
+    # ---------- 3) BLASTN 跳转（2026-11-03 改道 t-verify 单条深查模式） ----------
     info = open_table()
     print('   表:', info['rows'], '行; 按钮:', info['btns'])
     js("""
@@ -115,19 +115,22 @@ try:
     time.sleep(3.0)
     st = js("""
       const ta=document.getElementById('homSeqText');
-      const card=document.getElementById('t-hom');
+      const card=document.getElementById('t-verify');
+      const deep=document.getElementById('vfPaneDeep');
       const title=document.getElementById('homTitle');
       return {url:location.pathname+location.search+location.hash,
-              homVisible:card?card.offsetParent!==null:null,
+              deepVisible:deep?deep.offsetParent!==null:null,
               seqLen:ta?(ta.value||'').length:0,
               seqHead:ta?(ta.value||'').slice(0,40):null,
               title:title?title.textContent:null,
               msgs:(window.__msgs||[]).slice(0,4)};
     """)
-    print('   BLASTN 后:', {k: st[k] for k in ('url', 'homVisible', 'seqLen', 'title')})
-    check('BLASTN：切到病毒注释分析组并显示同源比对卡',
-          st['homVisible'] is True and 't-hom' in (st['url'] or ''), st['url'])
-    check('BLASTN：contig 序列已填入 #homSeqText', (st['seqLen'] or 0) > 50, st['seqLen'])
+    print('   BLASTN 后:', {k: st[k] for k in ('url', 'deepVisible', 'seqLen', 'title')})
+    check('BLASTN：切到病毒组并显示候选序列验证卡（t-hom 已并入）',
+          st['deepVisible'] is True and 't-verify' in (st['url'] or '')
+          and 'g=virus' in (st['url'] or ''), st['url'])
+    check('BLASTN：contig 序列已填入 #homSeqText（深查文本框）',
+          (st['seqLen'] or 0) > 50, st['seqLen'])
     check('BLASTN：卡片标题指向该 contig',
           bool(st['title']) and ('BLAST' in (st['title'] or '') or '⏳' in (st['title'] or '')),
           st['title'])
@@ -149,26 +152,34 @@ try:
           done and done['shown'] != 'none' and done['len'] > 40, done)
 
     # ---------- 4) Primer 跳转 ----------
+    # 2026-11-06：保活外壳把 /primer 装进 iframe（父页 URL 不变），且输入框
+    # 必须是 textarea —— 单行 input 会把换行吃掉，pdRun 见到「没有换行的
+    # FASTA」就按文件路径提交 → 设计失败。这里两条都守住。
     info = open_table()
     js("""
       document.querySelector('#anaTable table').querySelectorAll('tr:nth-child(2) button')[2].click();
     """)
-    time.sleep(4.0)
-    pr = {'len': 0, 'path': '', 'val': None, 'msgs': []}
-    for _ in range(20):                 # examples.js 的 autoFill 在 400ms 后才跑
+    pr = {'tag': None, 'val': None, 'len': 0, 'nl': False, 'msgs': []}
+    for _ in range(24):                 # 等外壳建帧 + primer 页消费交接数据
         time.sleep(0.5)
         pr = js("""
-          const el=document.getElementById('pd_fa');
-          return {path:location.pathname, val:el?(el.value||'').slice(0,40):null,
+          const f=[...document.querySelectorAll('iframe')].find(x=>String(x.src).includes('/primer'));
+          const w=f?f.contentWindow:window;
+          const el=w.document.getElementById('pd_fa');
+          return {tag:el?el.tagName:null,
+                  val:el?(el.value||'').slice(0,40):null,
                   len:el?(el.value||'').length:0,
+                  nl:!!(el&&(el.value||'').indexOf('\\n')>=0),
                   msgs:(window.__msgs||[]).slice(0,4)};
         """)
-        if pr['path'] == '/primer' and (pr['len'] or 0) > 50 and str(pr['val']).startswith('>'):
+        if (pr['len'] or 0) > 50 and str(pr['val']).startswith('>'):
             break
-    print('   Primer 后:', {k: pr[k] for k in ('path', 'len')})
-    check('Primer：跳到独立模块 /primer', pr['path'] == '/primer', pr['path'])
+    print('   Primer 后:', {k: pr[k] for k in ('tag', 'len', 'nl')})
+    check('Primer：跳转打开 /primer（外壳 iframe 或同页）', pr['tag'] is not None, pr['tag'])
     check('Primer：contig 序列已带入 #pd_fa',
           (pr['len'] or 0) > 50 and str(pr['val']).startswith('>'), pr['val'])
+    check('Primer：输入框为 textarea 且保留换行（否则会被当路径 → 设计失败）',
+          pr['tag'] == 'TEXTAREA' and pr['nl'] is True, pr['tag'])
 finally:
     if drv:
         drv.quit()

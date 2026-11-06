@@ -246,6 +246,8 @@ def _stub_build_sqn(*a, **kw):
             'val_head': ['Warning: test']}
 
 
+_orig_chain_ready = ss.suvtk_chain_ready
+ss.suvtk_chain_ready = lambda: True   # BFVD 链开发机专属；测试桩直通 build_sqn
 ss.build_sqn = _stub_build_sqn
 try:
     r = client.post(f'/api/submit/table/{PROJ}/sqn',
@@ -273,6 +275,7 @@ try:
           str((snap.get('log') or [])[-2:])[:100])
 finally:
     ss.build_sqn = _orig_build_sqn
+    # 就绪门桩保留到同步分支跑完（下方同步 POST 同样要过门），最后统一恢复
 
 # 同步分支语义未变（不传 async 仍直接返回结果体）
 ss.build_sqn = _stub_build_sqn
@@ -284,6 +287,7 @@ try:
           str(sorted(j.keys()))[:90])
 finally:
     ss.build_sqn = _orig_build_sqn
+    ss.suvtk_chain_ready = _orig_chain_ready
 
 # ══════════════ 2) CDS/PEP 导出后台任务化 ══════════════
 print('\n== CDS/PEP 导出后台任务化 ==', flush=True)

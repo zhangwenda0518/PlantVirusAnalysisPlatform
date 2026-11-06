@@ -116,7 +116,7 @@ def main():
     time.sleep(1.0)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(args=['--no-proxy-server'])
         ctx = browser.new_context(viewport={'width': 1280, 'height': 900})
         ctx.add_init_script(
             "try { Object.keys(localStorage)"

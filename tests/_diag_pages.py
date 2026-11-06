@@ -55,6 +55,7 @@ with sync_playwright() as pw:
                    '--disable-gpu']}
     if CHANNEL:
         kw['channel'] = CHANNEL
+    kw.setdefault('args', []).append('--no-proxy-server')
     browser = pw.chromium.launch(**kw)
 
     all_pages = pages()

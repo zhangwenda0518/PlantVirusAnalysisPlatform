@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-"""真浏览器验证 t-hom 的「本地引擎」按钮链路（Playwright）。
+"""真浏览器验证 t-verify「单条深查」模式的本地引擎按钮链路（Playwright）。
 
-/tools 一次只显示一个二级模块，所以用 ?g=annotate#t-hom 进入。
+2026-11-03：t-hom「同源比对」卡并入 t-verify（候选序列验证）卡；
+/tools 一次只显示一个二级模块，用 ?g=virus#t-verify 进入后切到深查模式。
 覆盖：示例自动填入 → 引擎默认 local → 点 ▶ BLASTN →
 命中表出现且标注「本地库（离线）」。
-（原 t-cdd 段已随 CDD 卡下线移除，2026-09-29。）
+（原 t-cdd 段已随 CDD 卡下线移除，2026-09-29；原 t-hom 卡段改走本卡，
+ 正式 hom 工具 /api/tool/run 运行目录。）
 用法：python tests/_check_local_annot_ui.py
 """
 import sys
@@ -20,7 +22,7 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 
-BASE = 'http://127.0.0.1:8765/tools?g=annotate'
+BASE = 'http://127.0.0.1:8765/tools?g=virus'
 
 
 def _rows(pg, body_id):
@@ -33,7 +35,8 @@ def _rows(pg, body_id):
 def main() -> int:
     fails = []
     with sync_playwright() as pw:
-        b = pw.chromium.launch(headless=True)
+        b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
         pg = b.new_page(viewport={'width': 1600, 'height': 1000})
         errs = []
         pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
@@ -42,8 +45,9 @@ def main() -> int:
         pg.goto(BASE, wait_until='domcontentloaded')
         pg.evaluate("try{localStorage.setItem('vp_example_seen','1')}catch(e){}")
 
-        # ---------- t-hom（BLASTN 本地） ----------
-        pg.goto(BASE + '#t-hom', wait_until='domcontentloaded')
+        # ---------- t-verify 单条深查（原 t-hom，BLASTN 本地） ----------
+        pg.goto(BASE + '#t-verify', wait_until='domcontentloaded')
+        pg.evaluate("typeof vfSetMode==='function' && vfSetMode('deep')")
         pg.wait_for_selector('#hom_engine', state='visible', timeout=30000)
         v = pg.input_value('#hom_engine')
         print(f'  hom_engine 默认 = {v}')
@@ -54,7 +58,7 @@ def main() -> int:
             " return t && t.value.trim().length > 0; }", timeout=30000)
         txt = pg.input_value('#homSeqText')
         print(f'  homSeqText 自动填入 {len(txt)} 字符，首行 {txt.splitlines()[0][:40]!r}')
-        pg.click('#t-hom button:has-text("▶ BLASTN")')
+        pg.click('#t-verify button:has-text("▶ BLASTN")')
         rows, head = _rows(pg, 'homBody')
         print(f'  BLASTN 命中 {rows} 行 · 表头含「本地库」: {"本地库" in head}')
         if rows < 1 or '本地库' not in head:

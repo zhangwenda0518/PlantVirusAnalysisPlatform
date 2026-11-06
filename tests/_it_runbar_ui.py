@@ -15,10 +15,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 os.environ['VP_NO_RECOVER'] = '1'
 
+# 隔离（2026-11-06 归账）：截图与任何落盘统一进临时根，不再写真实 run/
+tmp = tempfile.mkdtemp(prefix='vp_runbar_')
+os.environ['VP_RUN_ROOT'] = tmp
+
 import app as APP
 from Virus_Platform_Core.web import tasks as T
 
-tmp = tempfile.mkdtemp(prefix='vp_runbar_')
 T.DIRS['tasks'] = tmp
 m = T.tm
 now = time.time()

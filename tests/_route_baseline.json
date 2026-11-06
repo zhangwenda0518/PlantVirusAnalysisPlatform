@@ -3,17 +3,22 @@
   "/": "pages.page_index",
   "/annotation": "pages.page_annotation",
   "/api/ai/actions": "ai_assist.api_ai_actions",
+  "/api/ai/actions/create": "ai_assist.api_ai_action_create",
   "/api/ai/actions/resolve": "ai_assist.api_ai_action_resolve",
+  "/api/ai/artifacts": "pages.api_ai_artifacts",
   "/api/ai/audit": "ai_assist.api_ai_audit",
   "/api/ai/chat": "ai_assist.api_ai_chat",
   "/api/ai/config": "ai_assist.api_ai_config_set",
   "/api/ai/context": "ai_assist.api_ai_context",
   "/api/ai/events": "ai_assist.api_ai_events",
+  "/api/ai/feedback": "ai_assist.api_ai_feedback_get",
   "/api/ai/gate": "ai_assist.api_ai_gate",
   "/api/ai/profiles": "ai_assist.api_ai_profiles_get",
   "/api/ai/profiles/activate": "ai_assist.api_ai_profiles_activate",
   "/api/ai/profiles/delete": "ai_assist.api_ai_profiles_delete",
   "/api/ai/profiles/save": "ai_assist.api_ai_profiles_save",
+  "/api/ai/sync": "ai_assist.api_ai_sync_list",
+  "/api/ai/sync/<conv_id>": "ai_assist.api_ai_sync_get",
   "/api/ai/test": "ai_assist.api_ai_test",
   "/api/align/file": "tool_results.api_align_file",
   "/api/align/save": "tool_results.api_align_save",
@@ -21,6 +26,7 @@
   "/api/anchor/<slug>": "anchor.api_anchor_detail",
   "/api/anchor/<slug>/verify": "anchor.api_anchor_verify",
   "/api/anchor/active": "anchor.api_anchor_active",
+  "/api/batch_report": "pages.api_batch_report",
   "/api/browse": "build.api_browse",
   "/api/build_host_db": "build.api_build_host_db",
   "/api/build_kv_index": "build.api_build_kv_index",
@@ -43,6 +49,7 @@
   "/api/dl/to_pipeline": "download.api_dl_to_pipeline",
   "/api/dropped_paths": "io_api.api_dropped_paths_post",
   "/api/dropped_paths/last": "io_api.api_dropped_paths_last",
+  "/api/env_status": "settings.api_env_status",
   "/api/example_input/<path:name>": "examples.api_example_input",
   "/api/example_paths": "examples.api_example_paths",
   "/api/examples": "examples.api_examples",
@@ -57,6 +64,7 @@
   "/api/gb/import": "refs.api_gb_import",
   "/api/gb/inspect": "refs.api_gb_inspect",
   "/api/gb/phylo": "refs.api_gb_phylo",
+  "/api/genome/track": "tools.api_genome_track",
   "/api/global/reset": "tasks_api.api_global_reset",
   "/api/host_dbs": "build.api_host_dbs",
   "/api/host_genome_download": "build.api_host_genome_download",
@@ -69,7 +77,9 @@
   "/api/load_taxonomy": "build.api_load_taxonomy",
   "/api/logan/batch_ready": "logan.api_logan_batch_ready",
   "/api/logan/contigs/<sample>": "logan.api_logan_contigs",
+  "/api/logan/contigs_seq": "logan.api_logan_contigs_seq",
   "/api/logan/create": "logan.api_logan_create",
+  "/api/logan/has_assembly": "logan.api_logan_has_assembly",
   "/api/logan/job/<name>": "logan.api_logan_job",
   "/api/logan/job/<name>/batch": "logan.api_logan_batch",
   "/api/logan/job/<name>/delete": "logan.api_logan_delete",
@@ -77,6 +87,7 @@
   "/api/logan/job/<name>/query": "logan.api_logan_query_dl",
   "/api/logan/job/<name>/segment/<int:idx>": "logan.api_logan_segment",
   "/api/logan/jobs": "logan.api_logan_jobs",
+  "/api/logan/read_fasta": "logan.api_logan_read_fasta",
   "/api/logan/samples": "logan.api_logan_samples",
   "/api/mcp/call": "mcpconsole.api_mcp_call",
   "/api/mcp/restart": "mcpconsole.api_mcp_restart",
@@ -101,6 +112,7 @@
   "/api/meta/search": "meta.api_meta_search",
   "/api/meta/table/<name>": "meta.api_meta_table",
   "/api/meta/unique/<name>": "meta.api_meta_unique",
+  "/api/module_report": "pages.api_module_report",
   "/api/msa/data": "refs.api_msa_data",
   "/api/msa/path": "refs.api_msa_path",
   "/api/msa/samples": "refs.api_msa_samples",
@@ -122,6 +134,7 @@
   "/api/plugin/list": "settings.api_plugin_list",
   "/api/plugin/modules": "settings.api_plugin_modules",
   "/api/plugin/uninstall": "settings.api_plugin_uninstall",
+  "/api/prescreen/history": "prescreen.api_prescreen_history",
   "/api/prescreen/projects": "prescreen.api_prescreen_projects",
   "/api/prescreen/result": "prescreen.api_prescreen_result",
   "/api/prescreen/run": "prescreen.api_prescreen_run",
@@ -180,11 +193,14 @@
   "/api/submit/table/<name>/validate": "submit.api_submit_table_validate",
   "/api/submit/tables": "submit.api_submit_tables",
   "/api/submit/upload": "submit.api_submit_upload",
+  "/api/sys_metrics": "settings.api_sys_metrics",
   "/api/task/<tid>": "tasks_api.api_task",
   "/api/task/<tid>/archive": "tasks_api.api_task_archive",
   "/api/task/<tid>/cancel": "tasks_api.api_task_cancel",
   "/api/task/<tid>/delete": "tasks_api.api_task_delete",
   "/api/task/<tid>/log": "tasks_api.api_task_log",
+  "/api/task/<tid>/pause": "tasks_api.api_task_pause",
+  "/api/task/<tid>/resume": "tasks_api.api_task_resume",
   "/api/task/<tid>/stream": "tasks_api.api_task_stream",
   "/api/task/<tid>/unarchive": "tasks_api.api_task_unarchive",
   "/api/tasks": "tasks_api.api_tasks",
@@ -192,10 +208,13 @@
   "/api/tasks/stop_all": "tasks_api.api_tasks_stop_all",
   "/api/tool/analysis": "tool_results.api_tool_analysis",
   "/api/tool/analyze": "tool_results.api_tool_analyze",
+  "/api/tool/chain_report": "tools.api_tool_chain_report",
   "/api/tool/chain_result": "tools.api_tool_chain_result",
+  "/api/tool/chain_scan": "tools.api_tool_chain_scan",
   "/api/tool/consensus_result": "tool_results.api_tool_consensus_result",
   "/api/tool/dsrna_panel": "tools.api_dsrna_panel",
   "/api/tool/genoplot_preview": "tools.api_tool_genoplot_preview",
+  "/api/tool/hom_result": "tool_results.api_tool_hom_result",
   "/api/tool/hostpredict_run": "tool_results.api_tool_hostpredict_run",
   "/api/tool/kvsuite_refs": "tool_results.api_tool_kvsuite_refs",
   "/api/tool/kvsuite_result": "tool_results.api_tool_kvsuite_result",
@@ -205,6 +224,7 @@
   "/api/tool/open": "tools.api_tool_open",
   "/api/tool/pdplot_export": "tools.api_pdplot_export",
   "/api/tool/phylogeo_gif": "tools.api_phylogeo_gif",
+  "/api/tool/prepchain_scan": "tools.api_tool_prepchain_scan",
   "/api/tool/primer_design": "tool_results.api_tool_primer_design",
   "/api/tool/quicktree_data": "tool_results.api_tool_quicktree_data",
   "/api/tool/rdp_masked": "tools.api_rdp_masked_post",
@@ -225,6 +245,10 @@
   "/api/tools": "build.api_tools",
   "/api/tree/data": "refs.api_tree_data",
   "/api/tree/file": "tool_results.api_tree_file",
+  "/api/update/check": "update.api_update_check",
+  "/api/update/install": "update.api_update_install",
+  "/api/update/skip": "update.api_update_skip",
+  "/api/update/status": "update.api_update_status",
   "/api/upload": "io_api.api_upload",
   "/archive_report/<sample>/": "pages.page_archive_report",
   "/build": "pages.page_build",
@@ -272,7 +296,13 @@
   "/api/ai/actions": [
    "GET"
   ],
+  "/api/ai/actions/create": [
+   "POST"
+  ],
   "/api/ai/actions/resolve": [
+   "POST"
+  ],
+  "/api/ai/artifacts": [
    "POST"
   ],
   "/api/ai/audit": [
@@ -291,6 +321,10 @@
   "/api/ai/events": [
    "GET"
   ],
+  "/api/ai/feedback": [
+   "GET",
+   "POST"
+  ],
   "/api/ai/gate": [
    "POST"
   ],
@@ -304,6 +338,13 @@
    "POST"
   ],
   "/api/ai/profiles/save": [
+   "POST"
+  ],
+  "/api/ai/sync": [
+   "GET"
+  ],
+  "/api/ai/sync/<conv_id>": [
+   "GET",
    "POST"
   ],
   "/api/ai/test": [
@@ -325,6 +366,9 @@
    "GET"
   ],
   "/api/anchor/active": [
+   "GET"
+  ],
+  "/api/batch_report": [
    "GET"
   ],
   "/api/browse": [
@@ -393,6 +437,9 @@
   "/api/dropped_paths/last": [
    "GET"
   ],
+  "/api/env_status": [
+   "GET"
+  ],
   "/api/example_input/<path:name>": [
    "GET"
   ],
@@ -435,6 +482,9 @@
   "/api/gb/phylo": [
    "POST"
   ],
+  "/api/genome/track": [
+   "POST"
+  ],
   "/api/global/reset": [
    "POST"
   ],
@@ -471,7 +521,13 @@
   "/api/logan/contigs/<sample>": [
    "GET"
   ],
+  "/api/logan/contigs_seq": [
+   "POST"
+  ],
   "/api/logan/create": [
+   "POST"
+  ],
+  "/api/logan/has_assembly": [
    "POST"
   ],
   "/api/logan/job/<name>": [
@@ -494,6 +550,9 @@
   ],
   "/api/logan/jobs": [
    "GET"
+  ],
+  "/api/logan/read_fasta": [
+   "POST"
   ],
   "/api/logan/samples": [
    "GET"
@@ -567,6 +626,9 @@
   "/api/meta/unique/<name>": [
    "GET"
   ],
+  "/api/module_report": [
+   "GET"
+  ],
   "/api/msa/data": [
    "GET"
   ],
@@ -629,6 +691,9 @@
   ],
   "/api/plugin/uninstall": [
    "POST"
+  ],
+  "/api/prescreen/history": [
+   "GET"
   ],
   "/api/prescreen/projects": [
    "GET"
@@ -805,6 +870,9 @@
   "/api/submit/upload": [
    "POST"
   ],
+  "/api/sys_metrics": [
+   "GET"
+  ],
   "/api/task/<tid>": [
    "GET"
   ],
@@ -819,6 +887,12 @@
   ],
   "/api/task/<tid>/log": [
    "GET"
+  ],
+  "/api/task/<tid>/pause": [
+   "POST"
+  ],
+  "/api/task/<tid>/resume": [
+   "POST"
   ],
   "/api/task/<tid>/stream": [
    "GET"
@@ -841,8 +915,14 @@
   "/api/tool/analyze": [
    "POST"
   ],
+  "/api/tool/chain_report": [
+   "GET"
+  ],
   "/api/tool/chain_result": [
    "GET"
+  ],
+  "/api/tool/chain_scan": [
+   "POST"
   ],
   "/api/tool/consensus_result": [
    "GET"
@@ -852,6 +932,9 @@
   ],
   "/api/tool/genoplot_preview": [
    "POST"
+  ],
+  "/api/tool/hom_result": [
+   "GET"
   ],
   "/api/tool/hostpredict_run": [
    "POST"
@@ -878,6 +961,9 @@
    "POST"
   ],
   "/api/tool/phylogeo_gif": [
+   "POST"
+  ],
+  "/api/tool/prepchain_scan": [
    "POST"
   ],
   "/api/tool/primer_design": [
@@ -939,6 +1025,18 @@
    "GET"
   ],
   "/api/tree/file": [
+   "GET"
+  ],
+  "/api/update/check": [
+   "GET"
+  ],
+  "/api/update/install": [
+   "POST"
+  ],
+  "/api/update/skip": [
+   "POST"
+  ],
+  "/api/update/status": [
    "GET"
   ],
   "/api/upload": [

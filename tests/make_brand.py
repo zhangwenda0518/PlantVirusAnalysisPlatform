@@ -57,7 +57,8 @@ def main() -> int:
 
     print('\n② 栅格化:')
     with sync_playwright() as pw:
-        b = pw.chromium.launch(headless=True)
+        b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
         pg = b.new_page(device_scale_factor=2)
         _shot(pg, LOGO, BRAND / 'logo-512.png', 256, 256, transparent=True)
         b.close()

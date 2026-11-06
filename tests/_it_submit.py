@@ -11,6 +11,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Virus_Platform_Core.config import DIRS, PLATFORM_ROOT  # noqa: E402
 from Virus_Platform_Core.ncbi_submit import store  # noqa: E402
 from Virus_Platform_Core.utils import write_fasta_record  # noqa: E402
+from Virus_Platform_Core.config import get_config  # noqa: E402
+
+# 先完成配置首次加载：apply_output_root 会预建 RUN_ROOT 下的输出子目录
+# （results/tool_runs…）。缺这一步时 DIRS['results'] 目录不存在，测试
+# 落盘 _it_submit.fa 直接 FileNotFoundError（2026-11-03，隔离环境实测）。
+get_config()
 
 NAME = '_it_submit'
 

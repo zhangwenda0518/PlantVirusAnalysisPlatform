@@ -39,6 +39,7 @@ except ImportError:                                     # pragma: no cover
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+from Virus_Platform_Core.config import DIRS  # noqa: E402
 
 FASTA = os.path.join(ROOT, 'examples', 'example_phylogeo.fasta')
 META = os.path.join(ROOT, 'examples', 'example_phylogeo.meta.csv')
@@ -55,6 +56,13 @@ def check(ok, msg):
 def free_port(start=8881):
     for p in range(start, start + 40):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # connect 探测先行（2026-11-05）：Windows 上 0.0.0.0 已被别的
+            # 进程绑定的端口，bind('127.0.0.1') 探测会误判空闲——起上去后
+            # 请求被 wildcard 持有者截走，测试打到别人的服务上（教训：用户
+            # 常驻的 docs http.server 恰占 8901+ 段，套件实例全 404）。
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as c:
+                if c.connect_ex(('127.0.0.1', p)) == 0:
+                    continue
             try:
                 s.bind(('127.0.0.1', p))
                 return p
@@ -124,6 +132,7 @@ PARAMS = {
     'date_col': 'year', 'trait': 'region',
     'methods': 'treetime', 'reroot': 'least-squares', 'keep_root': 'off',
     'relax_sigma': '0', 'drt': 'on', 'drt_perm': '200',
+    'ltt': 'on',
     'skyline': 'off', 'gen_per_year': '50', 'ancestral': 'off',
     'homoplasy': 'off', 'sampling_bias_correction': 'auto', 'cross_check': 'off',
     'seed': '0', 'prune': 'off', 'prune_method': 'fps',
@@ -164,7 +173,7 @@ def main():
             time.sleep(3)
         check(state == 'done', f'任务终态 done（实际 {state}，用时 {time.time()-t0:.0f}s）')
 
-        rdir = os.path.join(ROOT, 'run', 'tool_runs', run)
+        rdir = os.path.join(DIRS['tool_runs'], run)   # 跟随 VP_RUN_ROOT 隔离
         cand = []
         for dp, _dns, fns in os.walk(rdir):
             for fn in fns:
@@ -191,6 +200,20 @@ def main():
               f'clock 时间树坐标已产出（{n_tt} 个点；需演进版 phylogeo）')
         check((summ.get('clock') or {}).get('timetree_source') == 'TreeTime',
               f"timetree_source = {(summ.get('clock') or {}).get('timetree_source')}")
+
+        # LTT 谱系-时间曲线（2026-11-06，对齐 VirPhyKit「TreeDater-LTT」
+        # 免 MCMC 口径）：A1 用 clock/timetree.nwk + prep/dates.csv 直接算出，
+        # 随 summary 上卡；斜率 ≈ 净多样化率（birth−death 近似）。
+        lt = (summ.get('clock') or {}).get('ltt') or {}
+        check(lt.get('ok') is True,
+              f'clock.ltt ok（ok={lt.get("ok")} err={lt.get("error")}）')
+        check(lt.get('axis') == 'calendar_year',
+              f'LTT 横轴＝日历年（{lt.get("axis")}）')
+        n_curve = len(lt.get('curve') or [])
+        check(n_curve >= 2, f'LTT 曲线点 ≥2（{n_curve}）')
+        check(bool(lt.get('curve_file_abs'))
+              and os.path.isfile(lt.get('curve_file_abs') or ''),
+              'clock/ltt_curve.tsv 已落盘')
 
         # A2 的区域坐标（2026-09-18 新增，只为迁移弧线地图的落点）：
         # 只读样例的元数据/坐标表 → 必须解析出≥2 个区划，否则地图画不出弧线。
@@ -219,7 +242,8 @@ def main():
         else:
             print('\n[3] 真浏览器：阶段流 + 时间树')
             with sync_playwright() as pw:
-                b = pw.chromium.launch(headless=True)
+                b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
                 pg = b.new_page(viewport={'width': 1600, 'height': 1100})
                 errs = []
                 pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -261,6 +285,19 @@ def main():
                     " Math.max(...s.x.filter(v => v != null))]; }")
                 check(len(xs) == 2 and 1900 < xs[0] < 2100 and 1900 < xs[1] < 2100,
                       f'时间树横轴是日历年（{xs}）')
+
+                # LTT 曲线（2026-11-06）：pdRenderLtt 画在内层 #pdLttPlot
+                n_ltt = pg.evaluate(
+                    "() => { const e = document.querySelector('#pdLttPlot');"
+                    " return (e && e._fullData) ? e._fullData.length : 0; }")
+                check(n_ltt > 0,
+                      f'#pdLttPlot 真画出来了（_fullData {n_ltt} 条 trace）')
+                ly = pg.evaluate(
+                    "() => { const e = document.querySelector('#pdLttPlot');"
+                    " if (!e || !e._fullData) return null;"
+                    " const y = e._fullData[0].y || []; return y[y.length - 1]; }")
+                check(isinstance(ly, (int, float)) and ly > 0,
+                      f'LTT 曲线终点为正谱系数（{ly}）')
 
                 # A2 迁移弧线地图（2026-09-18 新增）：与系统地理卡共用
                 # drawPgGeo / _pgArc。断言**图真的画出来了**（读内层

@@ -131,7 +131,8 @@ def main():
         run, err = run_tool(c, 'pdprep', {'source': 'genbank', 'gb_files': gbk,
                                           'strict': '0', 'govern': '1'})
     chk(run is not None, f'任务跑通（{err}）')
-    md = os.path.join(ROOT, 'run', 'tool_runs', run or '', 'pdprep', 'metadata.csv')
+    from Virus_Platform_Core.config import DIRS
+    md = os.path.join(DIRS['tool_runs'], run or '', 'pdprep', 'metadata.csv')
     rows = list(csv.DictReader(io.open(md, encoding='utf-8-sig'))) if os.path.isfile(md) else []
     cols = list(rows[0]) if rows else []
     chk(cols[:5] == ['name', 'date', 'location', 'lat', 'lon'],

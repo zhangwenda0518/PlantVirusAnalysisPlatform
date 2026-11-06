@@ -225,6 +225,58 @@ def main():
     else:
         print('  - 跳过样品检查（run/results 为空）')
 
+    # ---- 6b. 结论文档 vp_build_report（临时目录，不碰真实样品与产物）----
+    tmp3 = tempfile.mkdtemp(prefix='vp_mcp_rep_', dir=tmp_base)
+    try:
+        # 手工摆一个「最小 full 档案」目录：只有 ②b 与 ③ 的 summary.json，
+        # 缺其余阶段——正好验证报告在字段大面积缺失时不崩、按已有阶段裁章节。
+        import json as _json
+        os.makedirs(os.path.join(tmp3, '02b_kvsuite'), exist_ok=True)
+        os.makedirs(os.path.join(tmp3, '03_assembly'), exist_ok=True)
+        with open(os.path.join(tmp3, '02b_kvsuite', 'summary.json'), 'w',
+                  encoding='utf-8') as f:
+            _json.dump({'stage': 'kvsuite', 'engine': 'salmon',
+                        'viral_reads': 1200, 'passed': 2, 'rejected': 1,
+                        'species_detected': ['A virus', 'B viroid'],
+                        'species_with_reads': ['A virus', 'B viroid', 'C']},
+                       f, ensure_ascii=False)
+        with open(os.path.join(tmp3, '03_assembly', 'summary.json'), 'w',
+                  encoding='utf-8') as f:
+            _json.dump({'stage': 'assembly', 'contigs': 7, 'total_bp': 9999,
+                        'viral_contigs': ['NODE_1_length_5000_cov_9.0']},
+                       f, ensure_ascii=False)
+
+        r = M._build_report_impl(tmp3, digest_kb=16)
+        ok = r.get('status') == 'ok'
+        check(ok, f"vp_build_report 在信息不全的目录上也能出报告（{r.get('summary')}）")
+        if ok:
+            res = r['result']
+            check(res['profile'] == 'full',
+                  f"档案按已有阶段判为 full（实际 {res['profile']}）")
+            check(os.path.isfile(res['html']) and res['size'] > 2000,
+                  f"落盘且体积合理（{res['size']} 字节）")
+            check((res.get('digest') or '').strip() != '', 'digest 返回纯文本正文')
+            check(os.path.isfile(os.path.join(
+                os.path.dirname(res['html']), 'report_v2_meta.json')),
+                'meta.json 与 html 同目录一并写出')
+            # 复用与强重建
+            r2 = M._build_report_impl(tmp3, digest_kb=0)
+            check(r2['result']['reused'] is True, '输入未变时复用（reused=True）')
+            r3 = M._build_report_impl(tmp3, force=True, digest_kb=0)
+            check(r3['result']['reused'] is False, 'force=True 强制重建')
+
+        # 错误以 status=error 形式返回（不抛异常，符合 MCP 信封口径）
+        e1 = M._build_report_impl('no_such_sample_xyz', digest_kb=0)
+        check(e1.get('status') == 'error' and '不存在' in e1.get('summary', ''),
+              f"不存在目标回 status=error: {e1.get('summary')}")
+        e2 = M._build_report_impl(r'C:\Windows', digest_kb=0)
+        check(e2.get('status') == 'error' and '平台根内' in e2.get('summary', ''),
+              f"出界目录被拒: {e2.get('summary')}")
+        e3 = M._build_report_impl(tmp3, kind='bogus', digest_kb=0)
+        check(e3.get('status') == 'error', 'kind 非法回 status=error')
+    finally:
+        shutil.rmtree(tmp3, ignore_errors=True)
+
     # ---- 7. 自检报告 ----
     rep = M._selfcheck_report()
     check(isinstance(rep.get('checks'), list) and rep['checks'],

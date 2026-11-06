@@ -72,7 +72,7 @@ def main():
         with sync_playwright() as pw:
             browser = pw.chromium.launch(
                 headless=True,
-                args=['--no-sandbox', '--disable-dev-shm-usage',
+                args=['--no-proxy-server', '--no-sandbox', '--disable-dev-shm-usage',
                       '--disable-gpu'])
             ctx = browser.new_context(viewport={'width': 1440, 'height': 900})
             page = ctx.new_page()
@@ -81,13 +81,16 @@ def main():
                     if m.type == 'error' else None)
             page.on('pageerror', lambda e: errors.append(str(e)))
 
-            # 2026-10-29：总览改成内嵌「AI 分析台」——坞被移进 #aiConsoleHost、
-            # 常开、FAB 隐藏；浮坞行为改到其它页面（/samples）验证。
+            # 2026-10-29：总览改成内嵌「AI 分析台」——坞被移进 #aiConsoleHost、常开。
+            # 2026-11-02：悬浮球改成独立「问答平台」（app-qa.js），首页也常显；
+            # 工作台在总览页就在页内，顶栏那颗 🧠 按钮在这儿反而多余，隐藏。
             page.goto(base + '/', wait_until='load')
             check('总览内嵌 AI 分析台',
                   page.locator('#aiConsoleHost #aiDock').count() == 1)
             check('总览分析台常开', page.locator('#aiDock').is_visible())
-            check('总览 FAB 隐藏', not page.locator('#aiFab').is_visible())
+            check('总览问答球可见', page.locator('#aiFab').is_visible())
+            check('总览顶栏工作台按钮隐藏',
+                  not page.locator('#aiDockBtn').is_visible())
             # 2026-10-30：坞里不再有独立样品下拉（跟随顶栏全局胶囊），标题改名 AI 工作台
             check('坞内不再有独立样品下拉',
                   page.locator('#aiSampleSel').count() == 0)
@@ -106,19 +109,138 @@ def main():
             page.screenshot(
                 path=os.path.join(shot_dir, 'ai_dock_degraded.png'))
 
-            # 其它页面仍是右下角浮坞：初始隐藏 → FAB 展开 → ✕ 收起
+            # 其它页面：工作台浮坞由顶栏 🧠 打开；悬浮球归问答，两者互不串联。
             page.goto(base + '/samples', wait_until='load')
             page.wait_for_timeout(500)
             check('其它页对话坞初始隐藏', not page.locator('#aiDock').is_visible())
-            check('其它页 FAB 可见', page.locator('#aiFab').is_visible())
+            check('其它页问答球可见', page.locator('#aiFab').is_visible())
+            check('其它页顶栏工作台按钮可见',
+                  page.locator('#aiDockBtn').is_visible())
+
+            # ① 悬浮球 = 独立问答平台（2026-11-02 用户定案）：点开的是 #qaDock，
+            #    绝不能弹 AI 工作台；面板里也不能有执行单/样品那套东西。
             page.click('#aiFab')
+            page.wait_for_timeout(400)
+            check('点问答球 → 问答面板展开', page.locator('#qaDock').is_visible())
+            check('点问答球不弹 AI 工作台',
+                  not page.locator('#aiDock').is_visible())
+            hint = page.locator('.qa-hint').inner_text()
+            check('问答面板写明边界（不读数据/不跑任务）',
+                  ('不读取' in hint or 'does not read' in hint), hint)
+            check('问答面板里没有工作台元素',
+                  page.locator('#qaDock .ai-dock-head, #qaDock #aiChips, '
+                               '#qaDock #aiWorkspaceBar').count() == 0)
+            page.fill('#qaInput', '执行单是什么？批准之后会发生什么？')
+            page.click('#qaSendBtn')
+            page.wait_for_timeout(2500)
+            check('问答面板给出回复气泡（未配置时也应说明原因）',
+                  page.locator('#qaMsgs .ai-msg').count() >= 2)
+            shot_qa = os.path.join(shot_dir, 'qa_dock.png')
+            page.screenshot(path=shot_qa)
+            page.locator('#qaDock .qa-head-ops .qa-ico').nth(1).click()
+            page.wait_for_timeout(200)
+            check('问答面板可收起', not page.locator('#qaDock').is_visible())
+
+            # ② 顶栏 🧠 = AI 工作台：开坞、✕ 收起；球一直在（不再被坞吃掉）
+            page.click('#aiDockBtn')
             page.wait_for_timeout(600)
-            check('点击 FAB 后对话坞展开', page.locator('#aiDock').is_visible())
+            check('点顶栏工作台按钮 → 对话坞展开',
+                  page.locator('#aiDock').is_visible())
+            check('工作台开着时问答球仍在', page.locator('#aiFab').is_visible())
             # 收起点 ✕ 在坞头；页面底部还有 ⟲ 清空 / ⚙ 设置也是 .ai-ico，
             # 所以不能用 .last（2026-11-02：那会点到设置、坞根本不收）。
             page.locator('#aiDock .ai-dock-head .ai-ico').click()
             page.wait_for_timeout(300)
-            check('收起后 FAB 回归', page.locator('#aiFab').is_visible())
+            check('收起后问答球仍可见', page.locator('#aiFab').is_visible())
+            check('收起后对话坞隐藏', not page.locator('#aiDock').is_visible())
+
+            # 2026-11-02 回归：保活外壳里 AI 入口不能消失。
+            # 用户原话：「我们的之前的那个AI的悬浮机器人去哪了，怎么没了」——
+            # 坞开着（vp_ai_open=1）从首页点模块进外壳 iframe 时，父层坞随 main
+            # 藏起、父层 FAB 被状态隐掉、iframe 里的坞又被 vp-frame CSS 藏掉，
+            # 三处各自合理、叠加起来整页没有任何 AI 入口。
+            page.goto(base + '/', wait_until='load')
+            # 问答面板先收干净：否则 iframe 里 QA.restore() 会（按互斥规则）把
+            # 工作台关掉，和这一段的断言抢时序。
+            page.evaluate("localStorage.setItem('vp_ai_open','1');"
+                          "localStorage.removeItem('vp_qa_open');"
+                          "localStorage.removeItem('vp_qa_msgs')")
+            page.reload(wait_until='load')
+            href = page.evaluate("""
+              (function () {
+                var out = '';
+                document.querySelectorAll('#sideNav .sn-sub a[href^="/"]').forEach(
+                  function (a) {
+                    var h = a.getAttribute('href');
+                    if (!out && h && h !== '/' && h.indexOf('#') !== 0) out = h;
+                  });
+                return out;
+              })()
+            """)
+            page.evaluate("""
+              (h) => {
+                var a = null;
+                document.querySelectorAll('#sideNav .sn-sub a[href^="/"]').forEach(
+                  function (x) {
+                    if (!a && x.getAttribute('href') === h) a = x;
+                  });
+                if (a) a.click();
+              }
+            """, href)
+            page.wait_for_selector('.vp-shell-frame.on', timeout=20000)
+            page.wait_for_timeout(1500)
+            shell = page.locator('.vp-shell-frame.on').element_handle()
+            sframe = shell.content_frame() if shell else None
+            check('外壳模式：模块装进 iframe', sframe is not None,
+                  f'href={href}')
+            if sframe is not None:
+                ai_visible = (sframe.locator('#aiDock').is_visible()
+                              or sframe.locator('#aiFab').is_visible())
+                check('坞开着进模块，iframe 里仍有 AI 入口', ai_visible)
+                check('外壳模式父层不重复浮 AI 入口',
+                      not page.locator('#aiFab').is_visible())
+                check('外壳模式父层不重复浮运行条（会压住 iframe 里的坞）',
+                      not page.locator('#vpRunBar').is_visible())
+                check('外壳模式父层也不浮问答面板',
+                      not page.locator('#qaDock').is_visible())
+                page.screenshot(path=os.path.join(
+                    shot_dir, 'ai_shell_module_open1.png'))
+                # 2026-11-02：iframe 里两个入口各司其职 ——
+                #   🧠 顶栏按钮 = 工作台（弹 #aiDock）；悬浮球 = 问答（弹 #qaDock）。
+                if not sframe.locator('#aiDock').is_visible():
+                    sframe.locator('#aiDockBtn').click()
+                    page.wait_for_timeout(600)
+                if not sframe.locator('#aiDock').is_visible():
+                    print('    [dbg]', sframe.evaluate("""() => {
+                      const d = document.getElementById('aiDock');
+                      const b = document.getElementById('aiDockBtn');
+                      return {url: location.pathname, aiOpen: (window.AI && AI.open),
+                              ready: (window.AI && AI.ready), hidden: d.hidden,
+                              display: getComputedStyle(d).display,
+                              lsOpen: localStorage.getItem('vp_ai_open'),
+                              qaOpen: (window.QA && QA.open),
+                              lsQa: localStorage.getItem('vp_qa_open'),
+                              btn: b ? [b.offsetWidth, b.offsetHeight, b.hidden] : null,
+                              cls: d.className};
+                    }"""))
+                check('iframe 内对话坞能展开', sframe.locator('#aiDock').is_visible())
+                sframe.locator('#aiDock .ai-dock-head .ai-ico').click()
+                page.wait_for_timeout(400)
+                check('iframe 内收起后对话坞隐藏',
+                      not sframe.locator('#aiDock').is_visible())
+                check('iframe 内问答球始终在', sframe.locator('#aiFab').is_visible())
+                # 点球是问答，不能弹工作台（两条通道彻底分开）
+                sframe.locator('#aiFab').click()
+                page.wait_for_timeout(600)
+                check('iframe 内点球开的是问答面板（不是工作台）',
+                      sframe.locator('#qaDock').is_visible()
+                      and not sframe.locator('#aiDock').is_visible())
+                page.screenshot(path=os.path.join(
+                    shot_dir, 'ai_shell_module_fab.png'))
+            page.goto(base + '/', wait_until='load')
+            page.evaluate("localStorage.removeItem('vp_ai_open');"
+                          "localStorage.removeItem('vp_qa_open');"
+                          "localStorage.removeItem('vp_qa_msgs')")
 
             real_errors = [e for e in errors
                            if 'favicon' not in e and '404' not in e]

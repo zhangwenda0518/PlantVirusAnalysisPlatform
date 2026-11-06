@@ -29,9 +29,24 @@ ROWS = [
 ]
 
 
+def _results_root():
+    """结果根目录：跟着 platform.json 的 output_root 走，不能写死 run/results。
+
+    2026-11-02 实测踩过：本机 output_root 指向 G:\\植物病毒分析平台\\run\\fastq，
+    样品被造在 <平台根>/run/results 里，而平台按配置去 G:\\…\\results 找 ——
+    AI 测试报「样品不存在: smoke_e2e」，报错点却落在执行单断言上，极难排查。
+    """
+    try:
+        from Virus_Platform_Core import config as _cfg
+        _cfg.get_config()      # 先加载 platform.json：output_root 会原地重映射 DIRS
+        return _cfg.DIRS['results']
+    except Exception:
+        return os.path.join(ROOT, 'run', 'results')
+
+
 def ensure():
     """确保 smoke_e2e 样品与 ②b 鉴定表存在（幂等），返回样品目录路径。"""
-    sample_dir = os.path.join(ROOT, 'run', 'results', 'smoke_e2e')
+    sample_dir = os.path.join(_results_root(), 'smoke_e2e')
     tsv = os.path.join(sample_dir, '02b_kvsuite', 'identify',
                        'all_viruses.summary.tsv')
     created = not os.path.isdir(sample_dir)

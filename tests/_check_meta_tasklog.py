@@ -43,6 +43,12 @@ def check(label, ok, extra=''):
 
 def free_port(preferred):
     for p in (preferred, 0):
+        # connect 探测先行（2026-11-05）：wildcard(0.0.0.0) 已被占用的端口
+        # 用 bind('127.0.0.1') 探测会误判空闲，起上去后请求被截走（实测教训：
+        # 用户常驻的 docs http.server 在 8901+ 段，套件实例全 404）。
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as c:
+            if c.connect_ex(('127.0.0.1', p)) == 0:
+                continue
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.bind(('127.0.0.1', p))

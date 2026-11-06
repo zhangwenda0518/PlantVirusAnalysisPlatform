@@ -76,7 +76,7 @@ def main():
         with sync_playwright() as pw:
             browser = pw.chromium.launch(
                 headless=True,
-                args=['--no-sandbox', '--disable-dev-shm-usage',
+                args=['--no-proxy-server', '--no-sandbox', '--disable-dev-shm-usage',
                       '--disable-gpu'])
             page = browser.new_context(
                 viewport={'width': 1440, 'height': 900}).new_page()

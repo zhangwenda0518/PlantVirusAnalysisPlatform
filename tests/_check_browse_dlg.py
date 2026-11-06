@@ -140,7 +140,8 @@ def check_runtime(port):
         return []
     bad = []
     with sync_playwright() as pw:
-        b = pw.chromium.launch(headless=True)
+        b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
         pg = b.new_page()
         errs = []
         pg.on('pageerror', lambda e: errs.append(str(e)))

@@ -11,13 +11,13 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from Virus_Platform_Core.config import PLATFORM_ROOT  # noqa: E402
+from Virus_Platform_Core.config import DIRS, PLATFORM_ROOT  # noqa: E402
 
 EX = os.path.join(PLATFORM_ROOT, 'examples')
 EX_FA = os.path.join(EX, 'example_viral_contigs.fasta')
 EX_GB = os.path.join(EX, 'example_genome.gb')
 EX_SET = os.path.join(EX, 'example_virus_set.fasta')
-RUNS = os.path.join(PLATFORM_ROOT, 'run', 'tool_runs')
+RUNS = DIRS['tool_runs']   # 跟随 VP_RUN_ROOT 隔离（原硬编码真实 run/，隔离下必挂）
 
 
 def check(cond, msg):

@@ -29,7 +29,8 @@ OTHER = 'http://127.0.0.1:8765/samples'
 def main() -> int:
     fails = []
     with sync_playwright() as pw:
-        b = pw.chromium.launch(headless=True)
+        b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
         pg = b.new_page(viewport={'width': 1700, 'height': 1200})
         errs = []
         pg.on('pageerror', lambda e: errs.append(str(e)))

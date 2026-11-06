@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import sys
+import time
 # 控制台编码兜底：Windows 默认代码页是 GBK，本脚本的 ✔/✘/⚠ 等字符会让
 # print 抛 UnicodeEncodeError（2026-09-11 实测多处踩过）。只改错误处理为
 # replace（编码不动，中文照常可读），编不出的字符降级为 '?'。
@@ -18,7 +19,7 @@ for _stream in (sys.stdout, sys.stderr):
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from Virus_Platform_Core.config import PLATFORM_ROOT  # noqa: E402
+from Virus_Platform_Core.config import DIRS, PLATFORM_ROOT  # noqa: E402
 
 EX = os.path.join(PLATFORM_ROOT, 'examples')
 
@@ -224,11 +225,17 @@ def main():
                           ('anaJump(', '四件套跳转注释分析'),
                           ('processAnaJump', '跳转自动续接')]:
         check(marker in hv, f'病毒识别组渲染含 {where}')
+    # 2026-11-03：t-hom「同源比对」卡并入 t-verify（单条深查模式）——
+    # 注释组渲染不再含 t-hom；深查按钮/结果渲染随验证卡出现在 virus 组。
     ha = c.get('/tools?g=annotate').get_data(as_text=True)
-    check(all(f"'{a}'" in ha for a in ('blastn', 'blastx', 'primer')),
-          't-hom 卡含 BLASTN / BLASTX / Primer 分析')
+    check('id="t-hom"' not in ha, 't-hom 卡已移除（并入 t-verify 单条深查）')
+    hv2 = c.get('/tools?g=virus').get_data(as_text=True)
+    check('runHom(' in hv2 and 'homResultHtml(' in hv2 and 'vfSetMode(' in hv2,
+          't-verify 卡含单条深查（runHom / homResultHtml / 模式切换）')
+    check(all(a in hv2 for a in ('blastn', 'blastx')),
+          '深查含 BLASTN / BLASTX 入口')
     for marker in ('Best E-value', 'Primer design complete', 'ncbiNuc'):
-        check(marker in ha, f'metabuli 风格结果渲染含 {marker}')
+        check(marker in hv2, f'metabuli 风格结果渲染含 {marker}')
     # 2026-09-29：CDD 卡已随本地 CDD 库下线，渲染里不应再有 CDD 分支
     check('ncbiCdd' not in ha and 'Conserved Domains' not in ha,
           'CDD 渲染分支已移除（cdd → t-cdd 卡不存在）')
@@ -250,14 +257,27 @@ def main():
     _g = {g['id']: g for g in _NG}
     _d_ids = {it.get('id') or it.get('href') for it in _g['detect']['items']}
     _a_ids = {it.get('id') or it.get('href') for it in _g['annotate']['items']}
-    # 2026-10-06：detect 组新增 t-crispr（CRISPR/Cas12a 检测试剂设计卡），
-    # 断言清单随 NAV_GROUPS 更新（旧清单缺 t-crispr 导致批量回归误报）；
-    # 2026-10-24：detect 组再增 t-conan（CONAN-SWIFT Cas3 crRNA 设计卡）
-    check(_d_ids == {'/primer', 't-conan', 't-crispr', 't-dsrna', 't-mirna'},
-          f'检测与防治组 = 引物设计 + CONAN + CRISPR + dsRNA + miRNA'
+    # 2026-10-06：detect 组新增 t-crispr；2026-10-24 t-conan、2026-11-04
+    #   t-cricon 加入后于 2026-11-05 归档摘除；同日新增 t-lamp（LAMP 引物组
+    #   设计独立卡）。
+    check(_d_ids == {'/primer', 't-crispr', 't-lamp', 't-dsrna', 't-mirna'},
+          f'检测与防治组 = 引物设计 + CRISPR + dsRNA + miRNA'
           f'（实际 {sorted(_d_ids)}）')
     check(not ({'/primer'} & _a_ids),
           '注释组不再含引物设计')
+    # 2026-11-04：注释组收编（ORF 预测卡摘除）；同日数据提交卡并入注释组
+    # （独立提交组撤销）；⚡一键卡（t-annochain）回归并扩为
+    # 注释→图谱→NCBI 提交准备 4 步
+    check(_a_ids == {'t-annochain', '/annotation', '/genome', '/submit'},
+          f'病毒注释分析组 = ⚡一键（注释→图谱→提交）+ 功能注释（默认含 '
+          f'ORF 预测）+ 基因组图谱 + 数据提交（实际 {sorted(_a_ids)}）')
+    check(not any(g['id'] in ('submit', 'trace') for g in _NG),
+          '溯源与提交组、独立数据提交组均已撤销（LOGAN 归数据资源 / '
+          '数据提交并入病毒注释分析）')
+    _r_ids = [it.get('href') or it.get('id') for it in
+              next(x for x in _NG if x['id'] == 'resource')['items']]
+    check(_r_ids.index('/logan') == _r_ids.index('/virome') + 1,
+          f'LOGAN 溯源紧随 Open-Virome（实际 {_r_ids}）')
 
     # ---------- 3b. 模块历史运行组件（折叠/衔接/删除） ----------
     import os as _os
@@ -271,11 +291,11 @@ def main():
                   ('/annotation', 1), ('/genome', 1), ('/primer', 1)]:
         h = c.get(pg).get_data(as_text=True)
         check(h.count('class="rh" id="rh-') == n, f'{pg} 历史容器 {n} 个')
-    _os.makedirs(_os.path.join(PLATFORM_ROOT, 'run', 'tool_runs', 'it_rh_chk'),
+    _os.makedirs(_os.path.join(DIRS['tool_runs'], 'it_rh_chk'),
                  exist_ok=True)
     r = c.post('/api/tool/runs/it_rh_chk/delete')
     check(r.status_code == 200
-          and not _os.path.isdir(_os.path.join(PLATFORM_ROOT, 'run', 'tool_runs',
+          and not _os.path.isdir(_os.path.join(DIRS['tool_runs'],
                                                'it_rh_chk')),
           '运行目录删除 API')
     r = c.post('/api/tool/runs/no_such_run/delete')
@@ -389,7 +409,7 @@ def main():
     check('CARD_EXAMPLES' in _exjs or 'var MAP' in _exjs,
           'examples.js 定义卡片示例映射')
     check('examples.js' in hv, '/tools 接入 examples.js')
-    for _fn in ('example_R1.fastq.gz', 'example_R2.fastq.gz'):
+    for _fn in ('example_sim100x_R1.fastq.gz', 'example_sim100x_R2.fastq.gz'):
         check(_os.path.isfile(_os.path.join(EX, _fn)), f'示例测序数据存在: {_fn}')
     from Virus_Platform_Core.utils import iter_fasta as _if
     _n_cmv = len(list(_if(_os.path.join(EX, 'example_cmv.fasta'))))
@@ -409,15 +429,16 @@ def main():
     check(_r.status_code == 200, '示例结果单文件可取')
 
     # 在线工具（BLASTN·BLASTX）与 LOGAN 的示例也要有输入与产物
-    # （CDD 卡已于 2026-09-29 下线，示例映射同步移除）
+    # （CDD 卡已于 2026-09-29 下线，示例映射同步移除；
+    #  2026-11-03：t-hom 卡并入 t-verify，homSeqText 映射随迁到 t-verify 行）
     check(_os.path.isfile(_os.path.join(EX, 'example_contig_1.fasta')),
           '单 contig 示例文件存在（BLAST 粘贴用）')
     check("homSeqText: 'CONTIGS_TEXT'" in _exjs and
-          "cddSeqText" not in _exjs,
-          't-hom 示例填入序列正文（textarea），t-cdd 映射已移除')
-    check("'t-hom': 'hom'" in _exjs and
+          "cddSeqText" not in _exjs and "'t-hom'" not in _exjs,
+          '深查示例映射随迁 t-verify（homSeqText→CONTIGS_TEXT），t-hom 键已删')
+    check("'t-hom': 'hom'" not in _exjs and
           "'/logan': 'logan'" in _exjs,
-          'RESULT_MAP 覆盖 hom / logan')
+          'RESULT_MAP 覆盖 logan，t-hom 键已删')
     _r = c.get('/api/examples/logan')
     _lgan = (_r.get_json() or {}).get('files', []) if _r.status_code == 200 else []
     check(any(f['path'].endswith('.html') and f['kind'] == 'html'
@@ -447,11 +468,24 @@ def main():
           '前端可切换本地 / 在线引擎（hom_engine）')
     check('oa_lib_bfvd' in c.get('/annotation').get_data(as_text=True)
           and 'vf_methods' in hv and 'vc_methods' in hv,
-          '前端含 BFVD 注释层勾选框与验证方法下拉（blastx/BFVD 双路）')
+          '前端含 BFVD 注释层勾选框与验证方法下拉（blastx/BFVD/CDD 三路）')
     _seq1 = ''.join(
         ln.strip() for ln in open(_os.path.join(EX, 'example_contig_1.fasta'),
                                   encoding='utf-8')
         if ln.strip() and not ln.startswith('>'))
+    # 先真跑一次本地 blastn（异步任务）——结果缓存落在隔离 _seq_input 下。
+    # 原实现直接 GET analysis：隔离环境里没有历史缓存，必 404/0 命中
+    # （2026-11-03 修：分析从未在此前任何节里触发过）。
+    _ar = c.post('/api/tool/analyze', json={
+        'run': 'it_platform_seqcache', 'contig': 'example_contig_1',
+        'action': 'blastn', 'engine': 'local', 'seq': _seq1})
+    _tk = (_ar.get_json() or {}).get('task')
+    if _tk:
+        for _ in range(120):
+            _tj = c.get(f'/api/task/{_tk}').get_json() or {}
+            if (_tj.get('status') or '') in ('done', 'failed'):
+                break
+            time.sleep(0.5)
     _r = c.get('/api/tool/analysis',
                query_string={'contig': 'example_contig_1', 'action': 'blastn',
                              'engine': 'local', 'seq': _seq1})

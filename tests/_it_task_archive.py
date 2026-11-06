@@ -57,7 +57,8 @@ assert not os.path.isfile(os.path.join(tmp, '_archive', tid + '.json')), '恢复
 # 运行中的任务不允许归档
 m.tasks[tid]['status'] = 'running'
 ok, msg = m.archive(tid)
-assert not ok and '运行中' in msg, (ok, msg)
+# 守卫文案已扩为「运行/暂停中」（暂停态同样不允许归档），按新口径断言
+assert not ok and '运行/暂停中' in msg, (ok, msg)
 m.tasks[tid]['status'] = 'done'
 
 # delete 两个目录都清

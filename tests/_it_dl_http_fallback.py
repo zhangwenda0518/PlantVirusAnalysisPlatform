@@ -125,6 +125,11 @@ def read(p):
         return f.read()
 
 
+# _dl_python 现按批次状态响应暂停/取消（2026-11-06 签名变更）：测试用最小
+# 批次 dict 传入；状态恒为 downloading，读循环不会被暂停分支中止。
+B = {'status': 'downloading'}
+
+
 D = os.path.join(WORKROOT, 'dl')
 os.makedirs(D, exist_ok=True)
 
@@ -132,7 +137,7 @@ os.makedirs(D, exist_ok=True)
 print('\n== 1) 全新下载 ==', flush=True)
 out1 = os.path.join(D, 'fresh.bin')
 f1 = fe(out1, expect=len(PAYLOAD))
-ok = mgr()._dl_python(f1)
+ok = mgr()._dl_python(B, f1)
 check('（1）返回成功', ok is True, str(f1.get('error')))
 check('（1）字节与源文件完全一致',
       os.path.isfile(out1) and read(out1) == PAYLOAD,
@@ -152,7 +157,7 @@ with open(out2 + '.aria_part', 'wb') as f:
     f.write(PAYLOAD[:half])                 # 模拟上次中断留下的半截
 REQUESTS.clear()
 f2 = fe(out2, expect=len(PAYLOAD))
-ok = mgr()._dl_python(f2)
+ok = mgr()._dl_python(B, f2)
 check('（2）返回成功', ok is True, str(f2.get('error')))
 check('（2）确实发出了 Range 请求（走了续传分支）',
       any(r.startswith('bytes=') for r in REQUESTS), str(REQUESTS[:2]))
@@ -177,7 +182,7 @@ out3 = os.path.join(D, 'done416.bin')
 with open(out3 + '.aria_part', 'wb') as f:
     f.write(PAYLOAD)                        # 本地已是完整文件
 f3 = fe(out3, expect=len(PAYLOAD))
-ok = mgr()._dl_python(f3)
+ok = mgr()._dl_python(B, f3)
 check('（3）返回成功', ok is True, str(f3.get('error')))
 check('（3）直接改名到位且内容完整',
       os.path.isfile(out3) and read(out3) == PAYLOAD)
@@ -186,13 +191,13 @@ check('（3）直接改名到位且内容完整',
 print('\n== 4) 精确总量（expect_bytes）优先 ==', flush=True)
 out4 = os.path.join(D, 'keepsize.bin')
 f4 = fe(out4, expect=len(PAYLOAD), size=999)   # size 故意是错的近似值
-mgr()._dl_python(f4)
+mgr()._dl_python(B, f4)
 check('（4）size 未被 content-length 覆盖（仍是 999）', f4['size'] == 999,
       str(f4['size']))
 check('（4）文件仍然完整', read(out4) == PAYLOAD)
 out4b = os.path.join(D, 'nosize.bin')
 f4b = fe(out4b, expect=0, size=0)              # 无精确值 → 用 content-length
-mgr()._dl_python(f4b)
+mgr()._dl_python(B, f4b)
 check('（4）无精确值时用 content-length 填 size',
       f4b['size'] == len(PAYLOAD), str(f4b['size']))
 
@@ -200,7 +205,7 @@ check('（4）无精确值时用 content-length 填 size',
 print('\n== 5) 404 失败 ==', flush=True)
 out5 = os.path.join(D, 'missing.bin')
 f5 = fe(out5, url=f'{BASE}/missing')
-ok = mgr()._dl_python(f5)
+ok = mgr()._dl_python(B, f5)
 check('（5）返回失败', ok is False)
 check('（5）error 可读', 'HTTP 下载失败' in (f5.get('error') or ''),
       str(f5.get('error'))[:80])

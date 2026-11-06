@@ -75,7 +75,7 @@ def main():
 
     try:
         with sync_playwright() as p:
-            b = p.chromium.launch()
+            b = p.chromium.launch(args=['--no-proxy-server'])
             pg = b.new_page(viewport={'width': 1100, 'height': 900})
             errs = []
             pg.on('pageerror', lambda e: errs.append(str(e)))

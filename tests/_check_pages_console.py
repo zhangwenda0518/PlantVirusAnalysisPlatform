@@ -79,7 +79,7 @@ def main():
         # 受限环境下 chromium 的沙箱与 /dev/shm 会引发随机段错误
         browser = pw.chromium.launch(
             headless=True,
-            args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'])
+            args=['--no-proxy-server', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'])
         ctx = browser.new_context(viewport={'width': 1440, 'height': 900})
         page = ctx.new_page()
         issues = []
@@ -111,13 +111,15 @@ def main():
             issues.clear()
             stale_task_404[0] = False
             try:
-                page.goto(BASE + p, wait_until='networkidle', timeout=20000)
+                page.goto(BASE + p, wait_until='networkidle', timeout=30000)
             except Exception as e:
                 # networkidle 对轮询页可能超时：退回 load
                 try:
                     issues.clear()
                     stale_task_404[0] = False
-                    page.goto(BASE + p, wait_until='load', timeout=20000)
+                    # 并发巡检时 /logan 这类重页会慢到 20s 以上（实测 8 并发偶发），
+                    # 放宽到 30s；真坏掉的页面仍会被 180s 的子进程超时兜住
+                    page.goto(BASE + p, wait_until='load', timeout=30000)
                     page.wait_for_timeout(800)
                 except Exception as e2:
                     # 截 400 字符：截 120 时 URL 恰好被切在 "http://127.0.0.1:"
@@ -171,8 +173,66 @@ def main():
     print(f'✔ 全部 {len(pages)} 个页面加载无 JS 报错，全局函数抽查通过')
 
 
+def _start_local_server():
+    """父进程起一个 Flask 实例供全部子进程复用（子进程传 --base）。
+
+    改前是每个子进程各起一个服务：21 页 = 21 次「import app + 建服务」，
+    实测占巡检总耗时三成以上（2026-11-05 实测 267s / 21 页）。
+    服务与浏览器进程解耦后，「一页一进程」规避 chromium 段错误的做法不变，
+    只是不再重复付启动开销。
+    """
+    import threading
+    from werkzeug.serving import make_server
+    import app as app_module
+    srv = make_server('127.0.0.1', 0, app_module.app, threaded=True)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, f'http://127.0.0.1:{srv.server_port}'
+
+
+def _check_one_page(idx, page, base, me, total):
+    """跑一页（独立子进程），返回 (idx, page, ok, msg)。
+
+    子进程输出必须落**文件**而不是管道（2026-10-24 修）：playwright 拉起的
+    chrome 是孙进程，会继承管道句柄——子进程超时被 kill 后管道写端仍被
+    chrome 握着，subprocess.run 要等 EOF 就**永久挂死**。文件句柄没这个问题。
+    """
+    import tempfile
+    log = os.path.join(tempfile.gettempdir(),
+                       f'_vp_page_{idx:02d}_{os.getpid()}.log')
+    cmd = [sys.executable, me, '--page', page, '--base', base]
+    msg, rc = '', None
+    with open(log, 'w', encoding='utf-8', errors='replace') as fh:
+        proc = subprocess.Popen(cmd, stdout=fh, stderr=fh,
+                                stdin=subprocess.DEVNULL)
+        try:
+            rc = proc.wait(timeout=180)
+        except subprocess.TimeoutExpired:
+            subprocess.run(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
+                           capture_output=True)
+            try:
+                proc.wait(timeout=20)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+            rc, msg = proc.returncode, 'TIMEOUT（180s）'
+    with open(log, encoding='utf-8', errors='replace') as fh:
+        lines = [ln for ln in fh.read().splitlines() if ln.strip()]
+    last = lines[-1] if lines else ''
+    # 判据是子进程自报的末行结论（`OK ` / `BAD `），不是 returncode
+    if msg == '' and last.startswith('OK ') and rc == 0:
+        return idx, page, True, ''
+    if msg == '':
+        msg = last[4:] if last.startswith('BAD ') else (
+            last or f'子进程无结论输出（rc={rc}）')
+    return idx, page, False, msg
+
+
 def run_isolated():
-    """逐页独立进程巡检：规避同进程内连续访问导致的 chromium 随机段错误。"""
+    """逐页独立进程巡检：规避同进程内连续访问导致的 chromium 随机段错误。
+
+    并发：页面之间互不依赖（各自一个进程 + 各自浏览器上下文），父进程
+    起一个共享服务后按 `--jobs N`（默认 4）并发派发。并发度上限的约束是
+    内存（每个 chromium 约 200–300 MB）与共享服务的线程数，不是正确性。
+    """
     try:
         import playwright  # noqa: F401
     except ImportError:
@@ -181,50 +241,36 @@ def run_isolated():
         print('[SKIP] 未安装 playwright，跳过真浏览器页面巡检')
         print('       安装: python -m pip install -r requirements-dev.txt')
         return 0
+    from concurrent.futures import ThreadPoolExecutor
+
+    # 8 并发在本机把 /logan 压到 20s 以上（偶发假红，2026-11-05 实测），
+    # 取 CPU//3 封顶 6：实测 6 并发 99s、8 并发 75s，稳定性优先。
+    jobs = max(2, min(6, (os.cpu_count() or 4) // 3))
+    if '--jobs' in sys.argv:
+        try:
+            jobs = max(1, int(sys.argv[sys.argv.index('--jobs') + 1]))
+        except (IndexError, ValueError):
+            pass
     pages = pages_to_check()
-    print(f'逐页独立进程巡检，共 {len(pages)} 页（每页一个新进程）')
     me = os.path.abspath(__file__)
+    srv, base = _start_local_server()
+    print(f'逐页独立进程巡检，共 {len(pages)} 页'
+          f'（共享服务 {base}，并发 {jobs}）', flush=True)
     bad = []
-    import tempfile
-    for i, p in enumerate(pages, 1):
-        # 子进程输出必须落**文件**而不是管道（2026-10-24 修）：playwright
-        # 拉起的 chrome 是孙进程，会继承管道句柄——子进程超时被 kill 后
-        # 管道写端仍被 chrome 握着，subprocess.run 要等 EOF 就**永久挂死**
-        # （实测批量回归卡在这里 6 分钟无输出）。文件句柄没有这个问题。
-        log = os.path.join(tempfile.gettempdir(), f'_vp_page_{i:02d}.log')
-        msg = ''
-        rc = None
-        cmd = [sys.executable, me, '--page', p]
-        if BASE:
-            cmd += ['--base', BASE]      # 子进程也要巡检同一个实例
-        with open(log, 'w', encoding='utf-8', errors='replace') as fh:
-            proc = subprocess.Popen(
-                cmd, stdout=fh, stderr=fh, stdin=subprocess.DEVNULL)
-            try:
-                rc = proc.wait(timeout=180)
-            except subprocess.TimeoutExpired:
-                # taskkill /T 连 chrome 孙进程一起收掉，不留僵尸
-                subprocess.run(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
-                               capture_output=True)
-                try:
-                    proc.wait(timeout=20)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-                rc, msg = proc.returncode, 'TIMEOUT（180s）'
-        with open(log, encoding='utf-8', errors='replace') as fh:
-            lines = [ln for ln in fh.read().splitlines() if ln.strip()]
-        last = lines[-1] if lines else ''
-        # 判据是子进程自报的末行结论（`OK ` / `BAD `），不是 returncode：
-        # `--page` 模式曾经把 main() 的返回值丢掉（见文件末尾修注），
-        # 于是无论页面坏成什么样 returncode 都是 0。现在两者都查。
-        if msg == '' and last.startswith('OK ') and rc == 0:
-            print(f'[{i:2d}/{len(pages)}] {p:28s} ✔', flush=True)
-        else:
-            if msg == '':
-                msg = last[4:] if last.startswith('BAD ') else (
-                    last or f'子进程无结论输出（rc={rc}）')
-            print(f'[{i:2d}/{len(pages)}] {p:28s} ✘ {msg[:240]}', flush=True)
-            bad.append((p, msg))
+    try:
+        with ThreadPoolExecutor(max_workers=jobs) as ex:
+            futs = [ex.submit(_check_one_page, i, p, base, me, len(pages))
+                    for i, p in enumerate(pages, 1)]
+            for fut in futs:
+                i, p, ok, msg = fut.result()
+                if ok:
+                    print(f'[{i:2d}/{len(pages)}] {p:28s} ✔', flush=True)
+                else:
+                    print(f'[{i:2d}/{len(pages)}] {p:28s} ✘ {msg[:240]}',
+                          flush=True)
+                    bad.append((p, msg))
+    finally:
+        srv.shutdown()
     print('=' * 64)
     if bad:
         print(f'✘ {len(bad)}/{len(pages)} 个页面有问题:')

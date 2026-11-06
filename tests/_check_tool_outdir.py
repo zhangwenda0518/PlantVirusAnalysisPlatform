@@ -13,18 +13,22 @@ import json
 import os
 import shutil
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, os.getcwd())
 os.environ['VP_NO_RECOVER'] = '1'
+# 隔离（2026-11-06 归账）：整根进临时目录；「外部输出目录」也必须落在
+# 输出根之内（check_path 白名单语义），因此放在隔离根下的独立子目录。
+os.environ['VP_RUN_ROOT'] = tempfile.mkdtemp(prefix='vp_toolout_')
 
 import app as appmod
 from Virus_Platform_Core.web.state import tool_runs_root
 
 c = appmod.app.test_client()
-R1 = os.path.join(os.getcwd(), 'examples', 'example_R1.fastq.gz')
-R2 = os.path.join(os.getcwd(), 'examples', 'example_R2.fastq.gz')
-OUT = os.path.join(os.getcwd(), 'run', '_uitest_toolout')
+R1 = os.path.join(os.getcwd(), 'examples', 'example_sim100x_R1.fastq.gz')
+R2 = os.path.join(os.getcwd(), 'examples', 'example_sim100x_R2.fastq.gz')
+OUT = os.path.join(os.environ['VP_RUN_ROOT'], 'uitest_toolout')
 shutil.rmtree(OUT, ignore_errors=True)
 os.makedirs(OUT, exist_ok=True)
 

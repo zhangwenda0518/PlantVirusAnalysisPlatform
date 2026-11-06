@@ -73,6 +73,13 @@ def check(name, cond, extra=''):
 def free_port(start=8791):
     for p in range(start, start + 60):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # connect 探测先行（2026-11-05）：Windows 上 0.0.0.0 已被别的
+            # 进程绑定的端口，bind('127.0.0.1') 探测会误判空闲——起上去后
+            # 请求被 wildcard 持有者截走，测试打到别人的服务上（教训：用户
+            # 常驻的 docs http.server 恰占 8901+ 段，套件实例全 404）。
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as c:
+                if c.connect_ex(('127.0.0.1', p)) == 0:
+                    continue
             try:
                 s.bind(('127.0.0.1', p))
                 return p
@@ -129,7 +136,10 @@ return {
   chip: r(document.getElementById('navCtxSample')),
   reset: r(document.getElementById('navCtxReset')),
   lang: r(document.getElementById('langBtn')),
-  icon: r(document.querySelector('.topbar .iconbtn, .navtail .iconbtn')),
+  // 2026-11-03：改抓 .navtail a.iconbtn（📂 打开平台目录）——首页按
+  // 2026-11-02 定案刻意隐藏 AI 工作台按钮（button.iconbtn.nav-ai-btn），
+  // 原先 querySelector 抓到的第一个 iconbtn 在 / 上恒为 None。
+  icon: r(document.querySelector('.navtail a.iconbtn')),
 };
 """
 
@@ -363,6 +373,18 @@ return {
   navTopVar: getComputedStyle(document.documentElement)
                .getPropertyValue('--nav-top-h').trim(),
   overflowX: document.documentElement.scrollWidth - window.innerWidth,
+  // 2026-11-03 诊断：nav 上方压了什么（elementsFromPoint + id/几何）
+  atPoint: document.elementsFromPoint(60, 10).slice(0, 3).map(el => {
+    const r = el.getBoundingClientRect();
+    return el.tagName + '#' + (el.id || '') + '.' + (el.className || '')
+      + '[' + Math.round(r.width) + 'x' + Math.round(r.height)
+      + '@' + Math.round(r.top) + ']';
+  }).join(' | '),
+  navOffsetTop: nav.offsetTop,
+  navParent: nav.offsetParent
+    ? (nav.offsetParent.tagName + '.' + (nav.offsetParent.className || ''))
+    : 'null',
+  scrollY: Math.round(window.scrollY),
   links: links.length,
   vw: window.innerWidth,
 };
@@ -381,8 +403,11 @@ def check_top_mode(drv, W, base, page, w):
         check(f'{page} 顶部 {w}px 能测量', False, str(m))
         return
     det = (f"mode={m['mode']} dir={m['dir']} nav={m['navW']}x{m['navH']} "
+           f"top={m['navTop']} left={m['navLeft']} "
            f"padL={m['bodyPadLeft']} topbarTop={m['topbarTop']} "
-           f"var={m['navTopVar']} ovX={m['overflowX']}")
+           f"var={m['navTopVar']} ovX={m['overflowX']} "
+           f"at={m.get('atPoint')} offT={m.get('navOffsetTop')} "
+           f"par={m.get('navParent')} scY={m.get('scrollY')}")
     check(f'{page} 顶部 {w}px 形态生效（data-nav=top）',
           m['mode'] == 'top', det)
     check(f'{page} 顶部 {w}px 横排（flex-direction: row）',
@@ -587,6 +612,12 @@ def main():
         # 左侧竖排写，先把它固定成 side 再测（同一 origin，后续导航沿用）。
         drv.get(base + PAGES[0])
         time.sleep(0.8)
+        # 磁盘水位警示条（storage-banner，真实盘告警时异步出现）会横插在
+        # body 顶部把 nav 压下去——本测试测的是导航几何，先按「知道了」
+        # 处理掉（警示条本身另有行为测试），保证断言确定性。
+        W("try{sessionStorage.setItem('stBannerDismissed','1');"
+          "document.getElementById('storage-banner')&&"
+          "document.getElementById('storage-banner').remove()}catch(e){}")
         W("localStorage.setItem('vp_nav_pos','side')")
 
         for page in PAGES:
@@ -740,6 +771,11 @@ def main():
 
         # ---------- C. 顶部形态（2026-10-28 起的默认形态） ----------
         print('\n=== C. 顶部形态 ===')
+        # 顶部形态组开头再打一次「知道了」（同标签页 sessionStorage 持久，
+        # 保险起见重复设置；banner 若已挂出则一并摘除）
+        W("try{sessionStorage.setItem('stBannerDismissed','1');"
+          "document.getElementById('storage-banner')&&"
+          "document.getElementById('storage-banner').remove()}catch(e){}")
         W("localStorage.setItem('vp_nav_pos','top')")
         for page in PAGES[:2]:
             for w in (1600, 1280):

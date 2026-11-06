@@ -90,6 +90,13 @@ def check(cond, msg):
 def free_port(start=8861):
     for p in range(start, start + 40):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # connect 探测先行（2026-11-05）：Windows 上 0.0.0.0 已被别的
+            # 进程绑定的端口，bind('127.0.0.1') 探测会误判空闲——起上去后
+            # 请求被 wildcard 持有者截走，测试打到别人的服务上（教训：用户
+            # 常驻的 docs http.server 恰占 8901+ 段，套件实例全 404）。
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as c:
+                if c.connect_ex(('127.0.0.1', p)) == 0:
+                    continue
             try:
                 s.bind(('127.0.0.1', p))
                 return p
@@ -163,7 +170,8 @@ def main() -> int:
 
     try:
         with sync_playwright() as pw:
-            b = pw.chromium.launch(headless=True)
+            b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
             pg = b.new_page(viewport={'width': 1600, 'height': 1100})
             errs = []
             pg.on('pageerror', lambda e: errs.append(str(e)))

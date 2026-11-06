@@ -69,8 +69,8 @@ def main():
         inp2 = drv.find_element(By.ID, 'cv_input2')
         check('R2 输入框渲染', inp2.is_displayed())
 
-        r1 = os.path.join(ROOT, 'examples', 'example_R1.fastq.gz')
-        r2 = os.path.join(ROOT, 'examples', 'example_R2.fastq.gz')
+        r1 = os.path.join(ROOT, 'examples', 'example_sim100x_R1.fastq.gz')
+        r2 = os.path.join(ROOT, 'examples', 'example_sim100x_R2.fastq.gz')
         drv.execute_script('arguments[0].value = arguments[1];',
                            drv.find_element(By.ID, 'cv_input'), r1)
         drv.execute_script('arguments[0].value = arguments[1];', inp2, r2)
@@ -82,13 +82,30 @@ def main():
             txt = d.find_element(By.ID, 'toolrun-convert').text
             return ('已完成' in txt or 'failed' in txt.lower()) and 'fa.gz' in txt
         wait.until(done)
-        box = drv.find_element(By.ID, 'toolrun-convert').text
-        check('输出区列出 R1 产物', 'example_R1.fa.gz' in box)
-        check('输出区列出 R2 产物', 'example_R2.fa.gz' in box)
-        check('运行日志含两条转换命令（R1 与 R2）',
-              box.count('fq2fa') >= 2 and 'example_R1' in box
-              and 'example_R2' in box,
-              f"fq2fa 出现 {box.count('fq2fa')} 次")
+        # 2026-11-06 口径更新：已完成任务的卡内日志只保留尾 5 行（tasks.py
+        # list_all 瘦身），R1 的 [CMD] 行通常已滑出窗口；产物按钮也收进
+        # 「其他文件」<details> 折叠（collapsed 内容不进 innerText）。检查
+        # 随产品演进：点开折叠后断言两个产物按钮可见；两条 fq2fa 命令改从
+        # 完整任务日志断言（任务卡「日志」可单独拉全量，用户路径不变）。
+        box_el = drv.find_element(By.ID, 'toolrun-convert')
+        for s in box_el.find_elements(By.TAG_NAME, 'summary'):
+            drv.execute_script('arguments[0].click();', s)   # 展开全部折叠
+        box = box_el.text
+        check('输出区列出 R1 产物', 'example_sim100x_R1.fa.gz' in box)
+        check('输出区列出 R2 产物', 'example_sim100x_R2.fa.gz' in box)
+        tid = drv.execute_script(
+            "return fetch('/api/tasks').then(r=>r.json()).then(ts=>{"
+            " const arr=ts.active||ts||[]; const t=arr.filter("
+            " x=>x.name && x.name.indexOf('格式转换')>=0)[0]||{};"
+            " return t.id||'';})")
+        n_cmd = 0
+        if tid:
+            full_log = drv.execute_script(
+                "return fetch('/api/task/' + arguments[0] + '/log')"
+                ".then(r=>r.json()).then(d=>(d.log||[]).join('\\n'));", tid)
+            n_cmd = full_log.count('fq2fa')
+        check('运行日志含两条转换命令（R1 与 R2）', n_cmd >= 2,
+              f'完整日志 fq2fa 出现 {n_cmd} 次')
         check('任务状态为已完成', '已完成' in box)
     finally:
         drv.quit()

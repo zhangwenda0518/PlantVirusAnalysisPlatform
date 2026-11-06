@@ -89,7 +89,7 @@ def main():
         wait.until(lambda d: d.find_elements(By.ID, 'cv_input'))
         drv.execute_script("showModule && showModule('t-convert')")
         time.sleep(0.3)
-        r1 = os.path.join(ROOT, 'examples', 'example_R1.fastq.gz')
+        r1 = os.path.join(ROOT, 'examples', 'example_sim100x_R1.fastq.gz')
         drv.execute_script('arguments[0].value = arguments[1];',
                            drv.find_element(By.ID, 'cv_input'), r1)
         drv.execute_script('arguments[0].value = arguments[1];',

@@ -52,6 +52,12 @@ def skip(label, why):
 
 def free_port(preferred):
     for p in (preferred, 0):
+        # connect 探测先行（2026-11-05）：wildcard(0.0.0.0) 已被占用的端口
+        # 用 bind('127.0.0.1') 探测会误判空闲，起上去后请求被截走（实测教训：
+        # 用户常驻的 docs http.server 在 8901+ 段，套件实例全 404）。
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as c:
+            if c.connect_ex(('127.0.0.1', p)) == 0:
+                continue
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.bind(('127.0.0.1', p))
@@ -197,7 +203,8 @@ ORIGIN
 
     # ── 桩：外部依赖全部替换 ────────────────────────────────────
     CANNED = 'CANNED SUMMARY: public runs collected for this study.'
-    _orig = (ss.build_sqn, ncbi_download.esearch, vpm._meta_deepseek_key,
+    _orig = (ss.build_sqn, ss.suvtk_chain_ready, ncbi_download.esearch,
+             vpm._meta_deepseek_key,
              vpm._meta_ai_chat, vpm._meta_ai_client, vpm._meta_load_df)
     stages_seen = []
 
@@ -225,6 +232,9 @@ ORIGIN
         return {'count': 0, 'ids': []}
 
     ss.build_sqn = stub_build_sqn
+    # BFVD 就绪门一并桩掉：suvtk/BFVD 开发机专属，测试环境必 400
+    # （弹窗会以 UnexpectedAlertPresentException 打断 WebDriver 会话）。
+    ss.suvtk_chain_ready = lambda: True
     ncbi_download.esearch = stub_esearch
     vpm._meta_deepseek_key = lambda: 'stub-key'
     vpm._meta_ai_chat = lambda *x, **k: CANNED
@@ -533,7 +543,8 @@ ORIGIN
             skip('控制台日志', f'{type(e).__name__}')
 
     finally:
-        (ss.build_sqn, ncbi_download.esearch, vpm._meta_deepseek_key,
+        (ss.build_sqn, ss.suvtk_chain_ready, ncbi_download.esearch,
+         vpm._meta_deepseek_key,
          vpm._meta_ai_chat, vpm._meta_ai_client, vpm._meta_load_df) = _orig
         if drv is not None:
             try:

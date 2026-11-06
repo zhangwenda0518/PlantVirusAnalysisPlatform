@@ -14,9 +14,15 @@ I18N = 'webapp/static/i18n.js'
 
 @pytest.fixture(scope='module')
 def card():
+    # 锚点按 id 定位：2026-11 工具卡统一加了 data-guide="…" 属性（帮助抽屉
+    # 按卡取指南），硬编码整段开标签会随属性增删失效。取该 <section> 开
+    # 标签起、到其后第一个 </section> 止（卡内无嵌套 section，结果区是
+    # div#crResult）。
     src = open(TOOLS, encoding='utf-8').read()
-    i = src.index('<section class="card" id="t-crispr">')
-    j = src.index('</section>', i)
+    m = re.search(r'<section\b[^>]*\bid="t-crispr"[^>]*>', src)
+    assert m, 'tools.html 缺少 id="t-crispr" 的工具卡'
+    i = m.start()
+    j = src.index('</section>', m.end())
     return src[i:j]
 
 

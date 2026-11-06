@@ -63,8 +63,8 @@ def main():
     os.makedirs(tmp_root, exist_ok=True)
     orig_root = anchor.root
     anchor.root = lambda: tmp_root                     # noqa: E305  测试专用
-    r1 = os.path.join(ROOT, 'examples', 'example_R1.fastq.gz')
-    r2 = os.path.join(ROOT, 'examples', 'example_R2.fastq.gz')
+    r1 = os.path.join(ROOT, 'examples', 'example_sim100x_R1.fastq.gz')
+    r2 = os.path.join(ROOT, 'examples', 'example_sim100x_R2.fastq.gz')
     sample = 'UI自检样品'
 
     import app as appmod
@@ -96,6 +96,7 @@ def main():
                 var r = b.getBoundingClientRect();
                 return {exists: true, hidden: !!b.hidden, text: (b.innerText || '').trim(),
                         cls: b.className, left: Math.round(r.left),
+                        top: Math.round(r.top),
                         bottom: Math.round(window.innerHeight - r.bottom),
                         vw: window.innerWidth, vh: window.innerHeight,
                         openHref: (document.getElementById('abOpen') || {}).href || '',
@@ -133,15 +134,14 @@ def main():
             check('R1 指纹写对', sha8 in st['text'], sha8)
         else:
             skip('R1 指纹', '后台摘要尚未回填（inputs_state=hashing）')
-        check('贴左下角（left≤40px）', st['left'] <= 40, f"left={st['left']}")
-        check('贴底部（距底≤40px）', st['bottom'] <= 40, f"bottom={st['bottom']}")
-        check('不横跨整屏（宽度留有右边距）', st['left'] <= 40 and st['vw'] > 900,
-              f"vw={st['vw']}")
-        check('「正在分析」可点进结果页',
-              f"/results?sample=" in st['openHref'], st['openHref'][:120])
-        check('「核对」指向 verify 接口',
-              st['verHref'].endswith('/verify') and '/api/anchor/' in st['verHref'],
-              st['verHref'][:120])
+        # 2026-10-30 改版：常驻条改到右下角且**可拖动**（vpDraggable），位置
+        # 断言不再有意义；「正在分析」跳任务中心、「核对」跳该样品结果页。
+        check('条子落在视口内', 0 <= st['left'] < st['vw'] and 0 <= st['top'],
+              f"left={st['left']} top={st['top']} vw={st['vw']}")
+        check('「正在分析」跳任务中心（进度页）',
+              st['openHref'].endswith('/tasks'), st['openHref'][:120])
+        check('「核对」跳该样品的结果页',
+              f"/results?sample=" in st['verHref'], st['verHref'][:120])
 
         # ---- 场景 3：结束 → 变"刚完成"，几秒内仍显示 ----
         print('== 场景 3：跑完了 ==', flush=True)

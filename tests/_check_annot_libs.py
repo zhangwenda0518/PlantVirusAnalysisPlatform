@@ -49,7 +49,8 @@ def main() -> int:
             fails.append(msg)
 
     with sync_playwright() as pw:
-        b = pw.chromium.launch(headless=True)
+        b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
         pg = b.new_page(viewport={'width': 1600, 'height': 1100})
         errs = []
         pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)

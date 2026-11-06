@@ -50,6 +50,9 @@ examples/_work/
 /archive/
 _audit_20260909/
 _backup_before_*/
+# 会话级 scratch 归档（2026-11-06 发布边界清理产物；点前缀 = 依赖审计与
+# 打包预检都不扫描，防污染）
+.scratch_archive_*/
 git-repo/
 # archive/ 统一收纳（2026-09-27 起）：模块归档（_retire_*）、手工备份（_bak_*）、
 # 运行残留（_run_dev_leftovers_*）与更早的根目录快照（20260919_root）。
@@ -187,3 +190,11 @@ plugins/_registry.json
 
 # 测试隔离报告（tests/conftest.py 每次 pytest 覆盖写）——诊断产物，不入库
 tests/_isolation_report.txt
+
+# ---------- RDP5 运行时临时产物（2026-11-06） ----------
+# rdp5_54be80a8_* / NF9336275460* / RDP5*933627546* 是本机跑 RDP5 分析时
+# 落在工具目录里的会话输出（输入/中间统计），不是分发资产。
+3rd/tools/rdp5/rdp5_*
+3rd/tools/rdp5/NF[0-9]*
+3rd/tools/rdp5/RDP5*[0-9]*
+tests/_ui_review_shots/

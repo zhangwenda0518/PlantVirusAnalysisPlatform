@@ -35,8 +35,8 @@ def main():
     from Virus_Platform_Core.config import DIRS
     from Virus_Platform_Core.utils import check_path, safe_sample_name
     from Virus_Platform_Core.pipeline import save_sample_input
-    r1 = os.path.join(ROOT, 'examples', 'example_R1.fastq.gz')
-    r2 = os.path.join(ROOT, 'examples', 'example_R2.fastq.gz')
+    r1 = os.path.join(ROOT, 'examples', 'example_sim100x_R1.fastq.gz')
+    r2 = os.path.join(ROOT, 'examples', 'example_sim100x_R2.fastq.gz')
     sample = safe_sample_name(SAMPLE)
     sd = check_path(os.path.join(DIRS['results'], sample),
                     must_exist=False, in_platform=True)

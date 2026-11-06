@@ -6,7 +6,7 @@
 反复写入，而 /api/tasks 是新→旧序 —— 旧任务后写覆盖新任务。修复为每容器
 只吃第一个（最新）匹配任务。
 
-本测试真实连跑两次转换（example_R1 → example_R2，FASTQ→FASTA，seqkit
+本测试真实连跑两次转换（example_sim100x_R1 → example_sim100x_R2，FASTQ→FASTA，seqkit
 本地秒级），断言最终输出区显示**第二次** run 的名称与日志。
 
 用法: python tests/_check_toolrun_latest.py
@@ -97,20 +97,20 @@ def main():
         drv.execute_script("showModule && showModule('t-convert')")
         time.sleep(0.5)
 
-        r1 = os.path.join(ROOT, 'examples', 'example_R1.fastq.gz')
-        r2 = os.path.join(ROOT, 'examples', 'example_R2.fastq.gz')
-        print('== 第一次转换（example_R1） ==', flush=True)
+        r1 = os.path.join(ROOT, 'examples', 'example_sim100x_R1.fastq.gz')
+        r2 = os.path.join(ROOT, 'examples', 'example_sim100x_R2.fastq.gz')
+        print('== 第一次转换（example_sim100x_R1） ==', flush=True)
         run_convert(r1)
         box1 = drv.find_element(By.ID, 'toolrun-convert').text
-        check('第一次 run 显示在输出区', 'example_R1' in box1)
+        check('第一次 run 显示在输出区', 'example_sim100x_R1' in box1)
 
-        print('== 第二次转换（example_R2） ==', flush=True)
+        print('== 第二次转换（example_sim100x_R2） ==', flush=True)
         run_convert(r2)
         box2 = drv.find_element(By.ID, 'toolrun-convert').text
-        check('输出区已切换为第二次 run（example_R2）',
-              'example_R2' in box2, box2[:100].replace('\n', ' | '))
+        check('输出区已切换为第二次 run（example_sim100x_R2）',
+              'example_sim100x_R2' in box2, box2[:100].replace('\n', ' | '))
         check('第二次完成后不再回显第一次的日志',
-              'example_R1' not in box2 or 'example_R2' in box2)
+              'example_sim100x_R1' not in box2 or 'example_sim100x_R2' in box2)
         check('输出区状态为已完成（新任务）',
               '已完成' in box2 or 'done' in box2.lower())
     finally:

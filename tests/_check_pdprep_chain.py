@@ -24,6 +24,7 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 import app as appmod                                        # noqa: E402
+from Virus_Platform_Core.config import DIRS                 # noqa: E402
 
 WORK = os.path.join(ROOT, 'run', '_check_prep_chain')
 PASS, FAIL = [], []
@@ -52,7 +53,7 @@ def run_tool(c, tool, params, timeout=300):
 
 
 def readsum(run, name='summary.json'):
-    p = os.path.join(ROOT, 'run', 'tool_runs', run, 'pdprep', name)
+    p = os.path.join(DIRS['tool_runs'], run, 'pdprep', name)
     return json.load(io.open(p, encoding='utf-8')) if os.path.isfile(p) else None
 
 
@@ -120,9 +121,9 @@ def main():
     sb = s3.get('subsample') or {}
     chk(sb.get('n_in') == len(names) and sb.get('n_out') == 6,
         f"降采样 {sb.get('n_in')} → {sb.get('n_out')}（random n=6）")
-    sf = os.path.join(ROOT, 'run', 'tool_runs', run3, 'pdprep',
+    sf = os.path.join(DIRS['tool_runs'], run3, 'pdprep',
                       'sequences.subsampled.fasta')
-    sm = os.path.join(ROOT, 'run', 'tool_runs', run3, 'pdprep',
+    sm = os.path.join(DIRS['tool_runs'], run3, 'pdprep',
                       'metadata.subsampled.csv')
     chk(os.path.isfile(sf) and os.path.isfile(sm), '子集 fasta + metadata 都落盘')
     if os.path.isfile(sm):
@@ -173,7 +174,7 @@ def main():
         f"删掉 Unknown 层级后只剩国名 → country_only：{gv.get('location_issue')}")
     chk(any('占位符' in w for w in gv.get('warnings') or []),
         '地点被清空有明确告警（不静默）')
-    md = os.path.join(ROOT, 'run', 'tool_runs', r6, 'pdprep', 'metadata.csv')
+    md = os.path.join(DIRS['tool_runs'], r6, 'pdprep', 'metadata.csv')
     txt = io.open(md, encoding='utf-8-sig').read() if os.path.isfile(md) else ''
     chk('2013-05-01' in txt and 'Yyyy-Mm-Dd' not in txt,
         '归一后的元数据里是 ISO，且占位符行没混进来')

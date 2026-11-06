@@ -5,7 +5,8 @@
 1. 点 📋 后，文件输入行下方出现独立 textarea，高度 ≥ 220px（与 BLAST 卡一致）；
 2. 粘贴内容后自动写入临时文件，输入框回填 uploads/paste_*.fasta 路径；
 3. 再点一次 📋 收起；Esc 收起。
-（参照卡原为 t-cdd，CDD 卡下线后改用 t-hom 的文本框，2026-09-29。）
+（参照卡原为 t-cdd，2026-09-29 改用 t-hom 文本框；2026-11-03 t-hom 并入
+t-verify 后，参照改为其「单条深查」面板的文本框。）
 用法：python tests/_check_paste_box.py
 """
 import sys
@@ -22,21 +23,24 @@ for _stream in (sys.stdout, sys.stderr):
 
 
 ORF = 'http://127.0.0.1:8765/orf'
-HOM = 'http://127.0.0.1:8765/tools?g=annotate#t-hom'
+# 2026-11-03：参照卡改为 t-verify 单条深查模式（原 t-hom 卡已并入该卡）
+HOM = 'http://127.0.0.1:8765/tools?g=virus#t-verify'
 SEQ = '>demo_seq\nATGGCTAGCTAGCTAGCTAGCATCGATCGATCGATCGTAGCTAGCTAGCTAA\n'
 
 
 def main() -> int:
     fails = []
     with sync_playwright() as pw:
-        b = pw.chromium.launch(headless=True)
+        b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
         pg = b.new_page(viewport={'width': 1600, 'height': 1200})
         errs = []
         pg.on('pageerror', lambda e: errs.append(str(e)))
 
-        # 参考尺寸：BLAST 卡的序列文本框
+        # 参考尺寸：BLAST 卡的序列文本框（深查面板默认隐藏，先切过去）
         pg.goto(HOM, wait_until='domcontentloaded')
         pg.evaluate("try{localStorage.setItem('vp_example_seen','1')}catch(e){}")
+        pg.evaluate("typeof vfSetMode==='function' && vfSetMode('deep')")
         pg.wait_for_selector('#homSeqText', state='visible', timeout=30000)
         hom_h = pg.eval_on_selector('#homSeqText',
                                     'e=>Math.round(e.getBoundingClientRect().height)')

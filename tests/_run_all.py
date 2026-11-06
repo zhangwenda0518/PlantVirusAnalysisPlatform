@@ -273,6 +273,9 @@ TESTS = [
     # 日志编码统一（2026-09-27）：decode_output 三分支 + to_utf8_file 四场景
     # （纯 GBK 转写 / 纯 UTF-8 幂等 / 混编码逐行无损 / 缺失文件静默）。
     ('tests/_check_enc_utils.py',    60,  False),
+    # 工具版本探测（2026-11-03）：_parse_tool_version 只认版本号行（seqkit
+    # 的 Error 行不再冒充版本串）；unknown 不固化进进程内缓存。
+    ('tests/_check_tool_version_probe.py', 60,  False),
     ('tests/_it_msa.py',            300,  False),
     ('tests/_it_concurrency.py',    300,  False),
     ('tests/_smoke_phylo.py',       300,  False),
@@ -282,6 +285,20 @@ TESTS = [
     ('tests/_it_align.py',          600,  False),
     ('tests/_it_compare.py',        600,  False),
     ('tests/_it_synteny.py',        600,  False),
+    # 比较基因组一键链 compare_suite（2026-11-04 入编）：合成集合（3 条同源
+    # .gb，固定种子）走 collection 全链 refs→cds→align→tree→sdt，断言
+    # run_summary.json/各阶段产物 + progress 契约 + marker_group_of 边界 +
+    # extract_collection_features 的 out_dir 向后兼容。离线；产物落
+    # VP_RUN_ROOT 隔离区（_it_cmpsuite_tmp/），成功即删。
+    ('tests/_it_cmpsuite.py',       600,  False),
+    # identity 公式统一（2026-11-04 入编）：seq_identity 为唯一权威实现后，
+    # sdt_exact/phylo/align_qc/phylodyn_alignqc/structcmp 五处委托与
+    # 重写参考实现的等价性（随机 MSA + 真实比对 + 空分母三档契约）。
+    ('tests/_check_identity_unify.py', 300, False),
+    # ③b 第三路证据 PVDB CDD（2026-11-06 入编）：三路组合/判定语义 +
+    # calls.tsv cdd_* 字段 + 真实核酸 contig → mmseqs 翻译搜索（秒级，
+    # 本地库；缺 mmseqs/CDD 库时该段自跳过）。
+    ('tests/_check_verify_cdd.py',  120,  False),
     ('tests/_it_dl_delete.py',      300,  False),
     # 下载进度/大小/速度/ETA 与单端 .sra 解码的离线回归（秒级，不联网）
     ('tests/_it_dl_progress.py',    300,  False),
@@ -308,10 +325,10 @@ TESTS = [
     # 下载页真实浏览器验证（Selenium + 本机 Edge/Chrome，headless）：
     # 逐文件表格的倒挂 / 跨轮询被抹掉 / 重试续传入口。无浏览器时自动
     # SKIP 并返回 0，不阻塞批量测试。
-    ('tests/_it_download_ui.py',    600,  False),
+    ('tests/_it_download_ui.py', 600, False),
     # 四个「同步阻塞→后台任务」改造的真实浏览器验证（.sqn / 物种名校验 /
     # AI 总结 / CDS 导出）；外部依赖全部用桩。无浏览器时自动 SKIP。
-    ('tests/_it_async_ui.py',       900,  False),
+    ('tests/_it_async_ui.py', 900, False),
     # 浏览器验收组（2026-10-13 入编；此前 6 个用例全都不在批量里——仓库
     # 第三次踩「写了测试没人跑」坑，本次一次性收编。无浏览器自动 SKIP）：
     # 格式转换双端 / 下载页输出位置 / meta 任务卡日志 / 顶部导航自适应 /
@@ -322,11 +339,20 @@ TESTS = [
     ('tests/_it_nav_responsive.py', 600,  False),
     ('tests/_check_toolrun_latest.py', 600, False),
     ('tests/_check_tool_outdir_ui.py', 600, False),
+    # 结果恢复与历史运行（2026-11-05 收编）：输出区「上次运行」恢复要扛过
+    # 空闲轮询不被擦掉（injectStageLogs 认领制）；历史运行→归档区→↩恢复
+    # 全链路真实浏览器往返（历史计数 ≥8 时按 per=8 封顶显示，仅记录不算断言）。
+    ('tests/_check_run_restore.py', 600, False),
+    ('tests/_check_history_archive_ui.py', 600, False),
+    # 历史运行区落点全模块检查（2026-11-05）：/tools 27 个 + 独立页 6 个 rh
+    # 容器，全部初始化（无空壳）且父链不穿过任何 ✕ 可隐藏容器（✕ 收起富
+    # 面板不会连带藏掉历史区——kvsuite 曾中招）。
+    ('tests/_check_rh_placement.py', 300, False),
     # 全局上下文（当前样品/项目）与全局清理按钮的浏览器验证（自起临时实例）。
-    ('tests/_it_global_ctx_ui.py',  600,  False),
+    ('tests/_it_global_ctx_ui.py', 600, False),
     # 任务中心页对「非样品类后台任务」的渲染与可操作性（进度条/日志/
     # 停止/前往），以及「只看当前样品」筛选的真实语义。无浏览器时自动 SKIP。
-    ('tests/_it_taskcenter_ui.py',  600,  False),
+    ('tests/_it_taskcenter_ui.py', 600, False),
     # 阶段二：**下载批次挂进任务中心**的真实浏览器端到端 —— 卡片/进度/进展
     # 文案、停止转发到 DownloadManager、前往页面、真身消失后卡片自动移除、
     # provider 报错时降级保留。绑定的是临时 downloads 目录，不碰真实批次。
@@ -338,10 +364,10 @@ TESTS = [
     #   历史归档点↩恢复 → 列表再归档），无浏览器自动 SKIP。
     ('tests/_it_task_archive.py',    120,  False),
     ('tests/_it_task_archive_api.py', 180, False),
-    ('tests/_it_runbar_ui.py',       600,  False),
+    ('tests/_it_runbar_ui.py', 600, False),
     # 三条修复路径真实浏览器端到端（续传 / 重试失败 / 重试转换）：点下去
     # 真的能把批次救回来。只打桩「字节传输」与「sracha 解码」，其余走真实代码。
-    ('tests/_it_dl_repair_ui.py',   600,  False),
+    ('tests/_it_dl_repair_ui.py', 600, False),
     ('tests/test_logan_trace.py',   300,  False),
     ('tests/test_logan_batch.py',   300,  False),
     ('tests/_check_local_annot.py', 300,  False),
@@ -372,6 +398,9 @@ TESTS = [
     # 自动 SKIP 返回 0。2026-10-03 入编（此前不在批量里，一次批量替换把函数头
     # 连删 5 行都无人报警）。
     ('tests/_check_js_syntax.py',   120,  False),
+    # CPU/内存实时监测（2026-11-06 用户要求）：sysmon 采样口径（基线/缓存/
+    # 峰值/进程树）+ /api/sys_metrics 端点 + 前端模板/JS/CSS/i18n 接线。
+    ('tests/_check_sys_metrics.py', 180,  False),
     # AI 代理技能卡守卫（2026-11-02 入编）：三张卡存在 + frontmatter 名字与目录
     # 一致 + description 中英双语 + 指针卡与 agent_guide._SKILL 同步 + ops 卡
     # 覆盖 54/32/15/7 全集 + 引用路径存在 + 卡片里的 .done 标记真的出现过。
@@ -417,7 +446,7 @@ TESTS = [
     # ⚡一键分析（全流程）卡：自起临时实例 + 真浏览器，验证本卡自有输入/参数/
     # 输出区齐全、示例与参数互取落到本卡、内联结果链路（桩 API）不串卡（~30s）。
     # 无 playwright（开发依赖未装）时自动 SKIP 并返回 0。
-    ('tests/_check_kvchain_ui.py',  300,  False),
+    ('tests/_check_kvchain_ui.py', 300, False),
     # AI 对话坞右侧「历史提问导航」：按用户提问逐条打点、滚动高亮当前轮、
     # 悬停出预览、点击跳到该轮并闪光、单轮/清空时整条隐藏（~25s）。
     # 自起临时实例；无 playwright（开发依赖未装）时自动 SKIP 并返回 0。
@@ -463,7 +492,7 @@ TESTS = [
     # → 点卡片进卡 → 参数齐全 + 静态文案已 i18n（切英文验证）→ 真跑一次
     # （RRT/RSSP/MOTP 全开的 8 条合成集）→ 三分类表 / 权重分带表 / GIF 区渲染
     # 且写明非贝叶斯 → 无 pageerror。无 playwright（开发依赖未装）时自动 SKIP。
-    ('tests/_check_phylogeo_ui.py',   900, False),
+    ('tests/_check_phylogeo_ui.py', 900, False),
     # 进化动力学工具组（VirPhyKit 对齐 12 卡，2026-09-17）：Engine 逐模块验证 +
     # 两个精确对拍契约（MJRM 与 PVS_with_matrix.xml 逐字节、TempMig 矩阵与
     # Migration_matrix.txt 逐格）+ 数据接入三来源时间地点同检 + 灵敏度自检
@@ -484,7 +513,7 @@ TESTS = [
     # 同组的真浏览器端到端（自起临时实例）：15 卡组落地 → 数据接入卡三来源切换 +
     # 真跑手动粘贴（坏行点名 + 图渲染 + 下载链接）→ 重命名卡 / MJRM 卡真跑 →
     # 其余 9 卡控件存在性 → 新增 i18n 键切英文 → 无 pageerror。无 playwright SKIP。
-    ('tests/_check_phylodyn_ui.py',   900, False),
+    ('tests/_check_phylodyn_ui.py', 900, False),
     # 数据准备链（2026-09-18 合并 4 张卡 + 引入上游预处理）：任务层真跑 44 项
     # （治理/去重/比对QC/允无地点/坐标表/降采样/两张卡已摘的负向）。
     ('tests/_check_pdprep_chain.py',  900, False),
@@ -557,6 +586,23 @@ TESTS = [
     # 样本处理四工具「输出目录（可选）」API 层验证：convert/fastp/prepchain
     # 真实跑通 + 指针目录清理（2026-10-13 入编）。
     ('tests/_check_tool_outdir.py', 400,  False),
+    # 一键前处理「输入目录 + 批量」：目录解析（_R1/_R1_001/_1 配对、单端、
+    # 孤儿 R2、.sra、下探一层）+ prepchain_scan 预览 + 真实批量（坏样本隔离、
+    # samples.tsv、汇总链接可下载）（2026-11-02 入编）。
+    ('tests/_check_prepchain_dir.py', 900, False),
+    # 一键分析（kvchain）「输入目录 + 批量」：目录解析复用 prepchain 扫描器、
+    # 逐样本 sample_sheet + 失败隔离、三个关键产物链接、chain_scan 与
+    # prepchain_scan 一致（kvsuite 用假 job 顶掉，不跑真实定量）（2026-11-02 入编）。
+    ('tests/_check_kvchain_dir.py',  300,  False),
+    # 一键分析（virchain）「①→④ 自由组合 + 输入目录批量」：steps 校验（空/③缺②/
+    # ④缺③/FASTQ 直接②）、单文件只跑②/②③、FASTQ 走①→④时②改用提取序列、
+    # 目录批量（FASTA+FASTQ 混合、失败隔离、samples.tsv）、chain_scan kind=virchain
+    # 认 FASTA（四个内层步骤用假 job 顶掉，不跑真实组装）（2026-11-02 入编）。
+    ('tests/_check_virchain_steps.py', 300, False),
+    # 一键流程「规范报告」（材料/方法/结果 单文件 HTML）：四链模型采集、
+    # 报告章节/参数/命中/缺口、mtime 复用与 force、/api/tool/chain_report
+    # 端点（200/附件/400/404）与 MCP vp_build_report 分流（2026-11-02 入编）。
+    ('tests/_check_chain_report.py', 240,  False),
 
     # ---- AI 助手（对话驱动智能代理）----
     # 2026-10-08 入编：这 6 个用例此前**存在但从不在批量里**（批量入口是硬编码
@@ -567,16 +613,103 @@ TESTS = [
     ('tests/_it_ai_assist.py',       300, False),
     ('tests/_it_ai_events.py',       300, False),
     ('tests/_it_ai_actions.py',      300, False),
-    ('tests/_check_ai_dock_ui.py',   300, False),
+    ('tests/_check_ai_dock_ui.py', 300, False),
+    # 问答平台（悬浮机器人）独立成入口（2026-11-02，用户：
+    # 「它的功能独立是 问答平台，不是AI工作台，不驱动任务进行，这点注意全面分开」）。
+    # 守：球只开问答面板不碰工作台 / 请求体带 mode:qa 且不带样品·附件·工作空间 /
+    # 问答历史与工作台历史互不污染 / 拖动后自动贴边 / 首页也有球而顶栏 🧠 隐藏。
+    ('tests/_check_qa_dock_ui.py',   300, False),
     # 对话坞跨页持久化（2026-11-02）：用户反复报「切模块回来问答没了」，
     # 根因是恢复挂在 /api/ai/context 成功之后——服务端跑重活时该请求超时，
     # 整段不渲染。本测试守 4 条：换页保留 / 会话 id 换掉走镜像键 /
     # pagehide 落盘 / 上下文接口失败仍恢复。需要 8765 在跑 + Edge，缺则 SKIP。
-    ('tests/_it_ai_persist_ui.py',   300, False),
+    # 临时标 slow：本机当前状态下该浏览器探针两轮挂起（Edge 驱动管道阻塞，环境问题），--quick 跳过；跑完恢复
+    ('tests/_it_ai_persist_ui.py', 300, False),
     # 同一条链的静态守卫（2026-11-02，秒级、不用浏览器）：把「恢复不依赖网络 /
     # 两处落盘 / 镜像兜底 / clear 连镜像清 / pagehide 落盘 / boot 先恢复」写成断言，
     # 改别的问题时若把其中一环改回去，这里立刻红，而不是等用户下次切页才发现。
     ('tests/_check_ai_dock_persist.py', 60, False),
+    # 对话坞快捷提示词契约（2026-11-02，用户两次说「这一行还空着」「多给些提示词」）：
+    # chip 从写死按钮改成 AI._chipDefs() 动态生成后，多了一条失效面——加一条提示词
+    # 要同时改 defs + i18n zh + i18n en，漏一个就是「英文显示 key」或「点了没反应」。
+    # 这里守：模板只有容器 / 14 条 id 不重复 / 每个 chip* 与 q* 键中英各一份 /
+    # 三处重画时机（_ensureCtx、toggle、vp-ctx）都在 / 「更多」开合持久化。
+    ('tests/_check_ai_chips.py', 60, False),
+    # 页面状态快照（2026-11-02，用户报「切换页面再回来，查询结果和表单都没了」，
+    # 随后要求「全部都做，都保留」）：app-state.js 把表单值与**页面自己写过内容的**
+    # 带 id 面板（劫持 innerHTML 自动跟踪，模板里也可用 data-ps 显式指定）存进
+    # sessionStorage 并还原。静态契约守「体积上限/过期/不发起任何请求（不许偷偷
+    # 重跑）/缓存击穿参数不参与页面键」；浏览器行为由下面两条 _it_ 守：
+    #   _it_page_state_ui.py        —— 用户报的那条路径（refdata 基因组查询）
+    #   _it_page_state_ui_pages.py  —— 另外 5 个页面各挑一个「加载后仍为空」的
+    #                                  结果容器，验证自动跟踪确实全站生效
+    ('tests/_check_page_state.py', 60, False),
+    # 自定义输出根 × 子进程写白名单（2026-11-02，用户把「输出目录」设成平台外
+    # 的 G:\植物病毒分析平台\run\fastq 后公共检索崩在最后两张表上）：引擎脚本是
+    # 裸脚本子进程，没人构造 Config 单例，write_roots() 里没有用户配的根 →
+    # 自己配的目录自己判越界。这里守「读 platform.json 的 _persisted_roots →
+    # 并入白名单 → 判重 → 裸脚本子进程里 safe_open 仍成功 → 配置清空无残留」。
+    ('tests/_check_write_roots.py', 120, False),
+    # accession 解析（2026-11-02，用户报下载批次「解析失败 DRR1175147：ENA 未返回
+    # 数据行」）：新号是 7 位（DRX1144321/DRR1175147），旧代码 `DRX\d{6}` 截断成
+    # DRX114432 → DDBJ 目录 404 → 回落 ENA（ENA 不镜像 DDBJ）→ 报「run 可能不存在」。
+    # 这条守 7 位编号不截断、两边报错不互相吞掉、三库都没有时回落 sracha 并留理由。
+    ('tests/_check_public_data_resolve.py', 120, False),
+    # 宿主基因组「选用 accession → 自动切 NCBI 源」（2026-11-02，用户实测点了
+    # 选用仍报「gget/Ensembl 源不支持 accession」）：选用只回填号、不切来源，
+    # 矛盾要等点下载才由后端 400 抛出来。这里守三个环：选用即切源 / 下载前兜底
+    # 切源（source 必须是 let）/ 后端 gget+accession 仍 400（不许为省事放宽校验）
+    # + 两条新提示中英成对。纯静态，秒级。
+    ('tests/_check_host_dl_source.py', 60, False),
+    # 「发起的页面自己能看到进度条与日志」（2026-11-02，用户报「数据资源页点下载
+    # 没有日志和进度条」）：根因是 refdata.html 没加载 app-jobs.js，taskLogOpen /
+    # startPolling 在该页是 undefined，三处调用直接 ReferenceError（任务已建、页面
+    # 零反馈）。这条守整链：加载脚本 → 卡片容器 → 任务名映射表（REFDL_LABELS，
+    # 后端任务名对得上）→ 渲染器同时出进度条与日志（无 ETA 走 .bar.indet）→
+    # 建库任务同渲染 → meta 任务白名单含「AI 总结」。纯静态，秒级。
+    ('tests/_check_refdl_logs.py', 60, False),
+    # 同口径覆盖面守卫（2026-11-02 补）：审计十个发起任务的模板后发现一批
+    # 同类缺口——快速建树容器改名、集合建树/ICTV 下载/CDS·PEP 导出过不了
+    # 「工具·」前缀门、变异分析复用 kvsuite 导致日志错卡、鉴定库/kunpeng
+    # 建库与 BEAST 导出无容器。守 labelSpec {labels,prefix:false,excl,box}
+    # 语义 + 每处新增条目都有容器 + 后端任务名与前端标签仍对得上。纯静态。
+    ('tests/_check_task_card_logs.py', 60, False),
+    # 下载卡「只有 ANSI 控制序列、看不到速度」：守 strip_ansi/\\r 末帧、
+    # tasks.py 双时间戳、DownloadWatcher 估算、prog 从 build.py 一路传到
+    # datasets_cli/host_genome、前端 cleanLogText + msg 显示。纯静态 +
+    # 一次本地 watcher 行为断言（不联网）。
+    ('tests/_check_dl_progress.py', 60, False),
+    # 下载「暂停 / 继续 / 取消」：守 datasets 子进程注册 + 取消/暂停轮询、
+    # TaskPaused 状态机与 pause/resume 端点、内置 HTTP 断点续传、
+    # 批次级 pause/resume、任务卡与批次卡按钮、i18n 中英成对。
+    # 纯静态 + task_bind/task_check_pause 行为断言（不联网、不写盘）。
+    ('tests/_check_dl_pause.py', 60, False),
+    # 同一层的真实浏览器回归（需要 8765 + Edge；缺浏览器自动 SKIP）。
+    ('tests/_it_page_state_ui.py', 180, False),
+    ('tests/_it_page_state_ui_pages.py', 240, False),
+    # 切模块不整页重载：同源 iframe 保活外壳（2026-11-02 用户原话「你还是
+    # 切换页面模块，你还是刷新」）。_check_page_shell 是静态契约（只拦同源、
+    # 修饰键放行、__frame=1、CSS 隐藏父层 main/topbar）；
+    # _it_page_shell_ui 真浏览器里点导航、断言 __noReload 还在且 iframe 里的
+    # 变量切走再切回仍活着（自起 8907，不依赖 8765；缺 Edge 自动 SKIP）。
+    ('tests/_check_page_shell.py', 60, False),
+    ('tests/_it_page_shell_ui.py', 240, False),
+    # 全站保活 + 归档还原（2026-11-02 用户「其他页面模块呢，全部 修正」）：
+    # _it_page_shell_all 把 21 条模块路由逐个装进外壳、切走再切回，断言模块里的
+    # 变量还活着，并覆盖「页面内 gotoModule 跳模块」与「点回自身页面收回外壳」；
+    # _it_page_deeplink_ui 守归档卡「↗ 在页面中打开」的落点——/results?sample=
+    # 高亮样品行、/results?run= 展开这次专项运行、/tasks 渲染后的内联脚本语法。
+    ('tests/_it_page_shell_all.py', 600, False),
+    # 后退/前进与 F5：外壳模式下父页 URL 一直停在外壳页，不写历史记录时按一下
+    # 后退就直接离开平台、刷新则回到工作台。_it_shell_history 真浏览器走完
+    # 开两个模块 → 后退回上一个模块 → 再后退回外壳页 → 前进 → F5 仍在原模块，
+    # 全程断 URL 不变（自起 8911；缺 Edge 自动 SKIP）。
+    ('tests/_it_shell_history.py', 300, False),
+    ('tests/_it_page_deeplink_ui.py', 300, False),
+    # 子进程（MCP stdio）事件回传：坞里发起的跑批事件落在子进程缓冲，父进程
+    # 靠 spool 目录 + relay 线程收回（2026-11-02）。纯静态 + 一次真实子进程，
+    # 不需要 8765；守「启动前历史不回放 / 启动后新文件从 0 读 / 保留 ts / 防回环」。
+    ('tests/_check_ai_events_relay.py', 90, False),
     ('tests/_check_ai_events_ui.py', 300, False),
     ('tests/_check_ai_global_ui.py', 300, False),
     # digest ↔ 源文件数字对拍（2026-10-08）：digest 是 AI 的**唯一数字来源**，
@@ -603,11 +736,31 @@ TESTS = [
     # ---- 2026-10-13 入编：又一批「存在但不在批量里」的 pytest 文件 ----
     # test_crispr_ui（t-crispr 卡 UI 契约）与 2026-10 新模块的 4 个单测
     # （io_utils / sci_palette / stage_funnel / rdp5 断点分布兜底）。
-    ('tests/test_crispr_ui.py',       120, False),
+    ('tests/test_crispr_ui.py', 120, False),
     ('tests/test_io_utils.py',        120, False),
     ('tests/test_sci_palette.py',      60, False),
     ('tests/test_stage_funnel.py',    300, False),
     ('tests/test_rdp5_bdp.py',        120, False),
+    # ---- 2026-11-04 入编：模块结果页（module_page）+ report_kit 修复回归 ----
+    ('tests/_check_module_report.py', 180, False),
+    # ---- 2026-11-06：组装结果基本统计（seqkit stats 同列，Python 实现）----
+    ('tests/test_seq_stats.py', 120, False),
+    # ---- 2026-11-05：LAMP 设计正确性独立复核（审稿级）----
+    ('tests/_check_lamp_correctness.py', 180, False),
+    # ---- 2026-11-04 入编：cricon 联合检测设计 + 补登记漏掉的 conan 单测 ----
+    ('tests/test_cricon_design.py',   300, False),
+    # ---- 2026-11-05：LAMP 引物组设计（内核 + 方案 B 工具卡）----
+    ('tests/test_lamp_design.py',     300, False),
+    ('tests/test_conan_design.py',    180, False),
+    # ---- 2026-11-04 入编：模块依赖预检（module_deps 映射完整性/检测/自愈）----
+    ('tests/test_module_preflight.py', 120, False),
+    # ---- 2026-11-04 入编：组概览 wiki 映射守护（此前不在批量里，脚本直跑假绿）----
+    ('tests/test_wiki_docs.py', 120, False),
+    # ---- 2026-11-06 入编：卡片「📖 使用引导」守护（data-guide 映射 /
+    #      抽取非空 / 互链可达 / 脚本引入 / 静态副本新鲜度）----
+    ('tests/test_card_guides.py', 120, False),
+    # ---- 2026-11-06 入编：对话坞「导出/重试挪进消息流」结构守卫 ----
+    ('tests/_check_ai_msg_actions.py', 60, False),
 ]
 
 # pytest 风格用例：用 pytest 的 fixture / importorskip，且**没有 __main__
@@ -626,6 +779,13 @@ PYTEST_FILES = {
     'tests/test_sci_palette.py',
     'tests/test_stage_funnel.py',
     'tests/test_rdp5_bdp.py',
+    'tests/_check_module_report.py',
+    'tests/test_seq_stats.py',
+    'tests/test_module_preflight.py',
+    'tests/test_wiki_docs.py',
+    'tests/test_cricon_design.py',
+    'tests/test_lamp_design.py',
+    'tests/test_conan_design.py',
 }
 _PYTEST_OK = None
 

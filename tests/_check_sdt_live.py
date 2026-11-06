@@ -21,7 +21,8 @@ URL = 'http://127.0.0.1:8765/tools?g=compare#t-sdt'
 def main() -> int:
     fails = []
     with sync_playwright() as pw:
-        b = pw.chromium.launch(headless=True)
+        b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
         pg = b.new_page(viewport={'width': 1700, 'height': 1300})
         errs = []
         pg.on('pageerror', lambda e: errs.append(str(e)))

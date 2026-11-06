@@ -76,7 +76,7 @@ def main():
         check(f'idempotent({raw!r})', safe_sample_name(once) == once)
 
     print('[3] resolve_sample_name：以磁盘真实目录名为准')
-    root = os.path.join(config.PLATFORM_ROOT, 'run', '_it_sample_names_tmp')
+    root = os.path.join(config.RUN_ROOT, '_it_sample_names_tmp')
     real_results = config.DIRS['results']
     try:
         shutil.rmtree(root, ignore_errors=True)
@@ -134,6 +134,11 @@ def main():
                      encoding='utf-8') as f:
             f.write('hello')
 
+        # 先把配置首次加载走完（get_config 单例），否则下面 import app 的
+        # 导入链会触发 _load → apply_output_root 重写 DIRS，把这里的临时
+        # 覆盖冲回默认（2026-11-03：/api/samples 因此扫不到临时样品）。
+        from Virus_Platform_Core.config import get_config
+        get_config()
         config.DIRS['results'] = root
         import app as appmod
         cli = appmod.app.test_client()

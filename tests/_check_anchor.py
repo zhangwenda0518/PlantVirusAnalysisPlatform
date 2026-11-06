@@ -204,6 +204,36 @@ def main():
         check('verify 不存在的 slug 不抛',
               isinstance(anchor.verify('_不存在的slug'), dict))
 
+        # --- 6b) reconcile_interrupted：收尾遗留 running（2026-11-03） ------
+        # 真机事故：进程被杀/平台重启后 anchor.json 永远留 running，常驻条
+        # 从此每次打开都显示「正在分析」（Dataset_11 停在 fastp 1/6）。复刻：
+        # B 不 end_run，再重复 start_run 一次（真机见过双 running 记录），
+        # 收尾应把两条全关掉，且账本链仍完整。
+        anchor.start_run('锚自检B', os.path.join(data, 'nope_R1.fq'), None,
+                         stages=['fastp'], sample_dir=sd)
+        check('收尾前 B 仍在 running',
+              (anchor.snapshot('锚自检B') or {}).get('status') == 'running')
+        closed = anchor.reconcile_interrupted(max_quiet_sec=0)
+        check('收尾命中 B', '锚自检B' in closed, str(closed))
+        bsnap = anchor.snapshot('锚自检B') or {}
+        check('收尾后 B 变 interrupted', bsnap.get('status') == 'interrupted',
+              str(bsnap.get('status')))
+        evb = read_ledger(anchor, anchor.slug_of('锚自检B'))
+        check('账本补了 run.interrupted 事件',
+              any(e.get('kind') == 'run.interrupted' for e in evb),
+              str([e.get('kind') for e in evb[-4:]]))
+        # B 的 r1 是场景 6 特意造的缺文件（nope_R1.fq），verify 报「r1 读不到」
+        # 属预期；这里只断言**账本链**没断（seq 连续 / prev 对得上）。
+        vch = anchor.verify('锚自检B')
+        chain_bad = [p for p in (vch.get('problems') or [])
+                     if ('seq' in p or 'prev' in p or '摘要已变' in p)]
+        check('收尾后账本链仍完整',
+              not chain_bad, str(vch.get('problems')[:2]))
+        actb = anchor.active(limit=9)
+        check('收尾后 running 清空',
+              '锚自检B' not in [s['sample'] for s in actb.get('running', [])],
+              str([s['sample'] for s in actb.get('running', [])]))
+
         # --- 7) active / samples_meta --------------------------------------
         act = anchor.active(limit=5)
         names = [s['slug'] for s in act.get('running', []) + act.get('recent', [])]

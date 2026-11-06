@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""生成内置示例测序数据（examples/example_R1/R2.fastq.gz）。
+"""【已退役 2026-11-03】生成旧示例测序数据 example_R1/R2.fastq.gz。
+
+平台内置示例 reads 已改用 examples/example_sim100x_R1/R2.fastq.gz（多病毒
+混染模拟），本脚本产物不再随包分发；脚本保留备查（确定性、可重跑），如需
+复现旧合成对可直接运行。以下为原始说明。
 
 为什么单独造一份：tests/syn_R1/R2.fastq.gz 由 make_synthetic.py 生成时只
 匹配到 1 个病毒（且其注释把 NC_003530 误标为 Pepper mild mottle virus，

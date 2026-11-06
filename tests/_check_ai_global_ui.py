@@ -75,14 +75,14 @@ def main():
         with sync_playwright() as pw:
             browser = pw.chromium.launch(
                 headless=True,
-                args=['--no-sandbox', '--disable-dev-shm-usage',
+                args=['--no-proxy-server', '--no-sandbox', '--disable-dev-shm-usage',
                       '--disable-gpu'])
             ctx = browser.new_context(viewport={'width': 1440, 'height': 900})
             page = ctx.new_page()
             # 浏览器配置是持久化的（context 复用同一 profile 时尤其如此）：
-            # 上次跑完若把坞留在「开着」（vp_ai_open=1）或留下历史消息，
-            # FAB 就是 hidden，直接点 #aiFab 会 30s 超时。巡检要的是干净初态：
-            # 每个用例自己在需要时开坞，不继承别人的残留。
+            # 上次跑完若把坞留在「开着」（vp_ai_open=1）或留下历史消息，巡检
+            # 要的是干净初态：每个用例自己在需要时开坞，不继承别人的残留。
+            # （2026-11-02：开坞的是顶栏 #aiDockBtn；悬浮球 #aiFab 归问答平台。）
             #
             # 会话 id 存在 sessionStorage（app-ai.js 的 vp_ai_conv）：不预置的话
             # 每次导航都会新开一段（新标签页语义），「刷新后历史还在」永远测不
@@ -106,7 +106,8 @@ def main():
             # -- 1) 全局坞：非总览页 --
             page.goto(base + '/results', wait_until='load')
             page.wait_for_timeout(1200)
-            check('results 页有 FAB', page.locator('#aiFab').count() == 1)
+            check('results 页有问答球', page.locator('#aiFab').count() == 1)
+            check('results 页有工作台按钮', page.locator('#aiDockBtn').count() == 1)
             check('results 页有对话坞', page.locator('#aiDock').count() == 1)
 
             # -- 2/3) 闸门待决自动弹坞 + 标题计数 --
@@ -156,9 +157,10 @@ def main():
             page.goto(base + '/results', wait_until='load')
             page.wait_for_timeout(800)
             # 换页后坞按「上次开合」恢复（app-ai.js 的 vp_ai_open）：上一步开着，
-            # 这里就应该是开着的；只有它自己收起了才需要点 FAB 打开。
+            # 这里就应该是开着的；只有它自己收起了才需要点顶栏 🧠 打开
+            # （2026-11-02 起悬浮球是问答入口，不再开工作台坞）。
             if not page.locator('#aiDock').is_visible():
-                page.click('#aiFab')
+                page.click('#aiDockBtn')
             page.wait_for_timeout(600)
             bubbles = page.locator('#aiMsgs .ai-user').count()
             # 诊断口径：气泡数为 0 时要能分清「历史没恢复」与「恢复后气泡类名
@@ -171,6 +173,19 @@ def main():
                 "k => k.indexOf('vp_ai_msgs') === 0),"
                 " nmsg: (window.AI && AI.messages ? AI.messages.length : -1)})")
             check('刷新后对话历史恢复', bubbles >= 1, diag)
+            # -- 4c) 导出/重试挪进消息流（2026-11-06）：恢复出的历史里，
+            #        每条提问下方要有「↻ 重新上一句」，每条回答操作条里要有
+            #        「⬇ 导出」；工具条不再保留这两个入口。
+            n_retry = page.locator(
+                '#aiMsgs .ai-user .ai-msg-actions .ai-msg-act-retry').count()
+            check('每条提问下方有「重新上一句」',
+                  n_retry >= 1 and n_retry == bubbles,
+                  f'retry={n_retry} bubbles={bubbles}')
+            n_export = page.locator('#aiMsgs .ai-msg-bar .ai-msg-export').count()
+            check('AI 回复操作条里有「导出」', n_export >= 1,
+                  f'export={n_export}')
+            check('工具条不再有导出/重试按钮',
+                  page.locator('#aiExportBtn, #aiRetryBtn').count() == 0)
             # 用坞头部的「✕ 收起」而不是点任意 .ai-ico：头部那一排图标随版本
             # 增删，按 title 匹配「清空」在英文语言包下会落空。
             page.locator('#aiDock .ai-dock-head .ai-ico').first.click()
@@ -189,7 +204,7 @@ def main():
             # 上一步把坞收起了：收起状态下卡片按钮是 display:none，Playwright
             # 点不动（30s 超时）。执行单要人拍板，坞本就该开着。
             if not page.locator('#aiDock').is_visible():
-                page.click('#aiFab')
+                page.click('#aiDockBtn')
                 page.wait_for_timeout(600)
             check('执行单卡片渲染（含批准/驳回按钮）',
                   page.locator(f'.ai-action[data-aid="{rec["id"]}"] '

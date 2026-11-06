@@ -58,7 +58,7 @@ def main():
     from Virus_Platform_Core import config
     from Virus_Platform_Core.pipeline import backfill_all_manifests
 
-    root = os.path.join(config.PLATFORM_ROOT, 'run', '_it_backfill_tmp')
+    root = os.path.join(config.RUN_ROOT, '_it_backfill_tmp')
     real_results = config.DIRS['results']
     try:
         shutil.rmtree(root, ignore_errors=True)
@@ -84,6 +84,10 @@ def main():
         write_json(os.path.join(root, '_scratch', '00_prep', 'input.json'),
                    {'sample': '_scratch', 'r1': 'x', 'r2': ''})
 
+        # 先完成配置首次加载（get_config 单例），再覆盖 DIRS——否则后续
+        # 模块导入链里的 _load/apply_output_root 会把覆盖冲回默认。
+        from Virus_Platform_Core.config import get_config
+        get_config()
         config.DIRS['results'] = root
 
         print('[1] dry_run：只报告，不落盘')

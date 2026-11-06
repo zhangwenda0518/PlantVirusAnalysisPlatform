@@ -55,6 +55,12 @@ def skip(label, why):
 
 def free_port(preferred):
     for p in (preferred, 0):
+        # connect 探测先行（2026-11-05）：wildcard(0.0.0.0) 已被占用的端口
+        # 用 bind('127.0.0.1') 探测会误判空闲，起上去后请求被截走（实测教训：
+        # 用户常驻的 docs http.server 在 8901+ 段，套件实例全 404）。
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as c:
+            if c.connect_ex(('127.0.0.1', p)) == 0:
+                continue
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.bind(('127.0.0.1', p))
@@ -108,6 +114,7 @@ def _run_once():
     # 必须**响应取消**（真实 build_sqn 每个 suvtk 步骤边界都会查取消事件），
     # 否则「点停止」只能等桩自己跑完才收敛，测不出及时停止。
     _orig = ss.build_sqn
+    _orig_ready = ss.suvtk_chain_ready
 
     def slow_build_sqn(*args, **kw):
         from Virus_Platform_Core.utils import task_check_cancel
@@ -127,6 +134,11 @@ def _run_once():
                 'val_head': []}
 
     ss.build_sqn = slow_build_sqn
+    # 就绪门一并桩掉（2026-11-03）：suvtk/BFVD 是开发机专属链、分发/测试
+    # 环境不装。不桩时端点走平台 feature-table 回退，而测试的假 orf run
+    # 目录没有真产物 → 回退失败 → 400，任务根本起不来。桩就绪门=直通
+    # build_sqn 桩，与下方 build_sqn 桩同一口径。
+    ss.suvtk_chain_ready = lambda: True
 
     from werkzeug.serving import make_server
     port = free_port(a.port)
@@ -379,6 +391,7 @@ def _run_once():
 
     finally:
         ss.build_sqn = _orig
+        ss.suvtk_chain_ready = _orig_ready
         if tid:
             try:
                 tm.cancel(tid)
