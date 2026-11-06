@@ -58,13 +58,38 @@ def _json_for_script(obj, indent=None):
     return s.replace('</', '<\\/').replace('<!--', '\\u003c!--')
 
 
-def _save_fig_png(fig, path):
-    """matplotlib 图保存 PNG（写盘走 safe_open）。"""
+def _svg_twin(path):
+    """PNG 路径 → 同名 SVG 孪生路径（平台统一 PNG+SVG 双格式）。"""
+    p = str(path)
+    if p.lower().endswith('.png'):
+        return p[:-4] + '.svg'
+    return p + '.svg'
+
+
+def _save_fig(fig, path, dpi=None):
+    """matplotlib 图保存 PNG + SVG 双格式（写盘走 safe_open）。
+
+    dpi=None 时用 rcParams（sci_palette 默认 300，替代旧 150 硬编码）；
+    SVG 失败不影响 PNG 交付，仅记录返回 False。
+    """
     buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
-    plt.close(fig)
+    fig.savefig(buf, format='png', dpi=dpi, bbox_inches='tight')
     with safe_open(path, 'wb') as f:
         f.write(buf.getvalue())
+    ok = True
+    try:
+        buf2 = io.BytesIO()
+        fig.savefig(buf2, format='svg', bbox_inches='tight')
+        with safe_open(_svg_twin(path), 'wb') as f:
+            f.write(buf2.getvalue())
+    except Exception:
+        ok = False
+    plt.close(fig)
+    return ok
+
+
+#: 兼容旧名（既有调用点 plot_tree / plot_genome_* 不动）
+_save_fig_png = _save_fig
 
 
 def png_b64(path):
@@ -854,13 +879,21 @@ def build_report(sample_dir, logger=None):
                                            div_id='orfa_fam')))
             prev = orfa.get('rows_preview') or []
             if prev:
+                def _seg_brief(v):
+                    v = (v or '').strip()
+                    if not v:
+                        return ''
+                    parts = [x for x in v.split(';') if x.strip()]
+                    return '%d 段（%s…）' % (len(parts), parts[0])
                 trs = '\n'.join(
                     f'<tr><td>{esc_html(r.get("orf_id", ""))}</td>'
                     f'<td>{esc_html(r.get("product", ""))}</td>'
                     f'<td>{esc_html(r.get("organism", ""))}</td>'
                     f'<td>{esc_html(r.get("family", ""))}</td>'
                     f'<td>{esc_html(r.get("category", ""))}</td>'
-                    f'<td>{esc_html(r.get("pident", ""))}</td></tr>'
+                    f'<td>{esc_html(r.get("pident", ""))}</td>'
+                    f'<td>{esc_html(r.get("evidence", ""))}</td>'
+                    f'<td>{esc_html(_seg_brief(r.get("segments", "")))}</td></tr>'
                     for r in prev[:15])
                 figures.append((
                     f"Top ORF 功能注释（{orfa.get('n_annotated', 0)}/"
@@ -868,7 +901,8 @@ def build_report(sample_dir, logger=None):
                     f"引擎 {orfa.get('engine', '?')}，完整表见 orf_annotation.tsv）",
                     f'<table class="ptable" style="margin:auto">'
                     f'<tr><th>ORF</th><th>产物</th><th>物种</th><th>科</th>'
-                    f'<th>类别</th><th>identity%</th></tr>{trs}</table>'))
+                    f'<th>类别</th><th>identity%</th><th>证据</th>'
+                    f'<th>分段</th></tr>{trs}</table>'))
         except Exception as e:
             if logger:
                 logger.log(f"ORF 功能注释图表失败: {e}", "WARN")

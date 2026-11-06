@@ -6551,6 +6551,143 @@ boot 先恢复，共 25 条断言，已登记进 `tests/_run_all.py`（60s）。
 
 ---
 
+## 2026-11-02（补三十四）：对话坞快捷提示词 —— 4 个写死按钮 → 14 条按上下文排序
+
+### 现场
+用户连续两条：「多给些提示词可以吗，现在这一行还空着」「我刚接触这个平台，建议从哪里开始分析？」。
+截图里那一行只有 4 个 chip（解读这个样品 / 任务状态 / 下一步建议 / 参数建议），既少又与处境无关：
+用户没选样品时点第一个 chip 问的是空样品；有任务在跑时也没有「还要多久」这类最常用的问法。
+
+### 改法（为什么这么做）
+1. **按钮不再是模板里的死 HTML**：`_nav.html` 只留 `<div class="ai-chips" id="aiChips">`，
+   由 `AI.renderChips()` 生成。写死的按钮没法按上下文出现/消失，加一条还要动模板。
+2. **14 条提示词 × 上下文条件**（`AI._chipDefs()`）：从哪开始（没样品 / 没选样品）、解读这个样品、
+   下一步建议、任务状态、还要多久（有 running）、为什么失败（有 failed 或选了样品）、结果在哪看、
+   参数建议、出结论文档、批量跑多个、只做单步、公共检索、NCBI 提交、清理与归档。
+3. **按权重排序**（`w(c)`，越小越前）：跑批时「还要多久」第一；有失败时「为什么失败」第一；
+   选了样品时「解读这个样品」提前 —— 默认露出的 6 条始终是当下最有用的，其余收在「更多」。
+4. **双语 + 可发现**：每条都有 `ai.dock.chip*`（按钮文案）与 `ai.dock.q*`（发给模型的问题）两组键，
+   zh/en 各一份；`title` 直接给完整问题，悬停就知道会问什么，点了立即发送。
+5. **开合状态持久化**：`vp_ai_chips_more`，展开后换页仍然展开。
+
+### 碰到的坑
+- 第一版只按数组顺序截前 6 条，「为什么失败」因为历史失败任务排在第二位，把「解读样品」挤掉了。
+  于是加 `w(c)` 权重，并在 `renderChips` 里稳定排序（`(a.r - b.r) || (a.i - b.i)`），同权重保持声明顺序。
+- 模板里若残留 `onclick="AI.chip('interpret')"` 这类写死按钮，会和动态渲染并存（用户看到两份）——
+  静态测试专门断言模板里不再出现 `AI.chip(`。
+
+### 验证
+- 新增 `tests/_check_ai_chips.py`（秒级、纯静态）：模板只有容器 / 14 条 id 不重复 /
+  每个 `chip*` 与 `q*` 键在 zh+en 各一份 / 三处重画时机（`_ensureCtx`、`AI.toggle`、`vp-ctx` 的 syncSample）都在 /
+  「更多」开合持久化 / `AI_CHIPS_VISIBLE` 在 4~8。已登记 `tests/_run_all.py`（60s）。
+- 无头 Edge 实测 8765：默认 6 条 + 「更多 ▾」；展开 11 条 + 「收起 ▴」；点第一条把问题文本交给 `AI.send`；
+  选样品后「解读这个样品」上屏、「从哪开始」退场。截图 `run/_ai_chips_default.png`、`run/_ai_chips_more.png`。
+
+### 加一条提示词（给后来的人）
+在 `AI._chipDefs()` 里加 `{ id, k, z, w, when, q }`，再到 `i18n.js` 的 zh 与 en 各加
+`ai.dock.chip<X>` 与 `ai.dock.q<X>`，最后跑 `python tests/_check_ai_chips.py`。
+
+
+## 2026-11-02（补三十五）：页面状态快照 —— 切走再回来，表单与结果还在
+
+### 现场
+用户（截图：数据资源 → 基因组查询下载）：「其他页面的任务也是这样，切换了页面，再回来，
+就都看不到之前的内容了，你好好看看，是专门设置了，还是怎么回事。」
+截图里 taxon=Oryza sativa、来源 gget-Ensembl、下面 5 行 NCBI 组装（GCA_001648735.1 …）。
+切到别的模块再回来，输入框空、表格空。
+
+### 结论：不是设置，是整页刷新
+一级导航每个链接都是**整页加载**（Flask 服务端渲染），页面级状态（表单值、查询结果表、
+单次运行的输出面板）只活在当页 JS 内存里，换页即销毁。平台此前只单独持久化了三样：
+主题 `vp_theme`、当前样品/项目 `vp_ctx_*`、对话坞历史 `vp_ai_msgs:*` —— 页面自己的状态
+从来没存过，所以「切页回来一片空白」是必然，而不是某个开关。
+
+### 改法
+新增 `webapp/static/app-state.js`（`window.PS`），由 `app.js` 动态挂载（21 个模板都引 app.js，
+省得逐页加 `<script>`）；唯一不含 app.js 的页面 `logan.html` 在 `i18n.js` 后单独引一行。
+用户随后要求「全部都做，都保留」，所以面板不是逐页标 `data-ps`，而是**自动跟踪**：
+1. **表单**：带 id 的 `input/select/textarea` 在 `input/change` 后 250ms 落快照；进页面时还原。
+   `password`/`file`/`data-ps-off` 不记。
+2. **面板（自动）**：劫持 `Element.prototype.innerHTML` 的 setter，凡页面自己写过内容的、
+   带 id 的元素（排掉 script/style/input/select/textarea/canvas/svg 与 `data-ps-off`）
+   就去抖 600ms 收进整页快照。模板里显式标 `data-ps` 的容器一并纳入，且**恢复时强制**
+   （页面已渲染也覆盖），作为精确指定个别面板的兜底。
+   - 关键教训：descriptor 必须从 `Element.prototype` 取。第一版从
+     `Object.getPrototypeOf(document.documentElement)`（HTMLHtmlElement.prototype）取，
+     `innerHTML` 实际定义在 Element 上，`getOwnPropertyDescriptor` 返回 undefined，
+     钩子静默没装上 → 面板一条都没存（浏览器实测「面板恢复」与「提示条」两项红）。
+3. **恢复策略**：只回填「空 / 占位（`.hint`、「尚未/暂无/请先/加载中」）」的容器，
+   本页 JS 已经写过内容的不覆盖 —— 页面自己的渲染永远优先，快照只是接住「页面不会再渲染」的那种。
+4. **页面级提示**：任一改法恢复成功，就在 `main` 顶部插一条 `.ps-restored`：
+   「⏱ 已恢复 X 分钟前的页面内容（N 块；只影响显示，不会重跑任务）· 丢弃本页快照」。
+5. **页面键 = 路径 + 有意义查询参数**：`t`/`_`/`ts`/`v` 这类缓存击穿参数不参与（否则刷新地址一变，
+   快照永远对不上——第一版就栽在这，浏览器实测四项全红）。
+6. **边界**：`sessionStorage`（同标签页、关标签即失效）；12h 过期；单页快照 >800KB 整个丢弃、
+   单个面板 >200KB 不记；任何异常静默；**这一层不发任何请求**（恢复只做显示，绝不偷偷重跑查询或任务）。
+7. 精确指定过的页面：`refdata.html`（`dsQryResult`、`dsGenQryResult`；`dsGenMode` 带
+   `data-ps-onchange="1"` 以便恢复后重跑分区显示）、`tools.html`（`pgMatrix`、`pdSummary`、
+   `pdMiscBox`、`dsSummary`、`crTable`、`cnTable`）。其余页面靠自动跟踪，无需改动。
+
+### 验证
+- `tests/_check_page_state.py`（秒级静态契约）：PS 存在 / 用 sessionStorage / pagehide 落盘 /
+  有 TTL 与体积上限 / 缓存击穿参数不参与键 / **快照层不含 `fetch(`、`XMLHttpRequest`** /
+  关键页面确实标了 `data-ps` / `.ps-restored` 有样式。已登记 `_run_all.py`。
+- `tests/_it_page_state_ui.py`（Edge headless，打 8765）：填 taxon+accession → 塞一张结果表 →
+  跳 `/tasks` → 回来：表单值、结果表、提示条全部恢复；点「丢弃本页快照」后刷新不再出现。6/6 通过。
+- `tests/_it_page_state_ui_pages.py`：/logan、/settings、/submit、/results、/prescreen 五页各挑一个
+  「加载完仍为空」的容器，写入内容 → 跳 `/tasks` → 回来验证内容与提示条都在。5/5 通过。
+  坑：别拿侧栏、设置行、状态区当被测容器——它们每次加载都会重绘，测出来的红是假红。
+  `/build` 的 `buildrun-taxonomy` 也属此类（页面加载中用 `innerHTML=''` 清空再按需填），已换掉。
+- 两条浏览器用例都登记进 `_run_all.py`（180s / 240s），无 Edge 时 SKIP 不阻塞批量。
+
+
+## 2026-11-02（补三十三）：坞里发起的跑批也能收到阶段卡 —— 跨进程事件回传
+
+### 用户现场
+「把『坞里发起的跑批也能收到阶段卡』补上」。截图里是坞内三张卡：
+`✓ ⑨ 基因组图(gbdraw/DFV) 完成 · GQMIX`、`✓ ⑩ 可视化报告 完成 · GQMIX`、
+`🎉 本轮分析全部完成 · GQMIX` —— 这是网页进程内跑流水线时本该有的播报。
+
+### 根因（不是没播报，是播报进了另一份缓冲）
+`Virus_Platform_Core/ai_agent/broadcast.py` 的环形缓冲是**进程内**的
+（`MAX_EVENTS=100`），事件由 `pipeline.run_analysis` 里三处触发：
+`:1386 note_stage_start`、`:1427 note_stage_done`、`:1462 note_run_done`。
+网页端 SSE（`ai_assist.api_ai_events`，1s 轮询 `events_since`）读的是网页进程那份。
+
+而坞里发起的跑批走 `ai_agent/tools.py` 的 `mcp_call` → `web/mcp_console.py`
+用 **stdio 拉起 `mcp_server.py` 子进程**执行 —— 流水线跑在子进程里，事件只进了
+子进程的环形缓冲，网页进程 SSE 永远收不到。佐证：`run/ai_audit/events-2026-11-02.jsonl`
+有 `run_done GQMIX`、`run_done Dataset_8`，但 8765 的 `/api/ai/events?since=0` 是空的。
+
+### 做法（spool 文件 + relay 线程，不引新协议）
+1. `broadcast.SPOOL_ENV = 'VP_EVENT_SPOOL'`：设了就把每条事件追加成
+   `<dir>/<pid>.jsonl` 一行一条（`_spool()`，异常吞掉，绝不影响发布本身）。
+2. `web/mcp_console.py` 拉起子进程时注入 `VP_EVENT_SPOOL = <ai_audit>/spool`。
+3. 新建 `Virus_Platform_Core/ai_agent/spool_relay.py`：0.4s 扫目录，`_read_new()`
+   按字节水位增量读（半行等下次、截断归零），`broadcast.ingest()` 回本地缓冲。
+   `app.py` 在 `_bind_downloads()` 后 `start_relay()`（`VP_EVENT_RELAY=0` 可关）。
+4. 回灌语义：`ingest()` 保留原始 `ts`、打 `relay=True`；`relay` 事件**不再写审计盘**
+   （子进程已写过，避免重复行），也**不再回写 spool**（防回环）。
+5. 水位基线：relay 首次扫描时刻记为 `_baseline`，**早于它存在的文件按历史跳过**
+   （不把昨天的旧事件补播一屏）；启动后新建的 `<pid>.jsonl` 从 0 读，不丢头几条。
+6. 闸门口径：跨进程的 `ai_gate` 决策按钮传不回去，前端对 `relayed` 事件不自动开坞、
+   不渲染继续/终止按钮与倒计时，改渲染说明块（i18n `ai.ev.gateRelayNote`）：
+   「该任务由对话坞发起、跑在 MCP 子进程里：决策按钮在这里无效，闸门会按超时自动继续；
+   要中止请到任务中心停止该任务。」
+
+### 验证
+`tests/_check_ai_events_relay.py`（0.3s，不用浏览器）：未设 env 不落文件 / 设 env
+写 `<pid>.jsonl` 且内容完整 / relay 首见旧文件从末尾起读不回放 / **真实子进程**发布
+`stage_done` 经 `poll_once()` 进缓冲且 `relay=True`、字段原样保留 / `ingest` 保留 ts、
+拒绝回环与非法输入。已登记 `tests/_run_all.py`（90s）。
+`node --check app-ai.js`、`_check_ai_dock_persist.py`、`_audit_contract.py` 全绿。
+
+### 注意
+`app.py` 改了 → 源码模式也要**重开窗口**才带上 relay（只刷新页面不够）；
+子进程事件是「追加 + 轮询」，最坏延迟 0.4s，远小于 SSE 的 1s 轮询。
+
+---
+
 ## 批量测试的三条守卫：把「反复」变成机器可拦（2026-11-02）
 
 背景：2026-10-30~11-02 两天里，同一套件的分数摇摆 5 次
@@ -6619,3 +6756,2241 @@ VP_KEEP_RUN_ROOT=1 python tests/_run_all.py   # 不隔离，直接读写真实 r
 ```
 
 自测：`python -m pytest tests/test_suite_guards.py -q` → 24 passed（0.3s）。
+
+## 2026-11-02（补三十六）：宿主基因组「选用 accession」自动切 NCBI 源
+
+背景：用户点「🔍 查询 NCBI 组装」→ 表格「选用」填进 `GCA_003865215.1` → 点
+「⬇ 下载到 host-db/」，拿到 400
+`gget/Ensembl 源不支持 accession（那是 NCBI 组装号）；请留空来源或改用 NCBI`。
+后端守卫本身是对的（gget 按**物种名**去 Ensembl Plants 取官方组装，静默忽略
+accession 会下错组装、建完宿主库才发现），坏在前端：`pickHostAcc()` 只回填
+`#hostDlAcc`、不动 `#hostDlSource`，来源停在默认 gget，矛盾被推迟到点下载时才由
+后端抛出来，用户得自己反推「是不是来源没切」。
+
+改动（前端两处 + 文案两条 + 一个静态守卫）：
+
+- `webapp/static/app.js` `pickHostAcc(acc)`：回填 accession 的同时把
+  `#hostDlSource` 切到 `ncbi`，toast 追加
+  「· 下载来源已切换为 NCBI（组装号只走 NCBI）」（键 `rd.qryPickedSrc`）。
+- `webapp/static/app.js` `dlHostGenome(btn)`：`const source` → `let source`，
+  并加兜底——`accession && source !== 'ncbi'` 时改投 ncbi 再 toast 说明为什么、
+  怎么改回（键 `rd.hostDlAccSrc`：「要按物种走 Ensembl 请先清空 Assembly
+  Accession」）。手抄组装号也不会再撞 400。「无 accession 时先查再下」闸门
+  （`if (source === 'ncbi' && !accession)`）保持原样。
+- `webapp/static/i18n.js`：zh/en 各加 `rd.qryPickedSrc`、`rd.hostDlAccSrc`。
+- `tests/_check_host_dl_source.py`（新增，已登记 `tests/_run_all.py`）：守
+  选用即切源 / `source` 必须是 let / 兜底判据 / 两条文案中英成对且不同 /
+  后端 400 原文保留 / 模板默认来源仍是 gget。
+
+为什么**不**在后端「自动纠偏」（收到 gget+accession 就按 ncbi 跑）：
+`main.py host-genome --source gget --accession ...` 这类 API/CLI 调用若被静默
+改义，脚本作者看到的结果会与参数不符。用户意图的收敛放在人做选择的那一步
+（网页「选用」按钮），后端守卫原样保留。
+
+验证：`node --check webapp/static/app.js`（及 `i18n.js`）；Playwright（Edge，
+headless）实测 `/refdata`：选用后 `#hostDlSource === 'ncbi'` 且 toast 出现；
+再手动把来源切回 gget 点下载，拦截到的 `/api/host_genome_download` body 为
+`{"species":"Oryza sativa","accession":"GCA_003865215.1","source":"ncbi"}`
+（route 打桩 400，不产生任何真实下载）。`python tests/_check_host_dl_source.py`
+21 项全绿。
+
+遗留：E2E 只在源码模式（8765，`app.py --web`）验过。打包版要立刻生效需把
+`webapp/static/app.js`、`i18n.js` 复制到 `_internal/webapp/static/` 后 Ctrl+F5；
+本次没动 `build_dist/`（避免与同时进行的打包/巡检任务抢文件）。
+
+## 2026-11-02（补三十七）：下载卡「点了没进度条/没日志」——refdata 页补 app-jobs.js + 卡内进度渲染
+
+用户报：「怎么下载这里，没有日志和进度条显示呢」+「全面检查其他模块有没有
+日志和进度条，显示到运行的页面」。
+
+根因（比「少个容器」严重一层）：`webapp/templates/refdata.html:133-134` 只加载
+`i18n.js` + `app.js`，**没加载 `app-jobs.js`**，而 `taskLogOpen`（`app-jobs.js:9`）、
+`startPolling`（`:21`）、`watchTaskBtn` 全仓只在 `app-jobs.js` 定义。于是
+`app.js:2056`（宿主下载）、`refdata.html:148`（病毒数据集）、`refdata.html:215`
+（datasets 通用）三处调用直接 ReferenceError：后台任务其实已经建好（`/tasks`
+里看得到），页面上既不锁按钮、不轮询、也不写结果——用户看到的就是「点了没反应」。
+`app.js:2896` 对 `startPolling` 用了 `typeof` 守卫，说明作者知道该脚本可能缺失，
+但这三处没有守卫。
+
+第二层：即便补上脚本也仍然空白——任务名 `宿主基因组下载 …`（`build.py:672`）、
+`病毒数据集下载 …`（`build.py:783`）、`datasets <mode> 下载 …`（`build.py:857`）
+既不在 `TOOL_LABELS`（`app-jobs.js:194-239`），也不含 `:289-292` 那道闸门要求的
+「工具·/Tool·/NCBI/GenBank/同属/Synteny」，卡内永远不会被注入。
+
+改动（前端四处 + 静态守卫）：
+
+- `webapp/templates/refdata.html`：`app.js` 之后加载
+  `/static/app-jobs.js?v={{ asset_v }}`（顺序不能反，它要用 app.js 的 `$`/`esc`/
+  `fmtDur`）；三张下载卡各加一个容器 `#toolrun-hostdl`（:55）、
+  `#toolrun-virusds`（:80）、`#toolrun-dsgen`（:127），class 用 `toolrun`
+  （`injectStageLogs` 每轮按类清空后重填）。
+- `webapp/static/app-jobs.js`：新增 `REFDL_LABELS`（hostdl / virusds / dsgen，
+  中英任务名都写，dsgen 覆盖 genome / gene / taxonomy 三种 mode），在
+  `injectStageLogs` 的 buildrun 循环之后按 `toolrun-<key>` 注入并 `claimed` 去重。
+  新增渲染器 `inlineTaskHtml(task)`：状态徽标+计时 → 进度条 → task.msg →
+  输出目录 → 运行日志 `pre.logbox`；**不带 Downloads 区**（这些产物落在
+  `host-db/`、`databases/`，套 `toolRunHtml` 只会多一行「暂无可下载文件」）。
+  建库页的 buildrun 循环也从 `stageLogHtml`（只有日志）改用 `inlineTaskHtml`
+  （顺带补上进度条）。
+- `webapp/static/app.css`：`.bar.indet i { width:36%; animation: barIndet 1.15s
+  ease-in-out infinite }` + `@keyframes barIndet`。为什么要这个：宿主下载/建库
+  的进度后端只有 0.05/0.1/0.15 → 1.0 几个台阶，395 MB 下载会长时间停在 15%，
+  固定宽度看起来就是卡死。判据：`running && task.eta == null && pct < 100`
+  才走不确定扫条，有 ETA 的任务仍给真百分比。
+- `webapp/templates/meta.html:885`：任务名白名单补 `AI 总结`（`meta.py:969`
+  起的任务原先不在白名单里，点了只剩按钮文字）与英文名 `AI metadata` /
+  `AI summary` / `Meta plot`（切 EN 时该面板原本永远是空的）。
+
+其余模块审计结论（只读审计，未改；证据行号见下）：meta 其余 4 个任务按钮命中
+`meta.html:885` 并在 `#taskBox` 出进度/日志；prescreen 有自建 `#psLog`
+（`app-prescreen.js:140` 每 2s）且能切页恢复；download 自有 batch 进度条
+（`download.html:207/188`）；samples / results 页的按钮全是同步接口、
+**0 个 `tm.start`**；全仓无任何模板含 `id="tasks"`，`app-jobs.js:101` 的面板
+分支是死代码，`/tasks` 是唯一兜底。
+
+验证：`node --check webapp/static/app-jobs.js`；新增
+`tests/_check_refdl_logs.py`（已登记 `tests/_run_all.py`，44 项）守六环：
+加载脚本 → 容器 → REFDL_LABELS 与后端任务名对得上 → `inlineTaskHtml` 同时出
+进度条与日志且不套 Downloads → `.bar.indet` 动画 → buildrun 同渲染 → meta
+白名单含 AI 总结。真实浏览器（Playwright/Edge headless，`/api/host_genome_download`
+与 `/api/tasks` 全部打桩，不产生任何真实下载）：running 任务渲染出
+`.bar.indet` + 日志行 + 输出目录；切 done 后进度条 100%、indet 消失、日志仍在；
+无 pageerror。
+
+遗留：打包版要立刻生效需把 `webapp/static/app-jobs.js`、`app.css` 与
+`webapp/templates/refdata.html`、`meta.html` 复制到 `_internal/` 对应位置
+（模板在 `_internal/webapp/templates/`）后 Ctrl+F5。
+
+## 2026-11-02（补三十八）：全站任务卡「进度条 + 实时日志」覆盖面补齐
+
+背景：补三十七修好数据资源页三张下载卡后，用户要求「全面检查其他模块有没有
+日志和进度条，显示到运行的页面」。按同一口径审了十个发起任务的模板
+（tools / build / cds_export / refdata / meta / prescreen / samples / results /
+download / submit / logan），查出**同一类结构性缺口**：后端起了任务、页面上
+却没有容器，或容器键与任务名对不上，或任务名过不了 `injectStageLogs` 的
+「工具·/Tool·/NCBI/GenBank」前缀门（app-jobs.js:302-304）。任务中心能看到
+任务在跑，发起页永远空白。
+
+改动一：`webapp/static/app-jobs.js` 标签表支持对象写法
+`{labels, prefix:false, excl:[...], box:'其它键'}`（新增 `labelSpec` / `specHit`）：
+- `prefix:false` 放行后端自起名（集合建树、ICTV下载、CDS/PEP 导出、宿主预测）；
+- `excl` 让「病毒库构建」不被「通用病毒库构建 (RefSeq Viral)」包含而双写；
+- `box` 让同一张卡的两个按钮共用一个输出区（集合建树 → quicktree 容器）；
+- 对象未写 prefix 时继承该表默认门（工具表默认过门、建库表不过），
+  三张表统一走 `specHit`。
+
+改动二：逐卡补键/补容器
+| 页面 | 按钮 | 后端任务名（来源） | 修法 |
+|---|---|---|---|
+| tools | 🌳 快速建树 / 建树 | `工具·快速建树`（tools_api）/ `集合建树 …`（refs.py:356） | 容器 `toolrun-treebuild` → `toolrun-quicktree`；新增 treebuild 对象条目 box:'quicktree'；`CARD_RUN_PREFIX.treebuild` → `quicktree` |
+| tools | ▶ 病毒变异分析 | `工具·病毒变异分析 …`（tools_api.py 新增 stage=variant 改名，原为「已知病毒识别与定量」） | 新增 variant 标签；不再灌进识别卡 |
+| tools | ⬇ 下载所选分类的全部序列 | `ICTV下载 …`（refs.py:219） | 新增 ictv（prefix:false）+ 容器 `toolrun-ictv` |
+| tools | ⬇ 下载 GenBank 集合 | `GenBank下载 …` | 补容器 `toolrun-gbdown`（键早已登记） |
+| tools | 📦 打包 BEAST 作业包 | `工具·BEAST 作业包导出` | 补容器 `toolrun-beastexport` |
+| tools | 分类后自动宿主预测 | `宿主预测·{run}`（tool_results.py:1029） | 新增 hostpredict（prefix:false）+ 分类卡内容器 `toolrun-hostpredict`，不再只有 4s toast |
+| build | 🧱 构建鉴定库 | `病毒鉴定库构建 …`（build.py:1245） | BUILD_TASK_LABELS 新增 kvidx |
+| build | 🧬 构建分类库（数据集行） | `病毒库构建 …`（build.py:1409） | 新增 kunpeng（excl RefSeq/RVDB）+ 容器 `buildrun-kunpeng` |
+| cds-export | 导出 | `CDS/PEP 导出·…`（cds_export.py:86） | 新增 cdsexport（prefix:false），容器原就存在 |
+| submit | 物种名校验 | async 任务 | 轮询时除 stage/pct/msg 外贴最近 4 行日志 |
+
+未改（理由）：submit 的 9 个同步按钮、primer 同步动作本就不需要进度条；
+logan 页用 SSE 自建了 bar+日志尾+取消，是最佳实现，不动。
+
+验证：
+- `node --check webapp/static/app-jobs.js`；`python -c ast.parse(tools_api.py)`。
+- 新增 `tests/_check_task_card_logs.py`（47 项，已登记 `tests/_run_all.py`）守
+  labelSpec/specHit 语义、每条新增键与容器、前缀门未放宽、后端任务名与前端
+  标签对得上、`CARD_RUN_PREFIX` 容器键一致、submit 日志尾。
+- `tests/_check_refdl_logs.py` 同步更新为对象写法（新增 prefix:false 断言）。
+- `_check_js_syntax` / `_check_i18n`（1410 锚点）/ `_audit_contract`（262 路由）全绿。
+- 真实浏览器（Playwright + Edge headless，`/api/tasks` 全打桩）在 8765 与 8900：
+  变异 / 集合建树 / ICTV / GenBank / BEAST / 宿主预测 / CDS / 鉴定库 / kunpeng /
+  RefSeq 十张卡都渲染出 `bar` + `logbox`；RefSeq 任务不会串进 RVDB 卡、变异任务
+  不会串进识别卡；无 pageerror。refdata 三卡回归仍 PASS。
+
+遗留：打包版需把 `webapp/static/app-jobs.js`、`webapp/templates/{tools,build,refdata,meta}.html`、
+`Virus_Platform_Core/web/tools_api.py` 复制到 `_internal/` 对应位置后重启
+（模板与 Python 改动必须重启，静态 JS 刷新即可）。
+
+---
+
+## 2026-11-02（补三十九）：公共检索「切换页面没保留」的另一半 + 下载解析失败的两个真因
+
+用户现场两句话：「不仅切换页面没保留，还报错了」「这个也是，怎么回事，全面解决，
+不应该出现这个问题的呀」。三件事，逐个说清。
+
+### 一、检索快照写不进去：自己配的输出目录，自己判越界
+
+日志：
+
+```
+⚠️ 检索快照写入失败: 路径越界（仅允许平台或输出目录内）:
+   G:\植物病毒分析平台\run\fastq\meta_search\Lycium_barbarum_20261102_1401\search\query.json
+🎉 大一统合并成功！共汇总 472 条 Run 记录。
+ValueError: 路径越界（仅允许平台或输出目录内）: …\search\download_links.csv
+```
+
+用户在「设置 → 存储」把输出目录改成了 `G:\植物病毒分析平台\run\fastq`（另一个
+平台副本里的目录）。网页进程知道这件事（它构造了 Config），**检索引擎不知道**：
+`public_meta/search_engine.py` 是被 `engine_cmd()` 当**裸脚本**拉起的子进程，
+里面没人构造 Config 单例，`config._OUTPUT_ROOT` 还是空串，`write_roots()` 只含
+平台根与 RUN_ROOT —— 用户自己配的根不在白名单，于是判越界。数据本身已经汇总
+成功（472 条），死的只是最后两张表。
+
+修法（`Virus_Platform_Core/config.py`）：
+
+```python
+_PERSISTED_ROOTS_CACHE = (None, None)
+
+def _persisted_roots():
+    """从 platform.json 读用户配的根（mtime 缓存）。
+    不构造 Config：Config.__init__ 会 apply_*_root，而 apply_*_root 又要
+    write_roots() —— 从这里再回去就是递归。"""
+```
+
+`write_roots()` 末尾并入这些根并判重。裸脚本子进程里 `safe_open` 于是也能通过
+（`check_path` 只问白名单，不问「谁配的」）。
+
+### 二、DRR1175147 解析失败：7 位编号被 `\d{6}` 截断
+
+日志只说「ENA 未返回 DRR1175147 的数据行（run 可能不存在或未公开）」，其实数据
+是有的。真因三层：
+
+1. `Virus_Platform_Core/public_data.py:_resolve_ddbj()` 用 `DRA\d{6}` / `DRX\d{6}`
+   抓号；新号是 7 位，抓到 `DRX114432`（真号 `DRX1144321`），拼出的 DDBJ 目录
+   必然 404。
+2. 这个 404 被 `resolve_accession()` 的 `except Exception:` 吞掉，回落 ENA；
+3. ENA 不镜像 DDBJ/NGDC 的原始文件，返回只有表头 → 报「run 可能不存在」。
+
+修法：
+- 编号改成 `\d{5,9}`，并优先取 `<RUN>` 自己的 `<EXPERIMENT_REF accession=…>`；
+- `resolve_accession()` 逐级收集错误，最终一条报错同时列出 DDBJ 与 ENA 的原因；
+- 三库都解析不出时，`[SED]RR\d+` 回落 `sracha`（内置 `3rd/bin/sracha.exe`，从
+  NCBI SRA 直接拉），并把回落理由写进 `note` —— 数据在就不能报「不存在」。
+
+实测：`resolve_accession('DRR1175147')` → `db=DDBJ`，
+`…/DRA031/DRA031173/DRX1144321/DRR1175147_1.fastq.bz2`（HTTP 200，1.29 GB）。
+
+### 三、公共检索页切走再回来「空了」：位置没记住
+
+页面状态快照（补三十五）恢复的是「页面自己写过的面板内容」，而这个页面的表是
+**数据驱动**的：回来必须按真实数据重查，塞回旧 HTML 反而错。它真正丢的是
+**位置**——导航链接是裸 `/meta`，`init()` 于是永远回到「第一个集合 + 检索页」。
+
+修法（`webapp/templates/meta.html`）：`mtShow()` 记 `vp_meta_tab`、`setProject()`
+记 `vp_meta_proj`，`init()` 在没有 `?p=` / `#tab` 时回落到上次的位置；本地筛选词
+恢复后补一次 `localFilter()`，避免「框里有字、表没筛」。
+
+参考口径：**结果面板靠快照，数据驱动的列表靠「记住位置重新查」**，两者别混。
+
+### 验证
+
+- `tests/_check_write_roots.py`（5 项）：读 platform.json、并入白名单、判重、
+  **裸脚本子进程**里 `safe_open` 成功（崩的就是这一步）、配置清空无残留。
+- `tests/_check_public_data_resolve.py`（8 项）：7 位 DRX 不截断、两边报错不互吞、
+  回落 sracha 且说明原因、CRR 不走 sracha。
+- `tests/_it_page_state_ui_pages.py` 新增「公共检索页回到上次的集合与分页签」
+  （`MT` 是 `const` 全局词法绑定，不是 `window.MT`，用例里别用 `window.MT`）。
+- 批量：`_check_public_data_resolve _check_write_roots _check_page_state
+  _it_page_state_ui_pages` → 4/4 PASS；`/meta` 控制台 SEVERE 0；
+  截图 `run/_meta_after_fix.png`（回到 `Lycium_barbarum_20261102_1406` 的 S-浏览，
+  472 行）。
+
+### 给用户的处置建议（未擅自改）
+
+输出目录现在是 `G:\植物病毒分析平台\run\fastq`，那是**另一个平台副本**的 fastq
+目录：产物会混进去，且那块盘只剩 13 GB。建议改成专用目录（如
+`G:\VPAP_output`）或恢复默认；改配置需要用户点头。
+
+## 2026-11-02（补四十一）：检索参数「切页后自己变了」——两个真凶都跟快照无关
+
+用户第二次报：「参数，在切换页面后，再回来也发生了变化。为什么，一直解决不了
+这个问题」。截图里 物种=Lycium barbarum、测序类型=**TRANSCRIPTOMIC**、数据库=
+**仅 SRA**、并发 5、详细模式勾选 —— 除物种外，全是他从没选过的**默认值**。
+
+### 真凶一：页面键里带了 `p=`，同一页被拆成两个快照
+
+`app-state.js` 的 `pageKey()` 把「路径 + 非易变查询参数」当页面身份。但 `/meta`
+页自己会用 `history.replaceState` 把地址从 `/meta` 改成 `/meta?p=<当前集合>`，
+于是同一页在会话里产生两个键：`vp_ps:/meta:*` 与 `vp_ps:/meta?p=X:*`。切走再
+回来命中哪个，取决于当时地址里有没有 `p=` —— 命中旧键，读到就是更早那份参数，
+看起来就是「参数被改了」。
+
+修法：`p=` 进 `VOLATILE`，并留 `window.PS_VOLATILE_PARAMS` 给页面追加自己的
+易变参数（选中项不算页面身份）：
+
+```js
+var VOLATILE = { t: 1, _: 1, ts: 1, v: 1, _t: 1, cache: 1, p: 1 };
+function volatileParam(k) {
+  if (VOLATILE[k]) return true;
+  var extra = window.PS_VOLATILE_PARAMS;
+  return !!(extra && extra.indexOf && extra.indexOf(k) >= 0);
+}
+```
+
+### 真凶二：示例自动填充把恢复出来的值盖回去了
+
+`webapp/static/examples.js` 有一套 `autoFill()`：页面加载后 400ms 内，把**空的**
+表单填成示例值（`PAGE_MAP['/meta'] = { mtSpecies: 'Lycium barbarum', mtSource: 'All' }`，
+`examples.js:100`）。快照恢复发生在更早的 DOMContentLoaded，于是：恢复填好 →
+400ms 时示例再填一遍 → 用户看到的是示例值。
+
+`examples.js` 本来就留了让路开关（`window.__vpNoAutoFill`）。有快照就说明用户
+已经在用这一页，示例必须让路：
+
+```js
+if (get('form') || get('pane')) window.__vpNoAutoFill = true;
+```
+
+### 验证
+
+- `run/_tmp_meta_verify.py`（临时脚本，自带 `make_server(8899)`，不碰用户正在
+  用的 8765）：改 物种/测序类型/并发/数据库/详细 → 跳 `/tasks` → 回裸 `/meta`，
+  五个值逐个比对 → `PASS 检索参数保留`，控制台 SEVERE 0。（修之前只有物种不对：
+  它被 autoFill 盖回 `Lycium barbarum`。）
+- `tests/_it_page_state_ui_pages.py` 新增 `check_meta_form` → 7/7 通过。
+- `tests/_check_page_state.py` 增两条契约（`window.__vpNoAutoFill = true`、
+  `volatileParam` 与 `p: 1`）→ 23 条全绿。
+
+### 教训
+
+1. 页面状态键**不能含页内会改写的选中项**（`p=`、`tab=`、`#hash`）——它们变一次
+   就多一个键，快照就永远对不上。
+2. 「恢复状态」与「示例自动填充」天生会打架，用官方开关让路，别靠执行顺序赌。
+3. 验证别依赖 8765：用户会一直重启平台，`net::ERR_CONNECTION_REFUSED` 不代表
+   代码有问题；用 `werkzeug.serving.make_server` 起一个临时实例最稳。
+
+## 2026-11-02（补四十）：下载卡日志只有 ANSI 控制序列、没有速度与剩余时间
+
+背景：用户下载宿主基因组（GCA_001648745.1），任务卡日志满屏
+`[14:01:09] [INFO]   [0A[2K`，看不到进度；同时期望像公共数据下载页的批量
+下载卡那样显示「速度 606 KB/s 已下载 1.9 MB / 1.32 GB 剩余 36分17秒」。
+
+根因（三条叠加）：
+1. datasets.exe 只在 TTY 下原地重绘进度条，重定向后只剩 `\x1b[0A\x1b[2K`
+   控制序列；`_run_and_stream` 原样转发，TaskLogger 再包一层时间戳 → 一堆
+   无内容空行。任务日志文件还叠了第二个时间戳（TaskLogger 已带 `[HH:MM:SS]`，
+   `tasks.py:_emit` 又补一次）。
+2. 下载过程没有任何字节级进度：`_download_package` 只汇报 0.1 → 1.0，
+   gget/NCBI HTTPS 分支同理，前端只能显示不确定扫条。
+3. `host_genome.download_genome_accession` 目录按 TaxID 改名后没重定基
+   `merged_fasta`，末尾 `count_sequences/​getsize` 抛 FileNotFoundError——
+   下载其实成功，任务却记成失败（本次实测日志：数据包 90.6 MB、合并 64800
+   条 295,389,770 bp 全部成功，最后一步报错）。
+
+改动：
+- `Virus_Platform_Core/utils.py`：新增 `strip_ansi` / `clean_log_line`
+  （CSI/OSC/单字符 ESC + `\r` 只留末帧）、`fmt_bytes/fmt_speed/fmt_eta`、
+  `DownloadWatcher`（按落盘文件增长 1s 采样，EMA 平滑速度，回调
+  downloaded/total/speed/eta/pct/msg，每 15s 落一条日志）。TaskLogger.log
+  统一走 clean_log_line，清完为空的行直接丢弃。
+- `Virus_Platform_Core/web/tasks.py`：`_emit` 只在行首没有 `[HH:MM:SS]` 时
+  补时间戳，任务日志文件不再双时间戳。
+- `Virus_Platform_Core/public_meta/datasets_cli.py`：`_download_package`
+  接 `prog`，从 datasets 自己打印的「NN MB valid data package」解析总量，
+  按 zip 落盘大小估算进度并 `prog('download', pct, '速度 … 已下载 … / … 剩余 …', eta)`；
+  下载完 0.97「解包中」。四个 download_* 与 `download()` 透传 prog。
+- `Virus_Platform_Core/public_meta/host_genome.py`：三个下载函数接 prog
+  （accession 走 datasets watcher、gget 用 Ensembl 元数据字节数、HTTPS 回退
+  统计 extracted/ 增长）；修复按 TaxID 改名后 `merged_fasta`/`fasta_files`
+  未重定基的假失败。
+- `Virus_Platform_Core/web/build.py`：宿主基因组（accession/gget/NCBI）、
+  病毒数据集、datasets 通用下载三个 job 全部把 prog 传下去。
+- `webapp/static/app-jobs.js`：新增 `cleanLogText`（去 ANSI、`\r` 末帧、
+  丢弃空行），所有日志渲染（任务面板 / toolRunHtml / inlineTaskHtml /
+  stageLogHtml）统一使用；宿主下载卡仍显示 `task.msg`，有 ETA 时进度条
+  变确定条、无 ETA 时走 `.bar.indet`。
+
+验证：`tests/_check_dl_progress.py` 37 项全过（清洗/格式化/文案/watcher 采样/
+传参链路/前端）；`node --check` 通过；8765 实测（见提交答复）。
+
+遗留：合并去重（300MB 级基因组数十秒）仍无进度，只有 0.97「解包中…」；
+打包版需把上述 py 与 `webapp/static/app-jobs.js` 复制到 `_internal/` 后重启。
+
+补充（同日实测后加固）：datasets 的 zip 总量在下载中途不报，只收尾打「NN MB
+valid data package」，没有总量就没有百分比与剩余时间。为此下载前按组装长度
+估一个总量（`_zip_size_hint`，经验比例 zip≈0.32×bp，实测水稻 295 Mb→90 MB、
+酵母 12.2 Mb→3.7 MB），下载中若实测超过预估则总量自适应上抬（酵母包含
+protein.faa，实际 7.6 MB），不会出现「已下载 > 总量」。另修三处实测问题：
+① 上次中断残留的同名 zip 会让进度条一上来就 95% 再倒退，下载前先清理；
+② 首个采样点速度未稳（2 KB/秒）会报「剩余 31分48秒」，进度 <2% 不报 ETA；
+③ 收尾 ETA ≤1.5 秒改说「即将完成」；任务日志连续重复行只留第一条。
+
+## 2026-11-02（补四十三）：切模块不再整页重载（同源 iframe 保活）+ 归档任务能把结果装回页面
+
+用户原话：「我真的很奇怪，你还是切换页面模块，你还是刷新，你到底能不能解决问题。
+另外，我说的归档，是**现在运行保留的页面**是否归档到历史任务，以及**结果重新还原到
+页面中**。你完全没做到」。
+
+### 一、为什么之前一直在「补快照」而不是「不刷新」
+
+导航是普通 `<a href>`，每个模块是一次整页 GET：文档卸载 → 所有 JS 状态（滚动位置、
+轮询定时器、图表实例、正在编辑的表格、查询结果 DOM）全部消失。「页面状态快照」
+（补三十五）只能把**表单值 + 结果面板 HTML** 存进 sessionStorage 再贴回来，等于事后
+修复，永远补不全。要真的「切走再回来还是原样」，必须让页面**不被卸载**。
+
+### 二、外壳（`webapp/static/app-shell.js`，`window.VP_SHELL`）
+
+- 首次点导航时把目标页装进同源 `<iframe src="/x?__frame=1">`，父文档加
+  `body.shell-mod` 隐藏自己的 `> main` 与 `> .topbar`；后续切换只
+  `classList.remove('on')`，**iframe 不卸载**。
+- 只拦「同源 + 普通左键 + 没有 target=_blank/download/javascript: + 没被页面自己
+  preventDefault」的链接；`/x#anchor` 纯锚点放行给页面自己。
+- **不设保活上限**：所有打开过的模块一直活着（2026-11-02 用户：「同时保活 所有
+  模块，不要设上限，没必要」；第 8 个以后不再淘汰最久没看的）。点回父文档自己的
+  地址时 `showOwn()` 收回外壳。
+- iframe 内部同样加载本脚本，`window.self !== window.top` 时只做一件事：把点击
+  变成 `postMessage({vpNav})` 交给父层，父层再 `open()`，所以不会套娃。
+- `_nav.html` 在首帧就给 `<html>` 加 `vp-frame`（`?__frame=1` 时），CSS 立刻隐藏
+  侧栏/运行条/对话坞，避免闪一下双层导航。
+- 挂载方式和 `app-state.js` 一样：`app.js` 里 `mountShell()` 动态插 `<script>`，
+  21 个模板不用逐个改。
+
+### 三、归档 = 记录 + 能还原（`webapp/templates/tasks.html`）
+
+`restoreHref(task)`：公共检索任务的 `result.msg` / `log_file` 里带
+`meta_search/<集合名>/search`，据此拼 `/meta?p=<集合>#sb`；别的任务沿用
+`task.link`。历史归档卡片多了「↗ 在页面中打开」（`tk.restoreToPage`），点它就回到
+那次运行所属的集合、把 472 行结果重新查出来——这才是「归档后结果还能还原到页面」。
+
+### 四、验证
+
+- `tests/_check_page_shell.py`（20 条静态契约）全绿。
+- `tests/_it_page_shell_ui.py`（自起 8907，真 Edge）：点导航后父文档 `__noReload`
+  仍在、URL 仍 `/`；iframe 里写 `__keepAlive='ALIVE-42'`，切到另一个模块再切回，
+  变量还在 → 4/4。
+- 归档还原链路实测（自起 8909 + 合成归档记录）：卡片出现「↗ 在页面中打开」→
+  href 为 `/meta?p=<真实集合>#sb` → 外壳 iframe 载入该集合 → `MT.project` 等于
+  集合名、行数徽标「共 472 行 …」→ PASS。
+- 坑：`_tid_ok()` 要求任务 id 是 6~16 位小写十六进制，合成记录用
+  `psprobe0001` 会被整条忽略（表现为「归档卡不存在」）；导航里组标题
+  `a.sn-link` 是开合开关（`app-nav.js` 里 `preventDefault`），外壳测试要挑
+  `#sideNav .sn-sub a`。
+
+## 2026-11-02（补四十四）：全站 21 个模块都保活 + 归档三类任务都能装回页面
+
+用户原话：「其他页面模块呢，全部 修正」。补四十三只证明了「点侧栏切模块不刷新」，
+本轮把它做成**全站**的，并把「归档 → 结果装回页面」从公共检索一类扩到三类任务。
+
+### 一、全站巡检（`tests/_it_page_shell_all.py`，自起 8923）
+
+- 逐一 `VP_SHELL.open(route)` 装进外壳 → 在帧里写 `__mark=route` → 切去 `/meta`
+  再切回 → 断言 `__mark` 还在。覆盖 21 条模块路由（`/`、`/samples`、`/tools`、
+  `/refdata`、`/meta`、`/prescreen`、`/virome`、`/download`、`/build`、`/results`、
+  `/submit`、`/primer`、`/orf`、`/genome`、`/annotation`、`/cds-export`、
+  `/hostremoval`、`/logan`、`/settings`、`/mcp`、`/help`）→ 全部 PASS，
+  frames 一路涨到 21（**不淘汰**，见下），控制台 SEVERE 0。
+- 额外两条：页面内 `gotoModule('/virome')` 跳模块时，调用帧保留（`KEEP-ME`）、
+  目标帧激活、父 URL 不变；`open('/tasks')` 收回外壳（`frames.on==0`）。
+
+### 二、`location.href` 也会「刷新」——统一走 `gotoModule()`
+
+外壳只拦 `<a href>`，页面里写死的 `location.href = '/xxx'` 在 iframe 中等于是
+**把 iframe 自己再载一遍**，用户看到的还是刷新。新增（`webapp/static/app.js`）：
+
+```js
+function gotoModule(href) {
+  if (!href) return;
+  if (window.VP_SHELL && typeof window.VP_SHELL.open === 'function') { window.VP_SHELL.open(href); return; }
+  if (window.self !== window.top) { try { parent.postMessage({ vpNav: href }, location.origin); return; } catch (e) {} }
+  location.href = href;
+}
+```
+
+替换了 12 处「切模块」写法：`app.js` 的 `sendTo()` 两处 + 内联 `onclick`、
+`app-batch.js`（批量导入→提交页）、`app-runhistory.js`（链路跳页）、
+`app-storage.js`、`download.html`、`meta.html` 两处（→ 公共数据下载）、
+`tools.html` 三处（→ 引物 / 同源比对 / 候选验证）。**下载文件**用的
+`location.href` 保持原样（`submit.html` 三处、`meta.html` 的 `/api/meta/export`）。
+
+### 三、归档还原扩到三类（`restoreHref()`）
+
+任务记录里 76 条没有 `link`（工具/流水线任务），只靠 `link` 就无法还原。改为按
+`result.msg / log_file / out_dir` 里的路径线索推落点：
+
+| 任务类型 | 线索 | 「↗ 在页面中打开」落点 |
+|---|---|---|
+| 公共检索 | `meta_search/<集合>/search` | `/meta?p=<集合>#sb` |
+| 工具运行 | `tool_runs/<run>/`（`run` 形如 `convert_20261102_144320_c64ce1`） | `/results?run=<run>#runs` |
+| 样品流水线 | `run/results/<样品>/` | `/results?sample=<样品>#samples` |
+| 其它 | `task.link` | 原样 |
+
+两页各加一个深链接入口：
+
+- `webapp/templates/results.html`：`RS_WANT_SAMPLE` + `rsPickSample()` 让三个分页签
+  （MSA/SDT/树）的样品下拉直接选中；`rsFocusSample()` 把「已分析样品」那一行加
+  `.rs-hit` 并滚到中间；`RS_WANT_RUN` + `rsFocusRun()` 切到「专项分析运行」、
+  `openRuns.add()` 展开这次运行的文件、高亮滚到眼前。
+- `webapp/static/app-runhistory.js`：`rhDeepLink()` 支持 `/tools?run=<名称>`
+  （找到所属历史盒 → 展开 → 展开该 run 的文件 → 滚到眼前；找不到给 toast，
+  不再静默停在页顶）。
+
+### 四、验证与坑
+
+- `tests/_it_page_shell_all.py` → 「全站模块保活巡检通过 ✔（21 个模块 + 页面内
+  跳转 + 自身页面收回）」。
+- `tests/_it_page_deeplink_ui.py`（自起 8926）→ `/results?sample=A` 高亮 1 行、
+  `/results?run=<真实运行>` 命中 1 张且 `sec-runs` 可见、`/tasks` 三块内联脚本
+  `node --check` 全过。
+- 回归：`_check_page_shell / _check_page_state / _check_i18n / _it_page_deeplink_ui`
+  → 4/4 PASS（17.8s）。
+- 坑：模板里的内联脚本不能直接 `node --check` 源文件——`tools.html` 有
+  `{{ ... }}`/`{{ nav_groups | tojson }}`，必须用**渲染后的 HTML** 抽块检查
+  （`tests/_it_page_deeplink_ui.py` 就是这么做的）。
+
+## 2026-11-02（补四十二）：样本处理「一键前处理」支持输入目录批量（自动解析单/双端）
+
+用户需求：一键前处理只能一次喂一个文件，一批样品要重复点十几次；要能「选一个
+目录 → 自动解析样本（尤其要认清单端/双端）→ 批量跑」。
+
+**解析规则**（`Virus_Platform_Core/web/chains.py` 新增 `_scan_prep_inputs`）：
+- 配对优先级：① `_R1` / `.R1` / `-R1` 直跟扩展名（老规则）；② Illumina 的
+  `_R1_001`（`NX-5_S2_L001_R1_001.fastq.gz`）；③ ENA/DDBJ 的 `_1`/`_2`
+  （`DRR1175147_1.fastq.gz`）。②③ 是既有 `find_read_pairs` 的两个盲点——
+  之前在「扫描文件夹建样品」里它们会被拆成两条单端样本，别指望复用旧函数。
+- 单独 FASTQ = 单端；没有 R1 的 R2 记孤儿并跳过（不猜、不凑双端）；`.sra`
+  各自成样本（单/双端仍由 sracha 解码结果决定）；顶层没有任何样本文件时下探
+  一层子目录；样本名剥掉 `_L001_R1_001` 等后缀、去重后加 `_2/_3`。
+
+**批量执行**：`_prepchain_run_sample` 抽成单样本流水（转换→质控→FASTA→宿主
+去除），单文件模式沿用（行为不变），目录模式逐样本顺序跑、步骤 run 名带
+`<样本>__` 前缀、产物链接收进 `<chain>/<样本>/`；**单样本异常只标记该样本
+failed（日志带完整 traceback）并继续下一个**，全失败才让任务失败。
+`_chain.json` 增加 `mode/input_dir/n_samples/ok_samples/failed_samples/samples[]`
+（每个样本含 status/kind/pe/steps/fastq/fasta/links/error），另写 `samples.tsv`
+（`sample type status R1 R2 kept_fastq fasta error`）。注意 `samples[].fasta`
+是工具运行目录里的原始绝对路径，面板要下载得走 `<chain>/<样本>/` 里的同名
+链接（`links` 字段就是这么来的，别再 `relpath` 出 `..` 拼 URL——会 400）。
+
+**接口与前端**：
+- 新增 `POST /api/tool/prepchain_scan {folder}`：只解析不跑，回
+  `n_samples/n_paired/n_single/n_sra/subdirs/orphan_r2/samples`；路径走
+  `check_path(must_exist=True)`，允许平台外目录（只读）。
+- `/api/tool/chain_result` 白名单加 `prepchain`，且 `out_dir` 改经
+  `_run_real_dir(run)` 解析（原来 `check_path(in_platform=True)` 在「输出到
+  平台外」时读不到 `_chain.json`）。
+- tools.html：卡内「单文件 / 目录批量」切换、目录框 + 「🔍 扫描样本」+ 可勾选
+  预览表（全选/全不选）、跑完渲染批量汇总表（每样本状态与产物下载）；
+  `_chain.json`/`samples.tsv` 也给下载。`agent_catalog` 的 prepchain 参数表
+  加 `input_dir`/`samples`，`input` 改非必填，二选一/都不填的报错在 job 里给。
+- app-jobs.js：`TOOL_RESTORE`/`RICH_BOX` 登记 prepchain，刷新后能恢复汇总。
+
+验证：`tests/_check_prepchain_dir.py`（已入 `_run_all.py`）21 项全过——三种
+命名配对、单端、孤儿、`.sra`、下探子目录、scan 接口与 400、真实批量 5 样本
+（1 个坏 gzip 隔离失败）→ `mode=batch/n_samples=5/ok=4/failed=1`、
+`samples.tsv`、`chain_result` 回 samples、产物经 `/tool_runs/<run>/<样本>/<文件>`
+下载 200；单文件链路仍由 `tests/_check_tool_outdir.py` 覆盖。新增路由已刷
+`tests/_route_baseline.json`，`_audit_routes`/`_audit_contract`/`_check_i18n`
+均过；`node --check` 全量 JS 语法 67/67。
+
+**补记（同日）：预览表补样本大小 + 命名回归**
+- 用户实际目录（`Dataset_1_R1.fastq.gz` 一类的命名）暴露命名 bug：`_pc_sample_name`
+  先剥 `_R1` 得到 `Dataset_1`，又被 ENA 规则 `[_.\-][12]$` 把 `_1` 当配对标记
+  剥掉 → `Dataset_1`/`Dataset_2` 都变成 `Dataset`（重名后被迫 `_2` 去重）。
+  修法：拆出 `_PC_R_SUFFIX` 与 `_PC_ENA_SUFFIX`，**只有该文件确实按 ENA `_1`
+  规则配成对（`_PC_ENA_PAIR.search(r1)`）时才剥 `_1`**；`_pc_sample_name(fn,
+  is_sra=False, ena=False)` 多一个 `ena` 参数。单个 `_1` 文件不再当配对标记。
+- 扫描/预览带大小：`_scan_prep_inputs` 每条样本加 `r1_size/r2_size/size`
+  （`_pc_fsize` 容错），返回 `total_bytes`；scan 接口透传 `total_bytes`；
+  `_chain.json.samples[].size`、`samples.tsv` 新增 `bytes` 列；
+  tools.html 预览表与批量汇总表都加「大小」列，汇总行显示 `共 <总量>`
+  （`pcBytes()` 格式化为 B/KB/MB/GB/TB，i18n `tk.pcThSize`/`tk.pcScanSize`）。
+- 回归：`tests/_check_prepchain_dir.py` 新增「`Dataset_1_R1` 不被误剥」
+  「ENA `_1/_2` 仍按配对标记剥」「r1_size/size/total_bytes」「tsv 表头含 bytes」
+  四项；实测 `E:\谷歌下载\测试数据验证` 18 个样本命名正确、合计 13.62 GB。
+
+
+## 2026-11-02（补四十五）：病毒定量与共识「一键分析」也支持输入目录批量（与一键前处理同一套）
+
+用户需求：`病毒识别和分类分析 · 一键分析（全流程）`（kvchain）要和 `样本处理 ·
+一键前处理`（prepchain）一样，能选目录自动解析单/双端、预览勾选、逐样本批量跑；
+两卡的「单样本 / 目录批量」选择器也要做显眼些（原来是小 radio，容易忽略）。
+
+**后端（`Virus_Platform_Core/web/chains.py` 的 `_tool_job_kvchain`）**：
+- 参数加 `input_dir`（兼容 `folder`）：与样品名/直填 reads/样本表 TSV 三选一，
+  同时给直接 400；目录复用 `_prep_pick_samples`（同一套 `_R1`/`_R1_001`/`_1`
+  解析 + 大小 + 孤儿 + 下探一层），`samples` 在目录模式下的语义变成「只跑勾选的」。
+- 目录里出现 `.sra` 明确 400：本卡只吃 FASTQ，先走「一键前处理」或「格式转换」
+  （不让 sracha 隐式介入，避免用户以为它跑的是同一份流程）。
+- 批量：逐样本建 `<chain>/<样本>/`、写 `input.tsv`（`name/r1/r2`）当
+  `sample_sheet`，各跑一次 kvsuite（stage=all，run 名 `<样本>__kvsuite`）；
+  **单样本异常只标该样本 failed（日志带 traceback）并继续**，全失败才抛
+  RuntimeError；成功样本把 `kvsuite/filter/filtered.tsv`、
+  `kvsuite/identify/all_viruses.summary.tsv`、`kvsuite/variant_summary.json`
+  链接进样本目录（`links`），并记 `n_confirmed/duration_s/size`。
+- `_chain.json` 加 `mode/input_dir/n_samples/ok_samples/failed_samples/samples[]`，
+  另写 `samples.tsv`（`sample type status bytes confirmed R1 R2 files error`）。
+  单样本模式行为不变（仍是一步 kvsuite + 原汇总卡），只多记 `mode=single`。
+
+**接口**：把扫描逻辑抽成 `_prep_scan_payload()`，`/api/tool/prepchain_scan`
+与新增的 `POST /api/tool/chain_scan` 共用（两卡同一解析口径；后者带 `kind`
+只做日志标识）。新路由已刷 `tests/_route_baseline.json`。
+
+**前端（`webapp/templates/tools.html` + `app.css` + `i18n.js`）**：
+- 两卡统一药丸式分段控件 `.seg`（radio + `:checked + span` 主绿实底），
+  文案改为「单样本 / 目录批量」，比原 radio 更醒目；kvchain 卡补
+  `kvFilePane/kvDirPane/kvc_input_dir/kvScanBox/kvScanTable/kvChainSummary`。
+- 原 `pc*` 扫描 JS 泛化成 `SCAN_UI` 配置（模式 radio/容器 id/chain 名），
+  `scanDir(k)` 走 `/api/tool/chain_scan`，`scanLoadSummary(k, run)` 走
+  `chain_result`；保留 `pc*` 兼容包装给 `runTool`/`app-jobs.js` 老入口。
+- `runKvchain` 增加目录分支（input_dir + 勾选子集），跑完目录模式渲染逐样本
+  汇总表（成功/失败/大小/产物下载），单样本模式仍走 `loadChainResult`；
+  `app-jobs.js` 的 `TOOL_RESTORE.kvchain` 两份都恢复。
+
+**验证**：新增 `tests/_check_kvchain_dir.py`（已入 `_run_all.py`）23 项全过——
+工厂期 400（.sra/与 reads 冲突/目录不存在/空输入/勾选名不存在）、批量
+2 成功 + 1 失败隔离、三个产物链接可读、`samples.tsv`、全失败 RuntimeError、
+`chain_scan` 与 `prepchain_scan` 结果一致。`_check_kvchain_ui.py` 增加目录模式
+用例（切模式/预览表 2 行/勾选），本机未装 playwright 时按约定 SKIP。回归：
+`_check_prepchain_dir.py` 21 项、`_check_js_syntax.py`、`_audit_routes`
+（267 请求 0 个 500）、`_audit_contract`、`_check_i18n` 均过。
+## 2026-11-02（补四十六）：一键类「目录批量」预览表支持排序与分页
+
+- 用户（2026-11-02）：「解析的表格 补充支持排序，另外支持翻页，每页10 20 样本」。
+- 前端 webapp/templates/tools.html 通用扫描层（prepchain / kvchain 共用）：
+  - 表头「样本 / 类型 / 大小 / R1 / R2」可点，升/降序切换（▲▼）；字符串用
+    `localeCompare(..., {numeric:true})` 自然排序，`Dataset_2` 排在 `Dataset_10` 前；
+    大小按字节数排序。
+  - 每页 10 / 20 / 50 可选（默认 10），上一页/下一页 + 「第 a/b 页」；换页/换页大小/排序
+    都只重绘表格，不重新请求目录。
+  - 勾选状态提到 `_scanView[k].sel`（Set）里：跨页、跨排序保持；「全选/全不选」作用于全部
+    样本；表头勾选框在三态（全选/部分/未选）间切换；`scanSelected()` 由「全选=null（全部）」
+    口径读 Set，不再从当前页 DOM 里取（否则翻页会丢已选）。
+- i18n 新增（中英成对）：tk.pcPerPage / tk.pcPageInfo / tk.pcPrev / tk.pcNext /
+  tk.pcSelInfo / tk.pcSortHint。
+- 验证：无头 Edge 实测真实目录 18 样本 —— 首屏 10 行、第 2 页 8 行、切换 20 后 1 页 18 行；
+  按大小升降序正确（3.4GB → 6.0MB）；名称自然序 Dataset_1, Dataset_2, Dataset_3…；
+  勾选 18/18 全程保持；无控制台异常。`tests/_check_js_syntax.py`、`tests/_check_i18n.py`、
+  `tests/_audit_contract.py` 均通过。
+
+## 2026-11-02（补四十七）：悬浮机器人 = 独立「问答平台」——与 AI 工作台彻底分开 + 拖动贴边
+
+- 用户：「它的功能独立是 问答平台，不是 AI 工作台，不驱动任务进行，这点注意全面分开，
+  另外悬浮机器人支持移动，拖动，贴边」；并明确「AI 工作台 仍保留不动呀……千万不要删了」。
+  权限口径选「完全隔离：只答平台用法/概念」（不读任何当前数据）。
+- 两个入口各归各：
+  - `#aiFab`（右下悬浮球，可拖/贴边）= 问答助手 → `#qaDock`（`webapp/static/app-qa.js` 新增）。
+  - `#aiDock`（AI 工作台）= 顶栏 `.navtail` 新增 `#aiDockBtn`（🧠）打开；首页仍是页内常开
+    的 `.ai-inline` 台（`home.html` 只把 🧠 按钮隐藏掉）。未读红点 `#aiFabBadge` 随之搬到 🧠。
+- 后端隔离（`Virus_Platform_Core/ai_agent/chat.py`）：新增 `_QA_RULES_ZH/_EN` +
+  `_QA_DOC_FALLBACK` + `_qa_doc()`（读根目录 `AGENTS.md`，截断 1.2 万字符）+ `_qa_system_prompt()`；
+  `run_chat(..., mode='')` 里 `qa = mode == 'qa'` 时**物理不发 tools**（`use_tools = not qa`）、
+  把 `sample/attachments/workspace` 置空、`_emit_artifacts()` 直接 return（不产结果卡）。
+  `Virus_Platform_Core/web/ai_assist.py` 的 `/api/ai/chat` 透传 `mode`。
+  实测请求体只有 `{mode:'qa', messages:[{role,content}]}`。
+- 前端隔离（`app-qa.js`）：独立 localStorage 键 `vp_qa_open` / `vp_qa_msgs`（工作台仍是
+  `vp_ai_open` / `vp_ai_msgs:*`，互不覆盖）；打开问答会收起浮坞，打开浮坞会收起问答，
+  但**首页内嵌台 `.ai-inline` 例外**（收它等于把首页工作台收没）。面板位置跟球走：
+  球在左半屏开左边、右半屏开右边，优先开在球上方。
+- `app-ai.js::AI.toggle` 两处改动：① 不再 `hidden` 悬浮球（球归问答）；② 开合意图改为
+  **从 DOM 反推**（`!dockEl.hidden`）而不是读 `AI.open` 标志——实测踩到一次「标志与
+  hidden 短暂不一致 → 点 🧠 按标志算出的 want 等于当前状态，点了跟没点一样」。
+- 拖动贴边（`webapp/static/app.js`）：`vpDraggable` 新增 `opts.snap` → `_uiSnapSide(el)`
+  按中心点吸到最近侧边缘（`_uiClamp` 夹进视口），带 `.is-snapping` 过渡；`runBarInit()`
+  里改成 `vpDraggable(fab,'fab',{snap:true})`。位置仍存 `vp_ui_drag.fab`，双击复位。
+- i18n：`qa.title/qa.open/qa.clear/qa.close/qa.hint/qa.inputPh` 中英成对加入
+  `webapp/static/i18n.js`（`applyI18n` 走 `t(key,null)`，缺键会把 key 本身写进 DOM）。
+- 测试：新增 `tests/_check_qa_dock_ui.py`（26 条：球只开问答、请求体 `mode=qa` 且无
+  样品/附件/工作空间、messages 只有 role+content、历史不污染、拖动贴边+存档+双击复位、
+  🧠 开工作台且收起问答、0 控制台错误）；改写 `_check_ai_dock_ui.py`（点球 → 问答；
+  点 🧠 → 工作台；外壳 iframe 里两个入口各司其职）、`_check_ai_global_ui.py`（FAB→🧠）、
+  `_it_page_shell_ui.py`（`fab_state='qa'`、新增 `btn_state='dock'`）、
+  `_check_page_shell.py`（+12 条静态契约）；`_run_all.py` 已入编新测试。
+- 现场验证（本机 8765，真实 deepseek 端点）：问「怎么新建一个样品？」，回答给出新建流程
+  并主动声明「我这边只讲用法，不能替你起草或执行；要真建样品请回 AI 工作台由你本人批准」，
+  面板内工作台元素数 0、坞未弹、无控制台错误；截图 `run/logs/qa_live_ask.png`、
+  `run/logs/qa_live_answer.png`。`_check_qa_dock_ui` / `_check_ai_dock_ui`（连跑 2 次）/
+  `_it_page_shell_ui` / `_check_page_shell` 全绿。
+
+## 2026-11-02（补四十七）：任务完成时结果预览为空（输出根外移时）
+
+**症状**：一键链（kvchain 批量 11 样本）跑完后，输出区没有下载按钮，切到别的
+页面再回来才冒出一大堆结果文件。
+
+**根因**：`tasks.py::_tool_result_files()` 用
+`check_path(tool_runs_root()/run, in_platform=True)` 定位运行目录；当
+`platform.json` 的 `output_root` 指到平台根之外（本机为 `G:\植物病毒分析平台`）
+时该调用抛异常，被 `build_result_preview()` 的兜底 `except` 吞掉 → 完成快照
+里 `files` 为空。切页恢复走的是 `/api/tool/runs`（`_run_real_dir` + os.walk，
+不做 in_platform 校验），所以文件又全出现了。
+
+**修法**：`_tool_result_files()` 改用 `web.state.run_real_dir(run)` 解析 out_link
+指针；一键链（结果里带 `chain`）完成快照给全量文件（每样本 3–4 个链接 + 汇总），
+普通工具仍限 12 个防止组装类铺出几千个下载按钮。另在 `watchTaskBtn` 终态
+回调里触发一次 `refreshTasks()`，不必等下一轮空闲轮询（最长 8s）才刷新。
+
+**验证**：历史 kvchain 运行预览 38 个文件（修复前 0）；新建 convert 任务
+`/api/tasks` 的 preview.files=2（run.log + 产物），G: 输出根下正常。
+**MCP 同步（同日）**：`mcp_server.py` 里 `_TOOL_PARAM_SCHEMAS['kvchain']` 原来
+是从 `kvsuite` 复制一份，目录批量上线后 MCP 清单漏了 `input_dir`，且与 kvsuite
+自带的 `samples` 重复。现改为直接复用 `agent_catalog` 的 kvchain 定义（kvsuite
+参数 + input_dir，samples 说明合并为「样品名 / 目录模式下为勾选样本名」），MCP
+只需重启进程即可看到新参数；`prepchain` 的 input_dir/samples 本来就来自
+agent_catalog，自动生效。
+## 2026-11-02（补四十八）：一键流程「规范报告」——材料 / 方法 / 结果（单文件 HTML）
+
+一键流程（prepchain / kvchain / virchain / anochain）跑完后，除 _chain.json
+与逐样本产物外，可再生成一份**规范报告** `chain_report.html`：学术论文口吻，
+固定五章——一、材料（运行概况、样本清单与数据量、宿主库/fastp/参考库状态）；
+二、方法（流程总述、实际执行的步骤与工具、参数表）；三、结果（样本成功/失败、
+检出病毒表、物种汇总、失败样本、覆盖深度图）；四、产物与可追溯（相对路径 +
+大小）；五、局限与口径。报告只写 `chain_report.html` + `chain_report_meta.json`，
+不动任何分析产物。
+
+- 入口：
+  - Web：一键卡「批量运行汇总 / 一键全流程汇总」标题旁「📄 规范报告」按钮；
+    `GET /api/tool/chain_report?run=<运行名>[&force=1][&download=1]`。
+  - MCP：`vp_build_report(target=<运行名>)` 检测到 `_chain.json` 自动走规范报告
+    分支（result.kind='chain'，digest 同 vp_build_report 口径）。
+  - CLI：`python -m Virus_Platform_Core.chain_report <运行名|目录> [--force]`。
+- 复用：按运行目录内最新 mtime 判断，输入未变直接复用；`force=1` 强重建。
+- 参数记录：四个链的 `_chain.json` 新增 `params`（virchain 装配/鉴定参数、
+  kvchain 引擎与阈值、prepchain 置信度/dedup/宿主库状态、annochain min_aa），
+  报告「2.3 参数」据此渲染；旧运行没有 params 时该节显示「未记录」。
+- 兼容：样本清单依次取 `meta.samples` → `samples.tsv` → 单样本；kvchain 命中
+  依次取样本目录 `identify_summary.tsv` → `step_*/kvsuite/identify/*.summary.tsv`；
+  深度图最多 4 张（`_MAX_FIGURES`），证据清单只走两层目录并跳过 `step_*`。
+- 测试：`tests/_check_chain_report.py`（已入 tests/_run_all.py，240s）——三种
+  合成链目录的模型/章节/参数/缺口、mtime 复用与 force、端点 200/附件/400/404、
+  chain_result 的 report_exists、MCP 分流；`_audit_routes` 268 路由 0 个 500。
+
+## 2026-11-02（补四十九）：悬浮球「拖不动」——吸附阈值 + 存档读过渡中途的真因
+
+用户报「不能拖动怎么回事」。现场一测，球**其实能拖**（拖 221px 后位置变了），
+但松手就被动画拽回最近的侧边，落点与存档还对不上 → 用起来就是「拖不动」。
+两个真因都在 `webapp/static/app.js` 的 `vpDraggable`：
+
+- **存档读的是过渡起点**：`onUp` 里先 `_uiSnapSide(el)`（给元素加 `.is-snapping`，
+  即 `transition: left/top/right/bottom .18s`），紧接着 `getBoundingClientRect()`
+  取坐标存档 —— 读到的是**动画第 0 帧**（松手那一瞬的位置），不是吸附终点。
+  于是位置记忆一刷新就「先跳到旧点再弹回」，看起来像没记住。
+  改为：吸附函数返回**算术落点**，`onUp` 用它存档（`fx/fy = snapTo ? snapTo.x : r2.left`），
+  不在过渡中途量 rect。
+- **无阈值吸附**：原来只要 `snap:true` 就一定吸到最近侧边，拖到屏幕正中也回边。
+  新增 `_UI_SNAP_PX = 56`：离左/右边缘没进 56px 就**停在原地**（`_uiSnapTarget` 返回
+  null），进了才吸。用户要的是「能移·能拖·贴边」，不是「松手必回角落」。
+- 顺带：拖动第一次移动时摘掉 `.is-snapping`（否则拖动中每帧都在播过渡，手感发涩）；
+  `resize` 回调同样按算术落点重算。
+
+同期把**问答面板**也做成可拖：
+
+- `QA.dragInit()` → `vpDraggable(d, 'qa', {handle:'.qa-head', onChange:…, onReset:…})`，
+  手柄只认标题栏；位置存档在 `vp_ui_drag.qa`，与球（`vp_ui_drag.fab`）分开。
+- `QA.position()` 三分支：有存档 → 尊重用户放下的地方（只做视口夹取，并把夹取后的
+  坐标**写回存档**，否则存的和显示的差一截，下次开面板会跳）；无存档 → 贴着球：
+  高度先按「球的上/下哪边放得下」缩（`fits>=300` 才用整高），宁可矮一点也不把球糊住。
+- **事件顺序坑**：`vpDraggable` 的 `pointerup` 挂在 `window`，面板「拖完重新贴合」的
+  监听在 `document` → 冒泡阶段 document 先跑，面板刚被按球重排，`onUp` 才量 rect
+  存档，存到的是被挪回去的坐标（面板看起来「拖不动」）。改法：`onUp` 末尾自派
+  `vp:dragend`，面板监听它并 `if (n === 'qa') return;`。
+- **双击复位抢不到第二下**：面板一开就盖住球，第二击落到面板上。改法：球的点击走
+  `QA.onBallClick()` —— 320ms 内的第二击直接放弃（交给复位），否则 220ms 后开面板。
+- **安全线**：`#storage-banner`（磁盘空间提示）`position:sticky; z-index:98` 会盖住
+  浮层标题栏，拖上去就抓不回来。新增 `_uiSafeTop()`：横幅在顶部时 `minY = 横幅底+6`，
+  `_uiClamp` 与 `QA.position()` 都用它。
+
+验证：`tests/_check_qa_dock_ui.py` 第 5 段重写（26 条全绿）——中间停住不吸边、
+落点/存档差 ≤3px、贴左边缘才 `x<=24`、面板标题栏能拖走、`vp_ui_drag.qa` 与视觉一致、
+双击标题栏回贴球位、双击球复位清档；`_check_ai_dock_ui.py`、`_it_page_shell_ui.py`
+（点球后等 600ms，跨过 220ms 延迟）、`_check_ai_global_ui.py` 全绿。
+另修 `tests/_fixture_smoke_e2e.py`：样品目录跟随 `platform.json` 的 `output_root`
+（先 `get_config()` 触发 `apply_output_root` 重映射 DIRS，再读 `DIRS['results']`）——
+本机 `output_root=G:\植物病毒分析平台\run\fastq` 时，夹具原先把样品造在
+`<平台根>/run/results`，AI 测试一律报「样品不存在: smoke_e2e」。
+
+
+## 2026-11-02（补五十）：设置页侧栏「点了不跟/点了不到」——平滑滚动与位置高亮的竞态
+
+用户报「侧边栏怎么不能调了」（截图：页面停在「通用设置」，左栏高亮却停在
+「平台目录」）。排查结论：**不是** `data-nav`（上方/左侧）切换坏了——1443x726
+实测点「左侧」→ `data-nav=side`、侧栏 236x726、`body` padding-left 236px，
+刷新后仍保持；坏的是设置页左栏锚点的两种偏差：
+
+1. 高亮滞后一项。`settings.html` 的原点击处理用 `lockUntil = now + 700` 锁住
+   「按滚动位置判高亮」，而长距离平滑滚动（一屏以上）到 700ms 还没结束，锁到期
+   后最后几个 scroll 事件把高亮改判成上一项：点 sec-general 亮 sec-paths、
+   点 sec-dbs 亮 sec-general……越往下越偏。
+2. 落点不到位。上方的「存储与磁盘 / 插件管理 / 环境自检」卡片是异步加载的，
+   点得越远，文档在滚动期间长得越高，点击时算出的 `y` 就越不准（实测点
+   sec-outputs 差 113px、sec-selfcheck 只滚到 7658 而目标 top 650）。
+
+改法（`webapp/templates/settings.html` 侧栏点击处理器）：
+
+- `targetY()` 变成每次现算的函数，`- headOffset() - GAP - 6 + 2`（多留 6px 余量，
+  顶栏高度小幅变动时落点不贴边）；
+- `lockUntil` 由 700ms 放宽到 1500ms；
+- 点击后再起一个 **320ms 间隔、最多 4 轮**的校正 `setInterval`：每轮重算
+  `targetY()`，`|scrollY - t| > 2` 就补一次 `scrollTo`（补异步长高造成的欠滚），
+  收敛后 `setActive(id)` 并把锁再续 120ms，让随后那次 rAF 别再改判；
+- 下一次点击前 `clearInterval` 掉上一轮的校正。
+
+验证：`tests/_check_settings_nav.py`（真浏览器逐项点击）从「sec-outputs 差 113px、
+sec-inputs 差 34px」变成**全部对齐**（10 项落点偏移 12~30px、高亮全对、带 #hash
+直接进入也在顶栏下方、0 JS 报错），连跑 3 次稳定；`_check_page_shell.py`、
+`_check_js_syntax.py`、`_check_i18n.py` 均绿。证据图
+`run/logs/settings_nav_fixed.png`、`run/logs/settings_1443x726.png`。
+
+## 2026-11-02（补五十一）：悬浮球「按住拖不动」——原生图片拖拽把指针吃了
+
+用户第二次报「还是不能拖动」。自动化（CDP 鼠标事件）在 Edge/Chromium 里怎么拖都
+正常，真机才会踩到的那一类坑，逐个排掉：
+
+1. **原生图片拖拽**（主因）。`#aiFab` 里嵌的是 `<img class="ai-logo-img">`，HTML 规范
+   下图片默认可拖拽：真机按住球一拖，浏览器进入 HTML5 drag&drop（半透明幽灵图），
+   `pointermove` 不再送给元素，按钮纹丝不动。CDP 的合成鼠标事件不触发原生拖拽，
+   所以测试永远是绿的。改法三管齐下：`_nav.html` 的 `<img>` 加 `draggable="false"`；
+   `app.css` 给 `.ai-fab` 加 `-webkit-user-drag:none; user-select:none`、给
+   `.ai-logo-img` 加 `pointer-events:none; -webkit-user-drag:none`（指针事件直接落在
+   按钮上，连幽灵图都没机会）；`vpDraggable` 里补 `mousedown`（仅「这一下会开始拖」
+   时 `preventDefault`，否则面板里的输入框/按钮会被掐死）与 `dragstart` 拦截。
+2. **吸附带太宽**：上一版 `_UI_SNAP_PX = 56`，球离边 56px 内松手就飞回边角，用户
+   手感是「拖了又弹回去 = 拖不动」。降到 24px：只有基本贴到边才吸附。
+3. 手感：`.ai-fab` 的 `cursor` 由 `pointer` 改 `grab`，按下时 `grabbing`。
+
+验证（`playwright` + 真机 Edge `channel='msedge'`，1443x726）：
+- `/samples`：拖 (-300,-220) → 落点 (1049,425)、`vp_ui_drag` 存档同值；
+- 首页：拖 (-320,-240) → (1029,405)，存档同值；
+- 保活外壳 iframe（首页点模块）：拖 (-260,-200) → (769,205)，存档 (768,202)；
+- 点球仍能开面板（220ms 防误触延迟生效）、面板输入框点得进也打得进字、
+  拖标题栏 120x60 面板跟着走且存档同步；`img.draggable === false`；0 页面错误。
+- 测试：`_check_qa_dock_ui.py`、`_check_ai_dock_ui.py`、`_check_page_shell.py`、
+  `_check_settings_nav.py`、`_it_page_shell_ui.py`、`_check_js_syntax.py` 全绿。
+证据图 `run/logs/qa_ball_dragged_home.png`。
+
+## 2026-11-02（补五十二）：病毒识别和分类「一键分析」支持目录批量 + ①→④ 自由组合
+
+**背景**：这张卡原来固定跑 ②组装→③再鉴定→④验证，① 只看一个「先跑①」开关，
+输入也只能单个 FASTA。用户要的是「四步自己勾」（也可以 1-4 全跑），并且像
+一键前处理/定量与共识那样吃一个目录、自动解析单双端样本批量跑。
+
+**步骤模型（`Virus_Platform_Core/web/chains.py`）**
+- `steps` 逗号串（默认 `2,3,4`）：1=病毒识别分类与提取、2=提取序列组装、
+  3=组装结果再鉴定、4=候选序列验证；`_vir_validate_steps()` 统一校验：
+  空 → 400「请至少勾选一步」；3 无 2 → 400 要求一并勾 ②；4 无 3 → 同。
+- 不给 `steps` 时仍按旧开关推（`run_identify` / `do_verify`），MCP/脚本老调用不受影响。
+- ① 先跑时，② 的输入换成 ① 产出的 `viral_sequences*.fasta`（多个则首两个当 R1/R2），
+  空 → RuntimeError「① 未提取到病毒序列」；只勾 ① 时只跑到提取为止。
+- 步骤权重 ①.20 / ②.35 / ③.25 / ④.20，只按勾选项归一；步骤 key 与标题都带样本前缀。
+
+**目录批量**
+- 扫描器 `_scan_prep_inputs(..., with_fasta=True)` 把 FASTA（`.fa/.fasta/.fna/.fas[.gz]`）
+  也当单端样本（kind='fasta'），FASTQ 仍按 `_R1`/`_R1_001`/`_1` 配对；
+  `/api/tool/chain_scan` 读 `kind='virchain'` 时启用，并回 `n_fasta`。
+- 目录里的 FASTQ 要跑 ② 必须勾 ①（先识别提取再组装），否则 400 并在文案里点名样本；
+  `.sra` 同样需要 ①（或先转 FASTQ）。
+- 逐样本 `<chain>/<样本>/`，失败隔离（`_pc_cancelled` 才重抛），
+  写 `samples.tsv`（列：sample/type/status/bytes/steps/R1/R2/files/error）；
+  单样本模式失败直接抛（保持旧行为）。
+
+**前端（`webapp/templates/tools.html`）**
+- 卡里换成「单样本 / 目录批量」药丸分段（复用 `.seg`），目录模式复用同一套
+  扫描预览表（排序/分页/勾选/大小），`SCAN_UI.vir` 指向 `vc_*` 容器。
+- 两个旧复选框换成 ① ② ③ ④ 四个勾选框：勾 ③ 自动补 ②、勾 ④ 自动补 ③（`vcStepSync()`），
+  一个都不勾时提示「请至少勾选一个步骤」。
+- `runVirchain` 目录模式传 `input_dir` + 勾选样本（`samples`），完成后同时刷新
+  批量汇总（含「📄 规范报告」入口）；按样品批量按钮走同一套 `steps`。
+
+**接口/目录**
+- `agent_catalog.TOOL_PARAM_SCHEMAS['virchain']`：`input` 改非必填，新增
+  `input_dir` / `samples` / `steps`，保留 `run_identify`/`do_verify` 兼容说明。
+- 规范报告（`chain_report.py`）无需改动：virchain 的 `_chain.json` 结构同其它链，
+  报告自动按「材料/方法（含所选步骤）/结果」渲染。
+
+**验证**：新增 `tests/_check_virchain_steps.py`（四步用假 job 顶掉，27 项，含
+steps 校验、只跑②、②③、FASTQ ①→④、目录批量 FASTA+FASTQ 混合、坏样本隔离、
+`chain_scan kind=virchain` 认 FASTA、HTTP 400 文案），已登记 `tests/_run_all.py`；
+`_check_js_syntax` / `_check_i18n` / `_audit_contract` / `_check_skills` 全过。
+## 2026-11-02（补五十三）：「进化动力学分析」组内顺序——一键分析提到数据接入前
+
+用户要求把「一键分析（定年 → 地理迁移 → 汇总溯源）」放到「进化动力学数据接入」前面。
+只改顺序，不动能力：
+
+- Virus_Platform_Core/web/pages.py 的 NAV_GROUPS 里 phylodyn 组把 	-phylodyn 移到 	-pdprep 之前（组内顺序即侧栏、二级模块条、组概览落地卡三处顺序，同一份数据）。
+- webapp/static/feature-tree.js 的功能树同组同步调序，避免两个入口顺序不一致。
+- 验证：py_compile / 
+ode --check 通过；/tools?g=phylodyn 渲染后 #moduleSubList、侧栏 .sn-links、#groupLanding 三处均为 一键分析 → 数据接入 → RDP5 → 时间信号 → 系统地理；_check_js_syntax.py、_audit_contract.py 通过。
+
+
+## 2026-11-02（补五十四）：预筛页 + Open Virome 结果页支持「下载样本」
+
+结果页把 Run 编号（SRR/ERR/DRR/CRR）一键转入平台「公共数据下载」（复用
+`POST /api/dl/create`，后端零改动；.sra→FASTQ 转换、MD5、白名单全走原链路）。
+
+**预筛页（`webapp/templates/prescreen.html` + `webapp/static/app-prescreen.js`）**
+- 结果表加勾选列（表头全选本视图）+ 行内「⬇」单行转入；表格上方工具栏
+  「⬇ 勾选 Run 转入数据下载」批量转入（`psDlSel`/`psDlOne`/`psSel`/`psSelAll`），
+  勾选跨视图保留、重读结果清空；>500 条自动按 500/批分块（后端单批上限）。
+- i18n：`ps.dlSel/ps.dlHint/ps.needSel/ps.dlOk/ps.cSel/ps.cSelAll/ps.cOps/ps.dlOne`。
+
+**Open Virome（`3rd/open-virome/frontend`，改源码并重建）**
+- `src/common/PagedTable.tsx` 唯一改动：`RUN_RE=/^[SED]RR\d+$/` 自动探测当前页
+  是否含 Run 编号 → 勾选列 + 行内 ⬇ + 「⬇ 转入数据下载 (N)」按钮；
+  fetch 相对路径 `/api/dl/create`（同源命中平台 Flask，独立部署 404 时内联报
+  「仅平台内可用」）；勾选跨页保留。ResultsTable / ViromeSummaryTable 两个调用
+  点零改动，自动获得能力。
+- **重建操作备忘（下次重建必看）**：`npm ci && npx react-scripts build` 之后，
+  `build/index.html` 必须手工后处理，否则资源 404 且破坏离线：
+  ① unpkg CDN 三行（maplibre/deck.gl）→ `/virome/vendor/...` 本地文件；
+  ② 根相对路径加 `/virome/` 前缀（`href="/`、`src="/`；vendor 替换要放在
+  前缀替换**之前**，否则得双前缀）。然后同步 `build/ → webapp/static/virome/`
+  （vendor/ 不在 build 里，只能保留），并删除上一代 `main.<hash>.js*`。
+  本次产物：`main.630089b4.js`（含 `api/dl/create` 已验证）。
+
+**验证**：`_audit_routes.py` 270 路由 0×500；`node --check` 两个 JS 通过；
+实跑冒烟：预筛/OV 页静态资源与服务一致（psDlSel/新 bundle/vendor 全 200），
+`POST /api/dl/create`(DRR1009982) 建批 → `resolving` → cancel → `cancelled`
+→ delete_record 清理，全链路通过。
+
+## 2026-11-02（补五十五）：下载「取消点不动」——改成秒停，同时补「暂停/继续」
+
+**背景**：用户点「取消」后宿主基因组下载仍继续跑，任务卡停在
+「已请求取消（当前步骤结束后停止）」；随后要求「公共数据下载和序列下载
+支持暂停和取消两种，暂停还能继续，取消就是直接停止了」。
+
+**根因**：`public_meta/datasets_cli.py` 的 `_run_and_stream` 用
+`for line in proc.stdout` 阻塞迭代，既不 `task_register_proc(proc)`、也从不
+查取消事件。`TaskManager.cancel()` 只能置事件 + 杀「已登记」的子进程，
+datasets.exe 不在册 → 取消形同虚设；阻塞迭代本身也感知不到事件。
+
+**改动**
+- `utils.py`：`task_bind(cancel, procs, pause)`；新增 `TaskPaused`、
+  `task_pause_event/task_pause_point/task_check_pause`；
+  `DownloadWatcher` 接受 `stop_ev`/`pause_ev`（取消退出、暂停不刷 tick）。
+- `datasets_cli._run_and_stream`：Popen + 登记子进程 + 读线程喂 `Queue`，
+  主循环 0.25s 查事件 —— 取消 → 杀进程树并抛「任务已停止（用户取消）」；
+  暂停 → 杀进程树并抛 `TaskPaused`。
+- `host_genome._http().download`：`resume=` 断点续传（Range/416/206 回退，
+  取消/暂停保留半截文件）；宿主基因组两条下载路径开 `resume=True`。
+- `web/tasks.py`：任务记录带 `pause`/`pausable`；`_run` 捕获 `TaskPaused`
+  置 `paused`（不写 finished、不调 on_finish）；新增 `pause(tid)`/`resume(tid)`
+  （resume 重跑同一 job）；`cancel` 受理 paused 并即时终态；状态口径
+  （活跃集合、重启恢复、归档/删除/清理）统一纳入 paused。
+- `web/tasks_api.py`：`POST /api/task/<tid>/pause|resume`。
+- `public_data.DownloadManager`：`pause/resume`（worker 在文件边界停，
+  aria2/sracha/内置 HTTP 断点续传）、`_finalize` 不覆写暂停态、worker
+  暂停时把文件退回 pending（否则被 terminate 的记录成 failed）。
+- `web/download.py`：批次动作加 `pause`/`resume`。
+- 前端：`app-jobs.js` 新增 `taskButtons(task)`（暂停/继续/取消随状态切换）、
+  `pauseTask`/`resumeTask`、`paused` 状态文案；`download.html` 批次卡加
+  「暂停/继续」；`app.css` 加 `.sbadge.paused`；`i18n.js` 中英各 8 键。
+- `web/tasks.py` 日志去重：交替重绘（A,B,A,B…）绕得过「只比上一行」，
+  datasets/aria2 的进度帧就是两条交替，同一秒刷十几行 → 改 3 秒窗口去重。
+
+**验证**
+- `tests/_check_dl_pause.py`（新，51 项，含 `task_check_pause` 行为断言），
+  已登记 `tests/_run_all.py`（紧跟 `_check_dl_progress.py`）。
+- 真机（8765，datasets genome GCA_001648735.1，93.8 MB）：
+  暂停 → 状态 paused、datasets.exe 立刻消失、进度与日志 6 秒零变化；
+  继续 → 重新起 job、进度从 10% 继续爬（datasets 包无 --resume，从头拉）；
+  取消 → 0.5 秒内 `cancelled` + `任务已停止（用户取消）`、无残留进程。
+- 批次级：内存批次单元断言 pause/resume/_finalize/cancel 12 项全过。
+- 浏览器（Edge headless，打桩 /api/tasks 与 /api/dl/batches）：任务卡
+  「暂停/继续/取消」、批次卡按钮、`已暂停` 文案 11/11 通过，无 pageerror。
+
+**已知边界**
+- NCBI datasets 包（`datasets.exe download`）没有断点续传旗标，「继续」是
+  重新拉取整包；aria2c / sracha / 内置 HTTP（`.aria_part` + Range）才是真续传。
+- 暂停粒度是「秒级」而非「冻结字节」：实现是杀掉传输进程再由 resume 重跑
+  同一 job。
+- 服务被强制结束（Stop-Process）时 datasets.exe 会成孤儿继续下——子进程
+  没跟 Job Object 绑定，属既有问题，重启平台不会自动清理。
+
+## 2026-11-02（补五十六）：病毒识别和分类「一键分析」只留两条路径（单样本 / 目录批量）
+
+**背景**：卡里原来有「⏩ 批量一键流程（逐样品提交）」：先在文本框点选样品，再用另一个按钮逐样品起任务，每个样品一条任务、也就没有批量汇总。
+
+**结论**：该按钮已删除；尝试过的「样品库」第三模式（`sample_names` 一次提交成一条批量链）经用户反馈「样品库没必要」同日撤掉，最终只保留两条路径：
+
+| 模式 | 输入 | 说明 |
+|---|---|---|
+| 单样本 | `input`（去宿主 FASTA，勾 ① 时也可用 FASTQ） | 原有行为 |
+| 目录批量 | `input_dir`（+ `samples` 只跑勾选样本） | 自动解析 FASTA/FASTQ/.sra、失败隔离、`_chain.json` + `samples.tsv` + 规范报告 |
+
+两段选择器（`input[name="vc_mode_sel"]`，丸状分段）与四步勾选（`vc_step1..4`，默认 2,3,4）3 依赖 2、4 依赖 3）不变；目录里是 FASTQ且要跑 ② 时仍需同时勾 ①。
+
+**验证**：`tests/_check_virchain_steps.py` 回归项改为「只有两段模式、无 `vcLibPane`/`libLoad`/`sample_names` 残留、`t-virchain` 卡无 `vc_samples`」，全 PASS；i18n 1430 锚点成对、JS 语法与 `_check_skills.py` 通过。
+
+## 2026-11-03（补五十七）：识别卡挪组 + 双卡「产物先行」改名 + 顶栏模块级环境状态条
+
+- **导航挪组**：`t-identify` 从「病毒识别和分类分析」挪入「样本处理」（宿主去除之后）——同一引擎（kunpeng classify）对 reads 的互补集合运算（宿主去除 = 样本−宿主 kept 非宿主 reads；识别提取 = 样本∩病毒库），产物均为组装备选输入；定位 = 含病毒样本快速筛选。feature-tree、快捷注册表标签同步。
+- **改名（产物先行）**：「宿主去除与序列提取」→「非宿主序列提取（宿主去除）」；「病毒识别分类与提取」→「病毒序列提取（识别分类）」。覆盖 NAV_GROUPS、TOOL_REGISTRY（title/title_en）、i18n（hr.title/tb.identify/nv.*/ui.exr/vcStep1/vcHint 中英）、feature-tree、app-jobs 任务标签、host_removal 页头与 <title>、chains 步骤文案、agent_catalog 帮助文本；MCP/agent-ops 标题取自 TOOL_REGISTRY，自动跟随。
+- **顶栏环境状态条模块化**：新增 `/api/env_status`（selfcheck.scoped_status + resolve_scope：卡片 hash > 组 > 独立页 > 全局四级作用域；组依赖 = NAV_GROUPS 各卡并集，软硬合并规则「全部来源皆软才算软」）；顶栏改「本模块环境」四件套徽章 + env-pop 详情弹层（含重新检测 / 全局自检入口）；修掉 `.env-strip` 的 display:flex 压过 [hidden] 导致每页漏出空「环境自检」胶囊的 bug；路由基线收录 /api/env_status、/api/prescreen/history。
+- **tool_jobs.py 损坏修复**：在途的 `_tool_job_hom`（同源比对并入候选序列验证）中段截断损坏（'\n' 字面化 ×3、abort 丢逗号、os.path(dict:)、prog('poll') 后收尾段整段丢失，模块自检一度 149/153）——机械损坏按原语义复原；收尾段按 tool_results.analyze 内联实现与 docstring 契约重构：submit_blast → poll_blast(cancel) → ref_info 元数据补全 → hom_hits.json/tsv 落盘 → 返回 n_query/n_hits。
+- **验证**：py_compile 全过；模块自检 153/153；env_status 冒烟（hostremoval 3/3、t-identify 2/2、sample 组 4/4 双库、全局 33/33）；JS/i18n/契约审计/路由基线/技能卡守卫/全路由巡检 0×500/21 页渲染 PASS。
+
+
+
+
+## 2026-11-03（补五十八）：t-hom「同源比对」卡并入 t-verify「候选序列验证」——单卡双模式 + hom 正式工具
+
+- **合并语义**：一张卡回答「这批/这条候选序列撞库后是什么、信不信」。证据源统一为同源验证库组（virusref 病毒参考核酸 BLAST 库 / PVDB 蛋白库 / BFVD 域库 / 类病毒库）+ 在线 NCBI nt/nr（限病毒）。
+- **hom 升级为正式工具**（TOOL_REGISTRY['hom']，_tool_job_hom）：
+  - 输入 seq_text（FASTA 文本）/ fasta（文件）二选一，多记录逐条处理；引擎 local / online（在线逐条提交，封顶 5 条）。
+  - 本地证据：blastn_local（病毒参考核酸库，ref_info 自动补 物种/科/属/宿主）+ DIAMOND blastx（PVDB 蛋白库）+ BFVD 域证据（mmseqs/库缺失自动跳过不失败）。
+  - 产物落正式运行目录 tool_runs/hom_*（input.fasta + blastn_local.m8/blastx_local.m8/bfvd.tsv + hom_hits.json/tsv），**不再写 _seq_input 伪运行缓存**（旧缓存保留可读，/api/tool/analysis 对旧数据兼容）；新增 GET /api/tool/hom_result?run=。
+  - MODULE_TOOLS['hom'] = ['blastn','diamond','mmseqs']（test_module_preflight 守卫兜出补上）；TOOL_PARAM_SCHEMAS['hom'] 登记，agent-ops 可查（vp_run_tool / POST /api/tool/run）。
+- **自检补盲区**：_check_databases 新增「同源验证库组」项（_check_homolog_dbs，ok=PVDB 蛋白库就绪，其余三库缺失只进 detail）+ SCOPE_DBS['verify']=[('homolog', True)]——此前自检四件套完全不覆盖这四个库。
+- **前端单卡双模式**（t-verify）：seg 切换「批量验证 / 单条深查（BLASTN · BLASTX）」（vfSetMode）；深查面板沿用原输入件 id（homSeqIn/homSeqText/hom_engine/homResult），runHom→/api/tool/run(tool:hom)→loadHomResult→homResultHtml（metabuli 命中表 + Query/Family/Host 列 + BFVD 计数）。删 t-hom 卡 DOM 与 ANA_SCOPES.hom/CA_ACTIONS/loadCaRuns 等死代码（#homRun 下拉早已不存在，loadCaRuns('hom') 是静默空转）。
+- **跳转链改道**：anaJump blastn/blastx → g=virus#t-verify + vfSetMode('deep')（深链 #t-hom → #t-verify）；分类表批量验证 jumpVerify 不变；run-history rh-verify 盒 prefixes + hom_（input.fasta 可直送 ORF/注释/比对/建树/SDT）。
+- **导航/静态同步**：NAV_GROUPS 注释组删 t-hom、t-verify 描述改双模式；feature-tree/功能全景图/RESULT_MAP/MAP 示例映射（homSeqText 随迁 t-verify 行）；i18n 删 nv.t-hom（中英）+ 新增 tk.vfModeBatch/vfModeDeep/tk.homLocalHint/tk.homOnlineHint（中英）；_nav_i18n.html 删 t-hom 词条（该文件是 Jinja 不是 JS——注释只能用 {# #} 且不能进 {% set %} 字面量，本次踩过）。
+- **测试同步**：_check_anajump（跳转断言改 t-verify 深查面板）、_check_paste_box（参照卡改 ?g=virus#t-verify + vfSetMode('deep')，深查面板默认隐藏）、_check_local_annot_ui（整卡改写：#t-verify 深查模式跑正式 hom 工具）、_it_platform（渲染断言改「t-hom 已移除 + t-verify 双模式」）。pytest 409 passed / 3 skipped。
+- **实测链路（临时端口新进程 + Playwright）**：深查 BLASTN 50 hits 命中表（本地库，Best identity 100%）✓；anaJump → g=virus#t-verify + 深查面板 + 序列回填 ✓；t-hom 卡移除 ✓；/api/tool/hom_result 读取 ✓。注意：平台常驻进程需重启才能拿到新注册表/导航；`$` 是 getElementById（不带 #），本次在 runHom 初版踩成 jQuery 风格导致静默空转。
+- **数据面备注**：测试期间的 8 个 hom_* 运行目录（6 demo 序列 + 2 anaJump 链路真实 contig）已从用户当前工作区（E:\谷歌下载\tool_runs，01:44 切入）删除；`_seq_input` 旧缓存未动。
+
+
+## 2026-11-03（补五十九）：执行单「阶段勾选」批准 + 三处实测暴露问题修正 + 打包版回归
+
+- **执行单阶段勾选（用户批准前可裁剪 AI 起草的阶段清单）**：动机是 Dataset_11 复盘时用户要求"只跑 kvsuite → consensus → report"或"屏幕上勾选"——后端 `run_analysis`/`rerun_stage`/`retry_failed` 的 `stages` 参数链路本就全通（executors 读取、kvsuite 输入 fallback `pipeline.py::_stage_kvsuite`：无 host 结果回退 fastp 产物/原始 reads），缺的只是 UI。改动三层：前端 `app-ai.js` pending 执行单卡片 stages 行渲染为复选框组（默认全选=AI 当初选择，复用设置页 .ai-stagegrid/.ai-stagechk 样式；已决卡片保持只读文本，翻转时把复选框换回文本行）、批准请求收集勾选值（全选不带 stages=老行为；全取消本地拦截"至少保留一个阶段"不发请求）、后端 `executors.resolve(aid, decision, stages_override=None)` 锁内校验后覆盖 `rec['stages']`+`params['stages']` 并写 `stages_override:{from,to}` 进审计（校验失败保持 pending；空列表/未知阶段/动作类型不支持三类中文报错），路由 `ai_assist.py` 透传 `body.stages`（非数组 400 "stages 需为字符串数组"）。测试：`tests/test_ai_hardening.py::ResolveStagesOverrideTests` 5 用例（覆盖成功/空列表/未知阶段/不支持动作/老式回归）。
+- **版本探测两处修正**（同日 GQMIX 实测：`fastp unknown` + seqkit 版本串是错误文本）：`utils._parse_tool_version` 只认含版本号模式的行——seqkit 不支持 `--version` 时 stderr 首行 "Error: unknown flag: --version" 不再冒充版本串记进 tool_versions.json；`probe_tool_versions` 的 unknown **不再写入进程内缓存**（fastp 与 19 线程正式进程同秒拉起、杀软扫描新进程导致 10s 探测超时是**临时态**，缓存固化后整个进程生命周期报 unknown；只缓存成功解析的版本，下次运行重试）。新守卫 `tests/_check_tool_version_probe.py` 7 断言，已登记 `_run_all.py` 清单。
+- **fastp 静默期预告**（同日实测 `--detect_adapter_for_pe` 开头 7 分 43 秒零输出被误判挂死）：`preprocess.run_fastp` 双端分支在 run_cmd 前追加日志"接头检测可能数分钟无任何输出，属正常，不是卡死"。
+- **孤儿任务回收文案带续跑指引**（同日实测：服务重启把 running 任务判 failed 后用户以为 8 分钟白跑）：`web/tasks.py::_recover_interrupted` 的 error 追加"中断于阶段 <stage>；已完成阶段的产物已落盘，重新运行会自动认领，只跑剩余阶段"——依据是各阶段产物按 .done 标记 + 输入指纹/参数指纹认领（如 `preprocess.run_fastp` 的 fastp.json 双指纹核对）。
+- **打包版构建与回归**：`dev_tools/package.py --verify`（三分离：程序包 `D:\桌面\PVAP\VirusPlatform` 1.743 GB / 7161 文件 + 示例包 401 文件，数据库默认分离；硬链接去重省 252 MB）。回归：frozen `--cli agent-guide` / `selfcheck`（模块导入 150/150、外部工具 33/33；NCBI Taxonomy/宿主库/病毒库三项 ✘ 为三分离开箱预期态，hint 给自建指引）/ `tools` / `agent-ops`（55 条）全通；web `--web --no-open` 起于 8900（开发版占 8765），首页 200，`POST /api/ai/actions/resolve` 三态验证（假单号+stages → 404 执行单不存在；stages 非数组 → 400 新校验生效；老式调用 → 同 404 回归）证明 frozen 包内新代码实际工作。**注意：运行中的常驻实例（如 8765 开发版）不重启就拿不到新后端**。
+- **验证汇总**：pytest 414 passed / 3 skipped（基线 409 + 新增 5）；`tests/_run_all.py` 全量守卫 exit 0；_check_ai_audit / _check_skills / _check_tool_version_probe 全过；`node --check app-ai.js` 通过。
+
+## 2026-11-03（补六十）：内置示例 reads 换代——sim100x 全面替代旧合成对 example_R1/R2
+
+- **决定**：内置示例双端 reads 统一为 `examples/example_sim100x_R1/R2.fastq.gz`
+  （服务器 snap/simulator-data eval3_depth100 下载改名版：固定 100×、96 条植物
+  病毒参考基因组、166,436 对 / 150 bp，自带 ground truth）。原 3 种病毒 ~60x
+  合成对（3600 对，`tests/make_example_reads.py` 产物）退役：`git rm` 两文件，
+  生成脚本保留备查。此前 sim100x 只接 /samples 接入页（examples.js 注释里的
+  挂账「分析卡 ✨ 仍用合成示例」），本次补完。
+- **引用面（14 文件）**：测试 12 个（`_it_platform` 示例存在性、
+  `_check_convert_paired` / `_check_toolrun_latest`（断言串同步改）
+  `_check_kvchain_dir` / `_check_kvchain_ui`（endswith 断言）/ `_check_prepchain_dir`
+  / `_check_virchain_steps` / `_check_tool_outdir(_ui)` / `_check_anchor_ui`
+  / `_e2e_example_check`）+ `dev_tools/mcp_nighttest.py` + `docs/paper/run_demo.py`
+  + `webapp/static/examples.js`（F.R1/R2 值改指 sim100x；SIM_R1/R2 键保留，
+  /samples 映射不变）+ `tests/make_example_results.py`（JOBS 里 7 个 reads
+  相关模块参数 + `_kvsuite_params` 样品表路径）。
+- **顺带修一个既有缺陷**：`make_example_results.py` 的 `collect()` /
+  `_variant_params()` / 样品表目录原写死 `ROOT/run/tool_runs`，在
+  `output_root` 指向外部工作空间（当前 `E:\谷歌下载\测试数据验证`）时取不到
+  产物 → 示例结果静默变空。改为统一走 `tool_runs_root()`（跟随 DIRS）。
+  首跑（修复前启动）已被停掉，残留半成品 run 目录在
+  `E:\谷歌下载\测试数据验证\tool_runs`，属临时垃圾可清。
+- **配套「👁 示例结果」重生成**：`python tests/make_example_results.py
+  --only identify,hostremoval,fastp,convert,assemble,consensus,kvsuite,variant,
+  virchain,kvchain --force`（reads 相关 10 模块；variant 依赖 kvsuite 新 bam，
+  JOBS 顺序已保证）。FASTA/GB 类示例及其余模块快照不受影响。运行时间显著
+  变长（166k 对 vs 原 3.6k 对）——链式测试（prepchain/virchain/e2e/夜检 P2）
+  同理，属换代固有代价。
+- **不动项**：`tests/fixtures/sample_demo/`（冻结的历史快照，input_r1 字段
+  仅溯源元数据、无断言依赖）；`docs/DEVELOPMENT_NOTES.md` 历史条目照旧。
+- **virchain 契约适配（同日补）**：11-02 重构后「病毒识别和分类·一键」只收
+  去宿主/病毒序列 FASTA，示例脚本旧参数（原始 FASTQ）提交即 400。新增专用示例
+  `examples/example_hostfree.fasta`（sim100x 病毒序列提取产物降采样 2 万条，
+  3.4MB，确定性派生），`make_example_results` 的 virchain 改走
+  `_virchain_params()`；**UI 同步修**：`examples.js` 的 `t-virchain` ✨示例
+  原填 FASTQ（点运行同样 400），改填 HOSTFREE。collect 单文件上限 8MB→12MB
+  （sim100x 的 convert 产物 .fa.gz 8.9MB 会被旧上限掏空转换示例卡）。
+- **manifest files 被 meta 覆盖的老毛病（同日根因）**：`collect()` 返回值
+  `**(meta)` 让任务 API 的**全量文件清单**覆盖 collect 精选过的 files（含被
+  尺寸/名字过滤掉的大文件）。旧 3.6k 对示例一切 ≤8MB 时两清单恰好相等从未
+  暴露；sim100x 一上来 manifest 就声明一批盘上不存在的文件 → 归账全剔 +
+  「已缺失」注记。修法：meta 只补缺不覆盖（curated 键优先）。当前在跑的
+  生成任务已停掉重启。
+- **collect 模块级 20MB 总量护栏（同日定案）**：sim100x 的 kvsuite/variant
+  一次产出 134 参考全量图/表（109MB/1473 文件、45MB/698 文件），旧口径只有
+  单文件上限，示例包直接爆体积。新增 MODULE_TOTAL_MB=20（目录排序截取、
+  截断写 manifest note），logs/snpeff_work 纯中间产物入 SKIP_DIRS。
+
+## 2026-11-03（补五十）：比较基因组 × 进化动力学全面审核与修复（真值模拟实测驱动）
+
+背景：两域此前测试最少（happy-path 为主，无真值对拍、无跨工具契约测试、
+无负控）。本轮先用**带已知答案的合成数据**实测（identity 78/85/92/97% 全对、
+Fitch 迁移精确还原设计迁移史、RTT 斜率 0.00266 vs 真值 0.002、RDP 正确识别
+重组体/双亲/断点），再按实测+双代理静态审计逐项修复。全部修复都先在模拟
+环境复现、修完回归通过。
+
+### 运行时实锤并修复（每条都先复现过）
+1. **一键链 A2 接线断裂**：A0 自动识别区划列（写 states.csv 列名=识别值），
+   A2 却拿卡上默认 'region' 调 treetime mugration `--attribute` → ML 迁移
+   恒失败（`attribute not found`）。修：A2 消费 `prep['trait']`（显式传入
+   仍优先）。phylodyn_local.py pipeline 的 stage_phylogeo 调用。
+   **补一刀（重放抓到）**：任务工厂在 job 层预填 `trait='region'`，
+   kw 恒有值让上面的修复永远走不到——工厂改为透传 None（tool_jobs.py
+   的 phylodyn 工厂 trait 行），留空时 A0 自动识别、A2 消费识别值。
+   修复后 12seq 真值重放：`A2 完成：ML 3 次 / Fitch 3 次，坐标 3/3`。
+2. **链收官 TypeError**：`'%.4g' % factor` 收到字符串 → 全链阶段全 ✓ 后
+   任务仍失败。修：float 兜底 + 转不动按未校正如实展示。
+3. **单地区数据整链失败**：0 迁移是正常结果却被判阶段失败。修：ok=True +
+   计数 0 + 中文告警（`zero_migration` 标记）。
+4. **斜杠/逗号地点无国家兜底**：`Asia/China`、治理后的 `China, Ningxia`
+   坐标 0/3 解析。修：region_name_candidates / attach_coords 分段符扩
+   `[,;:：/／，；]`，首段/末段都当国家侧候选。
+5. **元数据前缀错配**：`S10` 被 `S1` 前缀抢先命中拿错区划/年份/坐标且无提示。
+   修：match_states_and_years / match_sample_coords 精确键优先。
+6. **rtt 默认日期列 'year' vs 标准列 'date'**：pdprep 标准数据直喂必失败。
+   修：提交时扫表头自动识别（date > year > 常见日期形列名），date_trait
+   显式传入仍优先；顺带滤掉「N 个各不相同的区划」假告警（RTT 把日期列当
+   trait 传 analyze 的固有噪音）。
+7. **小数年被量化**：resolve_years 对 `2020.5` 取前 4 位截成整数年 →
+   同数据 ISO R²=0.75 vs 小数年 R²=0.52（年内信息全丢）。修：纯十进制年
+   直接转 float（带年份范围 sanity）。
+8. **RTT 散点年份 int 截断**：同年不同月散点重叠、回归线与散点不一致。
+   修：year 保留 4 位小数；错误文案区分「有年份但零分歧」与「样本不足」。
+9. **BOM 吞首条记录**：BOM+2 序列文件误报「少于 2 条序列」。修：
+   iter_fasta 首行剥 BOM。
+10. **空标题 `>` IndexError**：SDT 全链英文异常。修：sdt_exact 两处 +
+    phylo.py 两处 + msa_view 一处，空标题降级 seqN。
+11. **无重组对照卡死 RDP5CL**（6×900bp >30 分钟）：超时保护已有（3600s），
+    本轮补「逐方法 p 值落表（method_p）」+ events.json 补 note/gene_map
+    + 前端解包修复（基因轨道此前永远不画）。
+12. **structcmp 与 SDT 口径不一致**：单侧 gap 算错配、`.` 不当 gap、零分母
+    返回 0.0。修：SDT 口径（单侧 gap 排除、`-.` 均 gap、零可比 → null），
+    TSV 空串、JSON null。
+13. **bool 参数 bool('0')=True**：sdt/identity 的 aligned/orient 换 _truthy
+    （quicktree 同款口径）。
+14. **重名去重碰撞**：`['A','A','A_1']→['A','A_1','A_1']`。修：抽公共
+    `_dedup_name`（sdt_exact 2026-10-03 修法），structcmp/quicktree/align
+    三处替换。
+15. **trimal/linsi 静默降级**：gappyout/strict 一律跑 automated1、linsi 实跑
+    --auto。修：_run_trimal 收 method 参数真跑对应方法；linsi 真映射
+    `--localpair --maxiterate 16`（体量自动降级逻辑保留并如实记日志）。
+16. **identity aligned=True + 自动 AA 翻译移码**：带 gap MSA 直接送锚定翻译
+    → gap 变 N 移码。修：aligned 模式先去 `-.` 再翻译。
+17. **DRT 不通过未闸 A3**：A3 现在读 A1 的 DRT 结果，不通过时天际线带
+    「仅作参考输出」告警与 drt_failed 标记（红线 5）。
+18. **A2 缺「每样本一区划」告警**（FASTA 头 `acc|描述` 拆出逐条独立区划的
+    陷阱）：补齐，与独立 analyze 同款。
+19. 其余：attach_coords 数值 0 坐标不再被当缺失；validate_dataset 占位行不再
+    连坐毒死同名合法行；import_from_files 全量失败时 issues 落盘
+    import_issues.json；TempMig 两年份年轴取最大年 + 说明；_rtt_points_and_fit
+    n<3 拒绝（2 点会虚假 R²=1.0）+ 全同日期中文报错；region_permutation_test
+    n_perm=0 守卫；rdp 基因 CSV 缺 Start/Stop 中文报错；phylodyn stage 模式
+    配 from_run 不再强制 input；divergence_tree 在 pipeline 模式下明说忽略。
+
+### schema 同步（唯一权威）
+- pdprep.source 枚举纠正为 `files|manual|genbank`（旧文档 gb/ncbi 按图索骥
+  会 400），补 fasta/meta 两个 files 来源必填键；
+- phylogeo 补 rrt_perm/rssp_bs/seed/beast_burnin/beast_min_prob/beast_max_trees；
+- beastexport 补 chains/beast_threads/chain_length；
+- rtt/phylogeo/beastexport 的 date_trait 描述改为「自动识别」口径；
+- phylodyn.input 描述改为「pipeline 必填；stage+from_run 可省」。
+
+### 技能卡同步
+- virusplatform-ops：rtt「缺时间信息会退化」→「有效日期叶 <5 明确拒绝」；
+  pdprep/phylodyn 必填口径按实际行为重写。
+
+### 验证
+- 全部改动文件 py_compile + `import app` 通过；
+- 两域 19 条回归（_run_all 子集）全绿；模拟探针重放：
+  - S10 不再拿 S1 的区划（精确优先生效）；
+  - `Asia/China` 坐标可解析（斜杠兜底生效）；
+  - rtt 直喂标准 meta.csv 默认参数可跑通（日期列自动识别生效）；
+  - 一键链 A0-A5 在真值数据上全阶段 ✓（A2 接线 + 坐标兜底 + factor 修复）；
+  - 单地区数据整链 ok、迁移 0（诚实化生效）。
+
+### 遗留（本轮明确不修，已评估）
+- `_check_sdt_colors/_check_sdt_live`（需运行实例的 Playwright 测试）仍未
+  入批量清单——需要批量入口支持「需运行实例」档位，单独排期；
+- quicktree 前端 RAxML-NG 选项静默跑 FastTree（涉及 UI 改动与文案，单独排期）；
+- P2-4 meta_pick_location 国家+省组合（有别名契约测试锁定行为，动前需
+  先扩契约）；P2-6 MOTP bin_start 夹箱；P2-14 beast_handoff 列名治理
+  （改动面大，单独排期）。
+
+### 遗留补记（同日第二刀之后）
+- 模拟数据生成器 + 真值对拍探针（identity 真值 / Fitch 迁移真值 / RTT 斜率
+  带宽 / 链端到端）仍在评审工作目录，**尚未正式化进 tests/ 并登记
+  _run_all.py** —— 这是下一步优先项，否则这批真值回归仍是「手动档」。
+- 修复后的 `_check_phylogeo_geo` 曾在套件里红过一次（n_bad 双计），当场
+  修复并单跑复验通过；下轮全量批量以 `_run_all.py` 为准。
+
+## 2026-11-04 miRNA 靶标预测：交互图表页 + 产物卡纠偏 + 过滤器可读性（用户报告三连）
+
+### 背景
+用户报 PAmiRDB 结果页三件事：图不能交互（三张 matplotlib 静态图只有下载和
+「整理」按钮）；三组「下载 基因组图 (SVG)」按钮标签错（duplex/relations/
+overview 不是基因组图）且 PNG 也给「整理」（svguest 只吃 SVG，点了是空白）；
+过滤器（任意共识/任意 seed/能量 ≤/一致 ≥%/错配 ≤）无说明无单位看不懂。
+
+### 改动
+- `toolbox_plots.py`：
+  - `plot_mirna` 空面板 bug：energy 列存在但有效值 <3 时被计入 npanel 却
+    不画 → 第三面板空坐标轴；改为 `draw_energy` 先判定再计数。
+  - 抽 `_duplex_row()`（alignment 三行串/position_binding 双形态解析），
+    `plot_mirna_duplex` 复用；
+  - 新增 `plot_mirna_interactive()` → `mirna_interactive.html`：单文件交互
+    页（无外部库离线可用），四 tab——duplex（彩色碱基/配对线/seed 框，
+    悬停看位置）、Sankey、二部网络（悬停节点只亮相连边）、概览条形图；
+    注册进 `_RULES` 的 mirna 元组，`add_plots` 自动产出。
+- `app-jobs.js`：
+  - DL_LABEL_SPECS 细化：mirna_interactive/table/duplex/relations/overview
+    各给语义化标签（先于 .svg 兜底命中）；
+  - 自包含交互 HTML（mirna_interactive/mirna_targets_table）主按钮改
+    「🔍 打开」（target=_blank），下载收成次按钮；
+  - 「整理」按钮从 SVG+PNG 收紧为仅 SVG；SVG 预览卡对 duplex/relations
+    追加「🔍 交互版」入口（files 里有 mirna_interactive.html 才给）。
+- `tasks.py` build_result_preview：mirna 的 files 上限 12→24（固定 ~16 个
+  产物，12 会把交互页从完成快照截掉）。
+- `tools.html` 过滤器行：下拉/输入框全部加 data-i18n-title 悬停说明（单位
+  kcal/mol、口径、常用阈值）；共识下拉每档写明引擎数；seed 下拉新增
+  「Seed ≥5/7 WC（强 seed）」档（app-mirna.js 对应 fSeed==='5' 判定）。
+- `i18n.js`：tk.mirF*Tip ×5 + tk.mirSeedStrong，zh/en 成对。
+
+### 为什么
+- 静态 matplotlib 图保留（报告/PDF 用途），交互需求单独给单文件 HTML——
+  平台产物体系按文件落盘，这是侵入最小的形态；
+- 「整理」按钮错配是历史规则粗放（.svg/.png 一把抓）的回归面，借本次收紧。
+
+### 验证
+- py_compile / node --check / `import app` / `_check_js_syntax` /
+  `_audit_contract` / `_check_i18n` / `_check_skills` 全过；
+- 交互页用假数据实测：四个 tab 的 SVG 渲染 node DOM stub + Selenium Edge
+  headless 双重验证，浏览器 console 零 SEVERE，截图人工复核四 tab 均正常；
+- `/tools` test_client 渲染含新 option/title；完整回归以 `_run_all.py` 为准。
+
+### 遗留
+- 已有运行实例（8765，旧代码）需重启才吃到新逻辑；Python 改动在源码模式
+  重开窗口即可。
+- Sankey 单 hit 流带 18px 在 2 hits 场景偏细，纯视觉问题，多对数据下自然。
+
+
+## 2026-11-04 cricon：CRISPR+CONAN 双路线联合检测设计（编排层整合）
+
+### 背景
+用户目标是为植物病毒设计 CRISPR 检测方法。平台已有两个互补引擎：
+crispr_design（Cas12a/Cas13a crRNA×引物协同 + 双库筛查，种内通用筛查）
+与 conan_design（Cas3/I-E 负组同源位点双重失配，近缘区分）。此前两条
+路线必须手动分别跑、人工对照。conan_design 模块头已明确否定引擎层合并
+（评分模型/输出形态/种子口径/比对方式四重差异），故取编排层整合。
+
+### 改动
+- 新引擎编排器 Virus_Platform_Core/detect_kit.py：run_chain 与两引擎同
+  签名，routes=both|crispr|conan，单路线失败不拖垮整体（failed_routes），
+  同一 cancel 传播；进度带 crispr 0.52 / conan 0.30 / 交叉审核 0.16。
+- 交叉审核：覆盖矩阵（片段×路线）、CONAN 向导近缘 k-mer 补筛查（复用
+  crispr_design.build_exclusion_index + screen_windows）、同位点收敛
+  标记（两路线共识长度一致才比对坐标，不一致跳过并注记）、场景建议表
+  （只给建议不自动重跑）。
+- 统一产出 cricon/：summary.json（tool=cricon 契约）、report.md、
+  order_all.xlsx（三 sheet：crispr_crRNA/crispr_primers/conan_guides，
+  openpyxl 回退 tsv）、coverage_matrix.tsv、validation_checklist.md
+  （L1-L5 合并清单 + CONAN 特有项 + 双路线互证节）、cross_screen.tsv
+  （near_fasta 给定时）。
+- near_fasta 双喂语义（报告固定注记）：crispr 当排除库（序列级筛查），
+  conan 当负组（同源位点评分，进合并 MSA）。tier0 补筛查命中可能即负组
+  同源位点本身（PAM 已变），只标注不否决。
+- 全链接入：tool_jobs._tool_job_cricon、TOOL_REGISTRY['cricon']、
+  TOOL_PARAM_SCHEMAS['cricon']（cr_/cn_ 前缀命名空间）、
+  MODULE_TOOLS、NAV_GROUPS t-cricon、tools.html 卡 + runCricon/
+  loadCriconResult、i18n.js 中英、app-jobs.js 四表、figdocs.TOOL_INFO、
+  selfcheck 两表、CLI cricon-design、spec hiddenimports（detect_kit +
+  补登 conan_design）。
+- 顺手修正 report_kit/model.py MODULE_FACTS['conan']：原误写「密码子适配」，
+  改为 CONAN-SWIFT 语义；补 MODULE_FACTS['cricon'] 与 _MODULE_JSON_HINT。
+- 测试：tests/test_cricon_design.py 8 用例（参数映射/预检警告/覆盖矩阵/
+  收敛与坐标跳过/订购表列对齐/UI 契约/合成端到端/单路线失败隔离），
+  登记进 _run_all.py TESTS+PYTEST_FILES；同批补登记一直漏掉的
+  test_conan_design.py；AGENTS.md 与 ops 卡条数 33→35 工具（含并行
+  开发的 cmpchain）同步。
+
+### 为什么
+- 运行名前缀不能带下划线（report_kit.model._tool_run_name 正则只认
+  [a-z0-9]+）→ 工具 id 定名 cricon。
+- CONAN 向导宿主筛查 MVP 未做：成本高；其特异性判据是负组双重失配，
+  序列级筛查仅对近缘文件补位，宿主核查留给 L2 实验段（清单已列）。
+- 建议表只给参数建议不自动重跑：计划不等于已执行纪律。
+
+### 验证
+- pytest tests/test_cricon_design.py：8 passed（MAFFT/primer3 环境下
+  含两个合成端到端）。
+- CLI 真实数据：python main.py cricon-design -i
+  run/tool_runs/_seq_input/GQMIX_NODE8.fasta --cr-no-host --cr-profile
+  relaxed → crispr 5 组合（最优 74.4）/ conan 0 候选（432nt 类病毒无
+  AAG+32nt 位点，正常），三条预检警告全命中，cricon/ 五件产物落盘
+  （run/tool_runs/cricon_cli_20261104_150849/）。
+- import app / agent_catalog.describe('cricon') / agent-ops schema 全通。
+
+### 遗留
+- 并行开发中的 cmpchain（比较基因组·一键）在同窗口编辑 tool_jobs.py/
+  tools_api.py，其间两次使平台 import 断裂（未闭合字符串/注册无定义），
+  本会话补过一次显式未完成桩后被并行改动覆盖，最终并行改动者自行完成
+  实现；交接时以 _run_all 全量回归为准。
+- CONAN 向导宿主筛查、multiplex 干扰检查留待后续（crispr 三期遗留）。
+- Web 卡 t-cricon 的实测（浏览器端到端）未做：需要 live 实例，由
+  _run_all 的浏览器用例或人工验收补。
+
+
+## 2026-11-04（补一）导航组序调整：「检测与防治」移到「进化动力学分析」之后
+
+### 改动
+- web/pages.py NAV_GROUPS 组序由 …→submit→detect→compare→phylodyn→result
+  改为 …→submit→compare→phylodyn→detect→result（整块搬移，detect 块
+  含自身拆组注释一并随迁；组成员与内容零改动）。
+
+### 为什么
+- 用户指令。检测设计（crispr/conan/cricon 等）业务上承接比较基因组与
+  进化动力学的分析产物（拿共识/代表序列做检测试剂），放在分析组之后
+  更顺流。
+
+### 验证
+- NAV_GROUPS 顺序断言：detect 紧跟 phylodyn，detect 组 6 项完整
+  （/primer、t-crispr、t-conan、t-cricon、t-dsrna、t-mirna）。
+- tests/_it_platform.py 全过（detect 组为集合断言，与顺序无关，未受影响）；
+  UI 契约与 module_preflight 14 passed。
+
+## 2026-11-04（补六十一）：下线 viromock_kv 基准库 + kv_index 旧名残留三处修复
+
+- **背景**：用户 11-04 晚 kvsuite 只鉴定出 1 条（Chenopodium quinoa mitovirus），
+  排查为该 run 选库 `viromock_kv`（2026-09-15 为论文基准建的 61 条参考 mock 库，
+  "every target present / reference-present, leakage-prone"，仅基准实验用）；
+  常规默认库为 plant_ref（12k+ 条，demo 134 条记录可证）。用户决定平台只保留
+  plant_ref 口径，viromock_kv 目录删除（25MB；如需复现论文基准，
+  `tests/bench/build_viromock_lib.py` 可确定性重建）。
+- **根因（改名遗留 bug，不止文案）**：kv_index 2026-09-29 更名 plant_ref 后，
+  三处「默认库识别」仍判 `name === 'kv_index'`——库下拉 hydrate（tools.html
+  `loadKvLibOptions` 与 pipeline 页 `app-batch.js hydrateKvLibSelects`）找不到
+  默认库即「自动改选扫描到的第一个可用库」；建库卡/后端 `/api/build_kv_index`
+  默认库名也还是 'kv_index'。全部对齐：isDefault 两处改 `['kv_index',
+  'plant_ref'].includes(name)`（兼容旧装机残留 kv_index 目录），前端建库默认
+  与后端建库默认改 'plant_ref'，约 31MB 文案改 47MB。改前若浏览器存过
+  viromock 选择，因选项已删会自动回落默认（want 不在 options → ''）。
+- **文案对齐**：i18n.js（zh 1736/1743/1744/2315/1260/1262、en 4299/4301）、
+  app-batch.js:390 兜底字面量、tools.html:916 option、build.html 确认语，
+  「默认鉴定库 kv_index」→「默认鉴定库 plant_ref」。
+- **验证**：pytest -k "kv or build" 36 passed / 2 skipped；node --check 两 JS
+  通过；databases/virusref_db/ 现仅 blast + plant_ref。
+
+## 2026-11-04（补六十二）：丰度分布图「中间空白」双修复 + 单样本可视化区分
+
+- **现象**：kvsuite 单样本 run 的「① 病毒丰度分布」综合画板，标题/列头/行标签
+  齐全但绘图区大面积空白；且每个"箱线"退化成一条细竖线，标签全带
+  `n=1/1 (100%)`。
+- **根因 A（顶部空白）**：fig_freq 的 figsize 高度按类目数放大
+  （98 类目 → 103 英寸高），matplotlib 默认 12% 顶边距在百英寸级高图上
+  = 12~13 英寸纯空白；`bbox_inches='tight'` 只裁外沿、不裁内部空隙，空白保留。
+- **修复 A**：`subplots_adjust` 按绝对英寸收紧（top=1-0.55/h、bottom=0.9/h、
+  left 按 3 行标签 0.30、right=0.995），总标题悬于图框上方
+  （y=1+0.12/h，va=top 下垂），列标题与总标题间距 ~0.5in。
+- **根因 B（单样本无区分）**：单样本下箱线（单值）退化为竖线、无信息量；
+  `n=X/Y` 检出率标签对单样本是废话。
+- **修复 B（fig_freq 单样本分支）**：样本数 =1 时只画散点
+  （stripplot size=6 无抖动），标签不带检出率；批量（≥2 样本）维持
+  箱线+散点与检出率标签。另外 melt 后过滤 Value<=0：log10 轴上 0 值画到
+  -inf 被整块裁掉，曾造成「检出但零定量」行有标签无标记的错位。
+- **就地重生成**：用户 run（kvsuite_20261104_233522）与示例快照
+  （examples/results/kvsuite）的 freq_multi_metrics 三格式已更新
+  （先删旧图绕开幂等守卫）。共丰度图维持原语义（<2 样品跳过，单样本不受影响）。
+- **验证**：`tests/_check_fig_qa_scans`（含 kv_fig 目标）0 重叠 / 0 越界；
+  pytest -k "fig" 2 passed / 2 skipped；裁图目检：标题/列头分层清晰、
+  散点可读、顶部空白消失。
+
+## 2026-11-05 示例数据补齐：7 张工具卡 + 2 个独立页接线 + 4 个新示例结果模块
+
+**背景**：盘点 `webapp/static/examples.js` 的 MAP / PAGE_MAP / RESULT_MAP 三张
+表与 29 张工具卡、独立页、`examples/results/` 的对照，发现 7 张卡（annochain /
+cmpchain / conan / cricon / crispr / loganfetch / rdp）没有 ✨ 示例输入入口，
+其中 rdp 的示例文件早已生成（`example_rdp.fasta`）却从未接线；prescreen /
+download 两个独立页也没有示例；crispr / conan / cricon / annochain 连
+「👁 示例结果」都没有。
+
+**改动**：
+- `examples.js`：F 表加 `RDP`；MAP 补 7 卡（rdp→现成 example_rdp.fasta；
+  annochain→viral_contigs；crispr/cricon→ACMV 单序列目标；conan→ORSV 五
+  分离物；loganfetch→占位符同款两个 SRA 号字面量；cmpchain→ictv 模式 +
+  Potyvirus 属示例，需联网）；PAGE_MAP 补 /prescreen、/download（三行示例
+  Run，与预筛页 placeholder 同源）。
+- `tests/make_example_results.py`：JOBS 加 crispr / conan / cricon /
+  annochain 四模块真跑入库；collect() 支持 `sub_runs`（链式任务读
+  `_chain.json`，把各步子 run 目录按 step key 前缀一并固化——annochain 主
+  run 目录只有 _chain.json+results.html，不收子 run 就只剩 2 个文件）。
+- `examples/results/` 新增 4 个目录（16/11/31/47 个产物）+ manifest 条目。
+- cricon 示例不用 `example_virus_set` 当 near_fasta：那是烟草花叶病毒属
+  近缘集，与 ACMV（双生病毒）不同科，当「近缘参考」名不副实，留空。
+
+**为什么**：示例结果必须与 ✨ 按钮填的输入同源（kvsuite 教训：输入↔结果
+错位会让用户换数据后对着错误预期排查）；loganfetch / cmpchain 依赖联网拉
+参考，只接输入示例、不产离线结果。
+
+**验证**：`node --check examples.js`；4 模块生成 0 失败（19s/18s/48s/30s）；
+`tests/_check_examples_manifest.py` 无硬性差异；`tests/_check_examples_inputs.py`
+36 项全过；test_client 实测 4 个 `/api/examples/<模块>` 与
+`/api/example_input/example_rdp.fasta` 均 200。
+
+## 2026-11-05（补六十三）：输出面板关键数字 chips 粘连——task-result 类从未挂载
+
+- **现象**（用户圈红）：输出面板任务卡的关键数字行渲染成
+  `engine=salmonfiltered_tsv=filtered.tsvn_confirmed=98out=kvsuite…`——
+  键值对全部粘连。
+- **根因**：chips 样式（`.task-result .tr-stats` flex+gap、`.tr-chip` 边框）
+  全部挂在 `.task-result` 祖先类下，但该类只有任务中心那一条渲染路径挂了，
+  输出面板的 `toolRunHtml` 卡片容器没挂 → 后代选择器全空、chips 退化为
+  无间距 inline 拼接（`join('')`）。
+- **修复**：`toolRunHtml` 卡片根容器补 `class="task-result"`（app-jobs.js），
+  一处改动同时激活 chips 间距、边框、mono 字体与省略号截断。
+- **验证**：`node --check` 通过；刷新页面即可见 chips 卡片化排布。
+- **同日补**：下载行两个同名「阶段汇总」按钮——实为 kvsuite 的
+  `all_viruses.summary.tsv`（全量）与 `all_viruses.best.summary.tsv`（每病毒
+  最优）都被通用 `['summary.', '阶段汇总']` 条目吞掉；DL_LABEL_SPECS 在通用
+  条目前加三条专用标签（最优=green / 全量=gray / `all_viruses.review.tsv`
+  顺带从裸文件名补成「疑似待复核」=amber）。node 模拟匹配三种文件名验证。
+
+## 2026-11-05（补六十四）：组概览模块说明——文档内导航 / 模块卡片 / 示例输入输出图
+
+- **背景**（用户反馈两条）：①「模块说明」只有整篇文档级的顶部胶囊，
+  文档内部没有任何导航，长文档找不到位置；②模块与模块之间只有一条
+  `1px dashed` 虚线，几乎连成一片。另要求给每篇模块文档补「示例输入
+  与输出」。
+- **改动**（app-wiki.js + app.css + i18n.js）：
+  - 每篇文档 h2/h3 注入序号锚点 `gd-<slug>-h<k>`（不从中文标题生成
+    slug，防撞防乱码）；≥3 个标题的文档在 h1 后插入「本页导航」胶囊条；
+  - IntersectionObserver 滚动监听：高亮当前文档胶囊与当前标题胶囊
+    （重渲染前 `killObservers()` disconnect，回调带 `isConnected` 守卫）；
+  - 每篇文末「← 上一篇 / ↑ 返回本组导航 / 下一篇 →」页脚翻页；首篇无
+    上一篇、末篇无下一篇（灰色置灰）；容器上一次性事件委托做平滑滚动 +
+    `replaceState`（`__gdClickBound` 防重复绑定）；
+  - 说明区浮动「返回顶部」按钮（`top: calc(var(--head-h) + 14px)`，随
+    `#groupDocs` 隐藏）；
+  - `.gd-doc` 升级为模块卡片：`margin:30px 0`、2px 实线 + 左 4px
+    `--green-600` accent + `--surface-2` 底 + 圆角阴影，h1 行右侧「模块
+    k / N」徽章；dark 主题与 `vp-frame` 框架模式同步覆盖；
+  - `relinkImages()`：只重写图片语法 `![alt](assets/…) → /static/wiki/
+    assets/…`（普通链接与含 `..` 的路径不动），md 原文保持 GitHub wiki
+    可用的相对路径；文档内图片统一包 `<a target="_blank">` 可点开原图。
+- **内容**（wiki/ + dev_tools/sync_wiki.py + tests/test_wiki_docs.py）：
+  - 12 篇模块文档补「## 示例输入与输出」：输入用真实格式代码块（对照
+    引擎源码/真实运行目录核实），输出嵌 15 张真实产物图（`wiki/assets/`，
+    全部来自 run/ 下真实运行，SHA-256 校验入库）；图注全部按图实写
+    （freq_multi_metrics 实为 MeanDepth/RPM/FPKM/TPM 丰度多指标图，不是
+    变异频率图——按真实内容写，不硬套）；
+  - `sync_wiki.py` 新增 `_sync_assets()`：递归复制 `wiki/assets/` + 孤儿
+    清理（含空子目录）；`test_wiki_docs.py` 新增资产逐字节一致守护测试；
+  - md 是仓库根 `wiki/` 单一事实源，改完必须跑 `python dev_tools/sync_wiki.py`
+    （test_wiki_docs 两个一致性测试会抓漏同步）。
+- **为什么**：组概览是新人了解平台的第一站；文档内导航解决「长文档迷路」，
+  卡片化解决「模块边界不清」，示例图解决「没见过输出长什么样」三层问题。
+- **验证**：`node --check app-wiki.js` ✔；`tests/_check_js_syntax.py`
+  71/71 ✔；`tests/_audit_contract.py` 无硬性差异（i18n zh/en 各 3307 键）；
+  `tests/_audit_routes.py` 287 路由 0 错；`pytest tests/test_wiki_docs.py`
+  6 passed；Chromium 真浏览器冒烟（组切换 / 滚动高亮 / 锚点定位 / 页脚
+  翻页 / 图片重写 + 新标签打开 / light+dark+vp-frame / 3 档宽度无溢出 /
+  0 console error）；15 张资产引用全覆盖、引用全部可解析。
+- **遗留**：标题锚点是位置序号，中间插删标题会让其后深链失效（预期取舍）；
+  `webapp/static/wiki/`（含 assets）目前未入库，提交时须包含，否则图片 404。
+- **同日补：GIF 教程程序化生成器**。`dev_tools/make_tutorial_gif.py`
+  （Playwright 截帧 + Pillow 拼装，场景函数集中在 `SCENARIOS`，加新教程只写
+  一个场景函数）；第一条样片 `wiki/assets/gif/tool-run-demo.gif`（5 帧
+  8.4s 413KB，真机实录：t-convert 卡 ✨ 示例 → ▶ 运行 → 完成态），已内嵌
+  [Quick-Start]「60 秒演示」节。画面清理只作用于录制会话（点掉磁盘横幅、
+  清空历史恢复显示，均为会话内 localStorage/DOM 操作，不改持久设置）；录
+  制产生的真实运行 `convert_20261105_125318` 留在历史运行里。
+- **同日再补：粘性侧边栏目录**（用户反馈：文档内导航胶囊只在文档顶部，点完
+  锚点滚下去要滚回来才能再跳）。`show()` 重排为 `.gd-layout` 双栏 grid
+  （文档列 + 右侧 236px 粘性目录列，「平台通用文档」移进同一列，展开后条目
+  追加进同一条目录）；目录 = 文档条目（加粗）+ h2/h3 嵌套缩进，滚动监听
+  高亮当前文档与当前标题（`setDocActive/setHeadActive` 扩展到 `.gd-rail`），
+  点即平滑跳转（复用 `#gd-` 委托）；≤1180px 窄屏隐藏目录（顶部胶囊仍在），
+  「返回顶部」按钮宽屏时右移让开目录（`right:272px`）。新增 i18n 键
+  `tk.wikiContents`。冒烟 7 项全过（出现/粘性/点击高亮/通用追加 9→110/
+  组切换重建/窄屏隐藏/0 console error）+ 截图目视。
+- **同日三补：组概览 wiki 分组映射纠偏**（用户圈图质疑「样本处理组怎么挂了
+  整篇专项工具箱」）。全面核对 `index.json` × `NAV_GROUPS`：
+  ① `sample` 组摘除 `Toolbox`（该组六卡 = 一键前处理/样品创建/格式转换/
+  序列质控/宿主去除/病毒序列提取，与 Toolbox 的 miRNA/SDT/NCBI 下载等内容
+  无关）→ Toolbox 移入 `global`（平台通用文档，各组可达，语义本就是跨组
+  工具箱总览）；
+  ② 发现并修复**孤儿组 id**：`submit` 组 2026-11-04 撤销（数据提交卡并入
+  「病毒注释分析」）时 index.json 没跟上，NCBI-Submission 一直挂在永不再
+  渲染的组 id 下、组概览全站不可达 → 移入 `annotate` 组（正好接住注释组
+  「功能注释 → 基因组图谱 → 数据提交」的卡序）；
+  ③ `test_wiki_docs.py` 补反向守护 `test_no_orphan_group_ids`——正向测试
+  （每个导航组有映射）抓不到「映射指向已撤销组」的反向孤儿，现 7 passed。
+- **同日四补：组概览文档覆盖补全（拆 Toolbox 归组，用户圈查「好些组没
+  全面介绍本组模块」）**。逐组审计 `NAV_GROUPS` 卡片 × 文档小节，7 组有
+  缺口，三个并行子代理按源码补齐：
+  ① 新建 `wiki/DsRNA.md`、`wiki/Mirna.md`（检测组；内容自 Toolbox.md 拆出
+  并按 dsrna_pipeline/dsrna_scoring/dsrna_offtarget、mirna_target 源码扩写）、
+  `wiki/Compare.md`（比较基因组组；一键链/参考获取/CDS 导出/比对 +
+  SDT/identity/structcmp 三示例随迁）；`detect` → 4 篇、`compare` → 2 篇；
+  ② 就地补节：Preprocess +⚡一键前处理/样品创建/病毒序列提取三节，
+  Kvsuite +⚡一键链/共识/变异三节，Assembly +⚡一键链一节，Public-Data
+  +病毒样本预筛/Open-Virome 两节，Logan +LOGAN 数据下载一节，Report
+  +svguest 一节；Toolbox 拆减为工具箱总览（单步工具表 + 其他工具 + 指路
+  行）；`_Sidebar` 补三行；Primer/Phylo 旧 Toolbox 指针改指 DsRNA/Compare；
+  ③ 内容红线：产物名/CLI/参数一律从源码核实（代理还纠正了三处任务假设：
+  TSV 批量入口 2026-09-13 已移除、virchain 只收 FASTA、变异图「8 张」为
+  概称已改写真实产物族）；新文档翻页条与 `_Sidebar` 槽位一致；
+  ④ 验证：index.json 30 篇恰一次、`test_wiki_docs.py` 7 passed、9 组浏览器
+  全量扫过（各组文档数 = 预期：resource 3 / sample 1 / kvsuite 1 / virus 2 /
+  annotate 3 / detect 4 / compare 2 / phylodyn 3 / result 2；global 9）
+  0 pageerror。**遗留**：CRISPR-Design.md 示例里的 conan 两图指向已归档
+  工具（等用户决策换图或删）；Phylodynamics/Phylogeography 的 t-rtt/
+  ⚡一键节覆盖为概述级（可在使用中按需加深）。
+- **同日五补：wiki 结构重组为「1 模块 1 文档」**（用户定调「是 wiki 嘛，
+  你应该对每个模块每个 wiki，不要按篇了」）。三篇多模块大文拆散：
+  Public-Data（→ Meta-Search / Prescreen / Open-Virome / Logan-Fetch /
+  Download / Ref-Data 六专页 + 自身转 16 行组导读）、Compare（→ Cmpchain /
+  Seq-Prep / Cds-Export / Align 四专页，SDT/identity/structcmp 三示例随迁
+  Align）、Phylodynamics（→ Phylodyn / Pd-Prep / Rtt / Rdp 四专页）；
+  样本/定量/组装三组按卡拆专页 12 篇（Prepchain / Samples / Fastp /
+  Convert / Host-Removal / Identify / Kvchain / Consensus / Variant /
+  Virchain / Contigs / Verify），Preprocess / Kvsuite / Assembly 重新聚焦
+  为管线视角（卡级正文迁出留指路）；注释组补 Annochain、结果中心补
+  Results / Svguest。终态 **59 篇 = 9 组专页 50 + 全局 9**，每组篇数与组内
+  模块数对齐（resource 9 / sample 7 / kvsuite 4 / virus 5 / annotate 4 /
+  detect 4 / compare 6 / phylodyn 7 / result 4）。工程化收口：
+  `run/_wiki_integrate.py`（--apply 落盘）一次完成 58 篇翻页条线性归一 +
+  `_Sidebar` 11 节重建 + index.json 重写 + 全库内链巡检（0 死链）；四个
+  并行子代理按源码拆写（RA/RB/RC1/RC2），内容红线同前，且纠正旧文多处
+  源码不符（`--min-contig-len` 默认 200 非 500、默认鉴定库 plant_ref、
+  t-seqprep 只有提取/巡检按钮、t-rtt 卡走
+  root_to_tip 最大 R²、consensus 逐参考 poscounts、gbdraw 缺失即中断而非
+  回退 DFV 等）。验证：
+  sync 59 篇、test_wiki_docs 7 passed、契约审计无硬性差异、9 组浏览器
+  全量（目录篇数全对齐、0 pageerror）。**遗留**：Phylo.md 一篇覆盖
+  t-treebuild + t-sdt 两张同流程卡（有意取舍）；两篇组导读 + Preprocess/
+  Host-Prediction/Result-Interpretation/Report 为管线/判读视角文档，
+  与卡文档并存。
+- **同日六补：组导读补齐到全部 9 组**（用户：「为什么有的有组导读，
+  有的没有，全部补充」）。新增 6 篇 `*-Intro.md`（Sample-Intro /
+  Kvsuite-Intro / Virus-Intro / Annotate-Intro / Detect-Intro /
+  Result-Intro），格式对齐既有三篇导读（Public-Data / Compare /
+  Phylodynamics）：组模块编号清单（每项一句定位 + 专页链接）+ 一条链路
+  总结 + 与其他组的衔接；`_wiki_integrate.py` 的 GROUPS 每组导读置顶、
+  `--apply` 重跑：64 篇翻页条归一（导读插在组间链位上）、`_Sidebar`
+  11 节 65 篇、index.json 9 组 65 篇、0 死链。验证：sync 65 /
+  test_wiki_docs 7 passed / 9 组浏览器（目录首位 = 导读、篇数
+  resource 9 sample 8 kvsuite 5 virus 6 annotate 5 detect 5 compare 6
+  phylodyn 7 result 5 全对齐、0 pageerror）。
+- **同日七补：侧栏目录树状化 + 模块间隔**（用户：「一级二级三级目录导航
+  树状展示呢，怎么没有间隔」）。`railEntriesHtml` 改为每组文档包一层
+  `.gd-rail-group`（一级标题 + `.gd-rail-sub` 子树）；CSS 去掉了原“绿点/
+  短横”平铺标记，改为：一级=加粗绿字独立块、**组间 12px 间距 + 虚线**；
+  二级=节（挂在子树垂直引导线上，横枝连接）；三级=子节（更深缩进 + 自身
+  引导线 + 灰色小字）。暗色主题树线统一用 #2a3b31。截图目视通过。
+- **同日八补：组概览模块文档插图补齐**（用户：「组概览补充些图片呢，怎么
+  很多没有」）。1 模块 1 文档后多数专页无图，三路并行补齐 **14 张新图 +
+  1 张复用**：① 真实产物图——meta_search 出版级图组两张（Combined
+  Landscape 六面板 600dpi + Panel_A 时间分布，源 `run/meta_search/
+  Lycium_barbarum_20261014_2314/plot/`）、annochain 基因组环图/线图两张
+  （SVG 经 Playwright 截 PNG，cairosvg 缺 libcairo 的替代路径）、LAMP
+  运行模块结果页一张（lamp_20261105_153912，订购表+排序表）；② UI 实拍
+  截图 9 张（prescreen/virome/download/refdata/databases/samples/submit/
+  results/svguest，Playwright 元素截图，含吸顶栏归零、浮动气泡隐藏、
+  virome 筛选抽屉展开等处理）；③ 管线保留率图复用给 Preprocess。
+  插入 13 篇模块文档（Meta-Search 2 图 + 其余各 1–2 图），图注全部先
+  目检再写；顺带删除 CRISPR-Design 里已归档 CONAN 工具的两张残留图并
+  清理全部 conan 引用（wiki 全目录 grep 0 残留）。验证：assets 28 张
+  引用全解析、0 孤儿；sync 28 资产（removed 2 = conan）；test_wiki_docs
+  7 passed；9 组浏览器强制 eager 复测 **30 张图 naturalWidth 全 >0、0
+  失败**（初测假阴性系渲染器 `loading="lazy"`，非缺陷）。
+
+- **同日十补：三级目录规范**（用户：「有加粗有不加粗，全部规范些，1 2 3
+  三级目录」）。侧栏层级统一为四维同向递减的阶梯：一级（模块）700/12.5px/
+  绿字整行块；二级（h2）500/12px/正文色，缩进 +12px；三级（h3）400/11px/
+  灰字，再缩进 +22px + 独立细引导线；四级（h4）400/11px/浅灰，再 +22px。
+  缩进 / 字重 / 字号 / 颜色四维同时分层，任何文档的标题写法（h2 套 h3、
+  平铺 h2 混排）都被规范成同一个三级视觉体系。截图目检（CRISPR 混合
+  层级 + DsRNA 深层嵌套 + Mirna）通过。
+- **同日九补：示例内容归属全面复核与重写**（用户：「模块说明很离谱…
+  定年前的数据支持度检查可复用②b多指标丰度图——这和进化动力学一点关系
+  没有，硬关联，全面重写」）。全库扫描（每篇示例节 × 图片引用 × 图注
+  用语），确认并修复两处硬关联：
+  ① **Pd-Prep**：删除 kvsuite ②b 丰度图（MeanDepth/RPM/FPKM/TPM）及其
+  “定年前数据支持度检查”的强行解读，换成该模块自己的真实产物说明
+  （`pdprep/` 数据集目录树 + summary.json 各段统计 + abs 接力路径）；
+  ② **Align**：删除“同族”引言与三张别模块示例（SDT 热图→**Phylo**
+  t-sdt 模式一、NT+AA 复合图→**Phylo** t-sdt 模式二——t-sdt 卡本就含
+  NT/AA/NT+AA 三模式；structcmp 全矩阵→**Toolbox** 新增「专项工具（无
+  独立导航卡）」节），Align 只留自己的示例（输入 FASTA → aln.fasta /
+  aln.trim.fasta，不产 summary.json，查看器入口在结果中心）；
+  ③ 顺带给 LAMP-Design / CRISPR-Design 补「## 相关」（并发会话刚把
+  LAMP 六引物组接进 CRISPR `--amp LAMP` 档，正好互链）。
+  验证：图片归属 grep 复扫（kvsuite-freq 仅 Kvsuite；sdt/identity 仅
+  Phylo；structcmp 仅 Toolbox）、可疑用语（可复用/同族/沿用原）0 命中、
+  结构巡检（66 篇 h1/翻页齐全，缺「相关」仅为导读/历史文档）、sync 66、
+  test_wiki_docs 7 passed、浏览器实测（Align 0 图 / Phylo 3 图全渲染 /
+  Pd-Prep 0 图 / Toolbox structcmp 图渲染）。
+
+- **同日十一补：全库文档「重审、修正、润色」+ 三级结构硬性化**（用户：
+  「三级导航几乎没有，文档说明很乱，调用 skills 重新审阅修正润色」）。
+  ① 新增 **docs/WIKI_STYLE.md**（统一文档规范）：模块专页固定六节骨架
+  （输入 → 流程 → 产物 → 示例输入与输出 → 界面与 CLI → 相关，标题文字
+  不得改名），硬性要求「≥2 个 H2 下各有 ≥2 个 H3」；组导读统一「模块
+  清单 + 链路」；语言规范（术语表：工具卡/产物/参数/引擎/操作目录 id、
+  去口语与「一句话定位：」元标签、去变更史、短句、全角标点、图注斜体、
+  代码块语言标注）与逐篇审核清单；
+  ② 五路并行编辑代理按规范重写 **60+ 篇**：修掉 Kvsuite 定位语逐字重复、
+  CRISPR-Design 与 H1 同名的重复 H2 及 7 个散落 H4/H3 重排入六节、
+  Svguest 重复 Auto-save 段、Results 分区表与结果树互抄、Seq-Prep 来源
+  段与表重复、Phylodyn 引擎清单重复等；删除全库「一句话定位：」前缀
+  与数十处变更史注记（「此前误写」「旧实现」「2026-xx-xx 修正」类）；
+  统一术语/标点/千分位/范围符/反引号/代码块语言；Primer 与 DsRNA 示例
+  按仓库真实产物补写真实数字；修正 anochain→annochain 操作目录 id、
+  被反引号包住失效的站内链接、Public-Data→Download 误导链接；
+  ③ 结构实测：44 篇模块专页 **100% 三级达标**（`run/_wiki_threelevel_check.py`），浏览器全组统计 9 组共 **305 条二级 + 600 条三级**目录
+  条目（此前多数文档三级为 0）；
+  ④ 守护：tests/test_wiki_docs.py 新增 `test_module_docs_have_three_levels`（豁免清单内 22 篇导读/全局文档），现 **8 passed**。
+  遗留（代理如实标注、未擅改）：NCBI-Submission 产物清单 vs「范围与
+  限制」表述矛盾、ORF `--libs` 与 agent_catalog 描述不完全一致、LAMP
+  产物 120–300 bp 与参数默认 120/180 并存——待用户定夺。
+
+
+## 2026-11-05 conan / cricon 归档摘除：检测设计收敛到 crispr 单工具（用户决策）
+
+### 背景
+用户复盘：「CONAN-SWIFT 检测设计」与「CRISPR 检测试剂设计」用的都是
+CRISPR，区别是什么？保留一个不行吗。结论：两者效应蛋白体系不同
+（Cas12a/Cas13a vs Cas3/Cascade），但 Cas3 体系无商品化蛋白/试剂盒，
+实际落地路线以 crispr 为准；昨天按"整合"理解建的 t-cricon 联合卡
+亦无存在必要。按平台归档惯例摘除（引擎代码与历史产物保留，可随时恢复）。
+
+### 改动
+- 注册面：TOOL_REGISTRY / TOOL_PARAM_SCHEMAS / MODULE_TOOLS / NAV_GROUPS
+  / selfcheck 两表 摘除 conan 与 cricon；tool_jobs 摘除两个 job 工厂；
+  main.py 摘除 cricon-design CLI；i18n_cli_catalog 摘 cricon 词条。
+- 前端：tools.html 摘 t-conan / t-cricon 两卡与四个 JS 函数；i18n.js
+  摘 tk.cn* / tk.cricon* / nv.t-conan* / nv.t-cricon* 孤儿键（107 行，
+  归档卡孤儿键守卫口径）；app-jobs.js 四表摘行（含 cricon_cli 前缀注释）。
+- 保留面（历史产物兼容）：figdocs.TOOL_INFO 与 model.MODULE_FACTS 的
+  conan/cricon 条目保留（历史运行目录 results.html / report_v2 标题
+  仍正确）；conan_design.py / detect_kit.py 引擎保留；cricon CLI 历史
+  产物（cricon_cli_20261104_150849）保留。
+- 测试适配：test_conan_design / test_cricon_design 的 test_ui_contract
+  改为「归档断言」（防复活残留）；引擎纯函数与端到端测试保留（引擎
+  仍可独立运行）；_it_platform detect 组断言集合收敛为
+  {/primer, t-crispr, t-dsrna, t-mirna}。
+- 文档：ops 卡条数 57→56（34 工具，含并行新增 loganfetch）、AGENTS.md
+  ~35→~34、ops 卡分组表/剧本F/参数速查摘 conan/cricon。
+
+### 为什么
+- 同名同源的两个"CRISPR 检测"卡对用户是认知负担；Cas3 路线在没有
+  蛋白来源时不可落地，保留入口只会产生跑不出可用试剂的空转。
+- 归档而非删除：检测设计的近缘区分需求（负组双重失配）依然真实存在，
+  将来拿到 Cascade/Cas3 蛋白或做科研演示时一键可恢复（git + 引擎在）。
+
+### 验证
+- 后端注册面：TOOL_REGISTRY/NAV_GROUPS/MODULE_TOOLS 无 conan/cricon。
+- tools.html / i18n.js / app-jobs.js 残留 grep = 0；JS 语法守卫过。
+- test_ui_contract ×2（归档断言）通过；detect 组 4 项完整。
+- 全量校验见同日收尾（import / _it_platform / _check_skills / pytest）。
+
+### 遗留
+- 21 个浏览器 UI 探针在本机 Edge 挂起环境下仍未验证（昨日回归遗留，
+  环境恢复后补跑）。
+
+
+## 2026-11-05（补一）归档摘除补漏：examples.js 两处 + agent_catalog 旧注释
+
+t-conan / t-cricon 归档摘除后的第二轮残留清扫：examples.js 的示例输入
+表（cn_input/cricon_input 两行）、卡 id 映射行与"CRISPR 三卡"注释、
+agent_catalog 里 conan schema 上方的旧注释块、_nav_i18n.html 的
+t-conan 英文词条。终态 grep：注册面/前端活引用 0 残留；56 个相关
+pytest 全绿（含两个归档断言契约）；import app、_it_platform、
+_check_skills、JS 语法守卫全过。
+
+
+## 2026-11-05（补二）t-crispr 吸收负组位点级核查（CONAN 判据）
+
+### 背景
+conan/cricon 归档后，用户确认把 CONAN 独有的软件判据（负组同源位点
+双重失配）吸收进 t-crispr：一张卡同时具备序列级 k-mer 排除筛查 +
+位点级近缘区分 + 引物协同 + LFD 探针。检测化学（Cas3 蛋白体系）不涉及。
+
+### 改动
+- consensus_and_conservation 加 negative_recs 参数：有负组时目标+负组
+  合并 MAFFT（t/n 命名防撞），共识只算目标行、全目标 gap 列跳过
+  （conan 实测教训），返回 col_map/neg_aln；无负组返回 None，行为零变化。
+  调用点 run_chain + 测试解包同步。**注意**：有负组时共识列布局与历史
+  版本可能不同（跳过负组插入列）。
+- 新函数 negative_locus_check：判据 = PAM 保留 且 种子全配对 = leak
+  （Cas12a 口径：TTTV 4nt、种子 8nt 无忽略位；Cas13a pam_kept 恒真退化）；
+  同源窗缺失/含非 ACGT 不计分母；写回 c['neg_locus']。
+- run_chain 挂点：veto 循环后对 kept 全量核查（vetoed 也算，候选表可见）；
+  leak>0 组合降权 ×(1-0.5×leak%) + flag「近缘leakX%」（不 veto）。
+- 输出：candidates.tsv +2 列（negative_leak%/near_locus_clear）、
+  ranked_sets.tsv +1 列（negative_leak%，末尾，避开 toolbox_plots 列名
+  子串命中）、report.json sets[].negative_leak、summary.negative_locus
+  元段（enabled/n_near_records/n_leak_flagged/semantics）。
+- hint 三处（tools.html + i18n.js 中英）；wiki/CRISPR-Design.md 补节；
+  ops 卡 near_fasta 描述升级。
+- 测试：解包修正 + 新增 test_negative_locus_check_pure（正链 leak/clear、
+  负链取向窗 revcomp、Cas13a 退化、种子区/非种子区边界、窗缺失不计分母）
+  + test_negative_locus_check_e2e（近同源副本 leak/clear 两案，断言
+  TSV 列/flags/report 段）。23 passed 零破坏。
+
+### 为什么
+- 合并比对而非两次独立 MSA：col_map 天然对齐，避免 ±1 列漂移
+  （conan 合成数据实测教训）。
+- 降权不 veto：株系区分是能力信号——用户可能正要检测的种内就有该
+  近缘株系；硬筛会把可用组合误杀，判读留给实验（L2）。
+- 判据口径按 nuclease 档案取参而非写死 AAG/8nt/+6：Cas3 的 I-E 种子
+  口径（+6 忽略位）不适用于 Cas12a/Cas13a。
+
+### 验证
+- pytest tests/test_crispr_design.py：23 passed（21 现有零破坏 + 2 新增）。
+- 纯函数烟测：无负组 None / col_map 严格递增 / leak=100% / clear=0% 全过。
+- CLI 对照与 JS 守卫见同日收尾。
+
+
+## 2026-11-05（补三）LAMP 引物设计双入口（方案 A+B，用户确认 AB 都做）
+
+### 背景
+用户要求补 LAMP：给 t-crispr 加 LAMP 扩增档（CRISPR-LAMP）+ 独立 LAMP
+引物组设计工具。参数面净室参考 primer.uni-shine.cn（闭源在线工具，不进
+平台）与 Notomi 2000 公共约束；不做其 LightGBM 排序与 RNase HII 探针。
+
+### 改动
+- 新内核 Virus_Platform_Core/lamp_design.py：六引物组枚举设计（分段
+  Tm/GC/间距约束、FIP/BIP 拼接、保守区段级过滤）+ all-pairs 二聚体快筛
+  + 入围 dna_mfe 复核 + 独立评分 + run_chain（产物 lamp/ 四件套）。
+- 方案 B 全链路：t-lamp 工具卡（tools_api/tool_jobs/agent_catalog/
+  module_deps/pages/tools.html/i18n/app-jobs/figdocs/model/selfcheck/
+  CLI lamp-design/_run_all/_it_platform/ops 卡条数/AGENTS.md）。
+- 方案 A：crispr_design amp_mode 白名单加 LAMP；design_primers_for_site
+  LAMP 分支（锚定 crRNA 位点，F2-B2 必须包住；FIP/BIP 充当 f/r 输出
+  兼容）；六条逐条脱靶筛查（任一 mm0 剔除）；评分混合 0.5×CASPER +
+  0.5×lamp（6 类特征断言不破）；ranked_sets 加 7 列 lamp_*；report.json
+  sets[] 加 lamp 对象；probe 在 LAMP 档自动 none。
+- 测试：tests/test_lamp_design.py 7 用例（含 UI 契约）+ crispr 新增
+  LAMP 档端到端；两套 31 passed 零破坏。
+
+### 检修记录（同日）
+- 内核首版 0 组输出：product 定义（b2_start - f2_end + 1，两 3' 端所夹）
+  与间距表初版错位（把 F2-B2 整段当产物）+ 骨架截断先于可行性预筛
+  （截断后前 40 骨架恰好全不可组装）——修正为精确窗 + 预筛 + 逐骨架
+  组装 + dna_mfe 移到入围复核（组装阶段纯算术，1.5s/450bp）。
+- 文档 heredoc 换行转义两次污染测试文件，用 Edit 修复。
+
+### 遗留
+- 订购表（order_sheet）LAMP 档目前只列 FIP/BIP 两行（f/r 位），其余
+  四引物见 ranked_sets.tsv 的 lamp_* 列；完整六引物订购表可后续并入
+  order_sheet 的 primers sheet。
+- 环引物 Tm/交互未在评分中独立加权（并入 lamp score 的段罚）。
+
+
+## 2026-11-05（补四）LAMP 示例结果 + 审稿验证 + 布局可视化
+
+### 改动
+- 示例：examples.js 加 t-lamp 输入映射；make_example_results.py 加 lamp 条目
+  （ACMV 单序列，6 秒固化 7 产物到 examples/results/lamp/）。
+- 审稿验证：tests/_check_lamp_correctness.py（独立复核：坐标回取/GC/Tm 区间/
+  Biopython Tm_NN 双模型互证（同盐条件 Δ≤1.5°C）/FIP-BIP 拼接/间距/段序/Tm
+  秩序/二聚体独立复算/anchor 约束）——5 组 192 项全 PASS；报告
+  docs/LAMP设计正确性验证_20261105.md。
+- 可视化：lamp_design._write_plots 出引物组布局图（Top5，F3/F2/F1 蓝、
+  B1/B2/B3 红、LF/LB 绿、产物区灰底、图例、PNG+SVG）；results.html 模块页
+  自动收录。
+- 对标 primer.uni-shine.cn（登录详见其 Preferences/Results 页）：其默认
+  参数面（外 18-24nt Tm 53-62 tgt58 / 内 18-24 Tm 56-66 tgt62 / F1c/B1c
+  19-25 Tm 59-68 tgt64 / GC 0.40-0.60 / Amplicon 100-500 / 各段候选 200 /
+  保守阈值 0.95 连续 15 gap0.1 / Loop 16-24 Tm 56-66）与我方口径的**结构
+  完全一致**（外低内高的 Tm 三段秩序、FIP/BIP 拼接、六引物 + 环引物），
+  绝对 Tm 目标差 ~2.5°C 属热力学盐条件口径差（我方用 primer3 50mM/mv1.5
+  口径）；其 AI 学习（LightGBM）/RNase HII 探针为平台不做的部分。
+
+### 验证
+- lamp 7 测试 + crispr 23 测试零破坏；审稿脚本 0 fail；JS 守卫过。
+
+
+## 2026-11-05（补五）uni-shine 结果页对标 + FIP/BIP 高亮展示增强
+
+### 对标发现（登录 primer.uni-shine.cn 实际走完一次设计）
+- 结果列表：每组 = 序号/Score/penalty/警告数 + 引物芯片行 + FIP/BIP 拼接 + 详情链接；
+  顶部汇总"N bp · M sets · K passed QC · 耗时"；Export CSV；底部商业试剂推荐
+  （該站点为试剂商引流工具，免费设计换试剂销售）。
+- 详情页：FIP/BIP 橙色/蓝色高亮大色块（订购核心产物）、明细表
+  Primer/Position/Length/Tm/GC%/**3′dG**/Sequence/保守区、二聚体警告列表、
+  Sequence View 逐碱基视图（5' Target / 5' Comp 双行 + 引物 Tm 标签）、
+  Good/Bad 反馈（训练 LightGBM）。
+- 设计口径差异：其 FIP/BIP **无 TTTT linker（直接拼接）**，我们保留 TTTT
+  （LAMP 主流写法，两者均有文献先例）；其 Tm 为 LAMP 高盐体系口径
+  （演示组 58-75°C），内外引物 Tm 差更大（外 58 vs 内 66-75），我们外 60.5
+  vs 内 63.5-65——**"外低内高"秩序一致，绝对值和幅度是口径/风格差**。
+
+### 增强
+- lamp_design.run_chain：summary['top_sets'] 前 3 组摘要（FIP/BIP/六引物
+  seq+Tm/环引物/qc），供前端直接渲染。
+- tools.html loadLampResult：渲染 Top2 组的引物芯片行 + FIP（橙）/BIP（蓝）
+  高亮块 + 环引物行（对齐 uni-shine 详情页的核心展示形态）。
+- 3′dG 列未引入：我们的 qc 以 max_self/max_cross pct 覆盖二聚体风险，
+  3'dG 口径（primer3 end stability）差异大且现有证据边界已声明二聚体
+  风险留待实验，故不加（避免给用户一个易误读的伪精确数字）。
+
+
+## 2026-11-05（补六）LAMP Sequence View（逐碱基序列-引物对照）
+
+用户对标 uni-shine 详情页的 Sequence View（每碱基着色 + 5'Target/5'Comp
+双链 + 80bp 分块坐标）后要求补齐：
+- lamp_design._write_seqview：自包含单文件 HTML（无 JS/CSS 外链），
+  80bp 分块、5' Target / 5' Comp 两行、引物区按段着色（色板与布局图一致）、
+  块下逐 10bp 坐标、每组图例带引物名/长度/Tm；Top 3 组纵向排列。
+  results.html 模块页自动收录到交互页区；前端结果卡加「🔬 序列对照」链接。
+- primer 工具（PCR）核查结论：**已有**同类且更强的交互式逐碱基视图
+  （pdTrackWidget：滚轮缩放/拖动平移、放大显示正向+互补碱基层、轨道与
+  表格双向联动）——uni-shine 的 Sequence View 是静态版，我们 primer 早已
+  超过它，无需改动。
+- 修复闭包作用域 bug（legend 引用外层循环变量 → 每组内构建）。
+- 示例重固化：8 产物（新增 sequence_view.html）。
+
+### 验证
+- lamp 7 测试（端到端补 sequence_view.html / primer_layout.png 存在断言）
+  全绿；JS 守卫过；示例 results.html 收录 sequence_view（iframe 交互区）。
+
+
+## 2026-11-05（补七）LAMP 参数化 + 高GC/高AT 预设（对齐 uni-shine 自定义模式）
+
+### 改动
+- 内核参数化：_seg_candidates 支持 gc_lo/gc_hi/tm_off；design_lamp_set 解析
+  gc_min/gc_max/tm_offset/preset；钳制（GC 0-100 且逆序交换、tm ±6）。
+- 语义标定（多轮实测收敛）：
+  * tm_offset **只放宽对应侧**（负扩下限/正扩上限，不改排序目标 dev）——
+    初版"整体平移"会收窄区间并把常规序列从 35 组砍到 0 组的假象；
+    修正后预设为纯超集：三序列实测 high_gc/high_at 出组数均 == 默认。
+  * 预设只扩不缩：high_gc = GC(30,75)+Tm 上限 +2；high_at = GC(20,65)，
+    Tm 不动（极 AT 靶标的 Tm 缺口需更长引物/特殊体系，非参数可解，
+    报告与 wiki 注明边界）。
+  * 骨架截断 _TOPK_F2B2 40→120（候选集变大时前 40 骨架可能全不可组装，
+    实测 0 组假象）；骨架预筛加 B1 双窗粗交集检查。
+- 前端：t-lamp 卡加 GC 区间 / Tm 偏移输入 + 高GC/高AT/恢复默认三个预设
+  按钮（JS 填充参数）；i18n 中英；CLI --gc-min/--gc-max/--tm-offset/
+  --preset；agent_catalog schema 三参数；tool_jobs 透传。
+- 测试：+2 用例（预设无害性：任一预设出组数 ≥ 默认；GC 覆盖：高GC
+  序列默认 0 组、放宽 GC 上限后出组）→ 9 passed。
+
+### 验证
+- CLI 真实数据：GQMIX NODE_8 + --preset high_gc → 3 组/最优 90.0/2.9s。
+- 示例重固化；JS 守卫过；UI 契约补三控件断言。
+
+
+## 2026-11-05（补八）LAMP 与 uni-shine 多病毒一致性核对（5 序列含 MAFFT 互认）
+
+### 核对结果（详情 docs/LAMP与uni-shine一致性核对_20251105.md）
+- 出组数 5/5 同量级：ACMV 36 vs 50/85QC；PVY 40 vs 50/31QC；TMV 34 vs
+  50/30QC；PSTVd 40 vs 14/3QC（极短分子我们更宽松）；ORSV MAFFT 共识
+  40 vs 50/31QC。
+- 位点级互认：uni-shine Set#1（F3@5056）在我们结果集中有 f3@5067 的组
+  （差 11bp）——两独立引擎位点高度重叠，排序偏好不同。
+- **MAFFT 互认**：5 分离物 MAFFT 共识序列直接作为它的输入正常出组。
+
+### 本轮修复的真实问题（多分离物场景暴露）
+1. Tm 区间 3°C 过窄 → 对齐 uni-shine 9-10°C 宽区间（target 仅排序）：
+   修复 ORSV 多分离物 0 组。
+2. 候选全局 dev 截断 600 → 位置分桶保留（每 100bp 取 15 个）：修复
+   不同 Tm 段 top 候选位置互斥（f3 窗 100% 失败）。
+3. 性能：_tm 的 primer3 句柄模块级缓存（0.81→0.002ms/次，400×）；
+   骨架枚举 O(n) 预筛改 bisect；骨架对上限 40→120。6613bp 2-4s。
+4. 间距口径对齐 uni-shine：F3-F2 上限 20→40（其严格模式 ≤60）。
+5. 测试与审稿脚本的间距/Tm 区间断言改动态读内核常量（防再次漂移）。
+
+### 验证
+- pytest tests/test_lamp_design.py 9 passed；审稿脚本 PASS；
+- 5 病毒全矩阵实测（ACMV 2.4s/PVY 6.0s/TMV 4.6s/PSTVd 3.3s/ORSV 4.2s）。
+
+
+## 2026-11-05（补九）一致性差异归因（用户追问"为什么有这些区别"）
+
+同位置对照（ORSV 共识 5055-5337 区段）逐参数对比后归因（详见核对报告
+§七）：产物区间（120-180 vs 100-500）是位置/间距差异的总根源；Tm 目标
+体系（外 60.5/内 63.5 vs 外 58/内 62-64）与 ~6°C 盐口径解释 Tm 绝对差；
+评分体系（0-100 规则分 vs 0-10+penalty）解释同位置排序差异；sets 上限
+（全量 vs 前 50）与 QC 软硬判定解释数量差异。结论：4 参数 + 1 盐口径，
+无算法分歧。
+
+
+## 2026-11-05（补十）默认参数物理等效对齐（用户决策）
+
+按用户选择"物理等效对齐"更新 LAMP 默认：产物 120-300（opt 150）、Tm 排序
+目标 52/56/58（其 58/62/64 减 ~6°C 盐口径差）、GC 40-60、长度 18-24/19-25/
+Loop 16-24、F3-F2 与 B2-B3 上限 60。对齐后出组数收敛（PSTVd 40→9 vs 其 14；
+各病毒 39-40 vs 其 50）。段序物理等效验证通过（ORSV top1 53.2/56.2/59.2）。
+预设无害性测试口径改为"段候选超集"（分桶 cap 下出组数会抖动）。
+详情 docs/LAMP与uni-shine一致性核对_20251105.md §八。
+
+## 2026-11-05 补：启动脚本合并（4 个 bat → 2 个）
+
+- **背景**：版本根原有 4 个 bat：`Start-Web.bat` / `Start-Desktop.bat`（入口）+
+  `open-browser.bat` / `mount-data.bat`（内部助手）。但 `finalize_release.py`
+  只把两个入口拷进版本目录，两个助手每次组装都会缺失（2026-11-05 发布时
+  手工补过一次）——结构性缺口。
+- **改动**（`dev_tools/package.py` 模板）：
+  - mount 逻辑内联进两个入口：直接用已知的 `%PRG%` 拼 `run\fastq`，
+    删掉旧助手基于"猜测安装布局"的多分支探测，逻辑更短；
+  - 浏览器等待改为**同一文件自调用**：`start "" /min cmd /c ""%~f0" --open-browser"`，
+    文件头部 `if /i "%~1"=="--open-browser" goto open_browser` 分流。第二个
+    cmd 仍拥有控制台，保留"Windows 才把浏览器给到前台"的语义；
+  - 删除 `_LAUNCH_MOUNT` / `_LAUNCH_OPEN` 模板与生成项，`_write_launchers`
+    只写两个文件；`finalize_release.clean_build_root` 增加旧助手名清理。
+- **验证**：静态（ASCII/CRLF/无 `{sub}`/`{exe}` 残留/两个关键块都在）；
+  沙箱实测 mount（junction 创建、数据可读、`[mount]` 日志）与浏览器调度
+  （自调用命中 `.port`=8901 写日志；`.port` 失效时兜底探测到 8765 亦命中）。
+  两档版本根现各 2 个 bat。
+- **边界**：自动更新的更新单元（exe/_internal/mcp_server.py）不含版本根 bat，
+  已安装用户升级后仍是旧 4 文件布局（旧入口 call 旧助手，功能不受影响）；
+  新布局只对全新安装生效。
+
+
+## 2026-11-06 LAMP 结果展示升级：交互式引物轨道（对齐 /primer 页）
+
+### 背景
+用户反馈 LAMP 布局图是静态 PNG（matplotlib）不可交互，而 /primer 页
+（PCR/qPCR）早已是交互式轨道（滚轮缩放/拖动/hover）。uni-shine 的结果
+也是可滚动网页而非静态图。
+
+### 改动
+- lamp_design.run_chain：summary.top_sets 每项加 segment/seq_len（widget
+  渲染所需）。
+- tools.html 新增 lampTrackWidget（纯前端，~170 行）：每组一条交互式轨道
+  ——滚轮缩放（以光标为中心）、拖动平移、±/适应全序列按钮、hover tooltip
+  （引物名/长度/Tm/位置/序列）、产物区底衬 + 6 引物色块 + LF/LB 细条 +
+  动态刻度尺；CSS 运行时注入（不污染全局样式）；loadLampResult 对
+  top_sets 前 2 组挂载。
+- 静态 primer_layout.png/.svg 保留（报告附图 / results.html 图表区）；
+  交互轨道只在工具卡结果区（实时任务完成后）。
+
+### 验证
+- JS 语法守卫过；pytest 9 passed；IAB 实测：平台跑 ACMV 示例 →
+  结果卡出现交互轨道（6 引物块 + 产物区），工具条/图例正常。
+
+
+## 2026-11-06（补一）LAMP 结果展示复现 uni-shine 三段式（用户提供截图）
+
+### 改动
+- summary.top_sets：3→12 组；primers 补 len/gc；lf/lb 改对象（含
+  start/len/tm/gc/seq）+ 兼容 lf_seq/lb_seq；加 penalty（100-score）与
+  flags（自二聚/交叉 ≥70% 计警告）。
+- tools.html loadLampResult 重写（~260 行，替换旧简版）：
+  * 列表视图：与 uni-shine Primers 页一致——"本次设计结果"标题 +
+    副标题（bp · sets · 最优分 · 耗时）+ Export CSV 链接；2 列网格卡片
+    （teal 序号块 / Score 粗体 + penalty 灰字 + ⚠ 警告数 / 引物芯片按段
+    配色浅底彩边（F3 红/F2 橙/F1c 黄/FLoop·BLoop 紫/B1c·B2 绿/B3 蓝）/
+    FIP·BIP 截断行 / 查看详情 →）。
+  * 详情视图：返回列表 + Set 标题 + 芯片行 + FIP（黄框）BIP（蓝框）大
+    色块 + 明细表（PRIMER/POSITION/LENGTH/TM/GC%/SEQUENCE，8 行含环
+    引物）+ 交互轨道 widget + 序列对照/排序表/订购表/设计报告链接。
+- CSS 运行时注入（lampResCss），不污染全局。
+
+### 与 uni-shine 的已知展示差异（有意的）
+- 无 3'dG 列（口径差异大，证据边界已声明二聚体留实验）
+- 无"保守区"列（无 per-primer 保守分数据；cons_min 过滤已在设计层）
+- TLF/TLB（其特有引物）→ 我们的 LF/LB
+- Sequence View 用静态 HTML（其格式），交互性由轨道 widget 承担
+
+### 验证
+- JS 守卫过；pytest 9 passed；IAB 实测：列表卡（芯片 19nt·53.02° 数据
+  齐全、双列 grid 计算值 556+556）、详情（FIP/BIP 色块 + 8 行表 + 交互
+  轨道 + 返回按钮）全部渲染。
+
+
+## 2026-11-06（补二）退化图修复：2 点直方图不再生成（用户指认）
+
+### 问题
+dsRNA 工具运行后"其他文件"里出现 primer_design_overview.png——内容为
+Tm 直方图仅 2 根柱（59.80/59.90，x 轴宽 0.1°C，y 轴上限 2）。根因三连：
+1. dsrna 产物 dsrnamax/primers.tsv（T7 引物，仅 2 条）被
+   toolbox_plots._RULES 的 ("primers*.tsv", plot_primers) 规则命中；
+2. 各 panel 门槛只看"非空值 ≥3"，不看唯一值——2 个不同值也画；
+3. target 分组候选误含 'name'/'seq' 列——引物名/序列各 2 个唯一值，
+   把「每靶标引物对数」条形图（2 行）也误画出来。
+
+### 修复（toolbox_plots.py）
+- panel 门槛：非空 ≥3 且 **唯一值 ≥3**（plot_primers / plot_crispr /
+  plot_align 系 / plot_mirna energy 四处统一）；
+- target 分组候选去掉 'name'、'seq'（引物名/序列不是靶标；真实
+  primer 工具的 target 列不受影响）；
+- 结果：数据不足时不再生成退化图，"其他文件"不再出现无信息量图片。
+
+### 验证
+- 2 条 T7 引物 → 0 图；5 对引物 → 正常出图；crispr 2 行同分 → 0 图；
+- lamp/crispr_ui 测试全绿；JS 守卫过。
+
+
+## 2026-11-06（补三）顶栏 CPU / 内存实时监测（用户指认漏做）
+
+### 问题
+用户此前要求顶栏加 CPU/内存消耗监测，实际没落地：仓库里没有任何采样代码，
+顶栏只有模块/工具/数据库/磁盘四项（都走 5 分钟缓存的 selfcheck.collect）。
+
+### 实现
+- 新增 `Virus_Platform_Core/sysmon.py`（毫秒级，不依赖 selfcheck）：
+  * CPU = 两次取样间 (总时间增量 - 空闲增量) / 总时间增量；psutil 优先，
+    Windows `GetSystemTimes` / Linux `/proc/stat` 兜底。首次调用只建基线。
+  * 内存 = total / used / available + 百分比；psutil → `GlobalMemoryStatusEx`
+    → `/proc/meminfo`。
+  * 平台进程树 = 主进程 + 递归子进程的 RSS 合计、进程数、RSS 前 5 名单；
+    逐 PID 的 CPU 秒增量折成「占几个核」，用于回答「平台自己吃了多少」。
+  * 峰值（CPU/内存）进程内累计；0.8 秒内并发请求合并为同一份快照。
+- `GET /api/sys_metrics`（web/settings.py）：与 /api/env_status 分开 ——
+  后者首次 collect 要递归 import 全模块（数秒级、5 分钟缓存），不能 3 秒轮询。
+- 顶栏（_nav.html + app.css + app.js）：`#sysStripBody` 两枚徽章 + 迷你占用条；
+  3 秒轮询，`document.hidden` 时暂停；CPU ≥80% 黄 / ≥95% 红，内存 ≥85% 黄 /
+  ≥93% 红；连续 2 次采样失败只淡化（stale），保留最后读数，不弹错。
+- 环境详情弹层新增「系统资源」段（独立 `#envPopSys`，每 3 秒只重绘本节）：
+  CPU/内存当前值与峰值、平台进程数/合计 RSS/折合核数/占用最高进程。
+- i18n 中英双份；顺手清掉工作区里 `lg.jobNamePh` 的重复定义（zh/en 各一处
+  死代码，前者被后者静默覆盖，导致 _check_i18n 红灯）。
+
+### 验证
+- `tests/_check_sys_metrics.py`（新，已入 _run_all）：基线/缓存/峰值/进程树/
+  Windows 原生回退 + 端点 + 前端接线，全过；
+- `_check_js_syntax.py`、`_check_i18n.py`、`_check_page_shell.py` 全过；
+- 真实浏览器（1600/1366/1280）：六枚徽章不重叠，弹层资源段与实时值一致。
+
+
+## 2026-11-06（补三）候选序列验证接入 PVDB CDD 第三路（用户：可以补cdd）
+
+### 背景
+本地注释库已收敛到 PVDB v1.0（databases/pvdb/ 的 seq/cdd/hmm/bfvd）。
+③b 候选序列验证此前只用 seq（blastx）与 bfvd 两路；cdd/hmm 只在 ⑥b ORF
+注释层（蛋白输入）使用。用户确认把 CDD 补进验证。
+
+### 改动
+- cdd_search.py：新增 search_contigs（核酸 contig vs PVDB CDD，mmseqs
+  easy-search 自动翻译，e<=1e-3，-s 5，最多 25 目标/前 5 进表；
+  返回 target/evalue/pident/cov），与 search_orfs（ORF 蛋白层）并存。
+- bfvd_search.easy_search：加 label 参数（日志区分 BFVD/CDD 降线程）。
+- verify.py：新增 C 路 run_cdd + CDD_EVALUE_MAX；combine_pass 改为
+  N 路通用（union/intersection/a/b/c，保留 intersect 别名）；virus_call
+  接受 cdd_hits，BFVD/CDD 任一命中即病毒域证据（domain_only）；
+  calls.tsv 新增 cdd_domains/cdd_best_evalue/cdd_nhits；默认 methods
+  三路全开，缺 mmseqs/CDD 库时逐路降级。
+- 入口放行：pipeline（默认/归一化/阶段文案）、web tool_jobs/chains/
+  samples、agent_catalog schema、mcp_server 两个默认值。
+- 前端：t-verify 方法下拉三跑（推荐）/双跑/单路；结果表新增 CDD 列；
+  CSV 导出补 cdd_*；virchain 卡方法下拉同步；i18n 中英补齐（顺带修正
+  tl.thBfvd 中英互换、vfHint 文案原先会被 i18n 覆盖成半句的问题）。
+- selfcheck 同源验证库组 4->5 库（新增 CDD）；help/wiki/README 文案同步。
+- 新测试 tests/_check_verify_cdd.py（入 _run_all）：三路组合/判定语义 +
+  calls 字段 + 真实核酸 contig 命中 pfam02407 的端到端冒烟。
+
+### 为什么不是 ORF 路径
+验证阶段的设计原则是「不预测 ORF」：核酸 contig 直接交给 DIAMOND/mmseqs
+自带六框翻译。CDD 是 mmseqs profile 库，easy-search 对核酸查询自动
+translated search，因此不需要先跑 ORF 预测，与 BFVD 路同口径。
+
+### 验证
+- 实测 mmseqs easy-search 核酸 query vs pvdb-v1.0.cdd：命中
+  pfam02407(7.4e-14)/pfam00910(1.5e-7)，全流程 verify(methods=('cdd',))
+  落盘 cdd_hits.tsv + calls.tsv。
+- py_compile / node --check / tests/_check_js_syntax.py /
+  tests/_verify_i18n.js / tests/_check_verify_cdd.py 全过。
+- pytest：485 passed / 4 skipped；2 个失败（test_pdprep_requires_files、
+  test_snipit_plot sites-only）与本次改动无关（未触及 pdprep/kv 绘图）。
+
+### 遗留
+- HMM 三库仍未进 ③b：pyhmmer 只吃蛋白，需要六框翻译 + 坐标回映射，
+  代码量大于 CDD；如需要可后续单开。
+- CDD 模型号无可读产物名，只作域证据，不参与命名（与 ⑥b 口径一致）。
+
+
+## 2026-11-06（补四）顶栏「🚀 清后台」小火箭（用户追加）
+
+### 需求
+CPU/内存徽章上线后，用户要一个一眼能点的「清后台」——把后台还在跑的任务
+停掉、把机器让出来。
+
+### 实现要点（零后端改动）
+- 后端**不新增接口**：复用任务中心既有的 `POST /api/tasks/stop_all`
+  （`tm.cancel_all()`：运行中/排队中全停、含子进程硬停止；下载批次经
+  `tm.attach(on_cancel)` 转发 DownloadManager，terminate aria2c/sracha；
+  不删任务记录、不碰任何结果文件）。
+- 前端（app.js）：`injectGlobalCtx` 在 🧹全局清理 左侧注入
+  `#navCtxRocket`（琥珀色胶囊，与红色"全局清理"区分语义——一个停任务、
+  一个清状态）；`gxStopAllTasks()` 复用 gxModal 确认弹层，成功后 toast
+  「已全部停止 · 共停止 N 个」（文案复用 tk.* 键；还有任务在收尾时提示
+  N 个在收尾）。
+- 停止后 CPU/内存徽章无需任何刷新——下一轮 3 秒轮询自然回落。
+- i18n 中英双份；CSS 亮/暗主题各一份。
+
+### 验证
+- `tests/_check_sys_metrics.py` 扩第六节「清后台小火箭」（注入点/端点复用/
+  弹层/双主题 CSS/i18n），全过；JS 语法、i18n 守卫全过。
+- 真实浏览器：按钮出现在 🧹全局清理 左侧；点击 → 弹层 → 确认 →
+  toast「已全部停止 · 共停止 0 个任务」，无页面错误。
+
+
+## 2026-11-06（补五）全模块「📖 使用引导」卡片内引导条 + 审稿自查修正
+
+### 需求
+用户要求「全模块补充引导使用说明」。模块文档（wiki/ 66 篇）此前只在**组概览**
+渲染，点进具体卡片引导就消失。补一条卡片内可折叠引导，内容与组概览**同一来源**
+（wiki 静态副本），零重复维护。
+
+### 实现要点
+- `webapp/static/app-guide.js`（新）：`VPGuide.inject()` 扫 `[data-guide="Slug"]`
+  元素，在卡内第一个 `<h2>` 后注入折叠引导条（折叠零请求；展开才 fetch
+  `/static/wiki/<Slug>.md`，抽取 输入/流程步骤(≤6，list 优先、### 子标题兜底)/
+  产物/下一步互链；「打开完整文档」跳组概览 `#gd-<Slug>` 锚点）。展开状态记忆
+  localStorage(vp_guide_open)；监听 `vp:i18n` 切语言即时重刷文案。
+- 挂点：tools.html 28 卡 + 独立页 19 处（refdata 3 卡、build 4 卡、settings/
+  results/samples/submit/logan/download/prescreen/meta/host_removal/orf/
+  annotation/genome/cds_export/primer 各 1）。`app-guide.js` 经 `_nav.html`
+  分发（24 个完整页面共享）。
+- 抽取口径与 `tests/test_card_guides.py` 的 Python 侧**逐字对齐**（两边同改）。
+- i18n `g.*` 十键 zh/en；CSS `.vp-guide` 亮暗双主题。
+- 文档补齐：Annotate-Intro / Settings-Ops 加「快速上手」节（此前抽取为空）；
+  sync_wiki 同步静态副本（顺带追平了此前 30 篇源/副本积压差异）。
+
+### 审稿自查抓出并修正（2026-11-06 二轮）
+1. **覆盖面虚假声明**：总结写了 samples/submit，补丁脚本漏挂（当时守护测试只
+   验「出现的 slug 合法」，漏挂不红）→ 已补挂；`test_card_guides` 新增
+   `EXPECTED_MOUNTS` 防漏表（文件→slug→最少条数），漏挂/误删从此必红。
+2. **global slug 完整文档链接错**：原来指 `/help`，但 /help 不渲染应用内 wiki
+   （只有 GitHub 链接表）→ 改 GitHub wiki 原文 URL（与 help.html 全站惯例一致）。
+3. **inline() 双重转义**：先整体 esc 再在链接/加粗回调里二次 esc，`&` 会变
+   `&amp;amp;` → 回调内不再 esc（dest 已随整体转义，引号已是 &quot;，安全）。
+4. **孤儿测试**：`tests/_check_home_cover.py` 断言的 `.hero.cover` 2026-10-30
+   已随封面删除而消失（本次又清掉最后一批 .hero 死 CSS）→ 归档至
+   `archive/_retire_20261106_home_cover/`（仓库惯例，不删文件）。
+
+### 验证
+- `tests/test_card_guides.py` 6 项（含防漏表）+ `test_wiki_docs.py` 8 项全过；
+  已入编 `tests/_run_all.py`。
+- 真浏览器：tools 28 条引导注入、t-fastp 展开四段+完整文档链接、中英切换即时
+  重刷；results→`/tools?g=result#gd-Results` 目标页真渲染出该文档；settings 的
+  Settings-Ops 链接为 GitHub wiki 原文；samples/submit/build(4 卡) 挂点齐全；
+  `_check_pages_console` 24 页无 JS 报错；JS 语法/`_check_skills` 全过。
+
+
+## 2026-11-06（补六）引导流程升级为「完整步骤概览」
+
+### 需求
+补五交付后用户要求「更完整的步骤概览」：此前卡内引导的流程只取流程节
+**第一个子节**的 bullets（如 Fastp 只显示步骤一的 3 条，丢步骤二/断点复用/
+失败处理）。
+
+### 实现（内容零改动，纯抽取升级）
+- `app-guide.js stepsOf` 与 `tests/test_card_guides.py _steps_of` **双侧同改**：
+  · 流程节有 `###` 子节 → **每子节 = 一步**（粗体标题 + 前 2 条要点以"；"连接，
+    cap 8 步），完整覆盖 步骤一…步骤N / 配套 / 失败处理 全部子节；
+  · 子节无 bullet → 首个正文段落兜底（表格/代码块/引用不算；如 Kvchain
+    「五段顺序」的链式说明），步骤不再裸标题；
+  · 无子节文档 → 平铺 bullet ≤8 条。
+- 渲染：`<li><b>标题</b>：要点</li>`；契约测试 `test_steps_shape_contract`
+  锁三种形态（子节 / 平铺 / 段落兜底）+ cap 截断。
+- wiki 66 篇**一字未动**——同一份文档现在抽出完整流程。
+
+### 效果（实测）
+Fastp 3 步 → **4 步全流程**（含断点复用/失败处理）；Verify → 6 步；
+Assembly → 6 步（含配套与分工）；Kvchain「五段顺序」带出链式说明。
+
+### 验证
+`test_card_guides` 7 项（含新契约）全过；真浏览器 Fastp=4 步 / Verify=6 步 /
+Kvchain 段落兜底生效，无 pageerror；JS 语法过。
+
+## 2026-11-06（补七）依赖声明补齐 + 发布边界预检 + 异常吞噬治理
+
+### 背景
+selfcheck 报 4 个「requirements.txt 未声明依赖」（botocore / cairosvg /
+cryptography / nacl）——环境装了、清单没写，新环境按 requirements 安装会
+缺包。同轮审查还发现：源码包拷贝树里混有 scratch（测试日志等），关键模块
+~18 处 `except Exception: pass` 宽吞噬会掩盖真实故障。
+
+### 依赖声明（audit 口径修复）
+- **必装显式声明**：`botocore>=1.34`（logan_contigs 直接 import
+  UNSIGNED/Config，boto3 传递依赖）、`cryptography>=42`（自更新 Ed25519
+  验签首选后端；配置了验签公钥而缺失 → fail-closed 拒收清单）。
+- **可选登记**：`cairosvg`（utils.svg_to_png 缺时 SVG-only 降级；Windows 还
+  要 libcairo-2.dll 原生库，光 pip 装包 import 仍会失败）、`nacl`（验签兜底
+  后端，仅 cryptography 缺失时才被 import）→ 进 audit_deps.py 的 OPTIONAL
+  表 + requirements.txt 注释行。PIP_NAME 补 `nacl → PyNaCl`（pip install nacl
+  在 PyPI 装不到，提示语必须给 PyNaCl）。
+- requirements.lock 补 `cairosvg==2.9.1`；PyNaCl 不造钉版（系统 Python 的
+  nacl 是无元数据手工拷贝，pip freeze 看不见，内置 3rd/python 是 1.6.2 可参考）。
+
+### 发布边界预检（package.py）
+- 新增 `_preflight_release_boundary()`：四个进源码包的树
+  （Virus_Platform_Core / webapp / dev_tools / scripts）按模式表
+  （`_probe*`、`_zz_*`、`_test_logs`、`_backup*`、`_bench*`、`*.log`、
+  `*.tmp/bak/orig`、`*_shot*.png`）扫 scratch，**命中即中止打包**；`_SRC_IG`
+  同名单兜底（`_SRC_IG_BASE`）。`--dedupe-only` 跳过（不拷树）。
+- **不误伤两类合法内容**：examples/results（make_example_results.py 固化、
+  _check_examples_manifest.py 守着的示例产物分发特性）与 webapp/static 的
+  前端 .png（静态资产）。
+- 会话 scratch 已归档到 `.scratch_archive_20261106/`（点前缀 = 依赖审计
+  iter_py_files 与打包预检都不扫）：known_virus_suite/_test_logs、tests/_zz_*.log、
+  run/ 根 104 项（19 截图 + 探针脚本 + ~30 构建日志 + backup/bench 等）；
+  保留 run/_bench（beast_handoff.py 文档引用的基准证据）与 run/_tmp。
+- .gitignore 增 `.scratch_archive_*/`。
+
+### 异常吞噬治理（18 处 / 7 文件）
+原则：**有明确降级路径的窄化异常类型；降级原因必须可见的补 warning 日志；
+「永不外抛」契约型模块（ai_agent/audit.py 六处）不动**。
+- updater.py（7）：配置层/验签后端回退补 warning；`_cleanup_stale` 窄化
+  OSError/ValueError；守护循环外层改写 `_set_state('error', …)`（设置页
+  「软件更新」可见），不再纯静默。
+- config.py（3）：宿主库惰性初始化、tool_runs 子目录预建、插件自检缓存
+  失效——窄化或补 warning；expand_secret/供应商 Key 提示两处 stderr 兜底
+  保留（stderr 在冻结窗口模式可能为 None，except 本身就是末级防线）。
+- web/tasks.py（3）：任务日志落盘窄化 OSError+warning；_kill_tree 窄化
+  SubprocessError/OSError；结果预览补 warning（保持返回 None 契约，防把
+  预览故障升级成 API 500）。
+- public_data.py（3）：下载监听器改 `_call_listener`（每监听器只警告一次，
+  防高频进度回调刷屏）；解码进程收尸窄化 SubprocessError/OSError。
+- anchor.py（4）：全部窄化（strptime→ValueError/OverflowError；日志写与
+  账本尾读→OSError/ValueError），public 边界仍有 _safe 统一兜底记录。
+- ai_agent chat/broadcast/executors（6）：锚点摘要补 warning；feedback 钩子
+  /审计桥接/DSML 清洗窄化 ImportError（audit.record「永不抛」是契约）；
+  spool 窄化 OSError/TypeError/ValueError。
+- 遗留：mcp_server.py 8 处宽吞噬未动（返回信封已把错误转成显式 envelope，
+  属另一套口径），后续单独立项。
+
+### 验证
+- 审计：`python dev_tools/audit_deps.py` → 未覆盖（无）、50/50；
+  selfcheck pydeps 位 ok=True。
+- 预检：AST 抽取 `_preflight_release_boundary` 双路径实测——9 个
+  _test_logs 命中止中止、注入违例 10 个中止、清干净后 PASS。
+- 针对性：test_updater 19 passed / test_task_state_fixes 8 passed /
+  _check_anchor、_check_public_data_resolve 通过；`python -c "import app"` OK。
+- 全量：本轮用户裁定不重跑 tests/_run_all.py（改动均为窄化+补日志，行为面
+  由针对性测试覆盖）；下次批量测试自会覆盖。
+
+## 2026-11-06（补八）mcp_server 吞噬 + AI 配置收敛 + 测试补强 + 启动性能
+
+### 背景与口径修正
+「mcp_server 8 处宽吞噬」复核后实为 **3 处**（此前 8 是把窄类型 except 也
+数了进去），照实修 3 处。
+
+### mcp_server（3 处）
+- `_job_with_run` add_plots 失败 → 用任务 log 回调记「图表补绘失败（跳过）」；
+- `_sample_list_impl` 单样品输入异常 → 不改控制流（列表不因单样品 500），
+  条目带 `input_error`（可见性）；回归见 tests/test_mcp_param_guards.py；
+- `_build_report_impl` 模块结果页刷新失败 → logging.warning（页面非关键交付）。
+- 自检：`python mcp_server.py --check` → 35 工具 ready。
+
+### AI 配置收敛（并发保存治理）
+三个丢失更新窗口，两个已闭合：
+1. `Config.save` 未知键回读从锁外移入 `_SAVE_LOCK`；
+2. ai 段快照移入 `_SAVE_LOCK` 内取新鲜值；新增 **`Config.set_ai()` 唯一
+   写通道**（替换+落盘整体持锁；_SAVE_LOCK 是 RLock 可重入），四个 AI
+   路由（profiles save/activate/delete、config POST）全部改走 set_ai，
+   不再有裸 `cfg.ai = dict(...)`；
+3. 路由内部次序调整：profiles/save **Key 先落 ai_local**（失败 500 时内存
+   未动）；delete 在锁内执行 provider_keys 删除（消 TOCTOU）；
+   死代码 `_pf_local_write` 删除。
+残余（明示不闭合）：跨文件原子性（ai_local × platform.json 两段锁）与
+多进程并发（threading 锁不跨进程）仍存在，属更大改造，本轮不碰。
+测试：tests/test_ai_config_concurrency.py 4 条（未知键存活 / set_ai×
+settings-save 无丢失段 / set_ai 落盘契约 / 路由级并发）。
+
+### 测试覆盖补强（19 条新 pytest）
+- test_updater_rollback.py（5）：`_cleanup_stale` 三分支。**顺带修出真
+  bug**：zip/.part 残件清理的 `elif os.path.isfile(d)` 嵌在 `isdir` 块内
+  不可达——文档承诺的残件清理从未生效，缩进修复后被测试锁住。
+- test_mcp_param_guards.py（8）：_safe_rel 契约 / 运行名守卫 / 越界与绝对
+  路径拒绝 / 二进制拒收 / 坏样品 input_error 可见性 / limit 钳制。注意：
+  假运行目录必须建在隔离 run 根下（check_path 只放行平台内）。
+- test_cjk_paths.py（2）：平台内中文目录 safe_open 读写；输出根含中文的
+  DIRS 平移 + platform.json 回读（需临时移除 VP_RUN_ROOT——apply_output_root
+  在隔离根激活时故意不生效，config.py:685 测试隔离契约）。
+- test_ai_config_concurrency.py（4）：见上节。
+
+### 启动性能（首屏等待）
+数据源：探查报告——/api/env_status 冷启动串行四段（插件索引 3 源×30s、
+importprobe 子进程、全盘 walk），pydeps 全仓 AST 挂在同一请求里，首页还
+并行拉无缓存的 /api/kv_index_list。四处改造：
+1. plugin_manager.fetch_index **失败负缓存 60s**（force=True 不受限）——
+   离线机冷启动从 ~90s 联网重试降到一次；
+2. selfcheck.collect **stale-while-revalidate**：缓存过期时旧值即时返回
+   （cached=True, stale=True），重算进后台线程（busy 旗标防风暴）；
+   设置页 force=1 仍是同步语义；
+3. app.py 服务器起来后 daemon 线程预热 pydeps+collect（VP_NO_WARMUP=1 跳过）；
+4. /api/kv_index_list **TTL 120s 缓存**（?refresh=1 强制重扫；extra 实时）。
+测试：tests/test_startup_perf.py 3 条。
+
+### 验证
+编译/import 全过；新增 6 个测试文件共 30 条全绿；mcp_server --check ready
+（35 工具）。更广回归批次（ai/config/task/selfcheck/updater 过滤）后台
+运行中，结果见下轮汇报。

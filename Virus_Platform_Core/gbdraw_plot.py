@@ -376,6 +376,12 @@ def run_genome_plots(sample_dir, logger=None, force=False, max_plots=12,
                    'input': os.path.basename(str(fa)),
                    'plots': _rel_plots(plots, out_dir),
                    'n_seqs': len(seqs)}
+    # PNG+SVG 双格式：外部 gbdraw 只出 SVG，用可选 cairosvg 补 PNG
+    # （未装 cairosvg 时保持 SVG-only，仅日志 WARN，不阻断）
+    from .utils import svg_to_png
+    for _p in plots:
+        if str(_p).lower().endswith('.svg'):
+            svg_to_png(_p, logger=logger)
     with safe_open(summary_file, 'wt') as f:
         json.dump(summary, f, ensure_ascii=False, indent=1)
     # 有 contig 却一张图都没出（全部失败）时不写断点标记：否则下次运行

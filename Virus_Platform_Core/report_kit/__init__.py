@@ -28,6 +28,8 @@ CLI 单跑：
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import sys
 
@@ -60,7 +62,7 @@ def build_enhanced_report(target, logger=None, force=False, out_path=None):
     html_path = out_path or os.path.join(out_dir, OUT_NAME)
     meta_path = os.path.join(os.path.dirname(html_path), META_NAME)
 
-    if not force and _is_fresh(html_path, model):
+    if not force and _is_fresh(html_path, model, meta_path):
         if logger:
             logger.log('增强报告复用既有 report_v2.html（输入未变更）')
         return {'html': html_path, 'meta': meta_path, 'model': model,
@@ -73,7 +75,6 @@ def build_enhanced_report(target, logger=None, force=False, out_path=None):
         fh.write(html)
     os.replace(tmp, html_path)
 
-    import json
     with open(meta_path, 'w', encoding='utf-8') as fh:
         json.dump(_meta_of(model), fh, ensure_ascii=False, indent=1)
 
@@ -84,19 +85,119 @@ def build_enhanced_report(target, logger=None, force=False, out_path=None):
             'reused': False}
 
 
-def _is_fresh(html_path, model):
+#: 本模块自己的产物名：判定「输入是否变过」时必须排除，否则
+#: report_v2_meta.json 比 report_v2.html 晚写 1 毫秒，会让自己永远「不新鲜」。
+_SELF_OUT = (OUT_NAME, META_NAME)
+
+
+def _file_digest(path):
+    """文件内容 SHA-1（读失败 → ''，调用方按"不认识"处理）。"""
+    h = hashlib.sha1()
+    try:
+        with open(path, 'rb') as fh:
+            for chunk in iter(lambda: fh.read(256 * 1024), b''):
+                h.update(chunk)
+    except OSError:
+        return ''
+    return h.hexdigest()
+
+
+def _under(path, base):
+    """path 是否在 base 目录内（跨盘符 → False，不抛异常）。"""
+    try:
+        return (os.path.commonpath([os.path.abspath(str(path)),
+                                    os.path.abspath(str(base))])
+                == os.path.abspath(str(base)))
+    except ValueError:
+        return False
+
+
+def _report_out_dir(model):
+    lay = model.get('layout') or {}
+    return str(lay.get('out_dir') or lay.get('root') or '')
+
+
+def _out_digests(model):
+    """报告输出目录里「报告步骤自己重画」的输入 → 内容指纹。
+
+    viz.build_report 每次都会重画 stage_funnel*.png/svg/tsv（内容相同，
+    mtime 一定变新）。只按 mtime 判新鲜，report_v2.html 永远比它们旧，
+    永远重建——`main.py report` 的复用分支实际不可达。这里记下报告产出
+    目录内输入的内容指纹，下一轮重画后指纹相同就视作未变。
+    只对样品报告生效（out_dir 在 07_report/）；工具运行目录 out_dir=root，
+    输入不是本模块重画的，继续按 mtime 判。
+    """
+    lay = model.get('layout') or {}
+    root = str(lay.get('root') or '')
+    out_dir = _report_out_dir(model)
+    if (not root or not out_dir
+            or os.path.normcase(os.path.abspath(root))
+            == os.path.normcase(os.path.abspath(out_dir))):
+        return {}
+    digs = {}
+    for p in lay.get('inputs') or []:
+        p = str(p)
+        if not _under(p, out_dir) or not os.path.isfile(p):
+            continue
+        dig = _file_digest(p)
+        if dig:
+            digs[os.path.relpath(p, out_dir).replace('\\', '/')] = dig
+    return digs
+
+
+def _is_fresh(html_path, model, meta_path=None):
     if not os.path.isfile(html_path):
         return False
     try:
         out_mt = os.path.getmtime(html_path)
     except OSError:
         return False
-    for p in model['layout'].get('inputs') or []:
+
+    meta = {}
+    if meta_path and os.path.isfile(meta_path):
         try:
-            if os.path.getmtime(p) > out_mt:
-                return False
+            with open(meta_path, encoding='utf-8') as fh:
+                meta = json.load(fh) or {}
+        except (OSError, ValueError):
+            meta = {}
+    out_digests = meta.get('out_digests') or {}
+    lay = model.get('layout') or {}
+    root = str(lay.get('root') or '')
+    out_dir = _report_out_dir(model)
+    check_out = (bool(root) and bool(out_dir)
+                 and os.path.normcase(os.path.abspath(root))
+                 != os.path.normcase(os.path.abspath(out_dir)))
+
+    for p in lay.get('inputs') or []:
+        base = os.path.basename(str(p))
+        if base in _SELF_OUT or base.startswith(OUT_NAME + '.'):
+            continue                      # 自己的产物不算输入
+        try:
+            mt = os.path.getmtime(p)
         except OSError:
             continue
+        if mt <= out_mt:
+            continue
+        if check_out and _under(p, out_dir):
+            rel = os.path.relpath(str(p), out_dir).replace('\\', '/')
+            cur = _file_digest(p)
+            if out_digests.get(rel) and out_digests.get(rel) == cur:
+                continue                  # 本轮重画但内容没变
+            # SVG 里 matplotlib 会写随机 id：重画后内容指纹必变。有同名位图
+            # 孪生且位图指纹未变时，按「同一张图」放过（report_v2 内嵌的是位图）。
+            if str(p).lower().endswith('.svg'):
+                for ext in ('.png', '.jpg', '.jpeg', '.webp'):
+                    twin = os.path.splitext(str(p))[0] + ext
+                    if not os.path.isfile(twin):
+                        continue
+                    trel = os.path.relpath(twin, out_dir).replace('\\', '/')
+                    if (out_digests.get(trel)
+                            and out_digests.get(trel) == _file_digest(twin)):
+                        break
+                else:
+                    return False
+                continue
+        return False
     return True
 
 
@@ -115,23 +216,33 @@ def _meta_of(model):
         'verdict': model['verdict'],
         'generated': model['generated'],
         'evidence': model['evidence'],
+        # 输入未变判定用的内容指纹（只含报告输出目录内、本步骤重画的产物）
+        'out_digests': _out_digests(model),
     }
 
 
 def main(argv=None):
-    """`python -m Virus_Platform_Core.report_kit <dir> [--force] [--open]`"""
+    """`python -m Virus_Platform_Core.report_kit <dir> [--force] [--open] [--pdf]`"""
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv or argv[0] in ('-h', '--help'):
         print(__doc__)
         return 0
     target = argv[0]
     force = '--force' in argv
+    want_pdf = '--pdf' in argv
     try:
         out = build_enhanced_report(target, force=force)
     except Exception as e:                      # CLI 边界：原文转述，不美化
         print(f'[失败] {type(e).__name__}: {e}', file=sys.stderr)
         return 1
     print(out['html'])
+    if want_pdf:
+        try:
+            from Virus_Platform_Core.pdf_export import html_to_pdf
+            print(html_to_pdf(out['html']))
+        except Exception as e:
+            print(f'[PDF 失败] {type(e).__name__}: {e}', file=sys.stderr)
+            return 1
     if '--open' in argv:
         try:
             os.startfile(out['html'])           # Windows 双击等效

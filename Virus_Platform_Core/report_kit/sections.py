@@ -108,10 +108,13 @@ def render_abstract(model):
     p.append(f'<p><b>本报告回答的问题：</b>' +
              '　'.join(f'{i + 1}) {esc(q)}' for i, q in enumerate(qs)) + '</p>') if qs else None
     p.append(
-        f'<p>报告覆盖 <b>{len(stages)}</b> 个已落盘的分析阶段'
-        f'（{" → ".join(esc(s["title"]) for s in stages)}）。'
-        f'下文每一条结论都对应一个可点开的产物文件；'
-        f'未在本目录出现的阶段，本文不写任何结论。</p>')
+        (f'<p>报告覆盖 <b>{len(stages)}</b> 个已落盘的分析阶段'
+         f'（{" → ".join(esc(s["title"]) for s in stages)}）。'
+         f'下文每一条结论都对应一个可点开的产物文件；'
+         f'未在本目录出现的阶段，本文不写任何结论。</p>') if stages else
+        ('<p>本目录没有可识别的流水线阶段目录（属于单次工具运行或纯产物'
+         '目录），因此本文只按<b>目录内实际存在的文件</b>作答：'
+         '跑了什么、产出什么、下一步接哪个工具。</p>'))
     p.append(
         f'<p>共 {len(findings)} 条结论、{len(gaps)} 条缺口'
         + (f'（其中 {n_high} 条为高强度，会直接影响"能不能下结论"' if n_high else '')
@@ -180,12 +183,9 @@ def sec_funnel(model):
     for r in rows:
         v = r.get('value')
         keep = (v / first * 100) if (v is not None and first) else None
-        trs.append(
-            f'<tr><td>{esc(r.get("zh"))}</td>'
-            f'<td class="num">{_int(v)}</td>'
-            f'<td class="num">{_num(keep, 2)}%</td>'
-            f'<td>{esc(r.get("note") or "")}</td>'
-            f'<td class="mono">{esc(r.get("src") or "")}</td></tr>')
+        trs.append([r.get('zh'), _int(v),
+                    (f'{_num(keep, 2)}%' if keep is not None else '—'),
+                    r.get('note') or '', r.get('src') or ''])
     body = [('<h3 id="funnel-table">各层保留量与出处</h3>')]
     body.append(table(['层级', '数量', '相对首层', '备注', '数据来源'],
                       trs, num_cols=(1, 2), mono_cols=(4,),
@@ -270,12 +270,13 @@ def sec_stages(model):
     # ---- 总览表
     trs = []
     for s in stages:
-        trs.append(
-            f'<tr><td><a href="#st-{esc(s["key"])}">{esc(s["title"])}</a></td>'
-            f'<td class="num">{len(s.get("facts") or [])}</td>'
-            f'<td class="num">{len(s.get("files") or [])}</td>'
-            f'<td class="num">{_fmt_dur(s.get("duration_s"))}</td>'
-            f'<td class="mono">{esc(s.get("dir") or "")}</td></tr>')
+        trs.append([
+            {'html': f'<a href="#st-{esc(s["key"])}">{esc(s["title"])}</a>'},
+            len(s.get('facts') or []),
+            len(s.get('files') or []),
+            _fmt_dur(s.get('duration_s')),
+            s.get('dir') or '',
+        ])
     blocks.append('<h3 id="st-overview">阶段总览</h3>')
     blocks.append(table(['阶段', '关键数字', '产物文件', '耗时', '目录'],
                         trs, num_cols=(1, 2, 3), mono_cols=(4,),
@@ -299,8 +300,7 @@ def sec_stages(model):
             for f in facts:
                 if not isinstance(f, (list, tuple)) or len(f) < 2:
                     continue
-                frs.append(f'<tr><td>{esc(f[0])}</td><td class="mono">'
-                           f'{esc(f[1])}</td><td>{esc(f[2] if len(f) > 2 else "")}</td></tr>')
+                frs.append([f[0], f[1], (f[2] if len(f) > 2 else '')])
             parts.append(table(['项目', '值', '读法'], frs, mono_cols=(1,),
                                caption=f'表 3-{i + 2}　{esc(s["short"])}阶段的关键数字'))
         else:
@@ -367,15 +367,21 @@ def _stage_extra(s):
         if refs:
             rows = []
             for r in refs[:40]:
-                rows.append(
-                    f'<tr><td class="mono">{esc(r.get("ref") or r.get("reference") or r.get("name") or "")}</td>'
-                    f'<td class="num">{_int(r.get("length"))}</td>'
-                    f'<td class="num">{_num(r.get("mean_depth"))}</td>'
-                    f'<td class="num">{_num(r.get("coverage_pct"), 1)}</td>'
-                    f'<td class="num">{_num(r.get("depth_ok_pct"), 1)}</td>'
-                    f'<td class="num">{_num(r.get("called_pct"), 1)}</td></tr>')
+                # 03c_consensus/summary.json 的真实首列键是 contig（不是
+                # ref/reference/name）。旧代码把整行拼成 <tr> 字符串交给
+                # table()，会被当单单元格再转义 → 页面直接显示 "&lt;tr&gt;"。
+                # 这里一律传行列表，转义交给 table()。
+                rows.append([
+                    r.get('contig') or r.get('ref') or r.get('reference')
+                    or r.get('name') or '',
+                    _int(r.get('length')),
+                    _num(r.get('mean_depth')),
+                    _num(r.get('coverage_pct'), 1),
+                    _num(r.get('depth_ok_pct'), 1),
+                    _num(r.get('called_pct'), 1),
+                ])
             return table(['参考/contig', '长度', '平均深度', '覆盖%', '达标%', '可 call%'],
-                         rows, num_cols=(1, 2, 3, 4, 5),
+                         rows, num_cols=(1, 2, 3, 4, 5), mono_cols=(0,),
                          caption='表　逐条覆盖与可判定比例（可 call% 为 0 表示共识几乎全是 N）')
     return ''
 
@@ -422,15 +428,15 @@ def sec_viro(model):
                               or sp in str(r.get('Accession')))]
             if hit:
                 r = hit[0]
-                rows.append(
-                    f'<tr><td>{esc(sp)}</td><td class="mono">{esc(r.get("Accession"))}</td>'
-                    f'<td class="num">{_num(r.get("Coverage(%)"), 2)}</td>'
-                    f'<td class="num">{_num(r.get("MeanDepth"), 2)}</td>'
-                    f'<td class="num">{_num(r.get("Uniq_Reads"), 0)}</td>'
-                    f'<td>{esc(r.get("Host") or "")}</td></tr>')
+                rows.append([sp, r.get('Accession'),
+                             _num(r.get('Coverage(%)'), 2),
+                             _num(r.get('MeanDepth'), 2),
+                             _num(r.get('Uniq_Reads'), 0),
+                             r.get('Host') or ''])
             else:
-                rows.append(f'<tr><td>{esc(sp)}</td><td colspan="5" class="muted">'
-                            f'主检表里无逐行记录</td></tr>')
+                rows.append([sp, {'html': ('<span class="muted">'
+                                           '主检表里无逐行记录</span>')},
+                             '', '', '', ''])
         parts.append(table(['物种', '参考', '覆盖%', '平均深度×', '唯一 reads', '参考宿主'],
                            rows, num_cols=(2, 3, 4),
                            caption='表 4-1　通过阈值的物种及其定量指标'))
@@ -446,13 +452,11 @@ def sec_viro(model):
         if hits:
             rows = []
             for r in hits[:30]:
-                rows.append(
-                    f'<tr><td class="mono">{esc(r.get("contig"))}</td>'
-                    f'<td class="mono">{esc(r.get("blast_top_hit"))}</td>'
-                    f'<td class="num">{_num(r.get("blast_identity(%)"), 3)}</td>'
-                    f'<td class="num">{_num(r.get("blast_coverage_hsp(%)"), 1)}</td>'
-                    f'<td class="num">{_int(r.get("blast_aln_len"))}</td>'
-                    f'<td>{esc(r.get("blast_species") or "")}</td></tr>')
+                rows.append([r.get('contig'), r.get('blast_top_hit'),
+                             _num(r.get('blast_identity(%)'), 3),
+                             _num(r.get('blast_coverage_hsp(%)'), 1),
+                             _int(r.get('blast_aln_len')),
+                             r.get('blast_species') or ''])
             parts.append(table(['contig', '最佳命中', 'identity%', 'HSP 覆盖%', '比对长度', '物种'],
                                rows, num_cols=(2, 3, 4),
                                caption='表 4-2　各 contig 的核酸最佳命中（blastn）'))
@@ -466,7 +470,7 @@ def sec_viro(model):
     calls = ver.get('calls') or {}
     if calls:
         parts.append('<h3 id="viro-verify">4.3　独立性复核：这些 contig 真的是病毒吗</h3>')
-        rows = [[esc(k), _int(v)] for k, v in calls.items()]
+        rows = [[k, _int(v)] for k, v in calls.items()]
         parts.append(table(['判定', '条数'], rows, num_cols=(1,),
                            caption='表 4-3　序列验证四档判定'))
         parts.append(_note(
@@ -483,17 +487,14 @@ def sec_viro(model):
         if ann:
             rows = []
             for r in ann[:20]:
-                rows.append(
-                    f'<tr><td class="mono">{esc(r.get("orf_id"))}</td>'
-                    f'<td class="mono">{esc(r.get("start"))}–{esc(r.get("end"))}'
-                    f'{esc(r.get("strand") or "")}</td>'
-                    f'<td class="num">{esc(r.get("length_aa"))}</td>'
-                    f'<td>{esc(r.get("product"))}</td>'
-                    f'<td>{esc(r.get("organism"))}</td>'
-                    f'<td class="num">{_num(r.get("pident"), 1)}</td>'
-                    f'<td class="num">{esc(r.get("evalue"))}</td></tr>')
+                rows.append([r.get('orf_id'),
+                             f"{r.get('start')}–{r.get('end')}"
+                             f"{r.get('strand') or ''}",
+                             r.get('length_aa'), r.get('product'),
+                             r.get('organism'), _num(r.get('pident'), 1),
+                             r.get('evalue')])
             parts.append(table(['ORF', '坐标', 'aa', '产物', '最像的病毒', '一致性%', 'E 值'],
-                               rows, num_cols=(2, 5),
+                               rows, num_cols=(5,),
                                caption='表 4-4　ORF 注释结果（蛋白同源比对）'))
             parts.append(_note('术语提醒：<code>product</code> 是按同源比对给出的'
                                '<b>预测</b>功能，不是实验验证结果。'))
@@ -531,6 +532,11 @@ def sec_viro(model):
             + f'；判定来源 ' + '、'.join(
                 f'{esc(k)} {_int(v)}' for k, v in (ha.get('class_source') or {}).items())
             + '。</p>')
+    subs = [(sid, t) for sid, t in (
+        ('viro-list', '检出物种清单'), ('viro-asm', '组装给出的序列'),
+        ('viro-verify', '序列验证四档判定'), ('viro-orf', '编码内容'),
+        ('viro-phylo', '与谁最接近'), ('viro-host', '宿主预测'))
+        if f'id="{sid}"' in ''.join(parts)]
     return (''.join(parts), subs)
 
 
@@ -844,7 +850,7 @@ def sec_methods(model):
     parts.append('<h3 id="meth-version">8.1　软件与数据库版本</h3>')
     tools = model.get('tools') or []
     if tools:
-        rows = [[esc(t.get('name')), esc(t.get('version') or '未探测')] for t in tools]
+        rows = [[t.get('name'), t.get('version') or '未探测'] for t in tools]
         parts.append(table(['工具', '版本'], rows, caption='表 8-1　外部工具版本'))
     dbvers = {}
     for s in model['stages']:
@@ -857,7 +863,7 @@ def sec_methods(model):
                 size = v[0] if isinstance(v, (list, tuple)) and v else v
                 dbvers[f'{s["key"]}.{k}.size'] = size
     if dbvers:
-        rows = [[esc(k), esc(v)] for k, v in sorted(dbvers.items())]
+        rows = [[k, v] for k, v in sorted(dbvers.items())]
         parts.append(table(['数据库', '版本/大小（字节）'], rows,
                            caption='表 8-2　数据库版本与体积'))
 
@@ -873,19 +879,30 @@ def sec_methods(model):
         rows = []
         size = len(ev)
         width = max(70, size // 8)
+        # 证据链接的相对层级由「报告输出目录 → 运行根」的实际层数决定，
+        # 不再只看 kind：认不出的目录 kind 曾是 sample 而 out_dir 已写在根下，
+        # 于是多补一层 '../'，链接越界到平台根之外。
+        _root = model['layout'].get('root') or ''
+        _out = model['layout'].get('out_dir') or _root
+        try:
+            _rd = os.path.relpath(_out, _root) if _root else ''
+        except ValueError:
+            _rd = ''
+        depth = (0 if _rd in ('', '.')
+                 else len([x for x in _rd.replace('\\', '/').split('/') if x]))
         for head in sorted(groups):
             items = groups[head]
             rows.append([{'html': f'<b>{esc(head)}</b>　<span class="muted small">'
                                   f'{len(items)} 个</span>'}])
             for i in range(0, min(len(items), width), 3):
-                cells = [{'html': link_evidence(x)} for x in items[i:i + 3]]
+                cells = [{'html': link_evidence(x, depth=depth)} for x in items[i:i + 3]]
                 while len(cells) < 3:
                     cells.append('')
                 rows.append(cells)
         parts.append(table(['文件', '', ''], rows, mono_cols=(0, 1, 2),
                            caption=f'表 8-3　证据文件清单（共 {size} 个，按产物目录分组）'))
-        parts.append(_note('完整清单可直接打开 <code>07_report/report_v2.json</code>；'
-                           '每个文件名都可点击，指向运行目录里的原始产物。'))
+        parts.append(_note('完整清单可直接打开本目录 <code>report_v2_meta.json</code>'
+                           '（与报告同目录）；每个文件名都可点击，指向运行目录里的原始产物。'))
 
     parts.append('<h3 id="meth-snap">8.3　数据快照说明</h3>')
     sm = model.get('sample') or {}

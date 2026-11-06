@@ -49,6 +49,22 @@ def _safe_stem(name):
     return stem or 'contig'
 
 
+# 每层证据的展示色与可读名（与 24.orf_annotation/orfann 网页同口径）
+EV_COLORS = {'pvdb': '#2b6cb8', 'hmm': '#7a3ff2', 'cdd': '#0f9d58',
+             'bfvd': '#e8710a', 'none': '#bdbdbd'}
+EV_LABELS = {'pvdb': '同源比对 seq', 'hmm': 'HMM 结构域', 'cdd': 'CDD 结构域',
+             'bfvd': '蛋白结构 BFVD', 'none': '无证据'}
+EV_ORDER = ('pvdb', 'hmm', 'cdd', 'bfvd')
+
+
+def evidence_key(o):
+    """ORF 的主证据层：pvdb(序列) > hmm > cdd > bfvd > none。"""
+    for k in EV_ORDER:
+        if o.get(k + '_hits'):
+            return k
+    return 'none'
+
+
 def render_contig_svg(contig, length, orfs, out_path):
     """单条 contig 的线性基因组图。
 
@@ -63,7 +79,7 @@ def render_contig_svg(contig, length, orfs, out_path):
     # 有结构域命中时图底加图例行（此前窄条含义只在 SVG <title> 悬浮提示，
     # 静态导出/打印完全不可读——2026-10-04 审查 D6）
     has_dom = any(o.get('hmm_hits') or o.get('bfvd_hits') for o in orfs)
-    legend_h = 30.0 if has_dom else 0.0
+    legend_h = 48.0 if has_dom else 22.0
     svg_h = line_y + 110 + legend_h
 
     parts = []
@@ -108,7 +124,7 @@ def render_contig_svg(contig, length, orfs, out_path):
         strand = o.get('strand') or '+'
         x0 = left + (s - 1) * xscale
         bw = max((e - s + 1) * xscale, 4.0)
-        color = CATEGORY_COLORS.get(o.get('category'), CATEGORY_FALLBACK)
+        color = EV_COLORS.get(evidence_key(o), CATEGORY_FALLBACK)
         h = ORF_H
         if strand == '+':
             y = line_y - h
@@ -122,7 +138,9 @@ def render_contig_svg(contig, length, orfs, out_path):
             pts = (f"{xa:.1f},{y:.1f} {x0 + bw:.1f},{y:.1f} "
                    f"{x0 + bw:.1f},{y + h:.1f} {xa:.1f},{y + h:.1f} "
                    f"{x0:.1f},{y + h / 2:.1f}")
+        _ev = evidence_key(o)
         tip = (f"{_esc(o.get('product') or '(未注释)')} · "
+               f"{EV_LABELS.get(_ev, '')} · "
                f"{_esc(o.get('category') or '')} · {s}-{e}({strand})")
         for hh in (o.get('hmm_hits'), o.get('bfvd_hits')):
             if hh:
@@ -155,9 +173,17 @@ def render_contig_svg(contig, length, orfs, out_path):
                      f'height="{DOM_H}" fill="{color}" stroke="#1a5276" '
                      f'stroke-width="0.4"><title>{_esc(hh)}</title></rect>')
 
-    # 图底图例：结构域命中条含义（深浅交替 = 相邻 ORF 交替分道）
+    # 图底图例：证据层配色 + 结构域命中条含义（深浅交替 = 相邻 ORF 交替分道）
+    ly0 = line_y + ORF_H + 10 + DOM_H + 8.0
+    ex = left
+    for k in ('pvdb', 'hmm', 'cdd', 'bfvd', 'none'):
+        parts.append(f'<circle cx="{ex + 6:.1f}" cy="{ly0 + 4:.1f}" r="4.5" '
+                     f'fill="{EV_COLORS[k]}"/>')
+        parts.append(f'<text x="{ex + 14:.1f}" y="{ly0 + 7.5:.1f}" '
+                     f'font-size="9" fill="#333">{EV_LABELS[k]}</text>')
+        ex += 96
     if has_dom:
-        ly = line_y + ORF_H + 10 + DOM_H + 30.0
+        ly = ly0 + 18.0
         parts.append(f'<rect x="{left:.1f}" y="{ly:.1f}" width="16" '
                      f'height="{DOM_H}" fill="{DOMAIN_COLOR}" '
                      f'stroke="#1a5276" stroke-width="0.4"/>')
@@ -204,6 +230,9 @@ def render_sample_diagrams(rows, out_dir, contig_lengths=None, max_plots=12,
             # 与 dfv_plot/gbdraw 同属产物出口，此前只有 dfv_plot 挂了守卫。
             from .utils import verify_svg
             verify_svg(abs_p, logger=logger)
+            # PNG+SVG 双格式：手写 SVG 经可选 cairosvg 补 PNG（缺则 SVG-only）
+            from .utils import svg_to_png
+            svg_to_png(abs_p, logger=logger)
             out.append(rel)
         except Exception as e:
             if logger:

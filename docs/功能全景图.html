@@ -69,7 +69,7 @@
   <div id="tree"></div>
   <footer>
     与平台内手册页「功能全景」同源（数据源 <code>webapp/static/feature-tree.js</code>）·
-    生成于 2026-10-11 · <a href="https://github.com/zhangwenda0518/plant-virus-analysis-platform">GitHub 仓库</a>
+    生成于 2026-11-04 · <a href="https://github.com/zhangwenda0518/plant-virus-analysis-platform">GitHub 仓库</a>
   </footer>
 </div>
 <script>
@@ -79,6 +79,7 @@ const TREE = {
       { zh: '公共数据检索', en: 'Public Data Search', href: '/meta' },
       { zh: '病毒样本预筛', en: 'Virus Sample Prescreen', href: '/prescreen' },
       { zh: 'Open-Virome 公共病毒组', en: 'Open-Virome Public Virome', href: '/virome' },
+      { zh: 'LOGAN 溯源', en: 'LOGAN Tracing', href: '/logan' },
       { zh: '公共数据下载', en: 'Bulk Data Download', href: '/download' },
       { zh: '基因组查询下载', en: 'Genome Query & Download', href: '/refdata' },
       { zh: '数据库构建', en: 'Database Builder', href: '/build' } ] },
@@ -94,17 +95,16 @@ const TREE = {
       { zh: '共识序列分析', en: 'Consensus Analysis', href: '/tools?g=kvsuite#t-consensus' },
       { zh: '病毒变异分析', en: 'Variant Analysis', href: '/tools?g=kvsuite#t-variant' } ] },
     { icon: '🦠', zh: '病毒识别和分类分析', en: 'Virus Identification & Classification', items: [
-      { zh: '一键分析（②→③→④）', en: 'One-click ②→③→④', href: '/tools?g=virus#t-virchain' },
-      { zh: '病毒识别分类与提取', en: 'Virus ID, Classification & Extraction', href: '/tools?g=virus#t-identify' },
-      { zh: '提取序列组装', en: 'Assembly of Extracted Contigs', href: '/tools?g=virus#t-assemble' },
-      { zh: '组装结果再鉴定', en: 'Re-identification of Assemblies', href: '/tools?g=virus#t-contigs' },
-      { zh: '候选序列验证', en: 'Candidate Verification', href: '/tools?g=virus#t-verify' } ] },
+      { zh: '一键分析', en: 'One-click analysis', href: '/tools?g=virus#t-virchain' },
+      { zh: '病毒序列提取（样本分析）', en: 'Viral extraction (sample analysis)', href: '/tools?g=sample#t-identify' },
+      { zh: '病毒组装', en: 'Virus Assembly', href: '/tools?g=virus#t-assemble' },
+      { zh: '病毒鉴定', en: 'Virus Identification', href: '/tools?g=virus#t-contigs' },
+      { zh: '候选序列验证（含同源比对）', en: 'Candidate Verification (+Homology)', href: '/tools?g=virus#t-verify' } ] },
     { icon: '🔬', zh: '病毒注释分析', en: 'Virus Annotation', items: [
-      { zh: '注释三连（ORF→功能→图谱）', en: 'Annotation Trio (ORF→Func→Map)', href: '/tools?g=annotate#t-annochain' },
-      { zh: 'ORF 预测', en: 'ORF Prediction', href: '/orf' },
-      { zh: '功能注释', en: 'Functional Annotation', href: '/annotation' },
-      { zh: '同源比对（BLASTN · BLASTX）', en: 'Homology BLASTN · BLASTX', href: '/tools?g=annotate#t-hom' },
-      { zh: '基因组图谱', en: 'Genome Plot', href: '/genome' } ] },
+      { zh: '⚡ 一键分析（注释→图谱→提交）', en: 'One-click (annotation→plots→submission)', href: '/tools?g=annotate#t-annochain' },
+      { zh: '功能注释（含 ORF 预测）', en: 'Functional Annotation (+ORF)', href: '/annotation' },
+      { zh: '基因组图谱', en: 'Genome Plot', href: '/genome' },
+      { zh: '数据提交（NCBI 提交准备）', en: 'NCBI Submission Prep', href: '/submit' } ] },
     { icon: '💊', zh: '检测与防治', en: 'Detection & Control', items: [
       { zh: '引物设计', en: 'Primer Design', href: '/primer' },
       { zh: 'CRISPR 检测试剂设计', en: 'CRISPR Assay Designer', href: '/tools?g=detect#t-crispr' },
@@ -121,13 +121,10 @@ const TREE = {
       { zh: 'RDP5 重组分析', en: 'RDP5 Recombination', href: '/tools?g=phylodyn#t-rdp' },
       { zh: '时间信号与定年', en: 'Temporal Signal & Dating', href: '/tools?g=phylodyn#t-rtt' },
       { zh: '系统地理分析', en: 'Phylogeography', href: '/tools?g=phylodyn#t-phylogeo' },
-      { zh: '一键分析（定年→地理→溯源）', en: 'One-click Dating→Dispersal→Report', href: '/tools?g=phylodyn#t-phylodyn' } ] },
+      { zh: '⚡ 一键分析', en: '⚡ One-click analysis', href: '/tools?g=phylodyn#t-phylodyn' } ] },
     { icon: '📊', zh: '结果中心', en: 'Results Center', items: [
       { zh: '样品结果 / 专项结果', en: 'Sample & Special Results', href: '/results' },
       { zh: '进化树 · SDT · MSA 查看器', en: 'Tree · SDT · MSA Viewers', href: '/results' } ] },
-    { icon: '🔍', zh: '溯源与提交', en: 'Provenance & Submission', items: [
-      { zh: 'LOGAN 溯源 / 批量提交', en: 'LOGAN Provenance & Bulk Submit', href: '/logan' },
-      { zh: '数据提交（NCBI）', en: 'NCBI Submission Prep', href: '/submit' } ] },
     { icon: '✨', zh: '平台级能力', en: 'Platform Capabilities', items: [
       { zh: 'AI 助手（解读 · 播报 · 闸门 · 检索执行）', en: 'AI Assistant (interpret · brief · gates · search-act)', href: '/help' },
       { zh: '任务中心（并发闸门 · 进度自学习）', en: 'Task Center (gates & ETA learning)', href: '/tasks' },

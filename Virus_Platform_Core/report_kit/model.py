@@ -30,7 +30,8 @@
       'summary': {...},                  # 该阶段 summary.json 原文（可能有裁剪）
       'facts': [...],                    # 人读的事实条目
       'notes': [...],                    # 读取过程中的异常/告警原文
-      'figures': [...],                  # 可内嵌的图（png/jpg 绝对路径）
+      'figures': [...],                  # 可内嵌的图（绝对路径，同 stem 已去重）
+      'figure_twins': {主图: 孪生图},     # PNG↔SVG 伴生路径（页面格式切换用）
       'duration_s': float|None,
     }
 
@@ -86,7 +87,7 @@ STAGE_LABEL = {k: l for k, _z, _s, l in STAGE_VIEW}
 
 #: 阶段目录名（与 STAGE_ORDER 一一对应；②b 的目录名取自 kv_stage.STAGE_DIR）
 STAGE_DIR = {
-    'subsample': '00_subsample', 'fastp': '00_prep', 'fq2fa': '00_prep',
+    'subsample': '00_prep', 'fastp': '00_prep', 'fq2fa': '00_prep',
     'host': '01_host_removal', 'kvsuite': '02b_kvsuite',
     'assembly': '03_assembly', 'hostana': '08_host_analysis',
     'verify': '03b_verify', 'consensus': '03c_consensus', 'orf': '04_orf',
@@ -96,9 +97,12 @@ STAGE_DIR = {
 
 #: 判定某阶段「跑过」的产物指纹（任一存在即算 done）
 STAGE_FINGERPRINT = {
-    'subsample': ['stats.json', 'summary.json'],
+    # ⓪a 下采样实际写的是 00_prep/subsample.json + sub_R1.fastq.gz
+    # （pipeline.py:_stage_subsample）；旧值 stats.json/summary.json 属 ①/其他阶段，
+    # 导致 ⓪a 阶段指纹永远判 missing。
+    'subsample': ['subsample.json', 'sub_R1.fastq.gz'],
     'fastp': ['fastp_report.json', 'fastp.json'],
-    'fq2fa': ['fastp_R1.fa.gz', 'fastp_R1.fa', 'fastp_R1.fa.xz'],
+    'fq2fa': ['conv_R1.fa.gz', 'fq2fa.json'],
     'host': ['stats.json'],
     'kvsuite': ['summary.json', 'identify/all_viruses.summary.tsv',
                 'viral_R1.fastq.gz'],
@@ -115,8 +119,8 @@ STAGE_FINGERPRINT = {
 }
 #: 阶段对应的 summary 文件名（首个存在的即用）
 STAGE_SUMMARY = {
-    'subsample': 'summary.json', 'fastp': 'fastp_report.json',
-    'fq2fa': 'summary.json', 'host': 'stats.json',
+    'subsample': 'subsample.json', 'fastp': 'fastp_report.json',
+    'fq2fa': 'fq2fa.json', 'host': 'stats.json',
     'kvsuite': 'summary.json', 'assembly': 'summary.json',
     'hostana': 'summary.json', 'verify': 'summary.json',
     'consensus': 'summary.json', 'orf': 'summary.json',
@@ -124,7 +128,7 @@ STAGE_SUMMARY = {
     'primer': 'summary.json', 'gbdraw': 'summary.json',
 }
 
-FIGURE_EXTS = ('.png', '.jpg', '.jpeg', '.webp')
+FIGURE_EXTS = ('.png', '.jpg', '.jpeg', '.webp', '.svg')
 TABLE_EXTS = ('.tsv', '.csv')
 DATA_EXTS = ('.json',)
 MAX_FIGURES_PER_STAGE = 6
@@ -326,10 +330,13 @@ def detect_profile(root):
                         'dirs': dirs, 'tool': None, 'stamp': ''})
             return out
 
-    # 兜底：认不出的目录按「有阶段目录就按阶段列报」处理
+    # 兜底：认不出的目录按「有阶段目录就按阶段列报」处理。
+    # 2026-11-02：排除 report 阶段——07_report/ 只是报告产物目录，把它算成
+    # 「跑过 ⑩」会让同一目录每生成一次报告就多出一个阶段（自观测）。
     out = dict(next(p for p in PROFILES if p['key'] == 'tool'))
     out.update({'title': '目录结果报告', 'tool': None, 'stamp': '',
-                'stages': [k for k in STAGE_ORDER if k in dirs],
+                'stages': [k for k in STAGE_ORDER
+                           if k in dirs and k != 'report'],
                 'dirs': dirs})
     return out
 
@@ -358,7 +365,7 @@ def _stage_files(root, sdir, notes):
                     'data' if ext in DATA_EXTS else
                     'seq' if ext in ('.fasta', '.fa', '.fna', '.faa', '.ffn',
                                      '.gff', '.gff3', '.gff2', '.vcf', '.nwk',
-                                     '.svg', '.pdf', '.aln', '.m8', '.tsv.gz')
+                                     '.pdf', '.aln', '.m8', '.tsv.gz')
                     else 'other')
             files.append({'rel': _rel(root, p), 'name': fn, 'kind': kind,
                           'size': size, 'path': p})
@@ -369,14 +376,65 @@ def _stage_files(root, sdir, notes):
     return files
 
 
+def _figure_pair_rank(path):
+    """同 stem 孪生图的优先级：位图优先（报告内嵌 PNG），SVG 只当伴生。"""
+    ext = os.path.splitext(path)[1].lower()
+    order = ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg')
+    try:
+        return order.index(ext)
+    except ValueError:
+        return len(order)
+
+
+def pair_figures(paths, limit=None):
+    """图路径 → (主图列表, {主图: 孪生路径})，按 stem 去重。
+
+    平台静态图统一 PNG+SVG 双格式（viz._save_fig）。若两种载体各算一个条目，
+    report_v2 的图表配额会被孪生图吃掉：GQMIX 的 07_report 有 3 对（6 条目），
+    逐阶段深读只留前 4 条 → 只剩 2 对，`stage_funnel_retention` 整图丢失；
+    ⑦ 的 3 棵树同样只出 2 棵。这里把同目录同 stem 的图并成一个条目，
+    位图优先，SVG 记录在 figure_twins 里供页面 PNG/SVG 切换。
+
+    limit 在**去重后**才截断（先截断会按旧口径丢整对）。
+    """
+    groups, order = {}, []
+    for p in paths or []:
+        p = str(p)
+        key = (os.path.dirname(p), os.path.splitext(os.path.basename(p))[0])
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(p)
+    mains, twins = [], {}
+    for key in order:
+        cand = sorted(groups[key], key=lambda x: (_figure_pair_rank(x), x))
+        main = cand[0]
+        if len(cand) > 1:
+            twins[main] = cand[1]
+        mains.append(main)
+    if limit is not None:
+        return mains[:limit], twins
+    return mains, twins
+
+
 def _facts_subsample(s, files, notes):
     f = []
     if not s:
         return f
-    if s.get('pairs') is not None:
-        f.append(('保留 read 对', _fmt(s.get('pairs')), '下采样后实际进入流程的 reads'))
-    if s.get('fraction') is not None:
-        f.append(('抽样比例', _fmt(s.get('fraction'), 4), '按比例随机抽取'))
+    # 00_prep/subsample.json（pipeline.py:_stage_subsample）的实际字段是
+    # n_pairs / mode / seed / prop / inputs；旧版本曾写 pairs / fraction。
+    # 两种都认，否则阶段摘要读到了却一条事实都摘不出来。
+    pairs = s.get('pairs') if s.get('pairs') is not None else s.get('n_pairs')
+    if pairs is not None:
+        f.append(('保留 read 对', _fmt(pairs), '下采样后实际进入流程的 reads'))
+    frac = (s.get('fraction') if s.get('fraction') is not None
+            else s.get('prop'))
+    if frac:
+        f.append(('抽样比例', _fmt(frac, 4), '按比例随机抽取'))
+    if s.get('mode'):
+        f.append(('抽样模式', s.get('mode'), 'count=按条数抽样 / proportion=按比例'))
+    if s.get('seed') not in (None, ''):
+        f.append(('随机种子', s.get('seed'), '复现同一次抽样用'))
     return f
 
 
@@ -775,9 +833,14 @@ MODULE_FACTS = {
     'rtt': ('Tip-dating', 'TreeTime 时间树'),
     'phylodyn': ('群体动力学', 'BEAST 贝叶斯系统动力学'),
     'phylogeo': ('系统地理', '迁移事件推断'),
-    'conan': ('密码子适配', 'Codon Adaptation Index'),
+    # 2026-11-04 修正：原条目误写为「密码子适配」，与 CONAN-SWIFT 检测设计
+    # 不是同一语义（conan 工具运行目录 report_v2 标题曾因此显示错误主题）。
+    'conan': ('CONAN-SWIFT 检测设计（Cas3）', '负组同源位点双重失配 crRNA 设计'),
+    'cricon': ('CRISPR+CONAN 联合检测设计',
+               '双路线编排：交叉审核 + 合并订购表与验证清单'),
+    'lamp': ('LAMP 引物组设计', '六引物组 + 环引物（等温扩增）'),
     'pdprep': ('系统发育数据准备', '序列整理与元数据'),
-    'verify': ('序列验证', 'blastx/BFVD 判定'),
+    'verify': ('序列验证', 'blastx/BFVD/CDD 判定'),
     'orf': ('ORF 预测', 'pyrodigal 基因预测'),
     'orfa': ('ORF 功能注释', '多层库注释'),
     'assemble': ('组装', '组装器直接调用'),
@@ -793,8 +856,11 @@ _MODULE_JSON_HINT = {
     'primer': 'summary.json', 'mirna': 'results.json', 'rdp': 'events.json',
     'rtt': 'summary.json', 'phylodyn': 'phylodyn_summary.json',
     'phylogeo': 'summary.json', 'conan': 'summary.json',
+    'cricon': 'summary.json',
+    'lamp': 'summary.json',
     'pdprep': 'summary.json', 'verify': 'summary.json', 'orf': 'summary.json',
     'orfa': 'summary.json',
+    'cmpchain': 'run_summary.json',
 }
 
 
@@ -1178,7 +1244,7 @@ def _low_coverage_refs(model):
         return out
     root = model['layout']['root']
     p = os.path.join(root, con['dir'], 'coverage.tsv')
-    for r in read_dicts(p):
+    for r in (read_dicts(p, default=[]) or []):
         d = fnum(r.get('mean_depth'))
         if d is None or d > 2.0:
             continue
@@ -1194,8 +1260,14 @@ def _low_coverage_refs(model):
 
 
 def _read_tsv_rows(path, limit=None):
-    """读 tsv（表头 + 行 dict）；文件不存在返回 []。"""
-    rows = read_dicts(path)
+    """读 tsv（表头 + 行 dict）；文件不存在返回 []。
+
+    2026-11-02：read_dicts 缺文件返回的是 default（None），不是 []。以前这里
+    直接透传，文件缺失时调用方 `for r in rows` 会抛
+    `TypeError: 'NoneType' object is not iterable`——只在「某个阶段有
+    summary.json 但没产出对应 tsv」的目录上才炸，真样品不会触发，所以藏得住。
+    """
+    rows = read_dicts(path, default=[]) or []
     return rows[:limit] if limit else rows
 
 
@@ -1368,14 +1440,23 @@ def collect(target, logger=None):
         raise FileNotFoundError(f'目录不存在: {root}')
 
     prof = detect_profile(root)
+    # 判定要按 profile 判，不只看 prof['tool']——认不出样品的目录会走 tool 档案
+    # 但 tool 字段为 None。kind 与 out_dir 必须用**同一个**判定：此前 kind 只
+    # 看 prof['tool']（认不出 → 'sample'），out_dir 却按 prof['key']=='tool'
+    # 写在根下，于是证据链接按 sample 加 '../' → 越界到平台根之外。
+    is_tool = bool(prof.get('tool')) or prof.get('key') == 'tool'
     model = {
         'generated': time.strftime('%Y-%m-%d %H:%M'),
-        'layout': {'kind': 'tool_run' if prof['tool'] else 'sample',
+        'layout': {'kind': 'tool_run' if is_tool else 'sample',
                    'root': root, 'target': root,
                    # 样品报告落在 07_report/（与 report.html 同处，页面统一从
                    # 07_report 取报告）；工具箱运行目录本身就是输出目录。
-                   'out_dir': (root if prof['tool']
-                               else os.path.join(root, '07_report')),
+                   # 2026-11-02：认不出样品的目录会走 tool 档案但 tool 字段为
+                   # None，此时若仍写 07_report/，等于自己造出一个「阶段目录」，
+                   # 下一次扫描就会把它当成 report 阶段算进阶段数（同一目录两次
+                   # 生成报告，阶段数从 0 变 1）。工具运行目录一律写在根下。
+                   'out_dir': root if is_tool
+                   else os.path.join(root, '07_report'),
                    'inputs': [], 'names_zh': STAGE_ZH},
         'sample': {},
         'profile': {k: prof.get(k) for k in
@@ -1431,7 +1512,9 @@ def collect(target, logger=None):
             sname = STAGE_SUMMARY.get(key)
             summary = (_read_json(os.path.join(sdir, sname), notes,
                                   f'{rel}/{sname}') if sname else None)
-            fig = [ff['path'] for ff in files if ff['kind'] == 'figure'][:MAX_FIGURES_PER_STAGE]
+            fig, fig_twins = pair_figures(
+                [ff['path'] for ff in files if ff['kind'] == 'figure'],
+                MAX_FIGURES_PER_STAGE)
             facts = FACT_EXTRACTORS.get(key, lambda *a: [])(summary, files, notes)
             model['stages'].append({
                 'key': key, 'title': STAGE_FULL.get(key, STAGE_ZH[key]),
@@ -1440,7 +1523,8 @@ def collect(target, logger=None):
                 'files': [{'rel': f['rel'], 'name': f['name'],
                            'kind': f['kind'], 'size': f['size']} for f in files],
                 'summary': summary, 'facts': facts, 'notes': notes,
-                'figures': fig, 'duration_s': durs.get(key),
+                'figures': fig, 'figure_twins': fig_twins,
+                'duration_s': durs.get(key),
             })
             for f in files:
                 if f['kind'] in ('figure', 'table', 'data'):
@@ -1467,14 +1551,16 @@ def collect(target, logger=None):
         model['sample'] = {'name': os.path.basename(root), 'tool': tool}
         model['profile'].update({'title': f'{title} · 单步报告',
                                  'subtitle': desc or '工具箱单次运行'})
+        fig_main, fig_twins = pair_figures(
+            [f['path'] for f in files if f['kind'] == 'figure'],
+            MAX_FIGURES_PER_STAGE)
         model['stages'].append({
             'key': tool, 'title': title, 'short': title, 'dir': '.',
             'status': 'done', 'files': [{'rel': f['rel'], 'name': f['name'],
                                          'kind': f['kind'], 'size': f['size']}
                                         for f in files],
             'summary': data, 'facts': facts, 'notes': notes,
-            'figures': [f['path'] for f in files
-                        if f['kind'] == 'figure'][:MAX_FIGURES_PER_STAGE],
+            'figures': fig_main, 'figure_twins': fig_twins,
             'duration_s': None, 'cmd': cmd,
             'warns': _run_log_warns(base),
         })
@@ -1637,7 +1723,9 @@ def _tool_versions(model, timeout=6.0):
             try:
                 cp = subprocess.run([path] + args, capture_output=True,
                                     text=True, encoding='utf-8',
-                                    errors='replace', timeout=timeout)
+                                    errors='replace', timeout=timeout,
+                                    creationflags=getattr(
+                                        subprocess, 'CREATE_NO_WINDOW', 0))
                 blob = (cp.stdout or '') + (cp.stderr or '')
                 m = re.search(rx, blob)
                 if m:

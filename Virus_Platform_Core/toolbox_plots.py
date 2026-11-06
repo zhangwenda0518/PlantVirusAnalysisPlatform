@@ -47,6 +47,17 @@ except ImportError:                     # 独立兜底
 
 sp.apply_sci_style()
 
+# Windows 上 arialbd.ttf 常不在 matplotlib 默认索引里（只有 Arial regular），
+# fontweight='bold' 会退回 400 并打 findfont 警告；显式注册一次。
+try:
+    import matplotlib.font_manager as _fm
+    _bd = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts",
+                       "arialbd.ttf")
+    if os.path.isfile(_bd):
+        _fm.fontManager.addfont(_bd)
+except Exception:
+    pass
+
 _GREY = sp.OKABE["grey"]
 _BLUE = sp.OKABE["blue"]
 _VERM = sp.OKABE["vermillion"]
@@ -227,6 +238,188 @@ def plot_rdp_events(run_dir: str) -> list:
 
 
 # ------------------------------------------------------------------
+# 2b. RDP5 断点分布图（复刻参考管线 RDP5_RBDP_Rgrapher/MainFile.R）
+# ------------------------------------------------------------------
+def plot_rdp_breakpoint_distribution(run_dir: str) -> list:
+    """断点分布图：RBN 曲线 + 99% CI 分层填充 + 梯子状基因轨道 + 断点位置条。
+
+    数据源（rdp/ 子目录）：
+      rdp5 breakpoint distribution.csv          Position/RBN(+4 CI 列)
+      …BreakpointPositions.csv                  断点位置（单列，画顶部刻度条）
+      gene_map.json（可选）                     比对坐标基因轨道
+    RDP5 对含 Unknown 亲本的事件不产出分布（见 rdp5_engine 兜底说明）：
+    2 列合成版没有 CI 列 → 只画 RBN 层，不画 CI 带。
+    """
+    p = _find(run_dir, "*breakpoint distribution.csv")
+    if not p:
+        return []
+    # 只认 RBN 版（"breakpoint number"）；cluster probability 版是 log(p) 分布
+    try:
+        df = _read_tab(p)
+        if df.empty:
+            return []
+        posc = next((c for c in df.columns if "position" in c.lower()), None)
+        rbnc = next((c for c in df.columns
+                     if "breakpoint number" in c.lower()), None)
+        upc = next((c for c in df.columns if "upper 99" in c.lower()), None)
+        loc = next((c for c in df.columns if "lower 99" in c.lower()), None)
+        if not (posc and rbnc):
+            return []
+        x = pd.to_numeric(df[posc], errors="coerce")
+        rbn = pd.to_numeric(df[rbnc], errors="coerce")
+        ok = x.notna() & rbn.notna()
+        x, rbn = x[ok].to_numpy(), rbn[ok].to_numpy()
+        if len(x) < 2:
+            return []
+        # upper/lower CI 有列才画（2 列合成版没有）
+        upper = (pd.to_numeric(df[upc], errors="coerce").to_numpy()
+                 if upc else None)
+        lower = (pd.to_numeric(df[loc], errors="coerce").to_numpy()
+                 if loc else None)
+    except Exception:
+        return []
+    # 断点位置（顶部刻度条）
+    bps = []
+    try:
+        # RDP5 的产物名是 "<prefix>*BreakpointPositions*.csv"
+        # （rdp5_engine.py 模块注释）。旧 glob 把断点分布文件名与
+        # "*BreakpointPositions.csv" 直接粘在一起，永远匹配不到 → 刻度条不画。
+        pp = _find(run_dir, "*BreakpointPositions*.csv")
+        if pp and os.path.isfile(pp):
+            with open(pp, encoding="utf-8-sig", errors="replace") as f:
+                bps = [float(ln.split(",")[-1].strip())
+                       for ln in f if ln.strip() and
+                       ln.strip().lstrip(" +-.").replace(".", "", 1).isdigit()]
+    except Exception:
+        bps = []
+    # 基因轨道（可选）
+    genes = []
+    try:
+        gj = os.path.join(run_dir, "gene_map.json")
+        if os.path.isfile(gj):
+            with open(gj, encoding="utf-8") as f:
+                genes = (json.load(f).get("genes") or [])
+            genes = [g for g in genes
+                     if isinstance(g.get("start"), (int, float))
+                     and isinstance(g.get("end"), (int, float))
+                     and g["end"] > g["start"]]
+    except Exception:
+        genes = []
+
+    # ── 布局参数（比例对齐 MainFile.R）─────────────────────────
+    vals = [rbn.max()]
+    if upper is not None:
+        vals.append(np.nanmax(upper))
+    if lower is not None:
+        vals.append(np.nanmax(lower))
+    highest = float(max(vals))
+    if not np.isfinite(highest) or highest <= 0:
+        highest = 1.0
+    gstep = highest * 0.10            # geneMapIndividualHeight
+    gbase = highest * 1.155           # geneLabelBase = highest*1.1*1.05
+
+    fig, ax = plt.subplots(figsize=(11.5, 4.6))
+
+    # ── 分层 polygon（ggplot 层序：rbn → upper → lower → bottom 白挖空）──
+    ax.fill_between(x, rbn, 0, color=_VERM, alpha=0.85, linewidth=0)
+    if upper is not None:
+        ax.fill_between(x, upper, 0, color=sp.OKABE["sky"], alpha=1.0,
+                        linewidth=0)
+        ax.fill_between(x, lower, 0, color=sp.OKABE["blue"], alpha=0.85,
+                        linewidth=0)
+        # CI 边界灰线
+        for arr in (upper, lower):
+            good = np.isfinite(arr)
+            ax.plot(x[good], arr[good], color=sp.OKABE["grey"], lw=0.8)
+        # bottom = min(全部列) → 白色挖空重叠区
+        cols = [rbn]
+        for arr in (upper, lower):
+            cols.append(np.nan_to_num(arr, nan=0.0))
+        bottom = np.vstack(cols).min(axis=0)
+        ax.fill_between(x, bottom, 0, color="white", linewidth=0)
+    ax.plot(x, rbn, color="black", lw=1.05)
+
+    # ── 基因轨道：梯子状错落矩形（assign_gene_positions 复刻）──
+    # 链方向（2026-11-06）：gene_map 的 genes 带 strand（'+'/'-'/'?'，来自
+    # GenBank f.location.strand）。'-' 画左向箭头并把标签放左端，'+' 画
+    # 右向箭头（原行为），'?' 只画矩形不画箭头。
+    if genes:
+        genes = sorted(genes, key=lambda g: g["start"])
+        used = set()
+        for i, g in enumerate(genes):
+            y = gbase
+            while y in used:
+                y += gstep
+            used.add(y)
+            gx0, gx1 = float(g["start"]), float(g["end"])
+            ax.add_patch(plt.Rectangle(
+                (gx0, y), gx1 - gx0, gstep,
+                facecolor=sp.OKABE["blue"], alpha=0.7,
+                edgecolor="black", linewidth=0.8, zorder=5))
+            strand = str(g.get("strand") or "+")
+            yc = y + gstep / 2
+            label = str(g.get("name", "")).upper()
+            if strand == "-":
+                if gx1 > gx0:
+                    ax.annotate(
+                        "", xy=(gx0, yc),
+                        xytext=(gx0 + (gx1 - gx0) * 0.3, yc),
+                        arrowprops=dict(arrowstyle="-|>", color="black",
+                                        lw=0.8, shrinkA=0, shrinkB=0),
+                        zorder=7)
+                ax.text(gx0, yc, label, ha="left", va="center", fontsize=8,
+                        fontweight="bold", color="black", zorder=6)
+            else:
+                if strand == "+" and gx1 > gx0:
+                    ax.annotate(
+                        "", xy=(gx1, yc),
+                        xytext=(gx1 - (gx1 - gx0) * 0.3, yc),
+                        arrowprops=dict(arrowstyle="-|>", color="black",
+                                        lw=0.8, shrinkA=0, shrinkB=0),
+                        zorder=7)
+                ax.text(gx1, yc, label, ha="right", va="center", fontsize=8,
+                        fontweight="bold", color="black", zorder=6)
+        band_top = max(used) + gstep
+    else:
+        band_top = gbase
+
+    # ── 断点位置刻度条（基因轨道上方）──
+    if bps:
+        bar_y0 = band_top + gstep * 0.5
+        h = gstep
+        for bp in bps:
+            ax.add_patch(plt.Rectangle(
+                (bp, bar_y0), max(1.0, x.max() * 0.0008), h,
+                facecolor="black", alpha=0.7, edgecolor="none", zorder=5))
+        ax.set_ylim(0, bar_y0 + h + highest * 0.18)
+    else:
+        ax.set_ylim(0, band_top + highest * 0.18)
+
+    ax.set_xlim(x.min(), x.max())
+    ax.margins(x=0, y=0)
+    ax.set_xlabel(f"Nucleotide position in the genome alignment",
+                  fontsize=9)
+    ax.set_ylabel("Recombination breakpoint number\n(200nt window)",
+                  fontsize=9)
+    # 标题：数据名（原比对文件名 stem），贴近参考图病毒名标题
+    title = "RDP5 recombination breakpoint distribution"
+    try:
+        sj = os.path.join(run_dir, "summary.json")
+        if os.path.isfile(sj):
+            with open(sj, encoding="utf-8") as f:
+                src = (json.load(f).get("source_input") or "")
+            stem = os.path.splitext(os.path.basename(src))[0]
+            if stem:
+                title = stem
+    except Exception:
+        pass
+    ax.set_title(title, fontsize=11, fontweight="bold")
+    sp.despine()
+    fig.tight_layout()
+    return _save(fig, run_dir, "rdp_breakpoint_distribution")
+
+
+# ------------------------------------------------------------------
 # 3. align_qc 重组预筛：QC 四联分布
 # ------------------------------------------------------------------
 def plot_align_qc(run_dir: str) -> list:
@@ -242,7 +435,8 @@ def plot_align_qc(run_dir: str) -> list:
                             (("degener", "ambig", "n_"), "Degenerate/ambiguous %", "%"),
                             (("ident", "pid"), "Pairwise identity", "%")):
         v = _num(df, *keys)
-        if v is not None and v.notna().sum() >= 3:
+        if (v is not None and v.notna().sum() >= 3
+                and v.nunique() >= 3):      # 唯一值 <3 直方图退化（2026-11-06）
             cols.append((v, title, xl))
     if not cols:
         return []
@@ -283,10 +477,17 @@ def plot_primers(run_dir: str) -> list:
                                     sp.OKABE["green"]),
                                    (("penalty", "score", "specific"), "Penalty/score", "", _GREY)):
         v = _num(df, *keys)
-        if v is not None and v.notna().sum() >= 3:
+        # 信息量门槛（2026-11-06）：除"非空值 ≥3"外还要求"唯一值 ≥3"——
+        # dsRNA 的 T7 primers.tsv 只有 2 条引物时，Tm 直方图退化成 2 根柱
+        # （59.80/59.90、轴宽 0.1°C）毫无信息量，不再出图
+        if (v is not None and v.notna().sum() >= 3
+                and v.nunique() >= 3):
             panels.append((v, title, xl, color))
-    target = _text(df, "target", "contig", "seq", "region", "group", "name",
-                   min_uniq=1, max_uniq=60)
+    # 每组仅 1 个 target 时「每靶标引物对数」条形图也是单行，无意义。
+    # 2026-11-06：去掉 'name' 候选——引物名（T7-F/T7-R…）不是靶标分组，
+    # 只有 2 条引物时会把退化条形图误画出来。
+    target = _text(df, "target", "contig", "region", "group",
+                   min_uniq=2, max_uniq=60)
     if not panels and target is None:
         return []
     nrow = 2 if target is not None else 1
@@ -331,7 +532,8 @@ def plot_crispr(run_dir: str) -> list:
     panels = [(v, t, x, c) for v, t, x, c in (
         (score, "crRNA candidate score", "Score", _BLUE),
         (gc, "GC content", "%", _VERM),
-        (offt, "Off-target/mismatch count", "count", _GREY)) if v is not None and v.notna().sum() >= 3]
+        (offt, "Off-target/mismatch count", "count", _GREY))
+        if v is not None and v.notna().sum() >= 3 and v.nunique() >= 3]
     if not panels:
         return []
     fig, axes = plt.subplots(1, len(panels), figsize=(3.3 * len(panels), 3.4))
@@ -380,7 +582,11 @@ def plot_mirna(run_dir: str) -> list:
     if tv is None:
         tv = _text(df, "target_virus_id", "target_virus", min_uniq=1, max_uniq=80)
     mi = _text(df, "mirna_id", min_uniq=1, max_uniq=80)
-    npanel = 1 + (1 if tv is not None else 0) + (1 if energy is not None else 0)
+    # 面板数必须与实际要画的内容一致：energy 列存在但有效值 <3 时画不了
+    # 直方图，旧实现把它计入 npanel → 第三面板留一块空坐标轴（2026-11-04）。
+    draw_energy = (energy is not None and energy.notna().sum() >= 3
+                   and energy.nunique() >= 3)    # 唯一值 <3 退化（2026-11-06）
+    npanel = 1 + (1 if tv is not None else 0) + (1 if draw_energy else 0)
     fig, axes = plt.subplots(1, npanel, figsize=(3.5 * npanel, 3.6))
     if npanel == 1:
         axes = [axes]
@@ -402,7 +608,7 @@ def plot_mirna(run_dir: str) -> list:
         axes[k].set_xlabel("Hits")
         axes[k].set_title("Top target viruses", fontsize=9)
         k += 1
-    if energy is not None and energy.notna().sum() >= 3:
+    if draw_energy:
         _multi_hist(axes[k], energy, "Best MFE energy", "kcal/mol", _GREY)
     fig.suptitle("miRNA target prediction overview", fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.94), w_pad=2.2)
@@ -531,6 +737,60 @@ _BASE_COLOR = {"A": "#D64545", "U": "#E69F00", "T": "#E69F00",
                "C": "#3B74C4", "G": "#3E9C5C"}
 
 
+def _duplex_row(r: dict):
+    """从 results.json 的一条记录解析双链配对数据 → (mseq, tseq, pb) 或 None。
+
+    pb: {int 位置: 'wc'|'wobble'|'mismatch'}；mseq/tseq 统一成 miRNA 5'->3' 视角。
+    两种数据形态：
+    - position_binding 字典（直给）；
+    - alignment 三行比对串（真实引擎形态）：
+      miRNA  3' SEQ 5' / 配对行(|=WC, .=wobble, 空格=错配) / target 5' SEQ 3'
+    """
+    mseq = str(r.get("mirna_seq") or r.get("mirna_sequence") or "")
+    tseq = str(r.get("target_site_seq") or r.get("site_seq")
+               or r.get("target_seq") or "")
+    pb = r.get("position_binding")
+    if not (len(mseq) >= 12 and len(tseq) >= 12
+            and isinstance(pb, dict) and pb):
+        aln = r.get("alignment")
+        if isinstance(aln, str) and "|" in aln:
+            try:
+                import re
+                ls = aln.splitlines()
+                mi = next(l for l in ls if "miRNA" in l)
+                ta = next(l for l in ls if "target" in l)
+                pl = next(l for l in ls
+                          if l.strip() and set(l.strip()) <= set("|. "))
+
+                def _s(line):
+                    m_ = re.search(r"[ACGUTNacgutn\-]{10,}", line)
+                    return (m_.group(0).upper().replace("T", "U")
+                            if m_ else "")
+                mrow, trow = _s(mi), _s(ta)          # 含 '-' 缺口
+                if mrow and trow:
+                    mrow, prow, trow = (mrow[::-1], pl.rstrip()[::-1],
+                                        trow[::-1])  # 统一成 miRNA 5'->3'
+                    pb, ms, ts = {}, [], []
+                    i_ = j_ = 0
+                    for mb, pc, tb in zip(mrow, prow, trow):
+                        if mb == "-" or tb == "-":
+                            i_ += mb != "-"
+                            j_ += tb != "-"
+                            continue
+                        i_ += 1
+                        j_ += 1
+                        ms.append(mb)
+                        ts.append(tb)
+                        pb[i_] = ("wc" if pc == "|" else
+                                  "wobble" if pc == "." else "mismatch")
+                    mseq, tseq = "".join(ms), "".join(ts)
+            except Exception:
+                return None
+    if len(mseq) >= 12 and len(tseq) >= 12 and isinstance(pb, dict) and pb:
+        return mseq, tseq, pb
+    return None
+
+
 def plot_mirna_duplex(run_dir: str) -> list:
     rj = _find(run_dir, "results.json", os.path.join("mirna_target", "results.json"))
     if not rj:
@@ -543,50 +803,9 @@ def plot_mirna_duplex(run_dir: str) -> list:
     for r in (rows if isinstance(rows, list) else []):
         if not isinstance(r, dict):
             continue
-        mseq = str(r.get("mirna_seq") or r.get("mirna_sequence") or "")
-        tseq = str(r.get("target_site_seq") or r.get("site_seq")
-                   or r.get("target_seq") or "")
-        pb = r.get("position_binding")
-        if not (len(mseq) >= 12 and len(tseq) >= 12
-                and isinstance(pb, dict) and pb):
-            # 真实引擎形态：alignment 是三行比对串
-            # miRNA  3' SEQ 5' / 配对行(|=WC, .=wobble, 空格=错配) / target 5' SEQ 3'
-            aln = r.get("alignment")
-            if isinstance(aln, str) and "|" in aln:
-                try:
-                    import re
-                    ls = aln.splitlines()
-                    mi = next(l for l in ls if "miRNA" in l)
-                    ta = next(l for l in ls if "target" in l)
-                    pl = next(l for l in ls
-                              if l.strip() and set(l.strip()) <= set("|. "))
-
-                    def _s(line):
-                        m_ = re.search(r"[ACGUTNacgutn\-]{10,}", line)
-                        return (m_.group(0).upper().replace("T", "U")
-                                if m_ else "")
-                    mrow, trow = _s(mi), _s(ta)          # 含 '-' 缺口
-                    if mrow and trow:
-                        mrow, prow, trow = (mrow[::-1], pl.rstrip()[::-1],
-                                            trow[::-1])  # 统一成 miRNA 5'->3'
-                        pb, ms, ts = {}, [], []
-                        i_ = j_ = 0
-                        for mb, pc, tb in zip(mrow, prow, trow):
-                            if mb == "-" or tb == "-":
-                                i_ += mb != "-"
-                                j_ += tb != "-"
-                                continue
-                            i_ += 1
-                            j_ += 1
-                            ms.append(mb)
-                            ts.append(tb)
-                            pb[i_] = ("wc" if pc == "|" else
-                                      "wobble" if pc == "." else "mismatch")
-                        mseq, tseq = "".join(ms), "".join(ts)
-                except Exception:
-                    mseq = tseq = ""
-        if len(mseq) >= 12 and len(tseq) >= 12 and isinstance(pb, dict) and pb:
-            hits.append((r, mseq, tseq, pb))
+        d = _duplex_row(r)
+        if d:
+            hits.append((r,) + d)
     if not hits:
         return []
     try:
@@ -773,6 +992,416 @@ document.querySelectorAll(".v").forEach(btn=>btn.onclick=()=>{
         f.write(html)
     return [out]
 
+
+# ------------------------------------------------------------------
+# 6e. miRNA 交互图表页（自包含单文件 HTML：duplex / Sankey / 网络 / 概览，
+#     hover 高亮 + 原生 tooltip；matplotlib 静态图保留供下载/报告，交互看这里）
+# ------------------------------------------------------------------
+def _fnum(v, default=None):
+    try:
+        f = float(v)
+        return default if f != f else f        # NaN -> default
+    except (TypeError, ValueError):
+        return default
+
+
+def _mirna_interactive_data(run_dir: str):
+    """交互页数据包：hits（含解析后的 duplex 序列/配对）+ (miRNA,靶) 计数对。"""
+    rj = _find(run_dir, "results.json", os.path.join("mirna_target", "results.json"))
+    rows = None
+    if rj:
+        try:
+            rows = json.load(open(rj, encoding="utf-8"))
+        except Exception:
+            rows = None
+    if not (isinstance(rows, list) and rows and isinstance(rows[0], dict)):
+        p = _find(run_dir, "mirna_targets_merged.csv")
+        if not p:
+            return None
+        df = _read_tab(p)
+        rows = df.to_dict("records")
+    rows = [r for r in rows if isinstance(r, dict) and r.get("mirna_id")]
+    if not rows:
+        return None
+    hits = []
+    for r in rows:
+        d = _duplex_row(r)
+        mseq, tseq, pb = d if d else ("", "", {})
+        lvl = (str(r.get("consensus_level") or "").upper()
+               or ("HIGH" if (r.get("num_algorithms") or 0) >= 3 else "MEDIUM"))
+        hits.append({
+            "mi": str(r.get("mirna_id") or "?"),
+            "gene": str(r.get("target_protein") or ""),
+            "virus": str(r.get("target_virus_name")
+                         or r.get("target_virus_id") or "?"),
+            "energy": _fnum(r.get("best_energy") or r.get("energy")),
+            "identity": _fnum(r.get("best_identity") or r.get("identity")),
+            "mm": _fnum(r.get("num_mismatches") or r.get("mismatches")),
+            "eng": _fnum(r.get("num_algorithms")),
+            "seed_wc": _fnum(r.get("seed_perfect_wc")),
+            "seed_wob": _fnum(r.get("seed_wobble_count")),
+            "algs": str(r.get("consensus_detail") or r.get("algorithms") or ""),
+            "level": lvl,
+            "mseq": mseq, "tseq": tseq, "pb": pb,
+            "site": (f'{r.get("target_virus_name") or r.get("target_virus_id") or "?"}'
+                     f' @{int(_fnum(r.get("target_start"), 0.0))}'
+                     f'-{int(_fnum(r.get("target_end"), 0.0))}'),
+        })
+    pairs = {}
+    for h in hits:
+        tgt = h["gene"] or h["virus"]
+        pairs[(h["mi"], tgt)] = pairs.get((h["mi"], tgt), 0) + 1
+    # summary.json 里带着统计（引擎/耗时/对数），带上让页头能显示上下文
+    stats = {}
+    sj = _find(run_dir, "summary.json", os.path.join("mirna_target", "summary.json"))
+    if sj:
+        try:
+            sjd = json.load(open(sj, encoding="utf-8"))
+            if isinstance(sjd, dict):
+                stats = {k: sjd.get(k) for k in
+                         ("n_mirna", "n_virus", "n_pairs", "n_hits",
+                          "elapsed_sec", "engines_actual")}
+        except Exception:
+            stats = {}
+    return {"hits": hits,
+            "pairs": [[m, t, n] for (m, t), n in pairs.items()],
+            "stats": stats}
+
+
+def plot_mirna_interactive(run_dir: str) -> list:
+    """mirna_interactive.html：单文件交互图页（无外部库，离线可用）。
+
+    duplex（彩色碱基 + 配对线 + seed 区，悬停看位置）· Sankey / 二部网络
+    （悬停高亮流带/边）· 概览条形图。数据源 results.json（回退 merged.csv）。
+    """
+    data = _mirna_interactive_data(run_dir)
+    if not data:
+        return []
+    payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+    html = """<!doctype html>
+<html lang="zh"><head><meta charset="utf-8">
+<title>miRNA interactive charts (PAmiRDB style)</title>
+<style>
+body{font:14px/1.5 "Segoe UI","Microsoft YaHei",sans-serif;margin:0;
+  background:#f6f8fa;color:#22303f}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 24px 60px}
+h1{font-size:19px;margin:4px 0 2px}
+.sub{color:#68788c;font-size:12.5px;margin-bottom:12px}
+.chip{display:inline-block;background:#eef2f6;border-radius:12px;padding:3px 11px;
+  font-size:12px;color:#44586e;margin:0 6px 6px 0}
+.tabs{display:flex;gap:6px;margin:14px 0 0;flex-wrap:wrap}
+.tab{padding:7px 18px;border:1px solid #d6dee8;border-bottom:none;
+  border-radius:8px 8px 0 0;background:#eef2f6;cursor:pointer;font-size:13px;
+  user-select:none}
+.tab.on{background:#fff;font-weight:700;color:#1c7c4c;border-color:#b9c6d4}
+.pane{display:none;background:#fff;border:1px solid #d6dee8;
+  border-radius:0 10px 10px 10px;padding:18px;box-shadow:0 1px 4px rgba(30,40,60,.06)}
+.pane.on{display:block}
+.dcard{border:1px solid #e3e8ef;border-radius:10px;padding:12px 14px;margin:14px 0;
+  background:#fff}
+.dhead{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.dhead b{color:#2c6e49}
+.bdg{font-size:11px;border-radius:10px;padding:2px 9px;font-weight:600}
+.bdg.e{background:#e8f1ea;color:#1c7c4c}
+.bdg.s{background:#fdf3d7;color:#8a6d1a}
+.bdg.l{background:#eef2f6;color:#44586e}
+.hint{color:#8892a6;font-size:12px}
+.svgbox{overflow-x:auto}
+.legend{font-size:12px;color:#44586e;margin:6px 0 0}
+</style></head><body><div class="wrap">
+<h1>miRNA &harr; target interactive charts</h1>
+<div class="sub">PAmiRDB style &middot; hover 图元看数值 &middot; 单文件离线可用</div>
+<div id="chips"></div>
+<div class="tabs" id="tabs">
+  <div class="tab on" data-t="duplex">双链结构 Duplex</div>
+  <div class="tab" data-t="sankey">关系 Sankey</div>
+  <div class="tab" data-t="net">网络 Network</div>
+  <div class="tab" data-t="ov">概览 Overview</div>
+</div>
+<div class="pane on" id="p-duplex"></div>
+<div class="pane" id="p-sankey"></div>
+<div class="pane" id="p-net"></div>
+<div class="pane" id="p-ov"></div>
+</div>
+<script>const DATA=__DATA__;</script>
+<script>
+"use strict";
+const esc = s => String(s == null ? "" : s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;");
+const BC = {A:"#D64545", U:"#E69F00", C:"#3B74C4", G:"#3E9C5C", N:"#9aa4b0"};
+const LEVEL_COLOR = {NONE:"#9aa4b0", LOW:"#f0c36d", "LOW+":"#e8a94e",
+  MEDIUM:"#6db3d8", "MEDIUM+":"#4a94c0", HIGH:"#5aab77", "HIGH+":"#3d8f61",
+  "VERY HIGH":"#1a4a30"};
+const LEVEL_DARK = ["VERY HIGH","HIGH+","HIGH","MEDIUM+","MEDIUM"];
+function $(id){return document.getElementById(id);}
+
+/* ---------- chips ---------- */
+(function(){
+  const st = DATA.stats || {};
+  const chips = [];
+  if(st.n_hits != null) chips.push("命中 " + st.n_hits + " hit(s)");
+  if(st.n_pairs != null) chips.push(st.n_mirna + " miRNA × " + st.n_virus
+    + " 病毒 = " + st.n_pairs + " 对");
+  if(st.engines_actual) chips.push("引擎 " + st.engines_actual.join(", "));
+  if(st.elapsed_sec != null) chips.push(st.elapsed_sec + "s");
+  $("chips").innerHTML = chips.map(c=>'<span class="chip">'+esc(c)+'</span>').join("");
+})();
+
+/* ---------- duplex ---------- */
+function duplexSVG(h){
+  const L = Math.max(h.mseq.length, h.tseq.length);
+  if(!L) return "";
+  const CELL=24, Y_MI=46, Y_TG=104, x0=34, W=x0+L*CELL+20, H=150;
+  const seedX1=x0+1.5*CELL, seedW=7*CELL;
+  let s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" '
+    + 'viewBox="0 0 '+W+' '+H+'" style="min-width:'+W+'px">';
+  s += '<rect x="'+seedX1+'" y="6" width="'+seedW+'" height="138" fill="#F5C542" '
+    + 'fill-opacity="0.10" stroke="#B8860B" stroke-dasharray="4,3" rx="6"/>';
+  s += '<text x="'+(seedX1+seedW/2)+'" y="18" text-anchor="middle" font-size="10" '
+    + 'fill="#8A6D1A">seed (2-8)</text>';
+  s += '<text x="4" y="'+(Y_MI+4)+'" font-size="11" fill="#44586e">5&#39; miRNA</text>';
+  s += '<text x="4" y="'+(Y_TG+4)+'" font-size="11" fill="#44586e">3&#39; target</text>';
+  for(let k=1;k<=L;k++){
+    const mb=h.mseq[k-1], tb=h.tseq[k-1];
+    const st=(h.pb[k]||"")+"";
+    const x=x0+k*CELL;
+    if(mb) s += '<circle cx="'+x+'" cy="'+Y_MI+'" r="10" fill="'+(BC[mb]||BC.N)+'">'
+      + '<title>'+esc(h.mi)+' pos '+k+' = '+esc(mb)+'</title></circle>'
+      + '<text x="'+x+'" y="'+(Y_MI+3.5)+'" text-anchor="middle" font-size="10" '
+      + 'fill="#fff" pointer-events="none">'+esc(mb)+'</text>';
+    if(tb) s += '<circle cx="'+x+'" cy="'+Y_TG+'" r="10" fill="'+(BC[tb]||BC.N)+'">'
+      + '<title>'+esc(h.virus)+' site pos '+k+' = '+esc(tb)+'</title></circle>'
+      + '<text x="'+x+'" y="'+(Y_TG+3.5)+'" text-anchor="middle" font-size="10" '
+      + 'fill="#fff" pointer-events="none">'+esc(tb)+'</text>';
+    if(st==="wc") s += '<line x1="'+x+'" y1="'+(Y_MI+12)+'" x2="'+x+'" y2="'+(Y_TG-12)+'" '
+      + 'stroke="#2E8B57" stroke-width="2"><title>pos '+k+' WC pair</title></line>';
+    else if(st==="wobble") s += '<line x1="'+x+'" y1="'+(Y_MI+12)+'" x2="'+x+'" y2="'+(Y_TG-12)+'" '
+      + 'stroke="#8C8C8C" stroke-width="1.4" stroke-dasharray="2,2.5">'
+      + '<title>pos '+k+' wobble (G·U)</title></line>';
+    else if(st==="mismatch") s += '<text x="'+x+'" y="'+((Y_MI+Y_TG)/2+4)+'" '
+      + 'text-anchor="middle" font-size="11" fill="#D64545" font-weight="bold">X'
+      + '<title>pos '+k+' mismatch</title></text>';
+  }
+  return s + "</svg>";
+}
+
+function renderDuplex(){
+  const box=$("p-duplex");
+  const hits=(DATA.hits||[]).filter(h=>h.mseq&&h.tseq);
+  if(!hits.length){
+    box.innerHTML='<p class="hint">无比对/序列数据（结果行缺 mseq/tseq/pb 字段；'
+      + '悬停图表不可用时看明细表）</p>';
+    return;
+  }
+  const show=hits.slice(0,12);
+  box.innerHTML = show.map(h=>{
+    const e=h.energy!=null
+      ? '<span class="bdg e">MFE '+h.energy.toFixed(1)+' kcal/mol</span>' : "";
+    const sd=h.seed_wc!=null
+      ? '<span class="bdg s">Seed '+Math.round(h.seed_wc)+'/7 WC</span>' : "";
+    const dark=LEVEL_DARK.indexOf(h.level)>=0;
+    const lv='<span class="bdg l" style="background:'+(LEVEL_COLOR[h.level]||"#eef2f6")
+      +';color:'+(dark?"#fff":"#44586e")+'">'+esc(h.level)+'</span>';
+    return '<div class="dcard"><div class="dhead"><b>'+esc(h.mi)+'</b>'
+      + '<span style="color:#c96a1b;font-size:12.5px">&rarr; '+esc(h.gene||h.virus)+'</span>'
+      + lv + e + sd + '</div>'
+      + '<div class="svgbox">'+duplexSVG(h)+'</div>'
+      + '<div class="legend">| WC &nbsp; : wobble (G·U) &nbsp; X 错配'
+      + ' &nbsp;·&nbsp; 悬停碱基/配对线看位置</div>'
+      + '<div class="hint">位点 ' + esc(h.site) + (h.algs?" · "+esc(h.algs):"") + '</div></div>';
+  }).join("");
+  if(hits.length>show.length)
+    box.innerHTML += '<p class="hint">仅展示 MFE 最强的前 12 个；'
+      + '完整清单看明细表（mirna_targets_table.html）或 CSV。</p>';
+}
+
+/* ---------- sankey / network 共用聚合 ---------- */
+function agg(){
+  const sm={},st={};
+  (DATA.pairs||[]).forEach(function(p){
+    sm[p[0]]=(sm[p[0]]||0)+p[2];
+    st[p[1]]=(st[p[1]]||0)+p[2];
+  });
+  const lm=Object.keys(sm).sort(function(a,b){return sm[b]-sm[a];}).slice(0,8);
+  const lt=Object.keys(st).sort(function(a,b){return st[b]-st[a];}).slice(0,6);
+  const edges=(DATA.pairs||[]).filter(function(p){
+    return lm.indexOf(p[0])>=0 && lt.indexOf(p[1])>=0;
+  });
+  return {sm:sm, st:st, lm:lm, lt:lt, edges:edges};
+}
+
+/* ---------- sankey ---------- */
+function renderSankey(){
+  const box=$("p-sankey");
+  const a=agg(); if(!a.edges.length){box.innerHTML='<p class="hint">无关系数据</p>';return;}
+  const pad=14, nodeH=function(w){return Math.max(16, w*18);};
+  const H=Math.max(240, a.lm.reduce(function(s,n){return s+nodeH(a.sm[n])+pad;},0)+pad);
+  const X0=175, X1=725, NBW=16;
+  let y=pad; const lpos={};
+  a.lm.forEach(function(n){lpos[n]=y; y+=nodeH(a.sm[n])+pad;});
+  y=pad; const rpos={};
+  a.lt.forEach(function(n){rpos[n]=y; y+=nodeH(a.st[n])+pad;});
+  let s='<svg xmlns="http://www.w3.org/2000/svg" width="900" height="'+H+'" '
+    + 'style="min-width:760px;width:100%">';
+  const ycur={},rcur={};
+  a.lm.forEach(function(n){ycur[n]=lpos[n];});
+  a.lt.forEach(function(n){rcur[n]=rpos[n];});
+  a.edges.slice().sort(function(x,y){return y[2]-x[2];}).forEach(function(p){
+    const m=p[0], t=p[1], w=p[2];
+    const y0=ycur[m], y1=rcur[t];
+    ycur[m]+=nodeH(w); rcur[t]+=nodeH(w);
+    const x0=X0+NBW, x1=X1, xm=(x0+x1)/2;
+    s += '<path d="M'+x0+','+y0+' C'+xm+','+y0+' '+xm+','+y1+' '+x1+','+y1+'" '
+      + 'stroke="#2E7D5B" stroke-opacity="0.25" fill="none" stroke-width="'
+      + (nodeH(w)-2).toFixed(1)+'" class="fl" data-m="'+esc(m)+'" data-t="'+esc(t)+'">'
+      + '<title>'+esc(m)+' &rarr; '+esc(t)+' : '+w+' hit(s)</title></path>';
+  });
+  a.lm.forEach(function(n){
+    s += '<rect x="'+(X0-NBW)+'" y="'+lpos[n]+'" width="'+NBW+'" height="'
+      + nodeH(a.sm[n])+'" fill="#2E7D5B" rx="2">'
+      + '<title>'+esc(n)+' : '+a.sm[n]+' hit(s)</title></rect>'
+      + '<text x="'+(X0-NBW-6)+'" y="'+(lpos[n]+nodeH(a.sm[n])/2+4)+'" '
+      + 'text-anchor="end" font-size="11" fill="#44586e">'+esc(n)+'</text>';
+  });
+  a.lt.forEach(function(n){
+    s += '<rect x="'+X1+'" y="'+rpos[n]+'" width="'+NBW+'" height="'
+      + nodeH(a.st[n])+'" fill="#E15759" rx="2">'
+      + '<title>'+esc(n)+' : '+a.st[n]+' hit(s)</title></rect>'
+      + '<text x="'+(X1+NBW+6)+'" y="'+(rpos[n]+nodeH(a.st[n])/2+4)+'" '
+      + 'font-size="11" fill="#44586e">'+esc(n)+'</text>';
+  });
+  box.innerHTML = s + "</svg>";
+}
+
+/* ---------- network ---------- */
+function renderNet(){
+  const box=$("p-net");
+  const a=agg(); if(!a.edges.length){box.innerHTML='<p class="hint">无关系数据</p>';return;}
+  const W=900, H=Math.max(300, Math.max(a.lm.length,a.lt.length)*52+60);
+  const lpos={},rpos={};
+  a.lm.forEach(function(n,i){lpos[n]=40+i*52;});
+  a.lt.forEach(function(n,i){rpos[n]=40+i*52;});
+  let s='<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" '
+    + 'style="min-width:760px;width:100%">';
+  const wmax=Math.max.apply(null, a.edges.map(function(e){return e[2];}))||1;
+  a.edges.forEach(function(p){
+    const y0=lpos[p[0]], y1=rpos[p[1]];
+    s += '<path class="ne" data-m="'+esc(p[0])+'" data-t="'+esc(p[1])+'" '
+      + 'd="M200,'+y0+' C330,'+y0+' 570,'+y1+' 700,'+y1+'" '
+      + 'stroke="#2E7D5B" stroke-opacity="0.30" fill="none" stroke-width="'
+      + (0.8+2.6*p[2]/wmax).toFixed(2)+'">'
+      + '<title>'+esc(p[0])+' &harr; '+esc(p[1])+' : '+p[2]+' hit(s)</title></path>';
+  });
+  a.lm.forEach(function(n,i){
+    s += '<g class="nd" data-n="'+esc(n)+'"><circle cx="200" cy="'+(40+i*52)
+      + '" r="9" fill="#2E7D5B"><title>'+esc(n)+' : '+a.sm[n]+' hit(s)</title></circle>'
+      + '<text x="188" y="'+(40+i*52+4)+'" text-anchor="end" font-size="11" '
+      + 'fill="#44586e">'+esc(n)+'</text></g>';
+  });
+  a.lt.forEach(function(n,i){
+    s += '<g class="nd" data-n="'+esc(n)+'"><circle cx="700" cy="'+(40+i*52)
+      + '" r="9" fill="#E15759"><title>'+esc(n)+' : '+a.st[n]+' hit(s)</title></circle>'
+      + '<text x="712" y="'+(40+i*52+4)+'" font-size="11" '
+      + 'fill="#44586e">'+esc(n)+'</text></g>';
+  });
+  s += '</svg>';
+  /* hover 高亮：悬停节点只亮相连边与对侧节点，悬停边加亮 */
+  const svg=box; // 占位，真实逻辑在 innerHTML 之后绑定
+  box.innerHTML=s;
+  const paths=box.querySelectorAll(".ne");
+  const nodes=box.querySelectorAll(".nd");
+  nodes.forEach(function(g){
+    const n=g.getAttribute("data-n");
+    g.addEventListener("mouseenter",function(){
+      paths.forEach(function(p){
+        const hit=(p.getAttribute("data-m")===n||p.getAttribute("data-t")===n);
+        p.style.opacity=hit?"1":"0.12";
+        p.setAttribute("stroke-opacity", hit?"0.55":"0.08");
+      });
+      nodes.forEach(function(g2){
+        const n2=g2.getAttribute("data-n");
+        const linked=a.edges.some(function(p){
+          return (p[0]===n&&p[1]===n2)||(p[0]===n2&&p[1]===n);
+        });
+        g2.style.opacity=(n2===n||linked)?"1":"0.25";
+      });
+    });
+    g.addEventListener("mouseleave",function(){
+      paths.forEach(function(p){
+        p.style.opacity=""; p.setAttribute("stroke-opacity","0.30");
+      });
+      nodes.forEach(function(g2){g2.style.opacity="";});
+    });
+  });
+}
+
+/* ---------- overview ---------- */
+function ovBars(items, color, title){
+  if(!items.length) return "";
+  const max=Math.max.apply(null, items.map(function(d){return d[1];}))||1;
+  const rw=Math.max.apply(null, items.map(function(d){
+    return String(d[0]).length*6.8+10;}),80);
+  const BW=440, BH=Math.max(64, items.length*24+40);
+  let s='<div style="flex:1;min-width:300px">'
+    + '<div style="font-size:12.5px;font-weight:700;margin-bottom:6px">'+esc(title)+'</div>'
+    + '<svg xmlns="http://www.w3.org/2000/svg" width="'+BW+'" height="'+BH+'" '
+    + 'viewBox="0 0 '+BW+' '+BH+'" style="width:100%;height:auto">';
+  items.forEach(function(d,i){
+    const lab=d[0], v=d[1];
+    const y=26+i*24;
+    const bw=Math.max(2,(BW-rw-44)*v/max);
+    s += '<text x="0" y="'+(y+10)+'" font-size="11" fill="#44586e">'+esc(lab)+'</text>'
+      + '<rect x="'+rw+'" y="'+y+'" width="'+bw.toFixed(1)+'" height="14" fill="'
+      + color+'" rx="3"><title>'+esc(lab)+' : '+v+'</title></rect>'
+      + '<text x="'+(rw+bw+6)+'" y="'+(y+10)+'" font-size="10.5" '
+      + 'fill="#68788c">'+v+'</text>';
+  });
+  return s+"</svg></div>";
+}
+function renderOv(){
+  const box=$("p-ov");
+  const cnt={};
+  (DATA.hits||[]).forEach(function(h){cnt[h.level]=(cnt[h.level]||0)+1;});
+  const lvOrder=["VERY HIGH","HIGH+","HIGH","MEDIUM+","MEDIUM","LOW+","LOW","NONE"];
+  const lvData=lvOrder.filter(function(l){return cnt[l];})
+    .map(function(l){return [l,cnt[l]];});
+  const eng={};
+  (DATA.hits||[]).forEach(function(h){
+    const e=Math.round(h.eng||0); eng[e]=(eng[e]||0)+1;});
+  const engData=Object.keys(eng).sort(function(a,b){return a-b;})
+    .map(function(k){return [k+" engines",eng[k]];});
+  const tg={};
+  (DATA.hits||[]).forEach(function(h){
+    const k=h.gene||h.virus; tg[k]=(tg[k]||0)+1;});
+  const tgData=Object.keys(tg).sort(function(a,b){return tg[b]-tg[a];})
+    .slice(0,8).map(function(k){return [k,tg[k]];});
+  const parts=[ovBars(lvData,"#4a94c0","Consensus levels (hits)"),
+    ovBars(engData,"#3E9C5C","Supporting engines (hits)"),
+    ovBars(tgData,"#E15759","Top targets (hits)")].filter(Boolean);
+  box.innerHTML = parts.length
+    ? '<div style="display:flex;gap:26px;flex-wrap:wrap">'+parts.join("")+'</div>'
+    : '<p class="hint">无统计数据</p>';
+}
+
+renderDuplex(); renderSankey(); renderNet(); renderOv();
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tab").forEach(function(el){
+  el.onclick=function(){
+    document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("on");});
+    el.classList.add("on");
+    document.querySelectorAll(".pane").forEach(function(x){x.classList.remove("on");});
+    $("p-"+el.dataset.t).classList.add("on");
+  };
+});
+</script></body></html>"""
+    html = html.replace("__DATA__", payload)
+    out = os.path.join(run_dir, "mirna_interactive.html")
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(html)
+    return [out]
+
+
 # ------------------------------------------------------------------
 # 7. MOT：route × year 迁移矩阵热图
 # ------------------------------------------------------------------
@@ -810,52 +1439,6 @@ def plot_mot(run_dir: str) -> list:
     fig.colorbar(im, ax=ax, shrink=0.8, label="log1p(migration count)")
     ax.set_title("Migration intensity, route x year (MOT)", fontsize=11)
     return _save(fig, run_dir, "mot_route_year_heatmap")
-
-
-# ------------------------------------------------------------------
-# 8. 候选验证 / contig 分类：判定构成
-# ------------------------------------------------------------------
-def plot_classification(run_dir: str) -> list:
-    p = _find(run_dir, "virus_classification.tsv")
-    if not p:
-        return []
-    df = _read_tab(p)
-    if df.empty:
-        return []
-    verdict = _text(df, "verdict", "判定", "status", "result", min_uniq=1,
-                    max_uniq=12)
-    tax = _text(df, "kingdom", "phylum", "family", "科", "taxonomy", "lineage",
-                "organism", "species", min_uniq=2, max_uniq=40)
-    if verdict is None and tax is None:
-        return []
-    npanel = 1 + (1 if tax is not None else 0)
-    fig, axes = plt.subplots(1, npanel, figsize=(4.2 * npanel, 3.6))
-    if npanel == 1:
-        axes = [axes]
-    k = 0
-    if verdict is not None:
-        vc = verdict.fillna("(blank)").value_counts().sort_values(ascending=True)
-        colors = [sp.verdict_color(str(i)) if str(i).lower() in
-                  ("pass", "ok", "verified", "virus", "fail", "reject", "host")
-                  else _BLUE for i in vc.index]
-        axes[k].barh([_wrap(x, 22) for x in vc.index], vc.values,
-                     color=colors, edgecolor="white", linewidth=0.4)
-        for i, v in enumerate(vc.values):
-            axes[k].text(v, i, f" {v}", va="center", fontsize=8)
-        axes[k].set_xlabel("Count")
-        axes[k].set_title("Verdict composition", fontsize=10)
-        k += 1
-    if tax is not None:
-        tc = tax.value_counts().sort_values(ascending=True).tail(12)
-        axes[k].barh([_wrap(x, 26) for x in tc.index], tc.values,
-                     color=_GREY, edgecolor="white", linewidth=0.4)
-        for i, v in enumerate(tc.values):
-            axes[k].text(v, i, f" {v}", va="center", fontsize=8)
-        axes[k].set_xlabel("Count")
-        axes[k].set_title("Taxonomy composition (top N)", fontsize=10)
-    fig.suptitle("Verification / classification overview", fontsize=11)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
-    return _save(fig, run_dir, "classification_overview")
 
 
 # ------------------------------------------------------------------
@@ -972,14 +1555,17 @@ def plot_phylogeo_migration(run_dir: str) -> list:
 _RULES = (
     ("identity_matrix.tsv", plot_identity_heatmap),
     ("events.tsv", plot_rdp_events),
+    ("*breakpoint distribution.csv", plot_rdp_breakpoint_distribution),
     ("align_qc_report.tsv", plot_align_qc),
     ("primers*.tsv", plot_primers),
     ("crrna_candidates.tsv", plot_crispr),
     ("mirna_targets_merged.csv", (plot_mirna, plot_mirna_relations,
-                             plot_mirna_duplex, plot_mirna_table)),
+                             plot_mirna_duplex, plot_mirna_table,
+                             plot_mirna_interactive)),
     ("migration_over_time.csv", plot_mot),
     ("migration_matrix.tsv", plot_phylogeo_migration),
-    ("virus_classification.tsv", plot_classification),
+    # （virus_classification.tsv 的 classification_overview 图已于 2026-11-03
+    #   移除：单样本 1 条 bar 没有信息量，svg 预览卡还把下载区撑乱）
     ("*metadata*.csv", plot_metadata_coverage),
 )
 

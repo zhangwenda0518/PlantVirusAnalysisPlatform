@@ -158,6 +158,11 @@ def plot_contig_svgs(seqid, feats, seq_len, out_prefix, organism=''):
                              'dfv_circle' if circular else 'dfv_linear') + '.svg'
             fig.savefig(svg, bbox_inches='tight')
             verify_svg(svg)
+            # PNG+SVG 双格式：SVG 是矢量交付，PNG 供 Office/缩略图场景
+            try:
+                fig.savefig(svg[:-4] + '.png', dpi=200, bbox_inches='tight')
+            except Exception:
+                pass
             plt.close(fig)
             made.append(svg)
     finally:
@@ -184,6 +189,11 @@ def _gb_record_svgs(record, out_prefix):
                              'dfv_circle' if circular else 'dfv_linear') + '.svg'
             fig.savefig(svg, bbox_inches='tight')
             verify_svg(svg)
+            # PNG+SVG 双格式：SVG 是矢量交付，PNG 供 Office/缩略图场景
+            try:
+                fig.savefig(svg[:-4] + '.png', dpi=200, bbox_inches='tight')
+            except Exception:
+                pass
             plt.close(fig)
             made.append(svg)
     finally:

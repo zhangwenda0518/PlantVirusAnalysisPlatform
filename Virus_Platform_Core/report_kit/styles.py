@@ -216,6 +216,9 @@ figcaption {{ margin-top: 8px; font-size: 12.5px; color: var(--ink-soft);
   text-align: left; }}
 .fig-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }}
 @media (max-width: 900px) {{ .fig-grid {{ grid-template-columns: 1fr; }} }}
+/* 内联 SVG 图（figure() 的 .svg 分支）：自适应宽度、不撑破版心 */
+.fig-svg svg {{ max-width: 100%; height: auto; background: #fff;
+  border: 1px solid var(--line); border-radius: 4px; }}
 
 /* ---------- 代码 ---------- */
 pre {{ margin: 12px 0; padding: 14px 16px; overflow-x: auto;

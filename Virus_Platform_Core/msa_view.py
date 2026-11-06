@@ -34,7 +34,7 @@ def snp_view_data(aln_fasta, max_seqs=MAX_SEQS):
             # 多读到第 max_seqs+1 条才说明真被截断；恰好 max_seqs 条不是截断
             truncated = True
             break
-        names.append(h.split()[0])
+        names.append(h.split()[0] if h.split() else f'seq{len(names) + 1}')
         seqs.append(s.rstrip().upper())
     if len(seqs) < 2:
         raise ValueError('比对至少需要 2 条序列')

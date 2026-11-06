@@ -26,13 +26,18 @@ def esc(s):
     return html.escape(str(s), quote=True)
 
 
-def link_evidence(rel, label=None):
-    """证据文件 → 相对链接（报告与产物同级时可直接点开）。"""
+def link_evidence(rel, label=None, depth=1):
+    """证据文件 → 相对链接。
+
+    depth=报告所在目录相对运行根的层级：样品报告在 <root>/07_report/ 下
+    （depth=1），工具运行报告在运行根下（depth=0）。此前无条件加 '../'，
+    工具运行报告的证据链接会指到父目录。
+    """
     rel = str(rel or '')
     lbl = label or rel
     if not rel:
         return ''
-    href = rel if rel.startswith(('#', 'http')) else '../' + rel.lstrip('./')
+    href = rel if rel.startswith(('#', 'http')) else '../' * depth + rel.lstrip('./')
     return f'<a href="{esc(href)}" title="{esc(rel)}">{esc(lbl)}</a>'
 
 
@@ -61,6 +66,11 @@ def table(headers, rows, caption='', num_cols=(), mono_cols=(), hl_rows=()):
         out.append(f'<th{cls}>{esc(h)}</th>')
     out.append('</tr></thead><tbody>')
     for ri, row in enumerate(rows):
+        if isinstance(row, str):
+            # 防御：调用方误传了拼好的 <tr> 字符串（此前 6 处调用点如此，
+            # 导致每个字符被拆成一个单元格）。这里按单列渲染兜底，
+            # 并在文档里重申约定（真实修复在 sections.py 调用侧）。
+            row = [row]
         cls = ' class="hl"' if ri in hl_rows else ''
         out.append(f'<tr{cls}>')
         for ci, cell in enumerate(row):
@@ -111,6 +121,13 @@ def img_data_uri(path):
 
 
 def figure(path, caption='', width=None, root=''):
+    """图 → <figure>。位图走 base64 内嵌；SVG 直接内联（平台自产、离线可看）。
+
+    SVG 若非良构（缺 </svg> 等）则跳过不渲染，绝不内嵌残缺矢量。
+    """
+    ext = os.path.splitext(path)[1].lower()
+    if ext == '.svg':
+        return _svg_figure(path, caption, root)
     uri = img_data_uri(path)
     if not uri:
         return ''
@@ -119,6 +136,27 @@ def figure(path, caption='', width=None, root=''):
     cap = (f'<figcaption>{caption}<span class="muted">　'
            f'{esc(rel)}</span></figcaption>') if caption else ''
     return f'<figure><img src="{uri}" alt="{esc(os.path.basename(path))}"{style}>{cap}</figure>'
+
+
+_SVG_INLINE_MAX = 4 * 1024 * 1024      # 单个 SVG >4MB 不内联（HTML 体积闸）
+
+
+def _svg_figure(path, caption='', root=''):
+    try:
+        if os.path.getsize(path) > _SVG_INLINE_MAX:
+            return ''
+        with open(path, encoding='utf-8', errors='replace') as fh:
+            txt = fh.read()
+    except OSError:
+        return ''
+    i = txt.find('<svg')
+    if i < 0 or '</svg>' not in txt[i:]:
+        return ''
+    svg = txt[i:]
+    rel = os.path.relpath(path, root).replace('\\', '/') if root else path
+    cap = (f'<figcaption>{caption}<span class="muted">　'
+           f'{esc(rel)}</span></figcaption>') if caption else ''
+    return (f'<figure><div class="fig-svg">{svg}</div>{cap}</figure>')
 
 
 # ------------------------------------------------------------------

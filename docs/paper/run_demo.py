@@ -77,8 +77,8 @@ log()
 bin_mb = os.path.join(ROOT, '3rd', 'bin', 'minibwa.exe')
 bin_st = os.path.join(ROOT, '3rd', 'tools', 'samtools', 'bin', 'samtools.exe')
 ref = os.path.join(ROOT, 'databases', 'virusref_db', 'kv_index', 'reference.fasta')
-r1 = os.path.join(ROOT, 'examples', 'example_R1.fastq.gz')
-r2 = os.path.join(ROOT, 'examples', 'example_R2.fastq.gz')
+r1 = os.path.join(ROOT, 'examples', 'example_sim100x_R1.fastq.gz')
+r2 = os.path.join(ROOT, 'examples', 'example_sim100x_R2.fastq.gz')
 
 nr = 0
 with open(r2.replace('R2', 'R1'), 'rb') as f:  # count via gzip

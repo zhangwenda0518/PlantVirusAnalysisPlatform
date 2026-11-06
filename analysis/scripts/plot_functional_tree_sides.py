@@ -40,7 +40,7 @@ SPEC = {
  ('数据资源与获取', '数据资源', [
    '公共数据检索（SRA + GSA）', '公共数据批量下载（aria2c + sracha）',
    '基因组/宿主基因组下载', 'Open-Virome 公共病毒组',
-   '病毒样本预筛', '本地数据库构建']),
+   'LOGAN 溯源（2340 万 SRA）', '病毒样本预筛', '本地数据库构建']),
  ('病毒检测与鉴定', '样本处理', [
    '样品创建与批量导入', '一键前处理', '测序质控（fastp）',
    '格式转换（fq2fa）', '宿主去除（kunpeng）']),
@@ -49,11 +49,12 @@ SPEC = {
    '共识序列', '变异分析']),
  ('病毒检测与鉴定', '识别与组装', [
    '一键分析（②→④）', '宏病毒组组装（SPAdes）',
-   '候选序列验证（BLASTx / BFVD）', '组装结果再鉴定',
+   '候选序列验证（BLASTx / BFVD）', '病毒鉴定',
    '宿主预测（ICTV 级联）']),
  ('注释与比较基因组', '基因组注释', [
    'ORF 预测（pyrodigal）', '功能注释（DIAMOND / Pfam / BFVD）',
-   '同源比对（BLASTN / BLASTX）', '基因组图谱（gbdraw / DFV）']),
+   '同源比对（BLASTN / BLASTX）', '基因组图谱（gbdraw / DFV）',
+   'NCBI 提交准备（GenBank / BioSample）']),
  ('注释与比较基因组', '比较基因组', [
    '参考获取与 CDS/PEP 提取', '多序列比对（MAFFT + trimAl）',
    '进化树构建（RAxML-NG / IQ-TREE）', 'SDT 同一性分析']),
@@ -65,32 +66,28 @@ SPEC = {
  ('检测与防治设计', '检测与防治试剂设计', [
    '引物设计（primer3）', 'CRISPR 检测试剂设计',
    'dsRNA 设计全链路', 'miRNA 靶标预测（5 引擎）']),
- ('溯源与提交', '溯源与提交', [
-   'LOGAN 溯源（2340 万 SRA）', 'NCBI 提交准备',
-   'AI 助手（结果解读 · 检索执行）']),
 ],
 'SIMPLE': [
  ('数据资源与获取', '', [
    '公共数据检索（SRA + GSA）', '参考与宿主基因组下载',
-   '病毒样本预筛', '数据库构建']),
+   'LOGAN 溯源', '病毒样本预筛', '数据库构建']),
  ('病毒检测与鉴定', '', [
    '宿主去除', '已知病毒识别与定量', '宏基因组组装', '宿主预测']),
  ('注释与比较基因组', '', [
    'ORF 预测与功能注释', '基因组图谱',
-   '进化树构建', 'SDT 同一性分析']),
+   '进化树构建', 'SDT 同一性分析', 'NCBI 提交准备']),
  ('进化与动力学分析', '', [
    '分子钟定年', '系统地理分析', '重组分析（RDP5）', '天际线与 BSP']),
  ('检测与防治设计', '', [
    '引物设计', 'CRISPR 检测试剂设计', 'dsRNA 设计', 'miRNA 靶标预测']),
- ('溯源与提交', '', [
-   'LOGAN 溯源', 'NCBI 提交准备', 'AI 助手']),
 ]},
 'EN': {
 'FULL': [
  ('Data acquisition', 'Data resources', [
    'Public data search (SRA + GSA)', 'Bulk download (aria2c + sracha)',
    'Genome / host genome download', 'Open-Virome public viromes',
-   'Sample virome prescreening', 'Local database construction']),
+   'LOGAN tracing (23.4M SRA runs)', 'Sample virome prescreening',
+   'Local database construction']),
  ('Virus Detection & Identification', 'Sample processing', [
    'Sample creation & batch import', 'One-click preprocessing',
    'Read QC (fastp)', 'Format conversion (fq2fa)',
@@ -104,7 +101,8 @@ SPEC = {
    'Host prediction (ICTV cascade)']),
  ('Annotation & genomics', 'Genome annotation', [
    'ORF prediction (pyrodigal)', 'Functional annotation (DIAMOND / Pfam)',
-   'Homology search (BLASTN / BLASTX)', 'Genome maps (gbdraw / DFV)']),
+   'Homology search (BLASTN / BLASTX)', 'Genome maps (gbdraw / DFV)',
+   'NCBI submission (GenBank / BioSample)']),
  ('Annotation & genomics', 'Comparative genomics', [
    'Reference acquisition & CDS/PEP', 'Multiple alignment (MAFFT)',
    'Tree inference (RAxML-NG / IQ-TREE)', 'SDT pairwise identity']),
@@ -117,28 +115,23 @@ SPEC = {
  ('Assay design', 'Assay & control design', [
    'Primer design (primer3)', 'CRISPR detection assay',
    'dsRNA design pipeline', 'miRNA target prediction']),
- ('Tracing & submission', 'Tracing & submission', [
-   'LOGAN tracing (23.4M SRA runs)', 'NCBI submission',
-   'AI assistant (interpret / retrieval)']),
 ],
 'SIMPLE': [
  ('Data acquisition', '', [
    'Public data search (SRA + GSA)', 'Reference & host genome dl',
-   'Sample virome prescreening', 'Database construction']),
+   'LOGAN tracing', 'Sample virome prescreening', 'Database construction']),
  ('Virus Detection & ID', '', [
    'Host read removal', 'Known virus ID & quant',
    'Metaviral assembly', 'Host prediction']),
  ('Annotation & genomics', '', [
    'ORF prediction & annot', 'Genome maps',
-   'Tree inference', 'SDT identity analysis']),
+   'Tree inference', 'SDT identity analysis', 'NCBI submission']),
  ('Evolution & Phylodyn', '', [
    'Molecular clock dating', 'Phylogeography',
    'Recombination (RDP5)', 'Skyline & BSP']),
  ('Assay design', '', [
    'Primer design', 'CRISPR assay design',
    'dsRNA design', 'miRNA target prediction']),
- ('Tracing & submission', '', [
-   'LOGAN tracing', 'NCBI submission', 'AI assistant']),
 ]}}
 
 TREE = SPEC[lang][DENS]
