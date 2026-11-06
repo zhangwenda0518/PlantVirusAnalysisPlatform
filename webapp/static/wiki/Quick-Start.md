@@ -1,6 +1,6 @@
 # Quick-Start · 快速开始
 
-> 返回 [Home](Home) ｜ 上一页：无 ｜ 下一页：[Architecture](Architecture)
+> 返回 [Home](Home) ｜ 上一页：[Home](Home) ｜ 下一页：[Pipeline-Overview](Pipeline-Overview)
 
 本文覆盖：环境要求、依赖安装、两种启动模式、首次数据库配置、跑通第一个样品。
 
@@ -79,6 +79,19 @@ python main.py report --sample DEMO                                             
 ```
 
 阶段可自由组合：`subsample,fastp,fq2fa,host,kvsuite,assembly,hostana,orf,orfa,phylo,primer,gbdraw,report`；每阶段有 `.done` 断点标记，中断后重跑自动跳过已完成阶段（`--force` 强制重跑）。
+
+## 60 秒演示：工具卡「示例 → 运行 → 结果」
+
+每张工具卡标题旁都有 **✨ 示例**（一键填入内置示例数据），点 **▶ 运行** 即可在
+零自备数据的情况下跑通一次完整闭环。下图是 ⓪ 格式转换卡的实录（轻量工具
+秒级完成，其余工具同理）：
+
+![操作演示：工具卡 ✨ 示例 → ▶ 运行 → 📤 结果](assets/gif/tool-run-demo.gif)
+
+*图注：① 打开工具卡（空表单）→ ② 点标题旁「✨ 示例」自动填入内置示例数据（弹
+出「已填入示例数据」提示）→ ③ 点「▶ 运行转换」提交任务（按钮变「运行中」、输出
+区出现实时运行日志）→ ④ 数秒后「已完成」+ 产物 chips + 下载按钮 + 模块结果页。
+任何工具卡都是这套动作：✨ 填示例 → ▶ 运行 → 看结果。*
 
 ## 下一步
 

@@ -1,6 +1,6 @@
 # Pipeline-Overview · 分析流程总览
 
-> 返回 [Home](Home) ｜ 上一页：[Architecture](Architecture) ｜ 下一页：[Preprocess](Preprocess)
+> 返回 [Home](Home) ｜ 上一页：[Quick-Start](Quick-Start) ｜ 下一页：[Architecture](Architecture)
 
 流程编排器 `Virus_Platform_Core/pipeline.py`：按阶段依赖链调度、断点续跑、加权总进度、预计剩余时间与逐阶段资源预估。GUI 与 CLI 共用。
 
@@ -15,7 +15,7 @@
 | | ① 宿主去除 | kunpeng 宿主库分类 → 剔除宿主 read 对 | 需先建宿主库 |
 | 🦠 病毒鉴定 | ②b 识别与定量 | kvsuite：识别 + 二次过滤定量 + 比对深度 + 病毒 reads 提取 | — |
 | 🧬 病毒组装 | ③ 组装·分类·病毒contigs | SPAdes（rnaviral 默认/metaviral/meta/rna/isolate）+ kunpeng+BLAST 分类 | — |
-| | ③b 候选序列验证 | 宿主筛选 → 长度分流 → blastx/BFVD + 类病毒 blastn | — |
+| | ③b 候选序列验证 | 宿主筛选 → 长度分流 → blastx/BFVD/CDD + 类病毒 blastn | — |
 | | ③c 共识序列与变异 | reads 回贴参考 → 逐参考位置计数 → 共识 | — |
 | 🧲 宿主预测 | ④ ICTV 宿主判定 | kunpeng 分类 → ICTV 宿主概率级联 + NCBI 元数据交叉 | — |
 | 🔬 下游分析 | ⑥ ORF 预测 | pyrodigal（meta）+ pyrodigal-rv（RNA 病毒）+ orfipy（显式指定） | — |
@@ -55,6 +55,21 @@
 ## crabz 加速（可选）
 
 平台根目录有 `crabz.exe`（已内置）时，所有 .gz 读写自动走 crabz 多线程管道（kept/viral reads、子样本、fq2fa 产物等），实测写出较 Python gzip 级别 9 **快约 10 倍**（195MB 模拟 FASTQ：21.5s → 2.1s），压缩率相当；无 crabz 自动回退，无功能差异。
+
+## 示例输入与输出
+
+**示例输入**：双端 FASTQ + 样品表（`name` / `r1` / `r2` 三列，批量导入用）：
+
+```tsv
+name	r1	r2
+GQMIX	examples/example_sim100x_R1.fastq.gz	examples/example_sim100x_R2.fastq.gz
+```
+
+**示例输出**：阶段漏斗图（全流程记录数一眼看穿）+ 各阶段目录（`01_host_removal/` … `09_genome_plots/`）。
+
+![示例输出：全流程记录数漏斗](assets/stage-funnel.png)
+
+*图注：每层条带宽度按 log10 记录数缩放，块内数字为该层记录数；从 Raw reads 到 ORF genes 逐层收窄，哪一层骤降就回对应阶段看日志与产物。*
 
 ## 相关页面
 

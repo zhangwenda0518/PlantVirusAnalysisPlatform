@@ -1,6 +1,6 @@
 # AI-Assistant · AI 助手（对话驱动智能代理）
 
-> 返回 [Home](Home) ｜ 上一页：[FAQ](FAQ) ｜ 下一页：无
+> 返回 [Home](Home) ｜ 上一页：[Svguest](Svguest) ｜ 下一页：[CLI-Reference](CLI-Reference)
 
 对应引擎：`Virus_Platform_Core/ai_agent/`（`provider` / `digest` / `tools` / `chat` / `broadcast` / `executors` / `audit`，共 7 模块）。
 Web 层：`Virus_Platform_Core/web/ai_assist.py`（9 条路由）；前端：`webapp/static/app-ai.js`（随 `_nav.html` 注入每个页面）；设置入口：设置中心「AI 助手」卡片（`/settings#aiCard`）。

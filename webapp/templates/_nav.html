@@ -39,6 +39,9 @@
    放在 _nav.html 而不是每个模板的 <head>：本文件被所有页面 include，
    改一处全站生效；theme 那套是每页第 8 行各写一遍，25 个模板重复维护。 #}
 <script>try{var _np=localStorage.getItem('vp_nav_pos');document.documentElement.setAttribute('data-nav',_np==='side'?'side':'top')}catch(e){document.documentElement.setAttribute('data-nav','top')}</script>
+{# 保活外壳（app-shell.js）把模块装进同源 iframe 时带 __frame=1：尽早打上 vp-frame，
+   让侧栏/底部浮层在第一帧就不出现，避免切模块时闪一下双层导航。 #}
+{% if request.args.get('__frame') %}<script>document.documentElement.classList.add('vp-frame');</script>{% endif %}
 
 <aside class="sidenav" id="sideNav" aria-label="{{ 'Main navigation' if lang != 'zh' else '主导航' }}">
   <div class="sn-head">
@@ -117,26 +120,82 @@
   <button class="sn-toggle" id="snToggle" type="button"
           aria-label="{{ 'Expand or collapse navigation' if lang != 'zh' else '展开或收起导航' }}" aria-expanded="false">☰</button>
   <span class="tb-title" id="tbTitle"></span>
-  {# 环境状态条（2026-10-30 用户要求）：模块/工具/数据库/磁盘搬进顶栏；
-     数据仍由总览页的 /api/selfcheck 填充，其它页面保持隐藏。 #}
+  {# 环境状态条（2026-10-30 用户要求）：模块/工具/数据库/磁盘搬进顶栏。
+     2026-11-03 改版：按当前页面所属模块出「本模块环境」四件套（模块/外部
+     工具/依赖库/磁盘），点击弹出详情（env-pop），不再跳设置页；渲染归
+     app.js 的 envStrip 控制器，总览页同一份数据与口径。 #}
   <div id="envStrip" class="env-strip env-strip-top" hidden>
-    <span id="envStripBody"></span>
-    <a href="/settings#sec-selfcheck" data-i18n="hm.env.selfcheck">环境自检</a>
+    <button id="envStripBtn" type="button" class="env-strip-btn"
+            onclick="envPopToggle()" data-i18n-title="hm.env.tip"
+            title="{{ 'Environment of this module — click for details' if lang != 'zh' else '本模块环境：点击查看详情' }}">
+      <span id="envStripBody"></span>
+      {# CPU / 内存实时徽章（2026-11-06 用户要求）：数据来自 /api/sys_metrics，
+         每 3 秒轮询（页面隐藏时暂停）。与 envStripBody 分开渲染、互不覆盖：
+         环境位走 5 分钟缓存，资源位必须实时。 #}
+      <span id="sysStripBody" class="sys-strip-body"></span>
+    </button>
   </div>
+  <div id="envPop" class="env-pop" hidden></div>
+  {# 更新徽标（2026-11-05 自动更新）：app-update.js 有新版且未跳过时显示，
+     点击跳设置页「软件更新」卡片。 #}
+  <button id="updBadge" class="btn" hidden
+          onclick="location.href='/settings#sec-update'"
+          data-i18n-title="nav.updBadgeTitle"
+          style="margin-left:8px; padding:2px 10px; font-size:12px"></button>
+  {# 自动更新脚本（2026-11-05）：全站引入——顶栏徽标每页可见；设置页另有
+     软件更新卡片。非设置页只做一次静默检查（后端缓存 10 分钟）。 #}
+  <script src="/static/app-update.js?v={{ asset_v }}" defer></script>
   <span class="navctx-host" id="navCtxHost"></span>
   <span class="navtail">
+    {# AI 工作台入口（2026-11-02）：悬浮球改成独立「问答平台」后，工作台
+       改由这里打开（首页除外——首页的工作台就在页面里，见 home.html）。
+       未读小红点复用 #aiFabBadge：app-ai.js 只按 id 取，位置由 CSS 决定。 #}
+    <button class="iconbtn nav-ai-btn" id="aiDockBtn" type="button"
+            onclick="AI.toggle()"
+            data-i18n-title="ai.dock.title"
+            title="{{ 'AI workbench' if lang != 'zh' else 'AI 工作台' }}">🧠<span
+            id="aiFabBadge" class="ai-fab-badge" hidden></span></button>
     <a href="#" class="iconbtn" title="{{ 'Open the platform folder' if lang != 'zh' else '打开平台目录' }}"
        onclick="event.preventDefault();fetch('/api/open_platform_dir')">📂</a>
   </span>
 </header>
 
-<!-- AI 助手 · 对话驱动坞（全局：随导航注入每个页面）
+<!-- 悬浮机器人 = 独立「问答平台」（2026-11-02 用户定案）：
+     只答平台用法与概念；不读取当前数据、不驱动任何任务，与下方 AI 工作台
+     彻底分开（独立面板、独立历史、独立端点参数 mode='qa'）。
+     服务端三道锁见 Virus_Platform_Core/ai_agent/chat.py 的 _QA_RULES_ZH：
+     不注入上下文 / 不发 tools / 不产出结果卡。
+     拖动与贴边由 app.js 的 vpDraggable(fab,'fab',{snap:true}) 负责。
+     点击走 QA.onBallClick()：它把「单击开面板」延后 220ms，好让双击（vpDraggable
+     的复位）能正常发生——面板一开就会盖住球，第二次点击就落不到球上了。 -->
+<button id="aiFab" class="ai-fab" onclick="QA.onBallClick()"
+        data-i18n-title="qa.open"
+        title="{{ 'Q&A assistant — platform usage & concepts' if lang != 'zh' else '问答助手（只答平台用法与概念）' }}"><img class="ai-logo-img" alt="" draggable="false" src="/static/ai-logo.png?v={{ asset_v }}"></button>
+<div id="qaDock" class="qa-dock" hidden>
+  <div class="qa-head">
+    <span class="qa-title">💬 <span data-i18n="qa.title">{{ 'Q&A' if lang != 'zh' else '问答' }}</span></span>
+    <span class="qa-head-ops">
+      <button class="qa-ico" type="button" onclick="QA.clear()"
+              data-i18n-title="qa.clear"
+              title="{{ 'Clear this conversation' if lang != 'zh' else '清空当前问答' }}">⟲</button>
+      <button class="qa-ico" type="button" onclick="QA.toggle(false)"
+              data-i18n-title="qa.close"
+              title="{{ 'Collapse' if lang != 'zh' else '收起' }}">✕</button>
+    </span>
+  </div>
+  <div class="qa-hint" data-i18n="qa.hint">{{ 'Answers questions about how the platform works. It does not read your data or start any task.' if lang != 'zh' else '只回答平台用法与概念问题；不读取你的数据，也不启动任何任务。' }}</div>
+  <div id="qaMsgs" class="qa-msgs"></div>
+  <div class="qa-inputrow">
+    <textarea id="qaInput" rows="1" data-i18n-ph="qa.inputPh"
+              placeholder="{{ 'Ask how to use the platform… (Enter to send, Shift+Enter for a new line)' if lang != 'zh' else '问平台怎么用…（Enter 发送，Shift+Enter 换行）' }}"></textarea>
+    <button id="qaSendBtn" class="qa-send" type="button" onclick="QA.sendOrStop()">➤</button>
+  </div>
+</div>
+
+<!-- AI 工作台 · 对话驱动坞（全局：随导航注入每个页面）
      定位：顾问层——解读分析结果 / 指导下一步 / 主动播报 / 决策闸门确认，
      不代替任何分析动作。事件流：/api/ai/events（SSE 常驻）；
      提问：/api/ai/chat（POST + fetch 流）。闸门待决时自动弹出本坞。 -->
-<button id="aiFab" class="ai-fab" onclick="AI.toggle()"
-        data-i18n-title="ai.dock.open" title="{{ 'AI assistant' if lang != 'zh' else 'AI 助手' }}"><img class="ai-logo-img" alt="" src="/static/ai-logo.png?v={{ asset_v }}"><span
-        id="aiFabBadge" class="ai-fab-badge" hidden></span></button>
 <div id="aiDock" class="ai-dock" hidden>
   <div class="ai-dock-head">
     <span class="ai-dock-title"><img class="ai-logo-img" alt="" src="/static/ai-logo.png?v={{ asset_v }}"> <span data-i18n="ai.dock.title">AI 工作台</span>
@@ -155,16 +214,11 @@
     <nav id="aiTurnNav" class="ai-turn-nav" aria-label="历史提问导航" hidden></nav>
     <div id="aiTurnTip" class="ai-turn-tip" role="tooltip" hidden></div>
   </div>
-  <div class="ai-chips">
-    <button class="ai-chip" onclick="AI.chip('interpret')"
-            data-i18n="ai.dock.chipInterpret">解读这个样品</button>
-    <button class="ai-chip" onclick="AI.chip('tasks')"
-            data-i18n="ai.dock.chipTasks">任务状态</button>
-    <button class="ai-chip" onclick="AI.chip('next')"
-            data-i18n="ai.dock.chipNext">下一步建议</button>
-    <button class="ai-chip" onclick="AI.chip('params')"
-            data-i18n="ai.dock.chipParams">参数建议</button>
-  </div>
+  <!-- 快捷提示（2026-11-02 扩充）：按钮由 app-ai.js 的 AI.renderChips() 按当前
+       处境动态生成（有没有选样品 / 有没有在跑的任务 / 有没有失败的），默认露
+       6 条、其余收在「更多」里；增删提示词改 AI._chipDefs() + i18n 的
+       ai.dock.chip* / ai.dock.q* 两组键，不要在这里写死按钮。 -->
+  <div class="ai-chips" id="aiChips"></div>
   <!-- 附件区（2026-10-30）：输入框上方的文件芯片 + 「＋」选文件。
        选文件复用全站文件对话框（browse），结果由 app-browse.js 以
        vp:filepicked 事件回传，app-ai.js 收进 AI.attachments。 -->
@@ -188,10 +242,30 @@
       <span class="ai-ws-name" id="aiWorkspaceName" hidden></span>
       <button type="button" class="ai-ws-clear" id="aiWorkspaceClear" hidden
               onclick="AI.clearWorkspace()" title="取消工作空间">✕</button>
+      <!-- 输出目录（2026-11-02）：用户要「任务产物默认落在所选工作空间」。
+           平台本来就有全局「输出目录」设置，这里给它一个贴着工作空间的入口。 -->
+      <button type="button" class="ai-ws-btn ai-ws-out" id="aiWsOutBtn" hidden
+              onclick="AI.applyOutputToWorkspace()"
+              data-i18n-title="ai.ws.outTitle"
+              title="把输出目录设为该工作空间：新任务的产物写到 工作空间\results\样品">📥 <span
+              data-i18n="ai.ws.outBtn">输出到此</span></button>
+      <button type="button" class="ai-ws-clear" id="aiWsOutClear" hidden
+              onclick="AI.clearOutputWorkspace()" data-i18n-title="ai.ws.outClearTitle"
+              title="恢复平台默认输出目录">↩</button>
+      <span class="ai-ws-state" id="aiWsOutState" hidden></span>
     </div>
     <span class="ai-dock-foot-ops">
       <select id="aiModelSel" class="ai-model-sel" onchange="AI.onModelChange(this.value)"
               data-i18n-title="ai.dock.model" title="模型"></select>
+      <!-- 2026-11-03 用户定案「任务分解可选」：三态开关。off = 后端从工具契约
+           物理移除 plan 动作（强制单步）；always = 多阶段链路优先拆计划；
+           auto = 模型按请求复杂度自判。存 localStorage，随每轮对话上送。 -->
+      <button class="ai-ico" id="aiPlanBtn" type="button" onclick="AI.cyclePlanMode()"
+              data-i18n-title="ai.dock.planTip"
+              title="任务分解：auto=模型自判 / off=只单步 / always=优先拆计划">🧩</button>
+      <!-- 2026-11-06：导出会话 / 重试上一问挪进消息流 —— 导出挂在每条 AI
+           回复的操作条（_addCopyBar），重试挂在每条用户提问下方（_addRetryRow），
+           工具条不再保留入口。 -->
       <!-- 2026-11-02（P1-1）：历史会话入口。localStorage 里一直留着最近 12 段
            会话，但以前界面上没有入口，切个模块就以为「对话没了」。 -->
       <button class="ai-ico" id="aiConvBtn" type="button" onclick="AI.toggleConvMenu()"
@@ -205,6 +279,8 @@
 </div>
 <script src="/static/app-md.js?v={{ asset_v }}"></script>
 <script src="/static/app-nav.js?v={{ asset_v }}"></script>
+<script src="/static/app-guide.js?v={{ asset_v }}"></script>
 <script src="/static/app-ai.js?v={{ asset_v }}"></script>
+<script src="/static/app-qa.js?v={{ asset_v }}"></script>
 
 

@@ -2,7 +2,7 @@
 <html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
 <meta charset="utf-8">
-<title>{{ 'Host removal & sequence extraction - Plant Virus Analysis Platform' if lang == 'en' else '宿主去除与序列提取 - 植物病毒分析平台' }}</title>
+<title>{{ 'Non-host extraction (host removal) - Plant Virus Analysis Platform' if lang == 'en' else '非宿主序列提取（宿主去除） - 植物病毒分析平台' }}</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="vp-lang" content="{{ lang }}">
 <script>try{if(localStorage.getItem("vp_theme")==="dark")document.documentElement.setAttribute("data-theme","dark")}catch(e){}</script>
@@ -17,8 +17,8 @@
     <main class="group-main">
   <div class="layout">
     <div class="col">
-      <div class="card">
-        <h1 data-i18n="hr.title">🧹 宿主去除与序列提取</h1>
+      <div class="card" data-guide="Host-Removal">
+        <h1 data-i18n="hr.title">🧹 非宿主序列提取（宿主去除）</h1>
         <p class="hint" data-i18n="hr.hint">独立模块：kunpeng 宿主库分类 reads → 剔除宿主 read 对 →
         提取保留非宿主序列（kept FASTQ）。不需要创建样品，选文件直接运行；
         前置条件：宿主库已构建（首页 →「数据资源 → 数据库构建」）。</p>
@@ -30,19 +30,35 @@
           <option value="single" data-i18n="hr.typeSingle">单端 FASTQ</option>
         </select>
 
-        <label data-i18n="hr.r1Label">R1 FASTQ（必选，支持 .gz）</label>
-        <div class="filerow">
-          <input id="hr_r1" type="text" data-i18n-ph="hr.r1Ph" placeholder="选择平台目录内的 .fastq[.gz]">
-          <button class="btn small" onclick="browse('hr_r1')">📁</button>
-          <button class="btn small" onclick="pasteSeq('hr_r1', '.fastq')" title="粘贴 FASTQ" data-i18n-title="hr.pasteFastq">📋</button>
+        <div class="seg" role="radiogroup" style="margin:2px 0 10px">
+          <label class="seg-item"><input type="radio" name="hr_mode" value="file" checked onchange="scanSync('hrm')"><span data-i18n="tk.pcModeFile">单样本</span></label>
+          <label class="seg-item"><input type="radio" name="hr_mode" value="dir" onchange="scanSync('hrm')"><span data-i18n="tk.pcModeDir">目录批量</span></label>
         </div>
-        <div id="row_hr_r2">
-          <label data-i18n="hr.r2Label">R2 FASTQ（双端时必选）</label>
+        <div id="hrFilePane">
+          <label data-i18n="hr.r1Label">R1 FASTQ（必选，支持 .gz）</label>
           <div class="filerow">
-            <input id="hr_r2" type="text" data-i18n-ph="hr.r2Ph" placeholder="选择 R2 .fastq[.gz]">
-            <button class="btn small" onclick="browse('hr_r2')">📁</button>
-          <button class="btn small" onclick="pasteSeq('hr_r2', '.fastq')" title="粘贴 FASTQ" data-i18n-title="hr.pasteFastq">📋</button>
+            <input id="hr_r1" type="text" data-i18n-ph="hr.r1Ph" placeholder="选择平台目录内的 .fastq[.gz]">
+            <button class="btn small" onclick="browse('hr_r1')">📁</button>
+            <button class="btn small" onclick="pasteSeq('hr_r1', '.fastq')" title="粘贴 FASTQ" data-i18n-title="hr.pasteFastq">📋</button>
           </div>
+          <div id="row_hr_r2">
+            <label data-i18n="hr.r2Label">R2 FASTQ（双端时必选）</label>
+            <div class="filerow">
+              <input id="hr_r2" type="text" data-i18n-ph="hr.r2Ph" placeholder="选择 R2 .fastq[.gz]">
+              <button class="btn small" onclick="browse('hr_r2')">📁</button>
+              <button class="btn small" onclick="pasteSeq('hr_r2', '.fastq')" title="粘贴 FASTQ" data-i18n-title="hr.pasteFastq">📋</button>
+            </div>
+          </div>
+        </div>
+        <div id="hrDirPane" style="display:none">
+          <label data-i18n="hr.dirLbl">⏩ 目录批量去宿主（解析目录内 FASTQ，按 _R1/_R1_001/_1 配对单双端，逐样本提交）</label>
+          <div class="filerow">
+            <input id="hr_input_dir" type="text" placeholder="选择含样本文件的目录" data-i18n-ph="tk.pcDirPh" oninput="scanReset('hrm')">
+            <button class="btn small" onclick="browseDir('hr_input_dir')" title="选择目录">📂</button>
+            <button class="btn small" onclick="scanDir('hrm')" data-i18n="tk.pcScanBtn">🔍 解析样本</button>
+          </div>
+          <div id="hrScanBox" class="hint" style="margin:6px 0 2px"></div>
+          <div id="hrScanTable"></div>
         </div>
 
         <div style="display:flex;gap:16px;flex-wrap:wrap">
@@ -70,17 +86,7 @@
         </div>
 
         <div style="margin-top:12px">
-          <label style="margin-top:12px" data-i18n="tk.batchSamplesLbl">⏩ 按样品批量（📋 多选，可按项目全选；自动取各样品登记的 R1/R2，单双端自动识别）</label>
-          <div class="filerow">
-            <input id="hr_samples" type="text" placeholder="点右侧 📋 选样品（可多选）" data-i18n-ph="tk.batchSamplesPh">
-            <button class="btn small" onclick="kvPickSamples('hr_samples')" data-i18n-title="tk.pickSamplesTitle">📋</button>
-          </div>
-          <div style="margin-top:6px">
-            <button class="btn" onclick="batchRunForSamples(this,'hostremoval','hr_samples',(nm,d)=>{const p=_peParams(nm,d);return {r1:p.r1,r2:p.r2||'',confidence:hrConf(),db:val('hr_db')};})" data-i18n="hr.batchBtn">⏩ 批量去宿主（逐样品提交）</button>
-          </div>
-          <div style="margin-top:12px">
           <button class="btn primary" onclick="runHostRemoval(this)" data-i18n="hr.runBtn">▶ 运行宿主去除</button>
-          </div>
         </div>
 
         <div class="tool-out">
@@ -127,6 +133,19 @@ function hrConf() {
 }
 
 async function runHostRemoval(btn) {
+  // 目录批量（2026-11-03）：勾选样本逐个提交单样本任务（库/置信度/线程
+  // 两态共用）。单端样本 input_type 按 r2 有无自动判，与单样本口径一致。
+  if (scanMode('hrm') === 'dir') {
+    if (!val('hr_input_dir')) { alert(t('ui.tk.needDir')); return; }
+    return batchRunScan(btn, 'hrm', 'hostremoval', s => {
+      if (s.kind !== 'fastq') {
+        throw new Error(t('tk.batchScanSkipFasta',
+          'FASTA 样本本工具不适用（跳过）'));
+      }
+      return { r1: s.r1, r2: s.r2 || '', confidence: hrConf(),
+               db: val('hr_db') };
+    }, { threads: +val('hr_threads') || null, out_dir: val('hr_outdir') });
+  }
   const pe = $('hr_type').value === 'pe';
   if (!val('hr_r1')) { alert(t('hr.needR1','请选择 R1 FASTQ')); return; }
   if (pe && !val('hr_r2')) { alert(t('hr.needR2','双端输入需同时选择 R2 FASTQ')); return; }

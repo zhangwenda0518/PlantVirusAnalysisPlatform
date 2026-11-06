@@ -19,7 +19,7 @@
   <div class="layout">
     <div class="col">
 
-      <div class="card">
+      <div class="card" data-guide="Ref-Data">
         <h2 id="m-hostdl" data-i18n="rd.hostTitle">🧬 宿主基因组下载（→ 构建宿主库）</h2>
         <p class="hint" data-i18n="rd.hostHint">宿主去除（工具①）和宿主预测（工具④）都要宿主库。三源可选：
         <b>gget·Ensembl</b>（覆盖水稻、番茄、小麦等 NCBI 之外的植物宿主）、<b>NCBI taxon</b>（按物种）、
@@ -52,9 +52,10 @@
                 style="margin-top:6px">🔍 查询 NCBI 组装</button>
         <div id="hostQryResult" class="hint" style="margin-top:6px"></div>
         <div id="hostDlResult" class="hint" style="margin-top:6px"></div>
+        <div class="toolrun" id="toolrun-hostdl"></div>
       </div>
 
-      <div class="card">
+      <div class="card" data-guide="Ref-Data">
         <h2 id="m-virusdl" data-i18n="rd.virusTitle">🦠 NCBI datasets 病毒数据集（→ 病毒库构建）</h2>
         <p class="hint" data-i18n="rd.virusHint">按病毒 taxon（可加<b>宿主过滤</b>）拉取 NCBI 病毒基因组，自动产出
         reference.fasta + reference.ref_info.tsv（含 Taxid/宿主/地理列），落
@@ -74,11 +75,12 @@
                 style="margin-top:6px">⬇ 下载病毒数据集</button>
         <button class="btn" onclick="qryVirusSeq(this)" data-i18n="rd.qryVirusBtn"
                 style="margin-top:6px">🔍 查询匹配序列</button>
-        <div id="dsQryResult" class="hint" style="margin-top:6px"></div>
+        <div id="dsQryResult" class="hint" style="margin-top:6px" data-ps></div>
         <div id="dsDlResult" class="hint" style="margin-top:6px"></div>
+        <div class="toolrun" id="toolrun-virusds"></div>
       </div>
 
-      <div class="card">
+      <div class="card" data-guide="Ref-Data">
         <h2 id="m-dsgen" data-i18n="rd.genTitle">📥 NCBI datasets 通用下载（genome / gene / taxonomy）</h2>
         <p class="hint" data-i18n="rd.genHint">datasets CLI 其余模式：任意物种基因组包（taxon / accession+染色体过滤）、
         基因包（gene-id / symbol+taxon / 蛋白 accession）、分类报告包。产物落 datasets_dl/，
@@ -86,7 +88,7 @@
         下载前可先点「🔍 查询预览」确认匹配记录（genome 查询表可直接选用 accession）。</p>
         <div class="grid2">
           <div><label data-i18n="rd.genMode">模式</label>
-            <select id="dsGenMode" style="width:100%" onchange="dsGenShow()">
+            <select id="dsGenMode" style="width:100%" data-ps-onchange="1" onchange="dsGenShow()">
               <option value="genome" data-i18n="rd.opt.genome">genome · 基因组包</option>
               <option value="gene" data-i18n="rd.opt.gene">gene · 基因包</option>
               <option value="taxonomy" data-i18n="rd.opt.taxonomy">taxonomy · 分类报告包</option>
@@ -120,8 +122,20 @@
                 style="margin-top:6px">⬇ 下载到 datasets_dl/</button>
         <button class="btn" onclick="qryDsGen(this)" data-i18n="rd.qryGenBtn"
                 style="margin-top:6px">🔍 查询预览</button>
-        <div id="dsGenQryResult" class="hint" style="margin-top:6px"></div>
+        <div id="dsGenQryResult" class="hint" style="margin-top:6px" data-ps></div>
         <div id="dsGenResult" class="hint" style="margin-top:6px"></div>
+        <div class="toolrun" id="toolrun-dsgen"></div>
+      </div>
+
+      <!-- 🕘 历史任务（2026-11-06 用户报告「缺少历史任务」）：本页三类下载
+           都是任务中心任务（产物落 host-db/ 与 databases/，不产生 tool_runs
+           运行目录），工具卡那套按文件系统列「🕘 历史运行」在这里不适用 ——
+           改读任务中心记录（活动 + 历史归档合并），按任务名前缀过滤；
+           归档/恢复走 /api/task/<id>/{archive,unarchive}，与任务中心同口径。 -->
+      <div class="card" id="refHistCard" style="display:none">
+        <h2 data-i18n="rd.histTitle">🕘 历史任务</h2>
+        <p class="hint" data-i18n="rd.histHint">本页的下载是任务中心任务（产物落 host-db/ 与 databases/，不产生工具运行目录）——这里列出本页的历史任务记录（含已归档），归档后仍可查、可恢复记录。</p>
+        <div id="refHistBody" style="margin-top:8px"></div>
       </div>
 
     </div>
@@ -132,6 +146,7 @@
 
 <script src="/static/i18n.js?v={{ asset_v }}"></script>
 <script src="/static/app.js?v={{ asset_v }}"></script>
+<script src="/static/app-jobs.js?v={{ asset_v }}"></script>
 <script>
 /* ---------- ① 宿主基因组：dlHostGenome 在 app.js（本页 #hostDlResult 出结果） ---------- */
 
@@ -313,6 +328,79 @@ function pickGenAcc(acc) {
     toast(t('rd.qryPicked', '已填入 Assembly Accession') + ': ' + acc, '', {ttl: 4000});
   }
 }
+
+/* ---------- 🕘 历史任务（2026-11-06）：任务中心记录（活动 + 历史归档合并），
+   按本页三类下载的任务名前缀过滤。产物不进 tool_runs，所以工具卡那套
+   「🕘 历史运行」（按文件系统列 run 目录）在这里不适用；任务记录才是
+   本页历史的唯一权威（含已归档，归档后仍可查、可恢复记录）。 ---------- */
+const REFDL_TASK_HINTS = [
+  '宿主基因组下载', 'Host genome download',
+  '病毒数据集下载', 'Virus dataset download',
+  'datasets genome 下载', 'datasets gene 下载', 'datasets taxonomy 下载',
+  'datasets genome download', 'datasets gene download', 'datasets taxonomy download',
+];
+function refIsThisPageTask(nm) {
+  const s = String(nm || '');
+  return REFDL_TASK_HINTS.some(p => s.indexOf(p) >= 0);
+}
+function refHistRow(x) {
+  const st = x.status || 'queued';
+  const stTxt = (typeof taskStatusText === 'function') ? taskStatusText(st) : st;
+  const ts = x.finished || x.started;
+  const when = ts ? new Date(ts * 1000).toLocaleString() : '—';
+  const out = x.out_dir || (x.result || {}).out_dir || '';
+  const ops = [];
+  if (x.archived) {
+    ops.push('<button class="btn small" onclick="refHistUnarchive(\'' + esc(x.id)
+      + '\')">' + esc(t('rd.histUnarchive', '↩ 恢复记录')) + '</button>');
+  } else if (st === 'done' || st === 'failed' || st === 'cancelled') {
+    ops.push('<button class="btn small" onclick="refHistArchive(\'' + esc(x.id)
+      + '\')">' + esc(t('rd.histArchive', '📦 归档')) + '</button>');
+  }
+  return '<tr>'
+    + '<td>' + esc(x.name || '') + '</td>'
+    + '<td><span class="sbadge ' + esc(st) + '">' + esc(stTxt) + '</span></td>'
+    + '<td class="hint">' + esc(when) + '</td>'
+    + '<td class="mono hint">' + (out ? esc(out) : '—') + '</td>'
+    + '<td>' + ops.join(' ') + '</td></tr>';
+}
+async function refHistRefresh() {
+  const card = $('refHistCard'), body = $('refHistBody');
+  if (!card || !body) return;
+  let j;
+  try {
+    j = await (await fetch('/api/tasks?full=1&logs=0')).json();
+  } catch (e) { return; }
+  const rows = [].concat(j.active || [], j.archived || [])
+    .filter(x => refIsThisPageTask(x.name))
+    .sort((a, b) => (b.finished || b.started || 0) - (a.finished || a.started || 0))
+    .slice(0, 30);
+  if (!rows.length) { card.style.display = 'none'; body.innerHTML = ''; return; }
+  card.style.display = '';
+  body.innerHTML = '<table class="tbl"><thead><tr>'
+    + '<th>' + esc(t('rd.histThName', '任务')) + '</th>'
+    + '<th>' + esc(t('rd.histThStatus', '状态')) + '</th>'
+    + '<th>' + esc(t('rd.histThTime', '时间')) + '</th>'
+    + '<th>' + esc(t('rd.histThOut', '产物目录')) + '</th>'
+    + '<th>' + esc(t('rd.histThOps', '操作')) + '</th>'
+    + '</tr></thead><tbody>'
+    + rows.map(refHistRow).join('')
+    + '</tbody></table>';
+}
+async function refHistArchive(tid) {
+  try {
+    await fetch('/api/task/' + encodeURIComponent(tid) + '/archive', {method: 'POST'});
+  } catch (e) {}
+  refHistRefresh();
+}
+async function refHistUnarchive(tid) {
+  try {
+    await fetch('/api/task/' + encodeURIComponent(tid) + '/unarchive', {method: 'POST'});
+  } catch (e) {}
+  refHistRefresh();
+}
+refHistRefresh();
+setInterval(refHistRefresh, 12000);
 </script>
 </body>
 </html>

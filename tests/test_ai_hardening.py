@@ -10,6 +10,7 @@
   6) 网关重复拼名（`mcp_callmcp_call`）要归一；
   7) 执行单的守护线程要能把任务失败写回 error 并推 failed。
 """
+import os
 import sys
 import tempfile
 import unittest
@@ -150,10 +151,40 @@ class ToolParamTests(unittest.TestCase):
         self.assertLessEqual(len(req), 2, f'kvsuite 必填过多: {req}')
 
     def test_pdprep_requires_files(self):
+        """pdprep 已合并四种来源，fasta 只在 source=files 时必填。
+
+        2026-11-02 起提交时按 source 校验（tool_jobs._tool_job_pdprep 顶部）：
+          files   → fasta + meta 两个服务器路径；
+          manual  → fasta_text + meta_text（默认来源，不落文件）；
+          genbank → accessions / term / species / taxid / gb_files 至少一个。
+        因此参数面不能再把 fasta/meta 标成全局必填（否则 manual/genbank
+        的合法提交会被模型判成缺参），但替代必填约束必须写在参数说明里，
+        并且运行时空提交要当场 400，不能建一个必然失败的任务。
+        """
         rows = self._by_key('pdprep')
         req = [k for k, v in rows.items() if v.get('required')]
-        self.assertIn('fasta', req)
-        self.assertIn('meta', req)
+        self.assertNotIn('fasta', req)
+        self.assertNotIn('meta', req)
+        # 替代输入面：manual 粘贴两份文本
+        for k in ('fasta_text', 'meta_text'):
+            self.assertIn(k, rows)
+            self.assertIn('manual', rows[k]['desc'])
+        # genbank 来源的检索键至少要有（缺一即视为来源声明丢失）
+        self.assertTrue(
+            {'accessions', 'term', 'species', 'taxid', 'gb_files'} & set(rows),
+            'genbank 来源的检索键缺失')
+        # fasta/meta 的必填条件必须钉死在说明里，别让参数空转
+        self.assertIn('source=files', rows['fasta']['desc'])
+        self.assertIn('source=files', rows['meta']['desc'])
+        self.assertIn('files|manual|genbank', rows['source']['desc'])
+        # 运行时兜底：默认 manual 缺粘贴文本、files 缺路径都必须 abort 400
+        from types import SimpleNamespace
+        from werkzeug.exceptions import HTTPException
+        from Virus_Platform_Core.web import tool_jobs
+        for params in ({}, {'source': 'files'}):
+            with self.assertRaises(HTTPException) as cm:
+                tool_jobs._tool_job_pdprep(SimpleNamespace(p=params))
+            self.assertEqual(cm.exception.code, 400, params)
 
     def test_every_param_has_type(self):
         for tool in ('kvsuite', 'pdprep', 'hostprep'):
@@ -171,6 +202,238 @@ class ToolNameJoinTests(unittest.TestCase):
         self.assertEqual(provider._join_name('', 'propose_action'),
                          'propose_action')
         self.assertEqual(provider._join_name('propose_action', ''), 'propose_action')
+
+
+class QaToolBoundaryTests(unittest.TestCase):
+    """2026-11-06 P0：qa 模式必须真的不发 tools，且 dispatch 有兜底拦截。
+
+    缺陷证据：`_plan_tools(False)` 实测仍返回 17 个工具（含 propose_action、
+    mcp_call），use_tools=False 也不拦 ai_tools.dispatch。
+    """
+
+    def test_qa_request_has_no_tools_and_blocks_dispatch(self):
+        from Virus_Platform_Core.ai_agent import chat, tools as ai_tools
+        seen = {}
+        dispatched = []
+
+        def fake_stream(ai_cfg, convo, tools=None, max_tokens=None, **kw):
+            seen.setdefault('tools_seen', []).append(tools)
+            if not seen.get('tool_emitted'):
+                seen['tool_emitted'] = True
+                yield {'type': 'tool_calls', 'tool_calls': [
+                    {'id': 'tc-qa', 'type': 'function',
+                     'function': {'name': 'read_result_table',
+                                  'arguments': '{}'}}]}
+                return
+            yield {'type': 'delta', 'content': '回答'}
+            yield {'type': 'finish', 'reason': 'stop'}
+
+        with mock.patch.object(chat, 'chat_stream', fake_stream), \
+                mock.patch.object(chat, '_qa_system_prompt',
+                                  lambda question='': 'qa stub'), \
+                mock.patch.object(ai_tools, 'dispatch',
+                                  lambda n, a: dispatched.append(n) or '{}'):
+            evs = list(chat.run_chat({'model': 'stub', 'max_tokens': 32},
+                                     [{'role': 'user', 'content': '你好'}],
+                                     mode='qa'))
+        self.assertTrue(seen.get('tools_seen'))
+        self.assertTrue(all(t is None for t in seen['tools_seen']),
+                        seen['tools_seen'])
+        self.assertEqual(dispatched, [])
+        self.assertTrue(any('"done"' in str(e) for e in evs))
+
+    def test_plan_tools_false_still_returns_many_tools(self):
+        """记录缺陷成因：allow_plan=False 只删 plan 动作，不是"不给工具"。"""
+        from Virus_Platform_Core.ai_agent import chat
+        self.assertGreater(len(chat._plan_tools(False)), 1)
+
+
+class AiKeyProfileTests(unittest.TestCase):
+    """2026-11-06 P0：空 Key 档案不得沿用/回落顶层 Key。"""
+
+    def _sandbox(self):
+        import json
+        import tempfile
+        from Virus_Platform_Core import config as cfgmod
+        td = tempfile.TemporaryDirectory(prefix='vp_aikey_')
+        self.addCleanup(td.cleanup)
+        os.makedirs(os.path.join(td.name, 'run'), exist_ok=True)
+        old_p, old_c = cfgmod.PLATFORM_ROOT, cfgmod.CONFIG_FILE
+        cfgmod.PLATFORM_ROOT = td.name
+        cfgmod.CONFIG_FILE = os.path.join(td.name, 'platform.json')
+
+        def _restore():
+            cfgmod.PLATFORM_ROOT, cfgmod.CONFIG_FILE = old_p, old_c
+        self.addCleanup(_restore)
+        return cfgmod, td.name
+
+    def test_active_profile_never_falls_back_to_top_level_key(self):
+        import json
+        cfgmod, root = self._sandbox()
+        with open(cfgmod._ai_local_path(), 'w', encoding='utf-8') as f:
+            json.dump({'api_key': 'sk-top-A-secret',
+                       'provider_keys': {
+                           'B': '${VP_PROFILE_KEY_NOT_SET_XYZ}'}}, f)
+        with open(cfgmod.CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump({'ai': {'active_profile': 'B'}}, f)
+        c = cfgmod.Config()
+        self.assertEqual(c.ai.get('active_profile'), 'B')
+        self.assertEqual(c.ai.get('api_key'), '',
+                         '档案 B 的 Key 展开为空时必须置空，绝不回落顶层 Key')
+
+    def test_active_profile_uses_own_key(self):
+        import json
+        cfgmod, root = self._sandbox()
+        with open(cfgmod._ai_local_path(), 'w', encoding='utf-8') as f:
+            json.dump({'api_key': 'sk-top-A-secret',
+                       'provider_keys': {'B': 'sk-B-own'}}, f)
+        with open(cfgmod.CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump({'ai': {'active_profile': 'B'}}, f)
+        c = cfgmod.Config()
+        self.assertEqual(c.ai.get('api_key'), 'sk-B-own')
+
+    def test_activate_profile_without_key_returns_400(self):
+        import json
+        cfgmod, root = self._sandbox()
+        with open(cfgmod._ai_local_path(), 'w', encoding='utf-8') as f:
+            json.dump({'provider_keys': {'B': ''}}, f)
+        import app as appmod
+        from Virus_Platform_Core.web.state import cfg
+        old_ai = dict(cfg.ai)
+        self.addCleanup(lambda: setattr(cfg, 'ai', old_ai))
+        cfg.ai = dict(cfg.ai,
+                      providers=[{'name': 'B', 'base_url': 'https://b/v1',
+                                  'model': 'm', 'temperature': 0.3,
+                                  'max_tokens': 2048}],
+                      active_profile='A', api_key='sk-from-profile-A')
+        appmod.app.config['TESTING'] = True
+        with appmod.app.test_client() as c:
+            r = c.post('/api/ai/profiles/activate', json={'name': 'B'})
+        body = r.get_data(as_text=True)
+        self.assertEqual(r.status_code, 400, body)
+        self.assertIn('没有可用 API Key', body)
+        self.assertEqual(cfg.ai.get('api_key'), 'sk-from-profile-A',
+                         '激活失败不得改写当前配置')
+
+    def test_activate_profile_with_unset_env_placeholder_returns_400(self):
+        import json
+        cfgmod, root = self._sandbox()
+        with open(cfgmod._ai_local_path(), 'w', encoding='utf-8') as f:
+            json.dump({'provider_keys': {
+                'B': '${VP_PROFILE_KEY_NOT_SET_XYZ}'}}, f)
+        import app as appmod
+        from Virus_Platform_Core.web.state import cfg
+        old_ai = dict(cfg.ai)
+        self.addCleanup(lambda: setattr(cfg, 'ai', old_ai))
+        cfg.ai = dict(cfg.ai,
+                      providers=[{'name': 'B', 'base_url': 'https://b/v1',
+                                  'model': 'm', 'temperature': 0.3,
+                                  'max_tokens': 2048}],
+                      api_key='sk-from-profile-A')
+        appmod.app.config['TESTING'] = True
+        with appmod.app.test_client() as c:
+            r = c.post('/api/ai/profiles/activate', json={'name': 'B'})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('没有可用 API Key', r.get_data(as_text=True))
+
+
+class AiKeyEnvTests(unittest.TestCase):
+    """2026-11-06 P1：设置页保存/测试连接必须先展开 ${ENV_VAR}。"""
+
+    def test_save_rejects_unset_env_placeholder(self):
+        import app as appmod
+        from Virus_Platform_Core.web.state import cfg
+        old_ai = dict(cfg.ai)
+        self.addCleanup(lambda: setattr(cfg, 'ai', old_ai))
+        appmod.app.config['TESTING'] = True
+        with appmod.app.test_client() as c:
+            r = c.post('/api/ai/config', json={
+                'base_url': 'https://x/v1', 'model': 'm',
+                'api_key': '${VP_NOT_SET_SAVE_XYZ}'})
+        body = r.get_data(as_text=True)
+        self.assertEqual(r.status_code, 400, body)
+        self.assertIn('环境变量 VP_NOT_SET_SAVE_XYZ 未设置', body)
+        self.assertEqual(cfg.ai.get('api_key'), old_ai.get('api_key'),
+                         '校验失败不得改动已存 Key')
+
+
+class SystemDirGuardTests(unittest.TestCase):
+    """2026-11-06 P2：output_root 等系统目录守卫。"""
+
+    def _guard(self):
+        from Virus_Platform_Core.config import _ensure_not_system_dir
+        return _ensure_not_system_dir
+
+    def test_drive_root_rejected(self):
+        if os.name != 'nt':
+            self.skipTest('仅 Windows 盘符语义')
+        for p in ('C:\\', 'D:\\'):
+            with self.assertRaises(ValueError):
+                self._guard()(p)
+
+    def test_system_segments_rejected_on_any_drive(self):
+        for p in (r'D:\Windows',
+                  r'D:\Windows\System32',
+                  r'E:\Program Files\App',
+                  r'E:\Program Files (x86)\App',
+                  r'C:\ProgramData\x',
+                  r'C:\Users\someone',
+                  r'C:\Users\someone\AppData\Local'):
+            with self.assertRaises(ValueError, msg=p):
+                self._guard()(p)
+
+    def test_normal_data_dir_allowed(self):
+        drv = os.path.splitdrive(os.path.abspath(os.getcwd()))[0] or 'C:'
+        self._guard()(drv + os.sep + 'VirusPlatform-data-test')  # 不抛即可
+
+
+class SpoolRelayTruncateTests(unittest.TestCase):
+    """2026-11-06 P2：PID 复用 / 文件重建时 offset 必须归零重读。"""
+
+    def test_mtime_regression_resets_offset(self):
+        import json
+        from Virus_Platform_Core.ai_agent import spool_relay as R
+        d = tempfile.mkdtemp(prefix='vp_spool_')
+        p = os.path.join(d, '4242.jsonl')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write(json.dumps({'type': 'a', 'n': 1}) + '\n')
+        old_mtime = os.path.getmtime(p)
+        R._offsets.clear()
+        R._fingerprints.clear()
+        R._baseline = None
+        events, off = R._read_new(p)
+        self.assertEqual([e['type'] for e in events], ['a'])
+        self.assertGreater(off, 0)
+        # 新内容更长（size >= 旧 offset），但 mtime 回退 = 文件被重建/PID 复用
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write(json.dumps({'type': 'b', 'pad': 'x' * 30}) + '\n')
+            f.write(json.dumps({'type': 'c', 'pad': 'y' * 30}) + '\n')
+        os.utime(p, (old_mtime - 10, old_mtime - 10))
+        events, off = R._read_new(p)
+        self.assertEqual([e['type'] for e in events], ['b', 'c'],
+                         'mtime 回退必须从头重读，不能从旧 offset 的半行开始')
+        R._offsets.clear()
+        R._fingerprints.clear()
+        R._baseline = None
+
+
+class UpdateFlagParseTests(unittest.TestCase):
+    """2026-11-06 P2：字符串 "false" 不能把自动更新打开。"""
+
+    def test_string_false_is_false(self):
+        from Virus_Platform_Core.web.settings import _parse_strict_bool
+        self.assertIs(_parse_strict_bool('false'), False)
+        self.assertIs(_parse_strict_bool('0'), False)
+        self.assertIs(_parse_strict_bool(False), False)
+        self.assertIs(_parse_strict_bool('true'), True)
+        self.assertIs(_parse_strict_bool('1'), True)
+        self.assertIs(_parse_strict_bool(True), True)
+
+    def test_other_values_rejected(self):
+        from Virus_Platform_Core.web.settings import _parse_strict_bool
+        for v in ('no', 'yes', 2, None, [], {}):
+            with self.assertRaises(ValueError, msg=repr(v)):
+                _parse_strict_bool(v)
 
 
 class WatchTerminalTests(unittest.TestCase):
@@ -246,6 +509,86 @@ class ResolveRaceTests(unittest.TestCase):
         executors.resolve(rec['id'], 'reject')
 
 
+class ResolveStagesOverrideTests(unittest.TestCase):
+    """批准时可用请求里的阶段列表覆盖 AI 起草的 stages（2026-11-03）。"""
+
+    def setUp(self):
+        self._td = tempfile.TemporaryDirectory()
+        self.root = Path(self._td.name)
+        (self.root / 'S1').mkdir()          # create_action 要求样品目录存在
+        self._r1 = self.root / 'r1.fastq'
+        self._r1.write_text('@r\nACGT\n+\nIIII\n', encoding='ascii')
+        for p in (
+                mock.patch.dict('Virus_Platform_Core.config.DIRS',
+                                {'results': str(self.root)}),
+                # 只验证批准前的覆盖落点，不真起分析任务
+                mock.patch.object(executors, '_execute', lambda rec: None),
+                mock.patch.object(executors, '_ai_active_count', lambda: 0)):
+            p.start()
+            self.addCleanup(p.stop)
+        self.addCleanup(self._td.cleanup)
+
+    def _draft(self, action='rerun_stage', stages=('kvsuite',), params=None):
+        rec, err = executors.create_action(
+            action, 'S1', stages=list(stages) if stages else None,
+            params=params, reason='阶段覆盖测试')
+        self.assertIsNone(err)
+        self.addCleanup(self._drop, rec['id'])
+        return rec
+
+    @staticmethod
+    def _drop(aid):
+        """收尾：未处理的单子一律驳回，别让 pending 攒到上限。"""
+        if (executors.get_action(aid) or {}).get('status') == 'pending':
+            executors.resolve(aid, 'reject')
+
+    def test_approve_with_override_updates_both_reads(self):
+        rec = self._draft()
+        got, err = executors.resolve(
+            rec['id'], 'approve', [' assembly ', 'hostana', 'assembly'])
+        self.assertIsNone(err)
+        self.assertEqual(got['stages'], ['assembly', 'hostana'])   # 去重保序
+        self.assertEqual(got['params']['stages'], ['assembly', 'hostana'])
+        self.assertEqual(got['stages_override'],
+                         {'from': ['kvsuite'], 'to': ['assembly', 'hostana']})
+
+    def test_empty_stages_keeps_pending(self):
+        rec = self._draft()
+        got, err = executors.resolve(rec['id'], 'approve', [])
+        self.assertIsNone(got)
+        self.assertIn('不能为空', err or '')
+        cur = executors.get_action(rec['id'])
+        self.assertEqual(cur['status'], 'pending')      # 校验失败不翻状态
+        self.assertEqual(cur['stages'], ['kvsuite'])
+        self.assertNotIn('stages_override', cur)
+
+    def test_unknown_stage_rejected(self):
+        rec = self._draft()
+        got, err = executors.resolve(rec['id'], 'approve', ['nosuchstage'])
+        self.assertIsNone(got)
+        self.assertIn('未知阶段', err or '')
+        self.assertIn('nosuchstage', err or '')
+        self.assertEqual((executors.get_action(rec['id']) or {}).get('status'),
+                         'pending')
+
+    def test_unsupported_action_rejected(self):
+        rec = self._draft(action='create_sample', stages=None,
+                          params={'r1': str(self._r1), 'sample': 'S1'})
+        got, err = executors.resolve(rec['id'], 'approve', ['assembly'])
+        self.assertIsNone(got)
+        self.assertIn('不支持阶段覆盖', err or '')
+        self.assertEqual((executors.get_action(rec['id']) or {}).get('status'),
+                         'pending')
+
+    def test_legacy_call_without_override_unchanged(self):
+        rec = self._draft()
+        got, err = executors.resolve(rec['id'], 'approve')
+        self.assertIsNone(err)
+        self.assertEqual(got['stages'], ['kvsuite'])
+        self.assertNotIn('stages_override', got)
+        self.assertNotIn('stages', got['params'])
+
+
 class TaskOriginTests(unittest.TestCase):
     """任务记录上的 origin='ai' 必须落盘、进快照、可随归档恢复。
 
@@ -311,6 +654,32 @@ class TaskOriginTests(unittest.TestCase):
         finally:
             tm.tasks.pop(tid, None)
         self.assertEqual((snap or {}).get('status'), 'running')
+
+
+if __name__ == '__main__':
+    unittest.main()
+
+
+class RevealKeyMaskTests(unittest.TestCase):
+    """ai.reveal_key 口径（2026-11-06 内部版）：开启回显明文；缺省掩码。"""
+
+    def test_masked_by_default(self):
+        from Virus_Platform_Core.web.ai_assist import _masked
+        out = _masked({'api_key': 'sk-abcdefgh1234'})
+        self.assertEqual(out['api_key'], '••••1234')
+        self.assertTrue(out['api_key_set'])
+
+    def test_reveal_returns_plaintext(self):
+        from Virus_Platform_Core.web.ai_assist import _masked
+        out = _masked({'api_key': 'sk-abcdefgh1234', 'reveal_key': True})
+        self.assertEqual(out['api_key'], 'sk-abcdefgh1234')
+        self.assertTrue(out['api_key_set'])
+
+    def test_max_tokens_default_unified(self):
+        """配置默认 = 页面默认 = provider 兜底 = 32768；旧默认 8192 迁移。"""
+        from Virus_Platform_Core import config as C
+        self.assertEqual(C.Config().ai.get('max_tokens'), 32768)
+        self.assertTrue(C.Config().ai.get('reveal_key'))
 
 
 if __name__ == '__main__':

@@ -18,7 +18,7 @@
     <main class="group-main">
   <div class="layout">
     <div class="col">
-      <div class="card">
+      <div class="card" data-guide="Databases">
         <h2 id="m-taxonomy" data-i18n="bd.taxonomy">0️⃣ NCBI Taxonomy（首次必做）</h2>
         <p class="hint" data-i18n="bd.taxHint">kunpeng 建库需要 nodes.dmp/names.dmp。下载约 57MB，一次构建、两个库共用。</p>
         <div id="taxStat" class="dbbadge"></div>
@@ -35,7 +35,7 @@
         <div class="buildrun" id="buildrun-taxonomy"></div>
       </div>
 
-      <div class="card">
+      <div class="card" data-guide="Databases"">
         <h2 id="m-host" data-i18n="bd.host">1️⃣ 宿主数据库（kunpeng）</h2>
         <div id="hostStat" class="dbbadge"></div>
         <p class="hint" style="margin:4px 0">📁 <span data-i18n="bd.loc">位置</span>:
@@ -80,7 +80,7 @@
         <div class="buildrun" id="buildrun-host"></div>
       </div>
 
-      <div class="card">
+      <div class="card" data-guide="Databases"">
         <h2 data-i18n="bd.virusLibs">🦠 病毒分类库（自备预构建）</h2>
         <p class="hint" data-i18n="bd.virusLibsHint">病毒 kunpeng 分类库由使用者预构建提供：
            把库目录放入 <b>databases/</b> 下即被自动识别（下方实时列出）；
@@ -134,13 +134,14 @@
         </details>
       </div>
 
-      <div class="card">
+      <div class="card" data-guide="Databases"">
         <h2 id="m-datasets" data-i18n="bd.dsTitle">📦 原始数据集（分发物）→ 一键建库</h2>
         <p class="hint" data-i18n="bd.dsHint">数据集与数据库<b>区分开</b>：<b>数据集</b>是随包分发的原始参考
            （FASTA + 注释表，只读、体量小）；<b>数据库</b>是本机派生物（比对索引、kunpeng 分类库），
            删了可随时由数据集重建。鉴定库引擎索引（salmon/minibwa）<b>首次运行自动现建</b>，无需手动；
            kunpeng 病毒分类库在下方一键构建（构建后即被工具②/④自动识别）。</p>
         <div id="dsList" class="dbbadge"><p class="hint" data-i18n="c.loading">加载中…</p></div>
+        <div class="buildrun" id="buildrun-kunpeng"></div>
       </div>
 
       <div class="card">
@@ -358,9 +359,9 @@ async function buildKvIndex(btn) {
   const fasta = val('kvidxFasta');
   const engines = ['salmon'];   // salmon 索引默认建；minibwa 按勾选追加
   if ($('kvidxMinibwa') && $('kvidxMinibwa').checked) engines.push('minibwa');
-  const name = val('kvidxName') || 'kv_index';
-  if (!fasta && name === 'kv_index' && !confirm(
-      t('bd.kvDefaultConfirm','未指定参考 FASTA，将用平台默认病毒参考（默认鉴定库 kv_index 内自带，约 31 MB）重建索引。继续？'))) return;
+  const name = val('kvidxName') || 'plant_ref';   // 平台默认库（2026-09-29 由 kv_index 更名）
+  if (!fasta && name === 'plant_ref' && !confirm(
+      t('bd.kvDefaultConfirm','未指定参考 FASTA，将用平台默认病毒参考（默认鉴定库 plant_ref 内自带，约 47 MB）重建索引。继续？'))) return;
   try {
     const r = await fetch('/api/build_kv_index', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

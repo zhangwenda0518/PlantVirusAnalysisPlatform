@@ -92,7 +92,7 @@
   </div>
 
   <!-- 项目条：当前项目 + 切换 + 结果中心入口 -->
-  <div class="card">
+  <div class="card" data-guide="Meta-Search">
     <div class="proj-bar">
       <b data-i18n="mt.curColl">当前项目</b>:
       <select id="mtProjectSel" onchange="switchProject(this.value)" style="max-width:340px"></select>
@@ -449,8 +449,19 @@ function buildUrl(col, v) {
 
 /* ── 标签切换（懒加载） ── */
 const MT_SECS = ['search', 'sb', 'se', 'sv', 'info', 'ib', 'ie', 'iv'];
+/* 上次浏览的位置（集合 + 分页签）：导航链接是裸 /meta，不记就永远回到第一个集合 */
+const MT_LAST_PROJ_KEY = 'vp_meta_proj';
+const MT_LAST_TAB_KEY = 'vp_meta_tab';
+function mtLast(key) {
+  try { return sessionStorage.getItem(key) || ''; } catch (e) { return ''; }
+}
+function mtRemember(key, val) {
+  try { if (val) sessionStorage.setItem(key, val); } catch (e) { /* 无痕模式降级 */ }
+}
+
 function mtShow(id) {
   if (!MT_SECS.includes(id)) id = 'search';
+  mtRemember(MT_LAST_TAB_KEY, id);
   document.querySelectorAll('.mt-sec').forEach(el => {
     el.style.display = el.id === 'sec-' + id ? '' : 'none';
   });
@@ -516,6 +527,7 @@ async function switchProject(name) {
 
 async function setProject(name) {
   MT.project = name;
+  mtRemember(MT_LAST_PROJ_KEY, name);
   MT.page = {local: 1, sb: 1, ib: 1};
   MT.sort = {};
   MT.filter = {local: {q: '', fields: {}}, sb: {q: '', qcol: '', fields: {}},
@@ -605,8 +617,11 @@ function renderView(vkey, d) {
       if (editable) cls.push('editable');
       let inner;
       if (url) inner = `<a href="${esc(url)}" target="_blank" rel="noopener" title="点击在浏览器打开（行级编辑页可修改）">${esc(val)}</a>`;
-      if (col === 'Run' && !miss && /^[A-Z]{2,4}\d+\.?\d*$/.test(String(val).trim()))
-        inner += ` <a href="javascript:void(0)" onclick="dlOneRun('${esc(String(val).trim())}')" title="${esc(t('mt.dlRunTip'))}" style="text-decoration:none">⬇</a>`;
+      if (col === 'Run' && !miss && /^[A-Z]{2,4}\d+\.?\d*$/.test(String(val).trim())) {
+        const _rv = esc(String(val).trim());
+        inner += ` <a href="javascript:void(0)" onclick="dlOneRun('${_rv}')" title="${esc(t('mt.dlRunTip'))}" style="text-decoration:none">⬇</a>`;
+        inner += ` <a href="javascript:void(0)" onclick="loganSendTo('${_rv}')" title="${esc(t('lg.btnLoganTip', '查 Logan 组装 → 转入 LOGAN 数据下载'))}" style="text-decoration:none">🧬</a>`;
+      }
       else if (miss) inner = esc(val) || '&nbsp;';
       else inner = esc(val);
       return `<td class="${cls.join(' ')}" data-col="${esc(col)}"${editable ? ` title="${esc(t('mt.dblEditTip'))}"` : ''}>${inner}</td>`;
@@ -882,7 +897,10 @@ async function refreshTasks() {
   if (_taskTimer) { clearTimeout(_taskTimer); _taskTimer = null; }
   try {
     const list = await jfetch('/api/tasks');
-    const mine = list.filter(t2 => /^(元数据|公共检索|AI 元数据补全|检索绘图)/.test(t2.name || ''));
+    // 任务名白名单：中文名来自 meta.py 的 tm.start；两条 bilingual 任务的英文名
+    // （AI metadata fill / AI summary / Meta plot）也要收，否则切到 EN 时本面板
+    // 永远是空的。AI 总结 原先漏在白名单外——点了只剩按钮文字，没有进度和日志。
+    const mine = list.filter(t2 => /^(元数据|公共检索|AI 元数据补全|AI 总结|检索绘图|AI metadata|AI summary|Meta plot)/.test(t2.name || ''));
     const box = $('taskBox');
     if (!mine.length) { box.innerHTML = `<p class="hint">${t('c.noTasks', '暂无任务')}</p>`; return; }
     box.innerHTML = mine.map(task => {
@@ -949,9 +967,9 @@ async function intoDownload(btn, which) {
       if (!items.length) { alert(t('mt.needSel', '请先勾选 Run')); return; }
       await jfetch('/api/dl/create', {method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name: MT.project + '_runs', items, concurrency: 2})});
+        body: JSON.stringify({name: MT.project + '_runs', items, concurrency: 1})});
       toast(t('mt.intoOk', '已转入数据下载'), `${items.length} runs`, {ttl: 6000});
-      setTimeout(() => location.href = '/download', 900);
+      setTimeout(() => gotoModule('/download'), 900);
     } catch (e) { alert(e.message); }
   }, '⏳ 转入中…');
 }
@@ -962,9 +980,9 @@ async function dlOneRun(run) {
   try {
     await jfetch('/api/dl/create', {method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({name, items: [run], concurrency: 2})});
+      body: JSON.stringify({name, items: [run], concurrency: 1})});
     toast(t('mt.intoOk', '已转入数据下载'), run, {ttl: 5000});
-    setTimeout(() => location.href = '/download', 700);
+    setTimeout(() => gotoModule('/download'), 700);
   } catch (e) { alert(e.message); }
 }
 
@@ -1496,13 +1514,16 @@ async function loadSciGallery() {
 /* ── 初始化 ── */
 (function init() {
   const params = new URLSearchParams(location.search);
-  const wantP = params.get('p') || '';
+  const wantP = params.get('p') || mtLast(MT_LAST_PROJ_KEY) || '';
   const hash = (location.hash || '').replace('#', '');
   (async () => {
     await loadColls();
     const pick = MT.colls.find(c => c.name === wantP) || MT.colls[0];
     if (pick) await setProject(pick.name);
-    mtShow(MT_SECS.includes(hash) ? hash : 'search');
+    const lastTab = hash || mtLast(MT_LAST_TAB_KEY);
+    mtShow(MT_SECS.includes(lastTab) ? lastTab : 'search');
+    // 表单里上次没清掉的本地筛选词，恢复后要真的生效，不能只把字填回去
+    if ((val('mtQuick') || '').trim()) localFilter();
   })();
 })();
 </script>

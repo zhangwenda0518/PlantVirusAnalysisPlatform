@@ -29,6 +29,7 @@ stdio：任务随客户端进程存活；HTTP（127.0.0.1:8765/mcp）：任务�
 本进程执行；与网页端同时运行时并发闸门各自计数。
 """
 import json
+import logging
 import os
 import re
 import sys
@@ -69,7 +70,10 @@ def _ensure_mcp_sdk():
         if mirror:
             cmd += ['-i', mirror]
         try:
-            if subprocess.run(cmd).returncode == 0:
+            if subprocess.run(cmd,
+                              creationflags=getattr(
+                                  subprocess, 'CREATE_NO_WINDOW', 0)
+                              ).returncode == 0:
                 break
         except OSError:
             continue
@@ -107,7 +111,7 @@ from werkzeug.exceptions import HTTPException                    # noqa: E402
 
 _PLATFORM_OK = None
 
-SERVER_VERSION = '1.3.0'
+SERVER_VERSION = '1.4.0'   # 2026-11-03：两域行为修复 + schema 补登记（能力口径变更）
 
 
 def _gated_tools():
@@ -309,8 +313,15 @@ def _submit_tool_run(tool, params, threads, out_dir):
             from Virus_Platform_Core.toolbox_plots import add_plots
             for _fp in add_plots(str(run_dir)):
                 log(f"图 -> {_fp}")
-        except Exception:
-            pass
+        except Exception as _pl_e:
+            log(f"图表补绘失败（跳过）: {type(_pl_e).__name__}: {_pl_e}")
+        # 模块结果页（与 tools_api 同口径）：MCP 发起的工具运行完成时
+        # 也出 results.html。失败只跳过，不影响任务。
+        try:
+            from Virus_Platform_Core.report_kit import module_page
+            module_page.build_tool_run_page(str(run_dir), logger=log)
+        except Exception as _mp_e:
+            log(f"模块结果页生成失败（跳过）: {type(_mp_e).__name__}: {_mp_e}")
         try:
             os.utime(base_dir)
         except OSError:
@@ -359,7 +370,7 @@ def _submit_pipeline(args):
         raise ValueError('未知阶段: %s（可用: %s；默认全流程: %s）'
                          % (', '.join(_bad), ', '.join(STAGE_ORDER),
                             ', '.join(DEFAULT_ANALYZE_STAGES)))
-    vm = str(args.get('verify_methods') or 'blastx,bfvd')
+    vm = str(args.get('verify_methods') or 'blastx,bfvd,cdd')
     kw = {'db_host': args.get('db_host'), 'db_virus': args.get('db_virus'),
           'kv_lib': args.get('kv_lib'),
           'threads': _clamp_threads(args.get('threads')),
@@ -535,9 +546,12 @@ def _task_list(limit, include_archived=False, status=None, name=None):
 # 未列出的键会被工厂忽略；缺必填项在提交时当场报中文原因。
 # ======================================================================
 
+# kvchain = kvsuite 参数 + 目录批量（input_dir/samples），口径由
+# agent_catalog 维护；这里只给 stage 补一句「固定 all」说明。
+# （旧实现是从 kvsuite 复制一份，目录批量上线后 MCP 清单漏了 input_dir。）
 _TOOL_PARAM_SCHEMAS['kvchain'] = [
     (k, t, r, ('stage 固定 all；' + d if k == 'stage' else d))
-    for (k, t, r, d) in _TOOL_PARAM_SCHEMAS['kvsuite']]
+    for (k, t, r, d) in _TOOL_PARAM_SCHEMAS['kvchain']]
 
 
 def _tool_list_impl(query=None, weight=None, need_db=None,
@@ -624,8 +638,10 @@ def _sample_list_impl(limit, offset):
             info['paired'] = bool(r2)
             if project:
                 info['project'] = project
-        except Exception:
-            pass
+        except Exception as e:
+            # 单个样品输入缺失/损坏只降级该条目（列表不 500），但原因必须
+            # 随条目可见——不再纯静默 pass（2026-11-06 异常吞噬审查）。
+            info['input_error'] = f'{type(e).__name__}: {e}'
         info['has_manifest'] = os.path.isfile(os.path.join(d, 'project.json'))
         out.append(info)
     return {'total': total, 'count': len(out), 'samples': out}
@@ -1090,6 +1106,59 @@ async def vp_selfcheck() -> dict:
                          if rep['problems'] else ''])
     return await anyio.to_thread.run_sync(_impl)
 
+@mcp.tool(name='vp_anchor_active', annotations=_RO)
+async def vp_anchor_active(
+        limit: Annotated[Optional[int], Field(
+            ge=1, le=40, description='最多返回多少个样品（默认 6）')] = 6
+) -> dict:
+    """样品锚总览（只读）：正在分析 / 疑似中断（30 分钟无账本事件，多半是
+    平台重启留下的运行记录）/ 最近完成的样品。回答「现在在跑什么」「有没有
+    卡住的样品」比任务中心更准——running/stale 来自 anchor.json 的运行记录。
+
+    返回 {running:[{sample,status,stage,stages_done/total,started}...],
+    recent:[{sample,status,finished,dur_s}...], now}。
+    """
+    def _impl():
+        from Virus_Platform_Core import anchor as _anchor
+        a = _anchor.active(limit=int(limit or 6))
+        slim = lambda lst: [{'sample': s.get('sample'),
+                             'status': s.get('status'),
+                             'stage': s.get('stage') or s.get('stage_done') or '',
+                             'stages_done': s.get('stages_done'),
+                             'stages_total': s.get('stages_total'),
+                             'started': s.get('started') or '',
+                             'finished': s.get('finished') or ''}
+                            for s in (lst or [])]
+        return _fmt('ok', f"running/stale {len(a.get('running') or [])} · "
+                          f"recent {len(a.get('recent') or [])}",
+                    result={'running': slim(a.get('running')),
+                            'recent': slim(a.get('recent'))[:3],
+                            'now': a.get('now')})
+    return await anyio.to_thread.run_sync(_impl)
+
+@mcp.tool(name='vp_anchor_verify', annotations=_RO)
+async def vp_anchor_verify(
+        sample: Annotated[str, Field(
+            min_length=1, max_length=120,
+            description='样品名或锚 slug')] ) -> dict:
+    """样品锚核对（只读，不改任何文件）：重算输入文件 sha256 与账本 hash
+    链，报一致/不一致与具体问题清单。回答「结果有没有被改过」「输入文件
+    是否被替换」用本工具；大文件按 HASH_CAP 上限跳过（rehash 字段标注）。
+
+    返回 {ok, slug, seq, head, problems:[...], checked}；ok=false 时 problems
+    逐条给出（账本 seq 不连续 / prev 断链 / 输入摘要已变 / 文件读不到）。
+    """
+    def _impl():
+        from Virus_Platform_Core import anchor as _anchor
+        v = _anchor.verify(str(sample or '').strip())
+        if v.get('error'):
+            return _fmt('fail', str(v['error']), result=v)
+        return _fmt('ok' if v.get('ok') else 'warn',
+                    ('账本链完整 · seq=%s' % v.get('seq'))
+                    if v.get('ok') else '发现 %d 处不一致' % len(v.get('problems') or []),
+                    result=v)
+    return await anyio.to_thread.run_sync(_impl)
+
 @mcp.tool(name='vp_list_tools', annotations=_RO)
 async def vp_list_tools(
         query: Annotated[Optional[str], Field(
@@ -1277,8 +1346,9 @@ async def vp_pipeline_start(
         verify_host: Annotated[str, Field(
             max_length=60, description='③b 宿主筛选 all 等，默认 all')] = 'all',
         verify_methods: Annotated[str, Field(
-            max_length=60, description='③b 证据方法 blastx,bfvd（逗号分隔）')] =
-        'blastx,bfvd',
+            max_length=60,
+            description='③b 证据方法 blastx,bfvd,cdd（逗号分隔）')] =
+        'blastx,bfvd,cdd',
         verify_combine: Annotated[str, Field(
             max_length=20, description='③b 合并方式 union/intersection')] =
         'union',
@@ -1516,6 +1586,270 @@ async def vp_sample_stages(
     vp_selfcheck 看。可续跑阶段直接给在 next 里。
     """
     return await anyio.to_thread.run_sync(_sample_stages_impl, sample)
+
+def _resolve_report_target(target, kind):
+    """target → (真实目录, 规范化 kind)。kind=auto 时先当样品再当工具运行。"""
+    name = str(target or '').strip()
+    if not name:
+        raise ValueError('target 不能为空（样品名或工具运行名）')
+    k = str(kind or 'auto').strip().lower()
+    if k not in ('auto', 'sample', 'tool_run'):
+        raise ValueError("kind 只允许 auto/sample/tool_run，收到 %r" % kind)
+    # 也允许直接给「平台内的目录路径」：工具自定义 out_dir、手工摆放的产物
+    # 目录都能直接出一份结论文档；平台根之外的路径一律拒绝。
+    if os.path.isabs(name) or '/' in name or '\\' in name:
+        cand = os.path.abspath(name)
+        if not os.path.isdir(cand):
+            raise ValueError('目录不存在: %s（也可以只给样品名或运行名）' % name)
+        base = os.path.abspath(PLATFORM_ROOT)
+        if not (cand == base or cand.startswith(base + os.sep)):
+            raise ValueError('目录不在平台根内，拒绝生成: %s' % cand)
+        return cand, ('sample' if os.path.isfile(
+            os.path.join(cand, 'project.json')) else 'dir')
+    sample_dir = None
+    if k in ('auto', 'sample'):
+        try:
+            sample_dir = _sample_dir(name)
+        except ValueError as e:
+            if k == 'sample':
+                raise
+            sample_err = str(e)
+    if sample_dir:
+        return sample_dir, 'sample'
+    # 工具运行：run/tool_runs/<run> 或归档 run/tool_runs/_archive/<run>
+    roots = [DIRS['tool_runs'], _tool_archive_root(create=False)]
+    for root in roots:
+        if not root or not os.path.isdir(root):
+            continue
+        d = os.path.join(root, name)
+        if os.path.isdir(d) and os.path.abspath(d).startswith(
+                os.path.abspath(root) + os.sep):
+            return d, 'tool_run'
+        # 允许「未带时间戳后缀」的前缀式简写，唯一命中才接受
+        try:
+            cands = [n for n in os.listdir(root)
+                     if n.startswith(name) and os.path.isdir(
+                         os.path.join(root, n))]
+        except OSError:
+            cands = []
+        if len(cands) == 1:
+            d = os.path.join(root, cands[0])
+            if os.path.abspath(d).startswith(os.path.abspath(root) + os.sep):
+                return d, 'tool_run'
+        if len(cands) > 1:
+            raise ValueError('工具运行名 %r 不唯一，候选：%s（用 '
+                             'vp_list_tool_runs 取完整 run 名）'
+                             % (name, '、'.join(sorted(cands)[:6])))
+    if k == 'tool_run':
+        raise ValueError('工具运行不存在: %s（用 vp_list_tool_runs 查看）'
+                         % name)
+    raise ValueError(sample_err if sample_err else
+                     '目标不存在: %s（样品用 vp_list_samples，工具运行用 '
+                     'vp_list_tool_runs）' % name)
+
+
+def _html_digest(path, max_kb):
+    """report_v2.html → 纯文本摘要（去 script/style/标签，折叠空行）。"""
+    if not max_kb:
+        return ''
+    import io as _io
+    import re as _re
+    try:
+        with _io.open(path, encoding='utf-8', errors='replace') as f:
+            html = f.read()
+    except OSError:
+        return ''
+    html = _re.sub(r'(?is)<(script|style)\b.*?</\1>', ' ', html)
+    html = _re.sub(r'(?is)<head\b.*?</head>', ' ', html)
+    html = _re.sub(r'(?s)<!--.*?-->', ' ', html)
+    html = _re.sub(r'(?i)</(p|div|section|tr|li|h[1-6]|table|pre)>', '\n', html)
+    html = _re.sub(r'(?i)<br\s*/?>', '\n', html)
+    html = _re.sub(r'(?s)<[^>]+>', '', html)
+    text = (html.replace('&nbsp;', ' ').replace('&amp;', '&')
+                .replace('&lt;', '<').replace('&gt;', '>')
+                .replace('&quot;', '"').replace('&#x27;', "'"))
+    text = _re.sub(r'[ \t\u3000]+', ' ', text)
+    text = _re.sub(r'\n\s*\n+', '\n', text).strip()
+    limit = int(max_kb) * 1024
+    if len(text) > limit:
+        text = text[:limit] + '\n…（摘要已截断，全文见 html 路径）'
+    return text
+
+
+def _build_chain_report_impl(root, force=False, digest_kb=24):
+    """一键流程（_chain.json）→「材料 / 方法 / 结果」规范报告。"""
+    t0 = time.time()
+    try:
+        from Virus_Platform_Core.chain_report import build_chain_report
+    except Exception as e:                      # noqa: BLE001
+        return _fmt('error', '规范报告生成器不可用: %s: %s'
+                             % (type(e).__name__, e),
+                    nxt=['python main.py selfcheck 检查核心模块完整性'])
+    try:
+        out = build_chain_report(root, force=bool(force))
+    except Exception as e:                      # noqa: BLE001
+        return _fmt('error', '规范报告生成失败（%s）: %s: %s'
+                             % (os.path.basename(root), type(e).__name__, e),
+                    result={'target': os.path.basename(root),
+                            'kind': 'chain', 'dir': root},
+                    nxt=['先用 vp_get_task / vp_list_tool_runs 确认运行已完成'])
+    model = out.get('model') or {}
+    html_path = out.get('html') or ''
+    size = 0
+    try:
+        size = os.path.getsize(html_path)
+    except OSError:
+        pass
+    digest = _html_digest(html_path, digest_kb) if digest_kb else ''
+    return _fmt(
+        'ok',
+        '规范报告已就绪：%s（%.2f MB，%s，%d 个样本，%d 条命中，%.1fs）'
+        % (os.path.basename(html_path) or '(无)', size / 1048576.0,
+           model.get('title') or model.get('chain') or '?',
+           model.get('n_samples') or 0, len(model.get('hits') or []),
+           time.time() - t0),
+        result={'target': os.path.basename(root), 'kind': 'chain',
+                'chain': model.get('chain'), 'run': model.get('run'),
+                'dir': root, 'html': html_path, 'size': size,
+                'mode': model.get('mode'), 'n_samples': model.get('n_samples'),
+                'n_ok': model.get('n_ok'), 'n_failed': model.get('n_failed'),
+                'n_hits': len(model.get('hits') or []),
+                'species_n': model.get('species_n'),
+                'n_figures': len(model.get('figures') or []),
+                'gaps': model.get('gaps') or [],
+                'reused': bool(out.get('reused')), 'digest': digest},
+        interpret=['章节：一、材料（样本/数据量/环境）；二、方法（步骤与参数）；'
+                   '三、结果（检出病毒/计数/深度图）；四、产物与可追溯；'
+                   '五、局限与口径',
+                   '报告只写 chain_report.html / chain_report_meta.json，'
+                   '不动任何分析产物'],
+        nxt=['正文纯文本已在 result.digest；要逐节读用 '
+             'vp_read_sample_file（工具运行目录）读 chain_report.html',
+             '网页入口：/api/tool/chain_report?run=<run>'])
+
+
+def _build_report_impl(target, kind='auto', force=False, digest_kb=24):
+    """生成结论文档 report_v2.html（只写报告文件，不碰分析产物）。
+
+    刻意不 import viz / pipeline_overview：它们在模块层会拉起
+    matplotlib，MCP 工作线程首次 import 会在 Windows 字体缓存上挂死
+    （见 _stage_disk_state 的注释）。report_kit 只依赖 io_utils /
+    stage_funnel 的纯逻辑部分，实测 import 0.06s 且不加载 matplotlib。
+    """
+    t0 = time.time()
+    try:
+        root, real_kind = _resolve_report_target(target, kind)
+    except ValueError as e:
+        return _fmt('error', str(e), nxt=[
+            'vp_list_samples 查样品名；vp_list_tool_runs 查工具运行名'])
+    # 一键流程目录带 _chain.json：走「材料/方法/结果」规范报告
+    if os.path.isfile(os.path.join(root, '_chain.json')):
+        return _build_chain_report_impl(root, force=force,
+                                        digest_kb=digest_kb)
+    try:
+        from Virus_Platform_Core.report_kit import build_enhanced_report
+    except Exception as e:                      # noqa: BLE001 - 依赖缺失要报清楚
+        return _fmt('error', '结论文档生成器不可用: %s: %s'
+                             % (type(e).__name__, e),
+                    nxt=['python main.py selfcheck 检查核心模块完整性'])
+    try:
+        out = build_enhanced_report(root, force=bool(force))
+    except Exception as e:                      # noqa: BLE001
+        return _fmt('error', '生成失败（%s）: %s: %s'
+                             % (os.path.basename(root), type(e).__name__, e),
+                    result={'target': os.path.basename(root),
+                            'kind': real_kind, 'dir': root},
+                    nxt=['先用 vp_sample_stages 确认阶段产物齐全；'
+                         '日志见 vp_read_sample_file logs/'])
+    model = out.get('model') or {}
+    html_path = out.get('html') or ''
+    size = 0
+    try:
+        size = os.path.getsize(html_path)
+    except OSError:
+        pass
+    # 模块结果页顺带刷新（纯文件整理，不拉 matplotlib；失败不影响报告本身）
+    pages_n = 0
+    try:
+        from Virus_Platform_Core.report_kit import module_page
+        if real_kind == 'tool_run':
+            module_page.build_tool_run_page(root)
+            pages_n = 1
+        else:
+            module_page.build_all_for_sample(root)
+            pages_n = len(module_page._dir_groups(root))
+    except Exception as _mp_e:                  # 页面非关键交付，但原因可见
+        logging.getLogger(__name__).warning(
+            '结论文档模块结果页刷新失败（不影响报告）: %s: %s',
+            type(_mp_e).__name__, _mp_e)
+    profile = (model.get('profile') or {})
+    stages = model.get('stages') or []
+    findings = model.get('findings') or []
+    gaps = model.get('gaps') or []
+    contra = model.get('contradictions') or []
+    verdict = model.get('verdict') or {}
+    high = [g for g in gaps if str(g.get('severity')) == 'high']
+    digest = _html_digest(html_path, digest_kb) if digest_kb else ''
+    interp = [
+        '任务档案判为 %s（%s），%d 个阶段进报告'
+        % (profile.get('key') or '?', profile.get('title') or '?', len(stages)),
+        '结论 %d 条 / 缺口 %d 条（高强度 %d）/ 口径矛盾 %d 条'
+        % (len(findings), len(gaps), len(high), len(contra)),
+        '判定：%s' % (verdict.get('text') or '未给出'),
+        ('报告已复用（输入未变；force=true 可强重建）' if out.get('reused')
+         else '报告已重建'),
+    ]
+    return _fmt(
+        'ok',
+        '结论文档已就绪：%s（%.2f MB，%s 档案，%d 阶段，%.1fs）'
+        % (os.path.basename(html_path) or '(无)', size / 1048576.0,
+           profile.get('key') or '?', len(stages), time.time() - t0),
+        result={'target': os.path.basename(root), 'kind': real_kind,
+                'dir': root, 'html': html_path, 'size': size,
+                'profile': profile.get('key'), 'profile_title':
+                profile.get('title'), 'n_stages': len(stages),
+                'n_findings': len(findings), 'n_gaps': len(gaps),
+                'n_gaps_high': len(high), 'n_contradictions': len(contra),
+                'verdict': verdict.get('text'), 'reused':
+                bool(out.get('reused')), 'digest': digest,
+                'module_pages': pages_n},
+        interpret=interp,
+        nxt=['正文纯文本已在 result.digest（去标签），要结构化字段用 '
+             'vp_read_sample_file 07_report/report_v2_meta.json',
+             '要详细读某一节：vp_read_sample_file '
+             '07_report/report_v2.html（可截断读取）',
+             '各模块结果页（results.html）已顺带刷新；网页入口：'
+             '/api/module_report?sample=<样品>&stage=<阶段>'])
+
+
+@mcp.tool(name='vp_build_report', annotations=_WRITE)
+async def vp_build_report(
+        target: Annotated[str, Field(min_length=1, max_length=200,
+                                     description='样品名（vp_list_samples）'
+                                                 '或工具运行名'
+                                                 '（vp_list_tool_runs）')],
+        kind: Annotated[str, Field(
+            description='auto|sample|tool_run，默认 auto 先按样品解析再按'
+                        '工具运行解析')] = 'auto',
+        force: Annotated[bool, Field(
+            description='true 时忽略缓存强重建（默认输入未变就复用）')] = False,
+        digest_kb: Annotated[int, Field(
+            ge=0, le=256,
+            description='顺带返回正文纯文本摘要的 KB 上限（0=不要摘要，'
+                        '默认 24）')] = 24) -> dict:
+    """生成/读取某次分析的「结论文档」report_v2.html（学术论文风，任务无关）。
+
+    只读落盘产物（summary.json / tsv / 日志）→ 生成自包含单文件 HTML：
+    执行摘要（结论+证据）、流程漏斗、逐阶段深读、病毒学结论、证据缺口与
+    口径矛盾、AI 问答卡、可复现命令、方法与溯源、下一步。**只写
+    report_v2.html / report_v2_meta.json 两个文件，不动任何分析产物。**
+
+    传入 digest_kb>0 时同一调用内返回正文纯文本（去标签），可直接读结论，
+    不必再取文件。返回 {target, kind, html, size, profile, sections,
+    n_stages, n_findings, n_gaps, n_contradictions, verdict, digest}。
+    """
+    return await anyio.to_thread.run_sync(
+        _build_report_impl, target, kind, force, digest_kb)
 
 @mcp.tool(name='vp_delete_tool_run', annotations=_DESTR)
 async def vp_delete_tool_run(
@@ -1788,7 +2122,9 @@ COMMAND_SPECS = {
         ('first_wait', 'int', False, '默认 300'),
         ('max_wait', 'int', False, '默认 1800')]),
     # ---- 专项重跑（对已有样品结果，免流水线）----
-    'report': _C('对已有样品结果重新生成可视化报告', 'task', [
+    'report': _C('对已有样品结果重新生成报告：图表报告 report.html + 结论文档 '
+                 'report_v2.html（学术论文风；只要结论文档用 vp_build_report）',
+                 'task', [
         ('sample', 'str', True, '样品名'), ('force', 'bool', False, '强制重跑')],
         weight='light'),
     'host-analysis': _C('对已有 ③ 组装结果做 ICTV 宿主预测', 'task', [
@@ -1798,7 +2134,8 @@ COMMAND_SPECS = {
         weight='light'),
     'orfa': _C('ORF 功能注释重跑（⑥b，对已有样品）', 'task', [
         ('sample', 'str', True, '样品名'), ('threads', 'int', False, '线程'),
-        ('libs', 'str', False, 'prot|pfam|bfvd 组合，逗号分隔'),
+        ('libs', 'str', False, 'pvdb|hmm|cdd|bfvd 组合，逗号分隔'),
+        ('profile', 'str', False, 'PVDB 投影档位 strict|balanced|recall（默认 balanced）'),
         ('min_pident', 'float', False, '层1 Identity% 门槛'),
         ('min_qcov', 'float', False, '层1 覆盖% 门槛'),
         ('force', 'bool', False, '强制重跑')], weight='light'),
@@ -2579,7 +2916,9 @@ def _run_http(port, token=None):
         import subprocess
         subprocess.run([sys.executable, '-m', 'pip', 'install', '--quiet',
                         'uvicorn', '-i',
-                        'https://pypi.tuna.tsinghua.edu.cn/simple'])
+                        'https://pypi.tuna.tsinghua.edu.cn/simple'],
+                       creationflags=getattr(
+                           subprocess, 'CREATE_NO_WINDOW', 0))
     app_inner = mcp.streamable_http_app()
 
     if token:

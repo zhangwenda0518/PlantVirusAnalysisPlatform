@@ -34,7 +34,7 @@
   </div>
 
   <!-- 新建下载任务 -->
-  <div class="card" id="createCard">
+  <div class="card" id="createCard" data-guide="Download">
     <h2 data-i18n="dl.create">① 新建下载任务</h2>
     <div class="grid2">
       <div>
@@ -42,8 +42,8 @@
         <input id="dlName" type="text" placeholder="如 病毒组雷达-Run列表" data-i18n-ph="dl.phName">
       </div>
       <div>
-        <label data-i18n="dl.conc">并发文件数（NGDC 建议低并发防封控）</label>
-        <input id="dlConc" type="number" value="2" min="1" max="4">
+        <label data-i18n="dl.conc">并发文件数（本地串行执行，固定 1）</label>
+        <input id="dlConc" type="number" value="1" min="1" max="1">
       </div>
     </div>
     <!-- 2026-09-30：可选自定义输出位置。不填 = 默认 downloads/<批次>；
@@ -133,8 +133,14 @@ async function createBatch() {
   } catch (e) { if (netFail(e)) setConnBanner(true); else console.error(e); }
 }
 
-/* 实时传输指标条：仅在进行中显示（速度 / 已下载·总量 / 剩余时间） */
+/* 实时传输指标条：仅在进行中显示（速度 / 已下载·总量 / 剩余时间）。
+   排队中的批次（waiting，2026-11-03 串行化）不报速度/ETA——没在真下载，
+   报出来是误导；显示「等待中 · 第 N 批」。 */
 function dlMetrics(b) {
+  if (b.waiting) {
+    return `<div class="hint" style="margin:6px 0 0">⏳ ${t('dl.stWaiting')
+      .replace('{n}', b.queue_pos || '?')}</div>`;
+  }
   const live = ['downloading', 'resolving', 'converting'].includes(b.status);
   const spd = fmtSpeed(b.speed || 0);
   const eta = fmtEta(b.eta || 0);
@@ -153,6 +159,7 @@ function dlMetrics(b) {
 }
 
 const stMap = () => ({ resolving: t('dl.stResolving'), downloading: t('dl.stDownloading'),
+                paused: t('dl.stPaused'),
                 converting: t('dl.stConverting'), completed: t('dl.stCompleted'),
                 failed: t('dl.stFailed'), cancelled: t('dl.stCancelled'),
                 interrupted: t('dl.stInterrupted') });
@@ -171,7 +178,9 @@ function toggleBatchLog(bid) {
 
 function batchHtml(b) {
   const pct = Math.round((b.overall || 0) * 100);
-  const stat = stMap()[b.status] || b.status;
+  const stat = b.waiting
+    ? t('dl.stWaiting').replace('{n}', b.queue_pos || '?')
+    : (stMap()[b.status] || b.status);
   const canInto = b.status === 'completed' && b.done > 0;
   let files = '';
   if (b.files) {
@@ -218,6 +227,12 @@ function batchHtml(b) {
       <button class="btn small" onclick="toggleFiles('${esc(b.id)}', this)">📁 ${t('c.files')}</button>
       <button class="btn small" onclick="toggleBatchLog('${esc(b.id)}')">${t('dl.log')}</button>
       ${['downloading','resolving','converting'].includes(b.status)
+        ? `<button class="btn small" onclick="batchAction('${esc(b.id)}','pause')"
+                 title="${t('dl.pauseTip')}">⏸ ${t('c.pause')}</button>` : ''}
+      ${b.status === 'paused'
+        ? `<button class="btn small primary" onclick="batchAction('${esc(b.id)}','resume')"
+                 title="${t('dl.resumePausedTip')}">▶ ${t('c.resume')}</button>` : ''}
+      ${['downloading','resolving','converting','paused'].includes(b.status)
         ? `<button class="btn small danger" onclick="batchAction('${esc(b.id)}','cancel')">✖ ${t('c.cancel')}</button>` : ''}
       ${b.failed ? `<button class="btn small" onclick="batchAction('${esc(b.id)}','retry')">${t('dl.retryFail').replace('{n}', b.failed)}</button>` : ''}
       ${b.status === 'interrupted' ? `<button class="btn small primary" onclick="batchAction('${esc(b.id)}','retry')"
@@ -352,7 +367,7 @@ async function intoPipeline(bid) {
           (d.skipped && d.skipped.length ? ` · ${t('dl.skipped', '跳过已存在')}: ${d.skipped.join(', ')}` : ''),
           {ttl: 8000});
     if (!POP && d.created && d.created.length) {
-      setTimeout(() => location.href = '/samples', 900);
+      setTimeout(() => gotoModule('/samples'), 900);
     }
   } catch (e) { if (netFail(e)) setConnBanner(true); else console.error(e); }
 }
@@ -380,7 +395,8 @@ async function refresh() {
   let active = false;
   try {
     const list = await (await fetch('/api/dl/batches')).json();
-    active = list.some(b => ['resolving','downloading','converting'].includes(b.status));
+    // paused 也计入「进行中」：卡片要在用户点「继续」后立刻刷新成下载态
+    active = list.some(b => ['resolving','downloading','converting','paused'].includes(b.status));
     // 展开中的批次：先刷新明细，重建卡片后按新数据重绘（原来只在首次
     // 展开时取一次，之后永远显示点击那一刻的旧进度）
     await Promise.all([...dlFileOpen].map(async bid => {

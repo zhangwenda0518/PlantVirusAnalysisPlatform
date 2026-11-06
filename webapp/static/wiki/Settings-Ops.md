@@ -1,6 +1,6 @@
 # Settings-Ops · 设置 · 任务中心 · 运维
 
-> 返回 [Home](Home) ｜ 上一页：[Databases](Databases) ｜ 下一页：[CLI-Reference](CLI-Reference)
+> 返回 [Home](Home) ｜ 上一页：[CLI-Reference](CLI-Reference) ｜ 下一页：[FAQ](FAQ)
 
 对应引擎：`selfcheck.py`、`tool_runs_admin.py`、`db_migrate.py`、`web/state.py`（设置与任务状态）。
 
@@ -89,3 +89,11 @@ python tests/_check_home_cover.py     :: 真浏览器回归（需服务在跑）
 
 - 进度与并发模型 → [Pipeline-Overview](Pipeline-Overview)
 - 数据库内容 → [Databases](Databases)
+
+## 快速上手
+
+- 步骤一：首次使用先跑「环境自检」，确认外部工具与数据库就绪（缺什么页面会点名）。
+- 步骤二：到「设置中心」配 NCBI 邮箱（Entrez 必填）与全局线程数；分析默认参数保持默认即可，需要时再改。
+- 步骤三：关注「存储与磁盘」水位条 —— 平台盘剩余 <20GB 时全站顶部会出现黄色横幅，及时清理 `run/tool_runs/`（见「输出目录管理」）。
+- 步骤四：外置数据库在「数据库目录」对接，切换后路径常量即时刷新，无需重启。
+- 产物：本页是设置与运维入口，分析产物仍落 `run/`（目录结构见 [Results](Results)）。

@@ -42,7 +42,7 @@ async function checkStorageBanner() {
       + t('st.gotIt', '知道了，本次不再提示') + '</button>'
       + '<button class="btn small" style="margin-left:6px" '
       + 'onclick="sessionStorage.removeItem(\'stBannerDismissed\');'
-      + 'location.href=\'/settings\'">'
+      + 'gotoModule(\'/settings\')">'
       + t('st.gotoStorage', '去清理 / 查看占用') + '</button></div>';
   } catch (e) { /* 磁盘检查失败不应影响正常使用 */ }
 }

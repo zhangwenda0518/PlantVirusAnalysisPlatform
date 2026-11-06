@@ -95,47 +95,9 @@
   <script src="/static/app-storage.js?v={{ asset_v }}"></script>
 <script src="/static/examples.js?v={{ asset_v }}"></script>
 <script>
-/* 环境状态条：异步拉 /api/selfcheck（服务端缓存 5 分钟），渲染一行摘要。
-   任何异常都静默——总览页不该因为自检挂掉而受影响。 */
-(async () => {
-  try {
-    const d = await (await fetch('/api/selfcheck')).json();
-    const sec = {};
-    for (const s of (d.sections || [])) sec[s.id] = s;
-    if (!sec.modules && !sec.tools) return;
-    const bit = (label, val, state, tip) =>   // state: ok / warn / bad
-      `<span class="env-bit ${state}"${tip ? ` title="${esc(tip)}"` : ''}>` +
-      `${state === 'ok' ? '✔' : state === 'warn' ? '△' : '✘'} ` +
-      `${esc(label)} <b>${esc(val)}</b></span>`;
-    const disk = sec.disk && sec.disk.items && sec.disk.items[0];
-    const tools = sec.tools || {};
-    const nMiss = (tools.missing || []).length;
-    // 磁盘那一位的 tooltip 给「谁吃了盘」的明细（selfcheck 新增 usage 段；
-    // 老后端没有这个字段时自动跳过，不报错）
-    const usage = (sec.disk && sec.disk.usage) || [];
-    const diskTip = usage.length
-      ? usage.map(u => `${u.name} ${fmtSize(u.bytes)}`).join(' · ')
-      : '';
-    const bits = [
-      bit(t('hm.env.modules', '模块'),
-          sec.modules ? trSc(sec.modules.summary) : '—',
-          sec.modules && sec.modules.ok ? 'ok' : 'bad'),
-      bit(t('hm.env.tools', '外部工具'),
-          trSc(tools.summary || '—'),
-          nMiss === 0 ? 'ok' : (tools.summary ? 'warn' : 'bad')),
-      bit(t('hm.env.databases', '数据库'),
-          sec.databases ? (sec.databases.ok ? t('hm.env.ready', '就绪') : t('hm.env.notReady', '未就绪')) : '—',
-          sec.databases && sec.databases.ok ? 'ok' : 'bad'),
-      bit(t('hm.env.disk', '磁盘'),
-          disk ? trSc(disk.detail.replace(/^(剩余|free)\s*/, '')) : '—',
-          disk ? (disk.ok ? 'ok' : 'warn') : 'ok', diskTip),
-    ];
-    $('envStripBody').innerHTML = bits.join('');
-    $('envStrip').hidden = false;
-  } catch (e) { /* 静默 */ }
-})();
-
-/* 样品创建 / 批量导入只在封面保留入口（2026-10-29 用户定案：内嵌面板
+/* 环境状态条（2026-11-03 迁出）：渲染归 app.js 的 envStrip 控制器统一负责
+   （本页 = 全局口径，其它页 = 本模块口径，数据同出 /api/env_status）。
+   样品创建 / 批量导入只在封面保留入口（2026-10-29 用户定案：内嵌面板
    太占地方）。按钮就是普通链接 → /samples，本页不再绑定任何展开逻辑。 */
 
 /* AI 分析台：把全站对话坞搬进总览卡片（2026-10-29）。
@@ -148,8 +110,12 @@
   host.appendChild(dock);
   dock.classList.add('ai-inline');
   dock.hidden = false;
-  var fab = document.getElementById('aiFab');
-  if (fab) fab.hidden = true;
+  /* 2026-11-02：悬浮球改成独立「问答平台」后，它的显隐归 app-qa.js 管，
+     本页不再藏它 —— 总览页本来也能问「这平台怎么用」。
+     工作台在总览页就在页面里（上面搬进卡片了），所以顶栏那颗 🧠 按钮
+     在这儿是多余的，藏掉，避免同一屏两个工作台入口。 */
+  var wbBtn = document.getElementById('aiDockBtn');
+  if (wbBtn) wbBtn.hidden = true;
   if (window.AI) {
     AI.open = true;
     if (AI.clearUnread) AI.clearUnread();

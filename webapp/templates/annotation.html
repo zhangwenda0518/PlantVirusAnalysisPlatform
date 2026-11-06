@@ -17,12 +17,11 @@
     <main class="group-main">
   <div class="layout">
     <div class="col">
-      <div class="card">
+      <div class="card" data-guide="Annotate-Intro">
         <h1 data-i18n="an.title">🧾 功能注释</h1>
-        <p class="hint" data-i18n="an.hint">独立模块：ORF 蛋白对照 RefSeq 病毒蛋白库
-        （DIAMOND / MMseqs2 / blastp 任一，自动探测）+ 类别投票 + ICTV 映射。
-        可对已有「ORF 预测」运行直接注释，也可输入 FASTA 一步完成
-        （预测 + 注释）。首次运行自动下载 RefSeq 病毒蛋白库 ~107MB，之后全缓存。
+        <p class="hint" data-i18n="an.hint">输入核酸 FASTA 一步完成——pyrodigal(-rv) 预测 ORF →
+        蛋白对照 PVDB/RefSeq 病毒蛋白库（DIAMOND / MMseqs2 / blastp 任一，自动探测）
+        + 类别投票 + ICTV 映射。首次运行自动下载蛋白库 ~107MB，之后全缓存。
         CDS 基因模型默认 pyrodigal-rv（RNA/反转录病毒），可按需切换 pyrodigal
         （meta 基因模型）。</p>
 
@@ -37,56 +36,42 @@
             </select>
           </div>
           <div class="gp-item">
-            <label data-i18n="an.dbLabel">参考数据库</label>
-            <select id="oa_db" onchange="libsUiSync()">
-              <option value="" data-i18n="an.dbRefseq">RefSeq 病毒蛋白库（默认）</option>
-              <option value="custom" data-i18n="an.dbCustom">自备本地蛋白 FASTA…</option>
-            </select>
-          </div>
-          <div class="gp-item">
             <label data-i18n="an.modelLabel">CDS 基因模型</label>
             <select id="oa_model">
               <option value="" data-i18n="an.modelRv">pyrodigal-rv（默认，RNA/反转录病毒）</option>
               <option value="pyrodigal" data-i18n="an.modelMeta">pyrodigal（meta 基因模型）</option>
             </select>
           </div>
-          <div class="filerow" id="oa_db_custom" style="display:none">
-            <input id="oa_db_fa" type="text" data-i18n-ph="an.dbFaPh" placeholder="自备蛋白库 .faa">
-            <button class="btn small" onclick="browse('oa_db_fa')">📁</button>
+          <div class="gp-item">
+            <label data-i18n="an.pidLabel">序列命中门槛 identity% / 覆盖%</label>
+            <span style="display:flex;gap:6px;align-items:center">
+              <input id="oa_min_pident" type="number" min="0" max="100" step="5"
+                placeholder="40" style="width:76px">
+              <span>/</span>
+              <input id="oa_min_qcov" type="number" min="0" max="100" step="5"
+                placeholder="60" style="width:76px">
+            </span>
           </div>
         </div>
 
         <div style="margin:4px 0 4px">
-          <label data-i18n="an.libsLabel">注释层（可多选，至少一层）</label>
+          <label data-i18n="an.libsLabel">注释层</label>
           <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:4px">
-            <label class="chk"><input type="checkbox" id="oa_lib_prot" checked
-              onchange="libsUiSync()"><span data-i18n="an.libProt">层1 序列同源（RefSeq 病毒蛋白）</span></label>
-            <label class="chk"><input type="checkbox" id="oa_lib_pfam" checked
-              onchange="libsUiSync()"><span data-i18n="an.libPfam">层2 Pfam HMM（Pfam-A-Viruses）</span></label>
+            <label class="chk"><input type="checkbox" id="oa_lib_pvdb" checked disabled
+              onchange="libsUiSync()"><span data-i18n="an.libPvdb">PVDB 植物专属库（23,292 蛋白 / 多聚蛋白分段）</span></label>
+            <label class="chk"><input type="checkbox" id="oa_lib_hmm" checked
+              onchange="libsUiSync()"><span data-i18n="an.libHmm">PVDB HMM 域（Pfam 387 / VOG 150 / VFAM 395）</span></label>
+            <label class="chk"><input type="checkbox" id="oa_lib_cdd" checked
+              onchange="libsUiSync()"><span data-i18n="an.libCdd">PVDB CDD 域（455 profile）</span></label>
             <label class="chk"><input type="checkbox" id="oa_lib_bfvd" checked
-              onchange="libsUiSync()"><span data-i18n="an.libBfvd">层2 BFVD 病毒域（mmseqs2，与 NCBI 提交同源）</span></label>
-            <button class="btn small" onclick="libsSetAll(true)" data-i18n="an.libsAll">全部层</button>
+              onchange="libsUiSync()"><span data-i18n="an.libBfvd">PVDB BFVD 病毒域（13,900 模型）</span></label>
             <span class="hint" id="oa_libs_warn" style="display:none"></span>
           </div>
-          <p class="hint" id="oa_libs_hint" style="margin:6px 0 0" data-i18n="an.libsHint">层1 做
-          DIAMOND/MMseqs2/blastp 同源搜索（首次会下载 ~107MB 参考库）；层2 Pfam HMM 与
-          BFVD 病毒域为本地库、无需下载（BFVD 与 NCBI 提交链同库，product 命名一致）。只勾层2 时可跳过层1，速度快很多，但不会有
-          物种/科属与类别投票结果。</p>
+          <p class="hint" id="oa_libs_hint" style="margin:6px 0 0" data-i18n="an.libsHint">平台只做植物病毒：
+          PVDB 同时提供序列同源命名与参考多聚蛋白切点投影分段；先验 ORF 仍用 pyrodigal。</p>
         </div>
 
-        <h2 style="margin:14px 0 6px" data-i18n="an.modeA">方式 A · 对已有 ORF 运行做注释</h2>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <select id="oa_run" style="max-width:420px">
-            <option value="" data-i18n="an.pickRun">（选择 orf_ 运行）</option>
-          </select>
-          <button class="btn small" onclick="loadOrfRuns(true)" data-i18n="c.refreshBtn">↻ 刷新</button>
-          <button class="btn small" onclick="loadOrfRuns(true); toast(t('an.pickedLatest','已选最新 ORF 运行'), $('oa_run').value, {ttl:2500})" data-i18n="c.example">✨ 示例</button>
-        </div>
-        <div style="margin-top:8px">
-          <button class="btn primary" onclick="runAnnotRun(this)" data-i18n="an.runSel">▶ 注释该运行</button>
-        </div>
-
-        <h2 style="margin:20px 0 6px" data-i18n="an.modeB">方式 B · 输入 FASTA（预测 + 注释一步完成）</h2>
+        <h2 style="margin:14px 0 6px" data-i18n="an.faHead">输入</h2>
         <label data-i18n="an.faLabel">输入 FASTA（核酸，支持 .gz）</label>
         <div class="filerow">
           <input id="oa_fa" type="text" data-i18n-ph="an.faPh" placeholder="选择 .fasta / .fna[.gz]">
@@ -98,6 +83,7 @@
           style="width:100%;min-height:220px;font-family:var(--mono);font-size:12.5px;line-height:1.55;margin-top:6px;padding:10px 12px;resize:vertical;border-radius:6px"
           placeholder=">contig_name\nATGC...（核酸序列，>header 开头）" data-i18n-ph="an.faTextPh"></textarea>
         <div class="hint" style="margin:4px 0 0" data-i18n="an.faTextHint">可直接 Ctrl+V 粘贴多行 FASTA / 纯序列；文本框右下角可拖拽放大。文本框与上方文件路径二选一，<b>文本框优先</b>（无需先落到文件）。</div>
+        <div class="hint" style="margin:2px 0 0" data-i18n="an.multiSeqHint">支持多序列 FASTA：逐条序列预测 ORF、逐条注释（ORF 表带 contig 列），结果区另有「按序列汇总」和逐序列示意图。</div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:6px">
           <div class="gp-item">
             <label data-i18n="an.minAa">最短 ORF 长度（aa）</label>
@@ -115,9 +101,10 @@
         <div class="tool-out">
           <div class="tool-out-head" data-i18n="c.outHead">📤 输出</div>
           <div class="toolrun" id="toolrun-orfa"></div>
+          <div id="oaResult" style="display:none;margin-top:10px"></div>
         </div>
         <p class="hint" data-i18n="an.artifacts">产物（运行目录 orfa_ 开头 / 结果中心可查）：
-        orf_annotation.tsv、功能类别 / 科分布、注释 GFF3。</p>
+        orf_annotation.tsv（含 segments 分段与 hmm/cdd/bfvd 域证据列）、功能类别 / 科分布、注释 GFF3。</p>
       <div class="rh" id="rh-orfa"></div>
       </div>
     </div>
@@ -143,8 +130,8 @@
 
 function val(id) { return ($(id)?.value || '').trim(); }
 
-/* ---- 注释层选择（prot 层1 序列同源 / pfam 层2 HMM / bfvd 层2 病毒域） ---- */
-const OA_LIBS = ['prot', 'pfam', 'bfvd'];
+/* ---- 注释层选择（prot 层1 序列同源 / pvdb 层1b 植物专属 / pfam 层2 HMM / bfvd 层2 病毒域） ---- */
+const OA_LIBS = ['pvdb', 'hmm', 'cdd', 'bfvd'];
 
 function libsSel() {
   return OA_LIBS.filter(k => $(`oa_lib_${k}`)?.checked);
@@ -156,32 +143,132 @@ function libsSetAll(on) {
 }
 
 function libsUiSync() {
-  const on1 = !!$('oa_lib_prot')?.checked;
-  ['oa_engine', 'oa_db'].forEach(id => { const el = $(id); if (el) el.disabled = !on1; });
-  const row = $('oa_db_custom');
-  const cust = val('oa_db') === 'custom';
-  if (row) row.style.display = (on1 && cust) ? '' : 'none';
   const warn = $('oa_libs_warn');
-  if (warn) {
-    warn.textContent = on1 ? '' : '⚠ ' + t('an.libsOff',
-      '已关闭层1 序列同源：搜索引擎与参考库选择不生效');
-    warn.style.display = on1 ? 'none' : '';
-  }
+  if (warn) { warn.textContent = ''; warn.style.display = 'none'; }
 }
 
-async function loadOrfRuns(auto) {
+/* ---- 结果面板：读运行 summary.json 渲染统计 + Top 注释表 ---- */
+/* 每层证据单元格 → 超链接（与线上 orfann 同一套规则） */
+function evLink(cell, kind) {
+  const v = String(cell || '').trim();
+  if (!v) return '<span class="muted">—</span>';
+  let tok = v.split('(')[0].split('|')[0].trim();
+  let label = tok;
+  if (kind === 'seq') {
+    const acc = tok.includes(':') ? tok.split(':').pop() : tok;
+    if (/^[A-Za-z]{2,5}_?\d{4,}/.test(acc) && acc.length >= 6)
+      return `<a href="https://www.ncbi.nlm.nih.gov/protein/${acc}" target="_blank" rel="noopener" title="NCBI protein · ${v}">${acc}</a>`;
+    return `<span title="${v}">${acc}</span>`;
+  }
+  if (tok.includes(':')) { const p = tok.split(':'); tok = p[0]; }
+  if (/^PF\d{5}$/i.test(tok))
+    return `<a href="https://www.ebi.ac.uk/interpro/entry/pfam/${tok.toUpperCase()}" target="_blank" rel="noopener" title="${v}">${label}</a>`;
+  if (/^(VOG|VFAM|FAM)/i.test(tok))
+    return `<a href="https://vogdb.org/search?query=${tok}" target="_blank" rel="noopener" title="${v}">${label}</a>`;
+  if (/^(cd\d+|COG\d+|pfam\d+|smart\d+)/i.test(tok))
+    return `<a href="https://www.ncbi.nlm.nih.gov/Structure/cdd/cddsrv.cgi?uid=${tok}" target="_blank" rel="noopener" title="${v}">${tok}</a>`;
+  if (kind === 'bfvd' || /^[A-Z0-9]{6,10}$/.test(tok))
+    return `<a href="https://www.uniprot.org/uniprotkb/${tok}" target="_blank" rel="noopener" title="${v}">${label}</a>`;
+  return `<span title="${v}">${label}</span>`;
+}
+function segBrief(v) {
+  const parts = String(v || '').split(';').filter(x => x.trim());
+  return parts.length ? `${parts.length} 段（${parts[0]}…）` : '';
+}
+async function loadOaResult() {
+  const run = ($('#rh-orfa')?.dataset?.last || '');
+  let name = run;
+  if (!name) {
+    try {
+      const runs = await (await fetch('/api/tool/runs?per=12')).json();
+      const hit = runs.find(x => x.name.startsWith('orfa_'))
+        || runs.find(x => (x.files || []).some(f => f.path.includes('orf_annotation.tsv')));
+      name = hit && hit.name;
+    } catch (e) { /* ignore */ }
+  }
+  if (!name) return;
+  let sum;
   try {
-    const r = await fetch('/api/tool/runs');
-    const runs = (await r.json()).filter(x => x.name.startsWith('orf_')
-      && JSON.stringify(x.files || []).includes('03_assembly'));
-    const sel = $('oa_run');
-    const cur = sel.value;
-    sel.innerHTML = runs.length
-      ? runs.map(x => `<option value="${esc(x.name)}">${esc(x.name)}</option>`).join('')
-      : `<option value="">${t('an.noOrfRun','（暂无 orf_ 运行——先到「ORF 预测」跑一次，或用方式 B）')}</option>`;
-    if (auto && runs.length) sel.value = runs[0].name;
-    else if (cur && runs.some(x => x.name === cur)) sel.value = cur;
-  } catch (e) { /* 忽略 */ }
+    const r = await fetch(`/tool_runs/${encodeURIComponent(name)}/04b_orf_annot/summary.json`);
+    if (!r.ok) return;
+    sum = await r.json();
+  } catch (e) { return; }
+  // 逐序列（contig）功能画像：多序列输入时这是「哪条序列有哪些功能」的入口。
+  let prof = [];
+  try {
+    const pr = await fetch(`/tool_runs/${encodeURIComponent(name)}`
+      + '/04b_orf_annot/contig_function_profile.tsv');
+    if (pr.ok) {
+      const lines = (await pr.text()).split(/\r?\n/).filter(l => l.trim());
+      const head = (lines.shift() || '').split('\t');
+      prof = lines.map(line => {
+        const c = line.split('\t'), o = {};
+        head.forEach((h, i) => { o[h] = c[i] || ''; });
+        return o;
+      });
+    }
+  } catch (e) { /* 旧运行没有该表：不影响 ORF 表 */ }
+  const safeStem = s => String(s || '').replace(/[^A-Za-z0-9_\-.]/g, '_')
+    .replace(/\.{2,}/g, '_').replace(/^\.+|\.+$/g, '') || 'contig';
+  const diagMap = {};
+  (sum.diagrams || []).forEach(p => {
+    const b = String(p).split('/').pop().replace(/\.svg$/i, '');
+    diagMap[b] = p;
+  });
+  const profRows = prof.map(r => {
+    const cid = r.contig || '';
+    const dpath = diagMap[safeStem(cid)];
+    const dlink = dpath ? `<a href="/tool_runs/${encodeURIComponent(name)}/04b_orf_annot/`
+      + `${encodeURIComponent(String(dpath).replace(/\\/g, '/'))}" target="_blank" rel="noopener" title="${esc(dpath)}">🖼</a>` : '';
+    return `<tr><td class="mono">${esc(cid)}</td><td>${esc(r.ORFs || '')}</td>`
+      + `<td>${esc(r.Annotated || '')}</td><td>${esc(r.Categories || '')}</td>`
+      + `<td>${esc(r.Dominant_family || '')}</td><td>${esc(r.Host_source || '')}</td>`
+      + `<td>${dlink}</td></tr>`;
+  }).join('');
+  const profTable = prof.length ? `<details style="margin:8px 0" ${prof.length > 1 ? 'open' : ''}>
+    <summary style="cursor:pointer;font-weight:600">${t('an.rPerSeq','按序列汇总')}</summary>
+    <div style="max-height:300px;overflow:auto;margin-top:6px"><table class="ptable" style="width:100%">
+      <thead><tr><th>${t('an.rSeq','序列')}</th><th>${t('an.rOrfs','ORF')}</th>`
+      + `<th>${t('an.rAnn','有效注释')}</th><th>${t('an.rCat','主要类别')}</th>`
+      + `<th>${t('an.rFam','科')}</th><th>${t('an.rHost','宿主来源')}</th><th>${t('an.rDiag','图')}</th>`
+      + `</tr></thead><tbody>${profRows}</tbody></table></div></details>` : '';
+  const box = $('oaResult');
+  if (!box) return;
+  const prev = sum.rows_preview || [];
+  const th = sum.pvdb_thresholds || {};
+  const EVL = {pvdb: '同源比对 seq', hmm: 'HMM 结构域', cdd: 'CDD 结构域',
+               bfvd: '蛋白结构 BFVD'};
+  function evLabel(r) {
+    for (const k of ['pvdb', 'hmm', 'cdd', 'bfvd'])
+      if (r[k + '_hits']) return EVL[k];
+    return '无证据';
+  }
+  const rows = prev.map(r => `<tr>
+    <td>${esc(r.orf_id || '')}</td><td>${esc(r.product || '')}</td>
+    <td>${esc(r.organism || '')}</td><td>${esc(r.family || '')}</td>
+    <td>${evLabel(r)}</td>
+    <td>${evLink(r.pvdb_hits || r.hit_accession, 'seq')}</td>
+    <td>${evLink(r.hmm_hits, 'hmm')}</td>
+    <td>${evLink(r.cdd_hits, 'cdd')}</td>
+    <td>${evLink(r.bfvd_hits, 'bfvd')}</td>
+    <td>${esc(segBrief(r.segments))}</td></tr>`).join('');
+  box.innerHTML = `
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px">
+      <span>${t('an.rOrfs','ORF')} <b>${sum.n_orfs ?? '-'}</b></span>
+      <span>${t('an.rAnn','有效注释')} <b>${sum.n_annotated ?? '-'}</b></span>
+      <span>${t('an.rNamed','PVDB 命名')} <b>${sum.n_pvdb_named ?? '-'}</b></span>
+      <span>${t('an.rSeg','分段')} <b>${sum.n_pvdb_segments ?? '-'}</b></span>
+      <span>${t('an.rSeqs','序列')} <b>${prof.length || '-'}</b></span>
+      <span class="hint">${t('an.rThr','门槛')} pid≥${th.min_pident ?? 40}/qcov≥${th.min_qcov ?? 60} · ${t('an.rProf','档位')} ${th.profile || 'balanced'}</span>
+    </div>
+    ${profTable}
+    ${rows ? `<div style="max-height:320px;overflow:auto"><table class="ptable" style="width:100%">
+      <thead><tr><th>ORF</th><th>${t('an.rProd','产物')}</th><th>${t('an.rOrg','物种')}</th>
+      <th>${t('an.rFam','科')}</th><th>${t('an.rEv','证据')}</th>
+      <th>seq</th><th>hmm</th><th>cdd</th><th>bfvd</th>
+      <th>${t('an.rSegc','分段')}</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>` : ''}`;
+  box.style.display = '';
 }
 
 async function _runOrfa(params, btn) {
@@ -194,7 +281,7 @@ async function _runOrfa(params, btn) {
     const d = await r.json();
     taskLogOpen.add(d.task);
     startPolling();
-    watchTaskBtn(d.task, btn, t('an.busy','⏳ 注释中…'));
+    watchTaskBtn(d.task, btn, t('an.busy','⏳ 注释中…'), () => loadOaResult());
   } catch (e) { alert(t('an.connFail','无法连接平台服务: ') + e); }
 }
 
@@ -202,28 +289,17 @@ function annotDbParams(p) {
   const libs = libsSel();
   if (!libs.length) { alert(t('an.needLib', '请至少勾选一个注释层')); return null; }
   p.libs = libs;
-  // 层1 关闭时搜索引擎与参考库都不参与，不必传（传了也被忽略）
-  if (libs.indexOf('prot') >= 0) {
-    const eng = val('oa_engine');
-    if (eng) p.engine = eng;
-    const dbk = val('oa_db');
-    if (dbk === 'custom') {
-      const fa = val('oa_db_fa');
-      if (!fa) { alert(t('an.needDbFa','请选择自备蛋白库 .faa（或改回 RefSeq 默认库）')); return null; }
-      p.db = fa;
-    }
-  }
+  // PVDB 层支持引擎选择（diamond / mmseqs / blastp）；参考库固定为 PVDB。
+  const eng = val('oa_engine');
+  if (eng) p.engine = eng;
+  const pid = parseFloat(val('oa_min_pident'));
+  if (!isNaN(pid) && pid > 0) p.min_pident = pid;
+  const qcv = parseFloat(val('oa_min_qcov'));
+  if (!isNaN(qcv) && qcv > 0) p.min_qcov = qcv;
   const mdl = val('oa_model');
   if (mdl) p.model = mdl;
   return p;
 }
-function runAnnotRun(btn) {
-  const run = val('oa_run');
-  if (!run) { alert(t('an.needRun','请选择已有 ORF 运行（或改用方式 B 输入 FASTA）')); return; }
-  const p = annotDbParams({ run });
-  if (p) _runOrfa(p, btn);
-}
-
 /* 直接输入序列模式（与「同源比对（BLASTN · BLASTX）」卡同款）：
    「📋」= 把剪贴板内容填进下方大文本框，也兼容「序列被误粘到文件路径框」的情况；
    文本框本身支持 Ctrl+V 多行粘贴，右下角可拖拽放大。 */
@@ -281,7 +357,6 @@ function runAnnotFasta(btn) {
   if (p) _runOrfa(p, btn);
 }
 
-loadOrfRuns(false);
 libsUiSync();
 startPolling();
 </script>

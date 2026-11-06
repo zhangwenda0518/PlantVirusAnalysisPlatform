@@ -32,7 +32,7 @@
       <div style="display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:16px;align-items:start">
 
         <!-- 左栏：参数配置（sticky 固定 + 内部独立滚动，右侧预览始终可见） -->
-        <div class="card" style="padding:14px;position:sticky;top:calc(var(--head-h) + 14px);max-height:calc(100vh - var(--head-h) - 28px);overflow-y:auto">
+        <div class="card" data-guide="Genome-Plots" style="padding:14px;position:sticky;top:calc(var(--head-h) + 14px);max-height:calc(100vh - var(--head-h) - 28px);overflow-y:auto">
           <!-- Input -->
           <div style="font-size:12.5px;font-weight:700;margin-bottom:8px;color:#1a5276" data-i18n="gn.secInput">📥 输入</div>
           <label data-i18n="gn.faLbl">基因组 / contigs FASTA</label>
@@ -67,48 +67,46 @@
             <div class="hint" id="gp_inter_hint" style="display:none;margin-top:2px" data-i18n="gn.interHint">调参即预览（不落盘）；满意后点「💾 保存结果」才真正保存</div>
           </div>
 
-          <!-- 绘图参数（Basic 布局部分） -->
-          <div style="font-size:12.5px;font-weight:700;margin:14px 0 8px;color:#1a5276" data-i18n="gn.secParams">🎛 绘图参数</div>
-          <div style="display:grid;grid-template-columns:1fr;gap:8px">
-            <div class="gp-item"><label data-i18n="gn.palette">调色板</label>
-              <select id="gp_palette" onchange="gpPreview()">
-                <option value="" data-i18n="gn.optDefaultDefault">默认（default）</option><option value="mint">mint</option>
-                <option value="soft_pastels">soft_pastels</option><option value="forest">forest</option>
-                <option value="fugaku">fugaku</option><option value="sakura">sakura</option>
-                <option value="kuroshio">kuroshio</option><option value="oceanic_voyage">oceanic_voyage</option>
-                <option value="autumn">autumn</option><option value="desert_mirage">desert_mirage</option>
-                <option value="volcano">volcano</option><option value="zen">zen</option>
-              </select></div>
-            <div class="gp-item"><label data-i18n="gn.trackType">特征布局</label>
-              <select id="gp_track_type" onchange="gpPreview()">
-                <option value="" data-i18n="gn.optDefault">默认</option><option value="tuckin" data-i18n="gn.optTuckin">嵌入（tuckin）</option>
-                <option value="middle" data-i18n="gn.optMiddle">居中（middle）</option><option value="spreadout" data-i18n="gn.optSpreadout">铺开（spreadout）</option>
-              </select></div>
-            <div class="gp-item"><label data-i18n="gn.featureShape">CDS 形态</label>
-              <select id="gp_feature_shape" onchange="gpPreview()">
-                <option value="" data-i18n="gn.optDefaultArrow">默认（箭头）</option><option value="rectangle" data-i18n="gn.optRectangle">矩形（rectangle）</option>
-                <option value="arrow" data-i18n="gn.optArrow">箭头（arrow）</option>
-              </select></div>
-            <div class="gp-item"><label data-i18n="gn.labels">标签显示</label>
-              <select id="gp_labels" onchange="gpPreview()">
-                <option value="" data-i18n="gn.optDefault">默认</option><option value="none" data-i18n="gn.optNone">无</option>
-                <option value="out" data-i18n="gn.optOut">仅外圈</option><option value="both" data-i18n="gn.optBoth">内圈+外圈</option>
-              </select></div>
-            <div class="gp-item"><label data-i18n="gn.gcMode">GC 内容模式</label>
-              <select id="gp_gc_mode" onchange="gpPreview()">
-                <option value="" data-i18n="gn.optDefaultDeviation">默认（偏差）</option><option value="deviation" data-i18n="gn.optDeviation">偏差（deviation）</option>
-                <option value="percent" data-i18n="gn.optPercent">百分比（percent）</option>
-              </select></div>
-            <div class="gp-item"><label data-i18n="gn.separate">分离链</label>
-              <select id="gp_separate" onchange="gpPreview()">
-                <option value="" data-i18n="gn.optNoSeparate">不分离</option><option value="1" data-i18n="gn.optSeparateStrands">分离正负链</option>
-              </select></div>
-          </div>
+          <!-- 绘图参数（2026-11-05 审稿反馈：6 个常驻下拉收进「进阶设置」
+              折叠——左栏不再一长列，主视图聚焦输入与预览） -->
 
           <!-- 进阶设置 -->
           <details class="rpt-sec" id="gp_adv_panel" style="margin-top:12px">
-            <summary data-i18n="gn.adv">🔧 进阶设置（GC 轨道 / 标题 / 刻度 / 特征 / 输出）</summary>
+            <summary data-i18n="gn.adv">🎛 绘图参数 / 🔧 进阶设置（调色板 / GC 轨道 / 标题 / 刻度 / 特征 / 输出）</summary>
             <div class="rpt-sec-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div class="gp-item"><label data-i18n="gn.palette">调色板</label>
+                <select id="gp_palette" onchange="gpPreview()">
+                  <option value="" data-i18n="gn.optDefaultDefault">默认（default）</option><option value="mint">mint</option>
+                  <option value="soft_pastels">soft_pastels</option><option value="forest">forest</option>
+                  <option value="fugaku">fugaku</option><option value="sakura">sakura</option>
+                  <option value="kuroshio">kuroshio</option><option value="oceanic_voyage">oceanic_voyage</option>
+                  <option value="autumn">autumn</option><option value="desert_mirage">desert_mirage</option>
+                  <option value="volcano">volcano</option><option value="zen">zen</option>
+                </select></div>
+              <div class="gp-item"><label data-i18n="gn.trackType">特征布局</label>
+                <select id="gp_track_type" onchange="gpPreview()">
+                  <option value="" data-i18n="gn.optDefault">默认</option><option value="tuckin" data-i18n="gn.optTuckin">嵌入（tuckin）</option>
+                  <option value="middle" data-i18n="gn.optMiddle">居中（middle）</option><option value="spreadout" data-i18n="gn.optSpreadout">铺开（spreadout）</option>
+                </select></div>
+              <div class="gp-item"><label data-i18n="gn.featureShape">CDS 形态</label>
+                <select id="gp_feature_shape" onchange="gpPreview()">
+                  <option value="" data-i18n="gn.optDefaultArrow">默认（箭头）</option><option value="rectangle" data-i18n="gn.optRectangle">矩形（rectangle）</option>
+                  <option value="arrow" data-i18n="gn.optArrow">箭头（arrow）</option>
+                </select></div>
+              <div class="gp-item"><label data-i18n="gn.labels">标签显示</label>
+                <select id="gp_labels" onchange="gpPreview()">
+                  <option value="" data-i18n="gn.optDefault">默认</option><option value="none" data-i18n="gn.optNone">无</option>
+                  <option value="out" data-i18n="gn.optOut">仅外圈</option><option value="both" data-i18n="gn.optBoth">内圈+外圈</option>
+                </select></div>
+              <div class="gp-item"><label data-i18n="gn.gcMode">GC 内容模式</label>
+                <select id="gp_gc_mode" onchange="gpPreview()">
+                  <option value="" data-i18n="gn.optDefaultDeviation">默认（偏差）</option><option value="deviation" data-i18n="gn.optDeviation">偏差（deviation）</option>
+                  <option value="percent" data-i18n="gn.optPercent">百分比（percent）</option>
+                </select></div>
+              <div class="gp-item"><label data-i18n="gn.separate">分离链</label>
+                <select id="gp_separate" onchange="gpPreview()">
+                  <option value="" data-i18n="gn.optNoSeparate">不分离</option><option value="1" data-i18n="gn.optSeparateStrands">分离正负链</option>
+                </select></div>
               <div class="gp-item"><label data-i18n="gn.gcTrack">GC 轨道</label><select id="gp_gc_track" onchange="gpPreview()"><option value="" data-i18n="gn.optShow">显示</option><option value="nogc" data-i18n="gn.optHide">隐藏</option></select></div>
               <div class="gp-item"><label data-i18n="gn.gcTrackWidth">GC 轨道宽度</label><input id="gp_gc_width" type="number" step="10" placeholder="默认" data-i18n-ph="pp.defPh"></div>
               <div class="gp-item"><label data-i18n="gn.gcTrackRadius">GC 轨道半径</label><input id="gp_gc_radius" type="number" step="10" placeholder="默认" data-i18n-ph="pp.defPh"></div>
@@ -152,6 +150,11 @@
           <div id="gp_preview" style="display:none">
             <!-- linear 图原始宽可达 2000+px（gbdraw canvas.linear.width 固定 2000），
                  侧栏直接显示必横向滚很长 → 默认「适应宽度」，需要看细节时切 100%/150%。 -->
+            <!-- 视图切换条（独立于静态图缩放档：轨道模式不需要先出一张静态图） -->
+            <div id="gp_viewbar" style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:6px">
+              <button class="btn small" id="gp_track_btn" onclick="gpToggleTrack()"
+                      title="可缩放、可悬停的交互轨道（d3）；再点一次回到静态图">🧬 交互轨道</button>
+            </div>
             <div id="gp_zoom" style="display:none;gap:4px;justify-content:flex-end;margin-bottom:6px">
               <button class="btn small primary" data-zoom="fit" onclick="gpZoom('fit')" data-i18n="gn.zoomFit">适应宽度</button>
               <button class="btn small" data-zoom="1" onclick="gpZoom(1)" data-i18n="gn.zoom100">100%</button>
@@ -172,6 +175,29 @@
 <!-- 文件/目录选择对话框 -->
 {% include "_browse_dlg.html" %}
 
+<style>
+/* 交互轨道（genome-track.js）：白底画布 + 悬停气泡，与静态 SVG 的观感分开 */
+.gp-rec{margin:0 0 14px}
+.gp-rec-head{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:4px}
+.gp-rec-name{font-weight:700;color:#1a5276}
+.gp-rec-len{color:#789;font-size:11px}
+.gp-rec-head .btn{margin-left:auto}
+.gp-track-box{position:relative;background:#fff;border:1px solid #e3e9ef;border-radius:8px;overflow:hidden}
+.gp-track-svg{display:block;cursor:grab;touch-action:none}
+.gp-track-svg:active{cursor:grabbing}
+.gp-axis text,.gp-gc-axis text{font-size:10px;fill:#678}
+.gp-feat{cursor:pointer;stroke:#fff;stroke-width:.5}
+.gp-feat-label{font-size:9.5px;fill:#fff;pointer-events:none;font-weight:600}
+.gp-gc-label{font-size:9px;fill:#2c7fb8;font-weight:700}
+.gp-tip{display:none;position:absolute;z-index:5;max-width:250px;background:#1f2d3a;color:#fff;
+  font-size:11px;line-height:1.45;padding:7px 9px;border-radius:6px;pointer-events:none;
+  box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.gp-tip-sub{color:#c8d6e2;font-size:10.5px;margin-top:2px}
+.gp-legend{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 10px;font-size:11px;color:#567}
+.gp-lg{display:inline-flex;align-items:center;gap:4px}
+.gp-lg i{width:9px;height:9px;border-radius:2px;display:inline-block}
+</style>
+
 <script src="/static/i18n.js?v={{ asset_v }}"></script>
 <script src="/static/app.js?v={{ asset_v }}"></script>
   <script src="/static/app-compare.js?v={{ asset_v }}"></script>
@@ -181,6 +207,9 @@
   <script src="/static/app-batch.js?v={{ asset_v }}"></script>
   <script src="/static/app-storage.js?v={{ asset_v }}"></script>
 <script src="/static/examples.js?v={{ asset_v }}"></script>
+<!-- d3 v7 随 Archaeopteryx 分发（vendor 里已有，不新增依赖） -->
+<script src="/static/vendor/archaeopteryx/d3.v7.min.js"></script>
+<script src="/static/genome-track.js?v={{ asset_v }}"></script>
 <script>
 /* $ / esc / browse / startPolling / taskLogOpen 均来自 app.js */
 function val(id) { return ($(id)?.value || '').trim(); }
@@ -257,6 +286,7 @@ function gpInteractiveToggle(skipRender) {
 let _gpPreviewTimer = null;
 let _gpSvg = null;            // 当前预览的内联 SVG
 let _gpZoomMode = 'fit';      // fit | 1 | 1.5
+let _gpTrackOn = false;       // 交互轨道模式（d3，见 genome-track.js）
 function gpZoom(mode) {
   /* 预览缩放：fit=按容器宽度缩放（不横向滚动）；1/1.5=按 viewBox 原始宽度放大。 */
   _gpZoomMode = mode;
@@ -275,8 +305,56 @@ function gpZoom(mode) {
     _gpSvg.style.width = Math.round(natW * Number(mode)) + 'px';
   }
 }
+function gpToggleTrack() {
+  _gpTrackOn = !_gpTrackOn;
+  const b = $('gp_track_btn');
+  if (b) b.classList.toggle('primary', _gpTrackOn);
+  const zb = $('gp_zoom');
+  // 静态图的缩放档只对 SVG 有意义：轨道模式整条隐藏，切回来再按需恢复
+  if (zb) zb.style.display = _gpTrackOn ? 'none' : (_gpSvg ? 'flex' : 'none');
+  gpPreview();                                    // 立即按新模式重绘
+}
+
+/* 交互轨道：同一份输入（fasta/ann）解析成结构化数据，由 d3 画可缩放轨道。
+   与静态 SVG 各自渲染，互不改写产物；静态图仍用于保存/出图。 */
+async function gpTrackPreview() {
+  const body = document.getElementById('gp_preview_body');
+  if (!val('gp_fa') && !val('gp_ann')) {
+    body.innerHTML = '<p class="hint">' + t('gn.needInput',
+      '请先选择 FASTA 或 GenBank 输入') + '</p>';
+    return;
+  }
+  body.innerHTML = '<p class="hint">' + t('gn.rendering', '⏳ 正在渲染预览…') + '</p>';
+  try {
+    const _fa = await _resolveExamplePathInput(val('gp_fa'));
+    const _ann = await _resolveExamplePathInput(val('gp_ann'));
+    if ($('gp_fa') && _fa !== val('gp_fa')) $('gp_fa').value = _fa;
+    if ($('gp_ann') && _ann !== val('gp_ann')) $('gp_ann').value = _ann;
+    const r = await fetch('/api/genome/track', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fasta: _fa, ann: _ann })
+    });
+    const d = await r.json();
+    if (!_gpTrackOn) return;            // 期间已切回静态图：丢弃迟到的轨道结果
+    if (!r.ok) {
+      body.innerHTML = '<p class="hint">' + t('gn.trackFail', '轨道解析失败: ')
+        + esc(trPathMsg(String(d.error || r.status))) + '</p>';
+      return;
+    }
+    window.gpTrackRender(body, d);
+  } catch (e) {
+    body.innerHTML = '<p class="hint">' + t('gn.trackFail', '轨道解析失败: ')
+      + esc(String(e)) + '</p>';
+  }
+}
+
 function gpPreview() {
   if (!($('gp_interactive') && $('gp_interactive').checked)) return;
+  if (_gpTrackOn) {                       // 轨道模式下所有调参都走 d3 数据源
+    clearTimeout(_gpPreviewTimer);
+    _gpPreviewTimer = setTimeout(gpTrackPreview, 400);
+    return;
+  }
   const body = document.getElementById('gp_preview_body');
   /* 未选输入：在预览区给提示（不弹 alert，避免页面加载/调参时打扰） */
   if (!val('gp_fa') && !val('gp_ann')) {
@@ -307,6 +385,7 @@ function gpPreview() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fasta: _fa, ann: _ann, mode: gp_mode, gb_opts: gpCollectOpts() })});
       const d = await r.json();
+      if (_gpTrackOn) return;      // 轨道模式已接管，丢弃这张迟到的静态图
       if (!r.ok) { body.innerHTML = '<p class="hint">' + t('gn.previewFail', '预览失败: ') + esc(trPathMsg(String(d.error || r.status))) + '</p>'; return; }
       // SVG 来自用户自备 GenBank/GFF（基因名等字段完全可控），gbdraw 未必
       // 对所有字段转义。不能 innerHTML 直插（onload/foreignObject 会执行）：

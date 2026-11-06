@@ -80,7 +80,9 @@ def _robocopy(src, dst, logger=None):
     _log(logger, f'    robocopy {src} → {dst}')
     try:
         r = subprocess.run(cmd, capture_output=True, text=True,
-                           errors='replace')
+                           errors='replace',
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
         # robocopy 返回码：0-7 均表示成功（1 = 有文件被复制）
         if r.returncode >= 8:
             tail = ((r.stdout or '') + (r.stderr or ''))[-500:]

@@ -258,7 +258,8 @@ def _stage_orfa(sd):
     if not s:
         return None
     out = _pick(s, ['model', 'engine', 'n_orfs', 'n_annotated', 'n_families',
-                    'n_hmm_only', 'n_bfvd_only'])
+                    'n_hmm_only', 'n_bfvd_only', 'n_pvdb_named',
+                    'n_pvdb_segments'])
     fams = s.get('families')
     if isinstance(fams, dict):
         out['top_families'] = dict(list(fams.items())[:8])

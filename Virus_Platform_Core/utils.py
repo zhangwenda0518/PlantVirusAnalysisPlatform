@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import gzip
+import tempfile
 import time
 import threading
 import subprocess
@@ -307,6 +308,199 @@ def open_write_bin(path):
 # ------------------------------------------------------------------
 # 日志
 # ------------------------------------------------------------------
+# CSI / OSC / 单字符 ESC 序列。datasets.exe、curl 一类下载器用它们在终端里
+# 原地重绘进度条（\x1b[0A 上移一行、\x1b[2K 清行），一旦重定向到日志文件就
+# 变成满地「[INFO]   [0A[2K」的垃圾行（2026-11-02 宿主基因组下载实测）。
+_ANSI_ESC_RE = re.compile(
+    r'\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)'      # OSC … BEL / ST
+    r'|\x1b\[[0-9;?]*[ -/]*[@-~]'             # CSI …
+    r'|\x1b[@-Z\\-_]')                        # 其余单字符 ESC 序列
+
+
+def strip_ansi(text):
+    """去掉 ANSI 转义序列；`\\r` 原地重绘只保留最后一帧。
+
+    下载器把进度写成 `\\rDownloading 12%…\\rDownloading 15%…`，逐帧都记下来
+    既没用又刷屏，取最后一帧才是「当前状态」。"""
+    if not text:
+        return ''
+    s = _ANSI_ESC_RE.sub('', str(text))
+    if '\r' in s:
+        s = s.split('\r')[-1]
+    return s
+
+
+def clean_log_line(text):
+    """日志行的统一清洗：去 ANSI、取 \\r 末帧、去首尾空白。
+
+    返回空串表示这行没有可读内容（纯控制序列），调用方应直接丢弃，
+    不要再写一条只有时间戳的空行。"""
+    return strip_ansi(text).strip()
+
+
+def fmt_bytes(n):
+    """字节数 → 人类可读（1024 进制，1 位小数）。"""
+    try:
+        n = float(n)
+    except (TypeError, ValueError):
+        return '?'
+    for unit in ('B', 'KB', 'MB', 'GB', 'TB'):
+        if n < 1024 or unit == 'TB':
+            return f'{n:.0f} {unit}' if unit == 'B' else f'{n:.1f} {unit}'
+        n /= 1024
+    return '?'
+
+
+def fmt_speed(bps):
+    """字节/秒 → `1.2 MB/s`（0 或未知返回 '—'）。"""
+    try:
+        bps = float(bps)
+    except (TypeError, ValueError):
+        return '—'
+    if bps <= 0:
+        return '—'
+    return f'{fmt_bytes(bps)}/s'
+
+
+def fmt_eta(sec):
+    """秒 → `1小时02分` / `3分10秒` / `8秒`（未知返回 ''）。"""
+    try:
+        sec = float(sec)
+    except (TypeError, ValueError):
+        return ''
+    if sec is None or sec < 0 or math.isinf(sec) or math.isnan(sec):
+        return ''
+    sec = int(round(sec))
+    if sec < 60:
+        return f'{sec}秒'
+    if sec < 3600:
+        return f'{sec // 60}分{sec % 60:02d}秒'
+    return f'{sec // 3600}小时{(sec % 3600) // 60:02d}分'
+
+
+class DownloadWatcher(threading.Thread):
+    """按落盘文件增长估算下载进度（速度 / 已下载 / 总量 / 剩余）。
+
+    为什么不用子进程自己报的进度：datasets.exe 只在 TTY 下画进度条，重定向后
+    只剩控制序列；`requests` 的流式下载也没有回调。而**文件大小是一定在长的**，
+    按 1s 采样即可算出速度与 ETA，效果与公共数据下载页的批量下载卡一致。
+
+    用法：
+        w = DownloadWatcher(size_fn, on_tick=lambda d: prog('download', d['pct'], d['msg'], d['eta']),
+                            total=95 * 1024 * 1024, log=logger.log)
+        w.start(); …下载…; w.stop()
+    size_fn 是无参可调用对象（返回当前已写字节数），便于 zip 改名/多文件场景。
+    on_tick 收到 dict：downloaded / total / speed / eta / pct(0-1) / msg。
+    """
+
+    def __init__(self, size_fn, on_tick=None, total=0, interval=1.0,
+                 log=None, log_every=15.0, stage='download',
+                 pct_floor=0.05, pct_span=0.9, stop_ev=None, pause_ev=None):
+        super().__init__(daemon=True)
+        self.size_fn = size_fn
+        self.on_tick = on_tick
+        self.total = int(total or 0)
+        self.interval = max(0.3, float(interval))
+        self.log = log
+        self.log_every = float(log_every)
+        self.stage = stage
+        self.pct_floor = pct_floor
+        self.pct_span = pct_span
+        # 任务级事件：取消就退出看表（下载已在被杀），暂停就不刷 tick —— 否则
+        # 「已暂停」的任务卡上进度条还在爬，看起来像没停。不显式传时自动取当前
+        # 线程绑定的任务事件（DownloadWatcher 都在任务线程里构造）。
+        self.stop_ev = stop_ev if stop_ev is not None else task_cancel_event()
+        self.pause_ev = pause_ev if pause_ev is not None else task_pause_event()
+        self._stop_ev = threading.Event()   # 不能叫 _stop：Thread 内部有同名方法
+        self._last_log = 0.0
+        self.last = {}
+
+    def set_total(self, total):
+        """总量后到时补上（datasets 的「95MB valid data package」行在下载中途才出现）。"""
+        try:
+            total = int(total or 0)
+        except (TypeError, ValueError):
+            total = 0
+        if total > 0:
+            self.total = total
+
+    def snapshot(self):
+        try:
+            size = int(self.size_fn() or 0)
+        except Exception:
+            size = 0
+        now = time.time()
+        prev = self.last
+        speed = 0.0
+        if prev:
+            dt = max(now - prev['t'], 1e-6)
+            inst = max(size - prev['size'], 0) / dt
+            old = prev.get('speed', 0.0)
+            speed = inst if old <= 0 else 0.7 * old + 0.3 * inst
+        total = self.total
+        if total and size > total:
+            # 总量估小了（datasets 的包还含 protein.faa 等，实测酵母 3.7 MB
+            # 估 vs 7.6 MB 实际）：总量跟着实测往上抬，别显示「已下载 > 总量」。
+            total = size
+            self.total = total
+        pct = (size / total) if total else 0.0
+        # 头一两个采样点的速度还没稳定（2 KB 走了 1 秒就报「剩余 31分48秒」），
+        # 进度不到 2% 先不给 ETA，宁可只显示速度与已下载。
+        eta = ((total - size) / speed) if (total and speed > 0
+                                           and pct >= 0.02) else None
+        msg = f"速度 {fmt_speed(speed)} · 已下载 {fmt_bytes(size)}"
+        if total:
+            msg += f" / {fmt_bytes(total)}"
+        e = fmt_eta(eta) if eta is not None else ''
+        if e:
+            # 收尾阶段 eta 会掉到 0~1 秒：写「剩余 0秒」不如直说快完事。
+            msg += ' · 即将完成' if eta <= 1.5 else f" · 剩余 {e}"
+        d = {'downloaded': size, 'total': total, 'speed': speed,
+             'eta': eta, 'pct': pct, 'msg': msg, 't': now, 'size': size}
+        self.last = d
+        return d
+
+    def run(self):
+        self.last = {'t': time.time(), 'size': self._safe_size(), 'speed': 0.0}
+        while not self._stop_ev.wait(self.interval):
+            # 任务被取消：下载进程已被 TaskManager 杀掉，看表也该退出，
+            # 否则日志里还会继续刷「速度 …」，像是没停。
+            if self.stop_ev is not None and self.stop_ev.is_set():
+                break
+            # 任务被暂停：不刷 tick、不写日志 —— 进度条停在原处才对得上「已暂停」。
+            if self.pause_ev is not None and self.pause_ev.is_set():
+                continue
+            d = self.snapshot()
+            # 第一个采样点还没有字节落盘（或下载秒完）：此时报「速度 — 已下载
+            # 0 B」只会让人以为卡住，直接跳过，让任务自己的初始 msg 顶着。
+            if self.on_tick and d['downloaded'] > 0:
+                try:
+                    p = self.pct_floor + self.pct_span * d['pct'] if d['total'] else self.pct_floor
+                    self.on_tick({'downloaded': d['downloaded'], 'total': d['total'],
+                                  'speed': d['speed'], 'eta': d['eta'],
+                                  'pct': min(p, 0.95), 'msg': d['msg'],
+                                  'stage': self.stage})
+                except Exception:
+                    pass
+            if self.log and (time.time() - self._last_log) >= self.log_every:
+                self._last_log = time.time()
+                try:
+                    self.log('  ' + d['msg'])
+                except Exception:
+                    pass
+
+    def _safe_size(self):
+        try:
+            return int(self.size_fn() or 0)
+        except Exception:
+            return 0
+
+    def stop(self):
+        self._stop_ev.set()
+        if self.is_alive():
+            self.join(timeout=3)
+
+
 class TaskLogger:
     """线程安全日志器：写 UTF-8 文件 + 推送到回调（GUI 实时显示）。"""
 
@@ -327,6 +521,12 @@ class TaskLogger:
             msg = _tr(msg)
         except Exception:
             pass
+        # 2026-11-02：子进程（datasets.exe/curl）的 ANSI 重绘序列必须在这里
+        # 清掉，否则日志文件与任务卡全是「[INFO]   [0A[2K」空行；清完为空
+        # 的行直接丢弃（不写只有时间戳的残行）。
+        msg = clean_log_line(msg)
+        if not msg:
+            return
         line = f"[{time.strftime('%H:%M:%S')}] [{level}] {msg}"
         with self._lock:
             if self._fh:
@@ -698,10 +898,48 @@ def total_ram():
 _TASK_STATE = threading.local()
 
 
-def task_bind(cancel=None, procs=None):
-    """绑定当前线程（任务）的取消事件与子进程注册表；不传即解绑。"""
+def task_bind(cancel=None, procs=None, pause=None):
+    """绑定当前线程（任务）的取消/暂停事件与子进程注册表；不传即解绑。"""
     _TASK_STATE.cancel = cancel
     _TASK_STATE.procs = procs
+    _TASK_STATE.pause = pause
+
+
+class TaskPaused(Exception):
+    """用户暂停了任务（由协作点抛出，TaskManager 捕获后置 status='paused'）。
+
+    与「取消」的区别：暂停要能接着跑，取消是彻底停。子进程式下载（datasets /
+    aria2c / sracha）没法挂起，只能终止后重新拉起，因此抛这个异常让任务线程
+    尽快退出，恢复时由 TaskManager 重跑同一 job（下载本身是幂等/断点续传的）。
+    """
+
+
+def task_pause_event():
+    """返回当前线程（任务）绑定的暂停事件（未绑定 → None）。"""
+    return getattr(_TASK_STATE, 'pause', None)
+
+
+def task_pause_point():
+    """协作式暂停点：暂停中就地等待，恢复后继续，取消时抛取消。
+
+    适合我们自己的循环（HTTP 分块、逐条记录下载）：**不杀进程、不丢进度**，
+    真正的「暂停还能继续」。子进程式下载请用 task_check_pause()。
+    """
+    ev = getattr(_TASK_STATE, 'pause', None)
+    if ev is None or not ev.is_set():
+        return
+    cev = getattr(_TASK_STATE, 'cancel', None)
+    while ev.is_set():
+        if cev is not None and cev.is_set():
+            raise RuntimeError('任务已停止（用户取消）')
+        time.sleep(0.2)
+
+
+def task_check_pause():
+    """非阻塞暂停检查：暂停中直接抛 TaskPaused（由调用方负责先终止子进程）。"""
+    ev = getattr(_TASK_STATE, 'pause', None)
+    if ev is not None and ev.is_set():
+        raise TaskPaused('任务已暂停')
 
 
 def task_check_cancel():
@@ -734,7 +972,9 @@ def _kill_proc_tree(proc):
     try:
         if sys.platform == 'win32':
             subprocess.run(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
-                           capture_output=True, timeout=15)
+                           capture_output=True, timeout=15,
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
         else:
             proc.kill()
     except Exception:
@@ -946,11 +1186,20 @@ _VERSION_CMD_VARIANTS = (('--version',), ('-version',))
 _TOOL_VERSION_CACHE = {}          # exe 路径 → 版本串（进程内缓存）
 
 
+_VERSION_RE = re.compile(r'\d+\.\d+[\w.\-]*')
+
+
 def _parse_tool_version(raw):
-    """从 --version 输出里取一行有意义的版本文本；取不到返回 'unknown'。"""
-    for line in decode_output(raw or b'').splitlines():
-        s = line.strip()
-        if s:
+    """从 --version 输出里取含版本号的行；取不到返回 'unknown'。
+
+    只认含版本号模式（如 1.3.6 / 0.7.11）的行：不支持 --version 的工具
+    （seqkit 旧版等）会把错误用法文本打进 stderr，形如
+    "Error: unknown flag: --version"——不含版本号，不能当版本串记进
+    tool_versions.json 误导排查（2026-11-03 GQMIX 实测）。
+    """
+    for s in decode_output(raw or b'').splitlines():
+        s = s.strip()
+        if s and _VERSION_RE.search(s):
             return s[:200]
     return 'unknown'
 
@@ -974,21 +1223,54 @@ def probe_tool_versions(tools):
             continue
         ver = 'unknown'
         for args in _VERSION_CMD_VARIANTS:
+            tf_path = ''
             try:
-                r = subprocess.run(
-                    [exe] + list(args), capture_output=True, timeout=10,
-                    creationflags=(getattr(subprocess, 'CREATE_NO_WINDOW', 0)
-                                   if sys.platform == 'win32' else 0))
-                raw = (r.stdout or b'') + b'\n' + (r.stderr or b'')
+                # 版本输出写临时文件而非 capture_output 管道：.bat 外壳
+                # （mafft.bat→cmd→bash）被 timeout 杀掉后，孙进程仍攥着管道
+                # 句柄，communicate 等 EOF 永久阻塞、TimeoutExpired 根本抛
+                # 不出来（2026-11-03 GQMIX 实测：任务 0% 卡死 9 分钟，杀掉
+                # 残留 bash 才解卡）。文件重定向下无 EOF 依赖，超时立即生效；
+                # Windows 上再连树补刀，防孙进程残留堆积。
+                tf = tempfile.NamedTemporaryFile(delete=False,
+                                                 suffix='.vpver')
+                tf_path = tf.name
+                tf.close()
+                with open(tf_path, 'wb') as out_f:
+                    proc = subprocess.Popen(
+                        [exe] + list(args), stdout=out_f, stderr=out_f,
+                        creationflags=(getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+                                       if sys.platform == 'win32' else 0))
+                try:
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    _kill_proc_tree(proc)
+                    try:
+                        proc.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        pass
+                    continue
+                with open(tf_path, 'rb') as f:
+                    raw = f.read()
                 cand = _parse_tool_version(raw)
                 if cand != 'unknown':
                     ver = cand
                     break
             except Exception:
-                # 超时/权限/非可执行（如 .bat 需 cmd 外壳）→ 换下一种写法；
+                # 权限/非可执行（exe 不存在等）→ 换下一种写法；
                 # 全失败记 unknown，调用方照常运行
                 continue
-        _TOOL_VERSION_CACHE[exe] = ver
+            finally:
+                if tf_path:
+                    try:
+                        os.unlink(tf_path)
+                    except OSError:
+                        pass
+        # unknown 不缓存：冷启动慢/杀软扫描新进程是**临时态**（2026-11-03
+        # GQMIX 实测 fastp 与 19 线程正式进程同秒拉起，10s 探测超时误记
+        # unknown），缓存固化后整个进程生命周期都报 unknown。只缓存成功
+        # 解析的版本，下次运行还能重试。
+        if ver != 'unknown':
+            _TOOL_VERSION_CACHE[exe] = ver
         out[key] = ver
     return out
 
@@ -1072,13 +1354,48 @@ def verify_svg(path, logger=None):
         return False
 
 
+def svg_to_png(svg_path, png_path=None, scale=2.0, logger=None):
+    """SVG → PNG（可选依赖 cairosvg；未安装返回 False，不抛错、不阻断）。
+
+    平台静态图统一 PNG+SVG 双格式：matplotlib 出身图由各绘图模块直接双写；
+    外部引擎（gbdraw）与手写 SVG（genome_diag）从这里补 PNG。缺 cairosvg 时
+    保持 SVG-only（浏览器预览不受影响），日志记 WARN。
+    """
+    out = png_path or (
+        svg_path[:-4] + '.png' if str(svg_path).lower().endswith('.svg')
+        else str(svg_path) + '.png')
+    try:
+        import cairosvg
+    except Exception:
+        if logger:
+            logger.log(f"未安装 cairosvg（可选依赖），SVG 不补 PNG: {svg_path}",
+                       "WARN")
+        return False
+    try:
+        cairosvg.svg2png(url=str(svg_path), write_to=out, scale=float(scale))
+        return True
+    except Exception as e:
+        if logger:
+            logger.log(f"SVG→PNG 失败 {svg_path}: {type(e).__name__}: {e}",
+                       "WARN")
+        return False
+
+
 # FASTA / FASTA 流式处理
 # ------------------------------------------------------------------
 def iter_fasta(path):
     """迭代 FASTA：yield (header_no_arrow, seq)"""
     header, chunks = None, []
+    first = True
     with safe_open(path) as f:
         for line in f:
+            if first:
+                # UTF-8 BOM 会粘在首行开头：'\ufeff>seq' 不以 '>' 开头 →
+                # 首条记录被静默丢弃，用户只会看到莫名的「少于 2 条序列」
+                # （2026-11-03 模拟实测踩过）。首行剥一次 BOM。
+                first = False
+                if line.startswith('\ufeff'):
+                    line = line[1:]
             line = line.rstrip('\n\r')
             if line.startswith('>'):
                 if header is not None:
@@ -1474,7 +1791,9 @@ def open_in_explorer(path):
     try:
         os.startfile(path)
     except OSError:
-        subprocess.Popen(['explorer', path])
+        subprocess.Popen(['explorer', path],
+                         creationflags=getattr(
+                             subprocess, 'CREATE_NO_WINDOW', 0))
 
     # 置顶等待放后台线程：HTTP 请求立即返回，不被最多 2s 的窗口探测拖住
     def _focus():

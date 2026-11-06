@@ -1,74 +1,24 @@
-# Phylodynamics · 进化动力学工具组
+# Phylodynamics · 进化动力学分析组导读
 
-> 返回 [Home](Home) ｜ 上一页：[Report](Report) ｜ 下一页：[BEAST](BEAST)
+> 返回 [Home](Home) ｜ 上一页：[Phylo](Phylo) ｜ 下一页：[Phylodyn](Phylodyn)
 
-进化动力学是平台在主管道（⑦ 建树）之上的扩展层：**分子钟定年、祖先状态与地理重构、种群动态、时空采样设计**。与 VirPhyKit（Yin et al., 2025, Ecol Evol）**方法学对齐、代码全部自研**（VirPhyKit 为 GPL-3.0，不复制其代码，只对齐输入/输出契约与算法口径）。
+进化动力学是平台在主管道（⑦ 建树）之上的扩展层：**分子钟定年、祖先状态与地理重构、种群动态、时空采样设计**。比较对象是**同一个基因 / 序列集内部**的时间与地理信号；重组先掩蔽，显著性先检验。
 
-涉及引擎：`phylodyn_kit.py`（序列/元数据工具箱）、`phylodyn_trees.py`（树类引擎）、`phylodyn_local.py`（本地编排）、`phylodyn_alignqc.py`（比对 QC）、`phylodyn_govern.py`（元数据治理）、`treetime_ml.py`（TreeTime ML）、`treetime_rtt.py`、`rtt_drt.py`（RTT/DRT）、`bsp.py`（天际线）。
+方法学与 VirPhyKit（Yin et al., 2025, Ecol Evol）对齐，代码全部自研。VirPhyKit 为 GPL-3.0，不复制其代码，只对齐输入 / 输出契约与算法口径。本组共 6 个模块，每个模块一篇专页。
 
----
+## 模块清单
 
-## 能力总览
+1. [Phylodyn](Phylodyn) · 进化动力学一键链 —— `t-phylodyn` 跑 A0→A5 全链（准备 → 定年 → 迁移 → 天际线 → 溯源），本地不跑 MCMC。
+2. [Pd-Prep](Pd-Prep) · 数据接入 —— `t-pdprep` 三来源建标准数据集，附元数据治理、比对 QC、坐标表与时空降采样。
+3. [Rtt](Rtt) · 时间信号与定年 —— `t-rtt` 做根到尾回归（R² / 斜率）+ DRT 零分布检验。
+4. [Rdp](Rdp) · RDP5 重组分析 —— `t-rdp` 九方法逐方法 p 值，可导出掩蔽重组区后的干净比对。
+5. [Phylogeography](Phylogeography) · 系统地理 —— `t-phylogeo` 做 Fitch 迁移重构 + 距离三分类 / 权重分带 / 迁移 GIF。
+6. [BEAST](BEAST) · 贝叶斯轨道 —— 本地只打包与读回（MCMC 在服务器跑），产物由系统地理卡导入。
 
-### A. 序列/元数据工具（phylodyn_kit）
+## 链路
 
-| 能力 | 说明 |
-|---|---|
-| SeqIDRenamer | 按 TSV 映射表批量重命名 FASTA 序列 ID |
-| SeqGrouper | GenBank 记录表 + 分组映射表 → Group 列/分组计数 |
-| **GeoSubsampler** | FASTA 时空降采样：均等采样 / 定区剔除 / 随机抽取（控制采样偏倚） |
-| VirSpaceTime | Temporal.txt / Spatial.txt 解析 → 前端 plotly 绘图（时间轴/地点分布/地图点位） |
-| 数据接入 | 三来源（explorer 导出包 / 手动输入 / 在线下载）+ 时间地点同检 + 标准化数据集 |
+**接入 → 定年 → 迁移 → 溯源**。重组掩蔽插在定年之前；判读口径见 [Phylodyn](Phylodyn) 的五条红线与 [Rtt](Rtt) 的显著性判读。
 
-### B. 元数据治理与比对 QC（入口把关）
-
-- **phylodyn_govern**：时间 + 地理元数据归一/标注/体检——**不猜、不静默、不改语义**（平台统一日期口径 YYYY / YYYY-MM / YYYY-MM-DD；小数年折算 ISO 入数据集）；
-- **phylodyn_alignqc**：比对质量检查（长度 / gap% / 简并字符% / identity）→ 干净集 + 剔除集 + 报告（重组分析前预筛同源 `align_qc.py`）。
-
-### C. 树类引擎（phylodyn_trees）
-
-| 引擎 | 功能 |
-|---|---|
-| MCC 注释树解析 | BEAST MCC 树的节点状态/高度读取（`mot.py` 口径） |
-| TempMig | 离散性状迁移时序 |
-| **RRT**（root-to-tip 回归） | 分子钟检验：TreeTime ML 同口径重实现（`treetime_rtt.py` 走 `treetime_ml.run_clock_api`，速率/R² 直接读 TreeTime 收敛产物 `molecular_clock.txt`）。刻意**不**照抄上游的「正则抠日志 β/R² + scipy.linregress 自算 p」——实测那是数学恒等式（R²≡1、p≡0，见模块 docstring ①）；时间信号显著性改由 `rtt_drt.py` 的零分布检验给出，双口径修正 AUDIT 缺陷 |
-| **DRT**（dating regression） | 定年回归诊断（与 RRT 配对使用） |
-| RSPP | 序列抽样代表性 |
-| **BSP**（Bayesian skyline plot） | 种群动态历史（`bsp.py`，含 ESS 有效样本量诊断） |
-| LTT | lineage-through-time 曲线 |
-
-### D. TreeTime ML 引擎（轨道 A，本地 ML）
-
-`treetime_ml.py`（~1900 行）封装 **TreeTime 0.12.1**：
-
-| 子能力 | 内容 |
-|---|---|
-| **clock 分子钟定年** | 时间树、进化速率、R²；可选**天际线**（coalescent 模型 + 置信带）；`audit_clock` 自动体检（叶数/速率/R² 阈值判定） |
-| **mugration 地理重构** | 离散性状 ML 祖先态重构 + GTR 迁移模型 + 置信度；`audit_mugration` 体检；**采样偏倚校正系数**建议 `(1−Σpᵢ²)/(1−Σtᵢ²)`；**对拍交叉验证**（对拍树状态重算走廊，rel_diff > 0.2 判 divergent）；ML 与 Fitch 两条口径走廊并列成表 |
-| **ancestral 祖先序列** | 祖先序列重构 + 逐枝替换 |
-| **homoplasy 同塑性** | 替换饱和/同塑性检验 |
-| 环境治理 | 逐级找 treetime 入口（env → platform.json → 3rd/tools → Scripts → PATH）、locale 剥离、不抛异常的超时封装、注释 Newick 解析 |
-
-## 典型工作流
-
-```
-FASTA + 时间地点元数据
-  → 元数据治理（govern：归一/体检）
-  → 比对 QC（alignqc：剔除坏序列）
-  → （可选）GeoSubsampler 时空降采样
-  → 建树（复用平台 NJ/FastTree/RAxML-NG）
-  → RRT/DRT 分子钟检验 → TreeTime clock 定年（+天际线 BSP）
-  → TreeTime mugration 地理重构（迁移走廊 ML/Fitch 双口径 + 对拍验证）
-  → 迁移弧线动画 GIF（见 Phylogeography）
-```
-
-## 界面与 CLI
-
-- 专项分析页「进化动力学」工具组卡片（每能力一卡，任务中心统一调度）；
-- 结果预览面板展示统计值 + 产物清单。
-
-## 相关
-
-- BEAST 轨道（贝叶斯 MCMC）→ [BEAST](BEAST)
-- 地图动画 → [Phylogeography](Phylogeography)
-- 建树基础 → [Phylo](Phylo)
+- 组内工具卡在「专项分析 → 进化动力学分析」页，任务中心统一调度；结果预览面板展示统计值 + 产物清单。
+- 上述工具卡都**没有** CLI 子命令，走工具卡或操作目录 id（`phylodyn` / `pdprep` / `rtt` / `rdp` / `phylogeo`）；查参数用 `python main.py agent-ops --id <id> --schema`，执行用 MCP `vp_run_tool`。
+- 相邻方向：建树基础与 MSA 查看 → [Phylo](Phylo)；比较基因组（不同病毒之间）→ [Compare](Compare)；贝叶斯 MCMC 交接包另见 [BEAST](BEAST)。

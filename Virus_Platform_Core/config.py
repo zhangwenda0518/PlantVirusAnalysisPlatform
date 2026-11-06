@@ -7,9 +7,11 @@ import os
 import sys
 import json
 import glob
+import re
 import shutil
 import tempfile
 import threading
+import logging
 
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -249,6 +251,10 @@ DB_LAYOUT = {
         # 2026-09-29 随功能一并下线
         'hmm':  'annot_db/hmm',
         'prot': 'annot_db/prot',
+        # PVDB 植物病毒专属注释库（2026-11-02 接入，独立目录、不替换
+        # annot_db/prot；seq+cdd+bfvd+meta+HMM 文本约 685MB，见
+        # Virus_Platform_Core/pvdb_search.py 文件头）
+        'pvdb': 'pvdb',
     },
     'tax': {
         # taxonomy 三件套（nodes/names/merged.dmp）扁平放在 databases/tax_db/
@@ -591,8 +597,9 @@ def get_active_host_db():
         _ACTIVE_LAZY = True
         try:
             get_config()
-        except Exception:
-            pass
+        except Exception as e:
+            logging.getLogger(__name__).warning(
+                '宿主库惰性初始化时配置加载失败: %s: %s', type(e).__name__, e)
         finally:
             _ACTIVE_LAZY = False
     return _ACTIVE_HOST_DB
@@ -671,6 +678,12 @@ def apply_output_root(root):
     """
     global _OUTPUT_ROOT
     root = (root or '').strip()
+    # 测试隔离优先（2026-11-03）：VP_RUN_ROOT（批量套件注入的隔离运行根）
+    # 激活时，持久化的 output_root 一律不生效——否则用户自定的输出根会把
+    # 测试产物写到真实工作空间（本日 21 例连败 + E 盘工作空间被污染的
+    # 共同根因），产物一律归隔离根。
+    if os.environ.get('VP_RUN_ROOT', '').strip():
+        root = ''
     if root:
         if not os.path.isabs(root):
             raise ValueError('输出目录需为绝对路径')
@@ -691,8 +704,9 @@ def apply_output_root(root):
     try:
         from .tool_runs_admin import ensure_fixed_dirs
         ensure_fixed_dirs(DIRS['tool_runs'])
-    except Exception:
-        pass
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            'tool_runs 固定子目录预建失败: %s: %s', type(e).__name__, e)
     return _OUTPUT_ROOT
 
 
@@ -775,6 +789,44 @@ def get_examples_root():
     return _EXAMPLES_ROOT or DIRS['examples']
 
 
+_PERSISTED_ROOTS_CACHE = (None, None)      # (mtime, roots)
+
+
+def _persisted_roots():
+    """从 platform.json 直接读「用户配置的根」（输入/输出/数据库）。
+
+    为什么要绕过 Config 单例：引擎脚本（如 public_meta/search_engine.py）是被
+    `engine_cmd()` 当**裸脚本**拉起的子进程，里面没人构造 Config，
+    `_OUTPUT_ROOT` 等模块级变量还是空的 —— 于是用户设了自定义输出目录后，
+    子进程写 `<输出根>/meta_search/...` 会被 `check_path(in_platform=True)`
+    判成「路径越界」，检索跑到最后一步崩（2026-11-02 用户实测：472 条 Run
+    已汇总成功，保存 download_links.csv 时 ValueError，任务报退出码 1）。
+
+    这里只做只读、带 mtime 失效的轻量解析，不触发 Config 构造（避免与
+    Config.__init__ 里的 apply_*_root 形成递归）。
+    """
+    try:
+        mt = os.path.getmtime(CONFIG_FILE)
+    except OSError:
+        return ()
+    global _PERSISTED_ROOTS_CACHE
+    cached_mt, cached = _PERSISTED_ROOTS_CACHE
+    if cached_mt == mt and cached is not None:
+        return cached
+    roots = []
+    try:
+        with open(CONFIG_FILE, encoding='utf-8') as f:
+            data = json.load(f) or {}
+        for key in ('output_root', 'input_root', 'database_root'):
+            v = str(data.get(key) or '').strip()
+            if v and os.path.isabs(v):
+                roots.append(os.path.normpath(v))
+    except (OSError, ValueError):
+        roots = []
+    _PERSISTED_ROOTS_CACHE = (mt, tuple(roots))
+    return tuple(roots)
+
+
 def write_roots():
     """允许写入的根目录集合：平台根 + 运行期根 + 自定义输出/输入/数据库根 +
     已登记的 外部库根（若有）。check_path(in_platform=True) 据此放行写入类路径。
@@ -788,6 +840,11 @@ def write_roots():
     roots = [PLATFORM_ROOT, RUN_ROOT]
     for r in (*_EXTRA_DB_ROOTS, _OUTPUT_ROOT, _INPUT_ROOT, _DATABASE_ROOT):
         if r:
+            roots.append(r)
+    # 裸脚本子进程里 Config 还没构造，模块级变量皆空，但用户配的根照样得放行
+    # （见 _persisted_roots 的说明；判重避免重复）。
+    for r in _persisted_roots():
+        if r not in roots:
             roots.append(r)
     return roots
 
@@ -898,7 +955,7 @@ def _refresh_module_paths():
     """
     for name in ('ictv_db', 'virus_ref', 'universal_ref', 'local_search',
                  'verify', 'hmm_annot', 'orf_annot', 'suvtk_submit',
-                 'bfvd_search'):
+                 'bfvd_search', 'pvdb_search', 'cdd_search'):
         try:
             mod = __import__(f'Virus_Platform_Core.{name}', fromlist=['refresh_paths'])
             fn = getattr(mod, 'refresh_paths', None)
@@ -922,17 +979,40 @@ def _ensure_not_system_dir(path):
 
     write_roots() 会把自定义输出/输入/数据库根视为合法写入区
     （check_path in_platform=True 放行其下的写入与删除），一旦被设成
-    C:\\Windows 之类，删除类端点就能波及系统文件。"""
-    drv = os.environ.get('SYSTEMDRIVE', 'C:').rstrip('\\') or 'C:'
-    norm = os.path.normcase(os.path.normpath(os.path.abspath(path)))
-    for seg in ('Windows', 'Program Files', 'Program Files (x86)',
-                'ProgramData'):
-        # 不能用 os.path.join(drv, seg)：drv='C:' 时 join 产出 'C:Windows'
-        # （盘符相对路径），normpath 后与 'c:\\windows' 永不相等 → 整个
-        # 守卫恒放行（实测过）。必须显式补上盘符后的分隔符。
-        base = os.path.normcase(os.path.normpath(drv + os.sep + seg))
-        if norm == base or norm.startswith(base + os.sep):
-            raise ValueError(f'不允许把系统目录设为数据根: {path}')
+    C:\\Windows 之类，删除类端点就能波及系统文件。
+
+    2026-11-06 加固：
+      · 禁止盘符根（C:\\ / D:\\）与文件系统根；
+      · 禁止**任何盘**下的 Windows / Program Files* / ProgramData /
+        Users / AppData（此前只盯 SYSTEMDRIVE，D:\\Windows 直接放行）；
+      · 先 os.path.realpath 解析 junction / 符号链接，再按真实路径判断
+        （否则 D:\\data\\link-to-C:\\Windows 能绕过）。
+    """
+    raw = str(path or '').strip()
+    if not raw:
+        return
+    try:
+        real = os.path.realpath(os.path.abspath(raw))
+    except (OSError, ValueError):
+        real = os.path.abspath(raw)
+    norm = os.path.normcase(os.path.normpath(real))
+    hint = (f'请选择具体的数据目录（例如 '
+            f'{os.path.normpath(os.environ.get("SYSTEMDRIVE", "C:"))}'
+            f'{os.sep}VirusPlatform-data 或其它普通文件夹）')
+    # 1) 盘符根 / 文件系统根
+    drive, tail = os.path.splitdrive(norm)
+    if (drive and tail.strip('\\/') == '') or (not drive and tail in ('', os.sep)):
+        raise ValueError(f'不允许把磁盘根目录设为数据根: {path}。{hint}')
+    # 2) 任意位置的系统关键段（按真实路径的目录段判断，不依赖系统盘符）
+    parts = [p for p in re.split(r'[\\/]+', norm) if p]
+    for i, seg in enumerate(parts):
+        low = seg.lower()
+        # 盘符段（c:）本身不算系统目录，跳过
+        if i == 0 and re.fullmatch(r'[a-z]:', low):
+            continue
+        if (low == 'windows' or low == 'programdata' or low == 'users'
+                or low == 'appdata' or low.startswith('program files')):
+            raise ValueError(f'不允许把系统目录设为数据根: {path}。{hint}')
 
 
 def _safe_child(path, parent=PLATFORM_ROOT):
@@ -1141,9 +1221,29 @@ def detect_tools():
         'srna-target': [os.path.join(T, 'srna-target', 'miranda', 'miranda.exe'),
                         os.path.join(R, 'srna-target', 'miranda', 'miranda.exe'),
                         which('miranda'), which('miranda.exe')],
-        # 注：snpEff（jar）与 SNPGenie（perl 脚本）不是可直接执行的单文件工具，
-        # 由 known_virus_suite 自己按 tools/snpeff/snpEff/snpEff.jar、
-        # tools/snpgenie/snpgenie.pl 定位，不放进本探测表（避免"jar 当 exe"）。
+        # ---- kv 变异注释依赖 + datasets（2026-11-04 补进探测表）----
+        # snpEff（jar）与 SNPGenie（perl 脚本）确实不是可直接执行的单文件工具，
+        # known_virus_suite 仍按 tools/snpeff/snpEff/snpEff.jar、
+        # tools/snpgenie/snpgenie.pl 自己定位；但此前把它们（连同 strawberry-
+        # perl / jre-snpeff / datasets）整个排除在探测表外，tool_status() 就
+        # 永远没有这几个键 —— 插件源把随包已带的 5 个包全部误判「缺失」，
+        # 设置页「一键补齐缺失(5)」纯属假警报（实测全在 3rd/tools/ 下）。
+        # 现在补进表：候选是**存在性锚点**（jar/pl/exe），只用于状态展示与
+        # 插件源缺失判定；调用方（kv_variant.find_snpeff 等）不读这些键，
+        # 不存在「jar 当 exe」被执行的问题。
+        'snpeff': [os.path.join(T, 'snpeff', 'snpEff', 'snpEff.jar'),
+                   os.path.join(T, 'snpeff', 'snpEff.jar')],
+        'snpgenie': [os.path.join(T, 'snpgenie', 'snpgenie.pl'),
+                     os.path.join(R, 'snpgenie', 'snpgenie.pl')],
+        'strawberry-perl': [
+            os.path.join(T, 'strawberry-perl', 'perl', 'bin', 'perl.exe'),
+            os.path.join(R, 'strawberry-perl', 'perl', 'bin', 'perl.exe')],
+        'jre-snpeff': [os.path.join(T, 'jre-snpeff', 'bin', 'java.exe'),
+                       _glob_first(os.path.join(T, 'jdk21', 'jdk-*',
+                                                'bin', 'java.exe'))],
+        'datasets': [os.path.join(T, 'datasets', 'datasets.exe'),
+                     os.path.join(R, 'datasets.exe'),
+                     which('datasets'), which('datasets.exe')],
     }
     out = {name: _first_exist(lst) for name, lst in cands.items()}
     # srna-target 是「三引擎缺一不可」的复合工具：只命中 miRanda 不代表可用
@@ -1164,6 +1264,9 @@ def detect_tools():
     return out
 
 
+_AI_LOCAL_LOCK = threading.Lock()
+
+
 def _ai_local_path():
     """AI API Key 的落盘位置：<平台根>/run/ai_local.json（固定，不随输出根迁移）。
 
@@ -1175,6 +1278,65 @@ def _ai_local_path():
     就写在平台根，可写性有同样的保证）。
     """
     return os.path.join(PLATFORM_ROOT, 'run', 'ai_local.json')
+
+
+def _ai_local_read():
+    """读 ai_local.json（不存在/损坏 → 空 dict）。"""
+    try:
+        with open(_ai_local_path(), encoding='utf-8') as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _ai_local_write(d):
+    """原子写 ai_local.json（临时文件 + os.replace）。
+
+    调用方必须在 `_AI_LOCAL_LOCK` 内完成「读 → 改 → 写」，避免网页进程
+    与后台线程/另一个写入口交错覆盖（以前 Config.save 与 web/ai_assist
+    的 `_pf_local_write` 各写各的，没有共同锁）。
+    """
+    lp = _ai_local_path()
+    os.makedirs(os.path.dirname(lp), exist_ok=True)
+    tmp = f'{lp}.{os.getpid()}.{threading.get_ident()}.tmp'
+    try:
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(d, f, ensure_ascii=False, indent=1)
+        os.replace(tmp, lp)
+    finally:
+        if os.path.isfile(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
+# 整值形式的 ${ENV_VAR} 占位符（借鉴 shim，2026-11-03）：密钥写在环境变量里，
+# 配置文件只留占位符——配置文件从此可以随便分享/同步/进 git，Key 永不落盘。
+_SECRET_ENV_RE = re.compile(r'^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$')
+
+
+def expand_secret(value):
+    """`${NAME}`（整值）→ os.environ[NAME]；未设置返回空串并留痕。
+
+    只做**整值**匹配：整个值是一个占位符才展开（防半截密钥误展开的歧义）。
+    普通明文原样返回——ai_local.json 的存量明文 Key 不受影响。
+    """
+    v = str(value or '').strip()
+    m = _SECRET_ENV_RE.fullmatch(v)
+    if not m:
+        return v
+    name = m.group(1)
+    got = os.environ.get(name, '')
+    if not got:
+        try:
+            sys.stderr.write(
+                f'[config] 环境变量 {name} 未设置：'
+                f'配置里的 ${{{name}}} 展开为空（AI 功能会判定未配置 Key）\n')
+        except Exception:                               # noqa: BLE001
+            pass
+    return got
 
 
 class Config:
@@ -1241,6 +1403,14 @@ class Config:
         # 插件下载源偏好（2026-10-25）：auto=原顺序；mirror/gitee/github=
         # 该源优先，其余按原顺序兜底。作用于索引拉取与每个包的 urls 回退链。
         self.plugin_source_pref = 'auto'
+        # 自动更新（2026-11-05，机制见 updater.py）：manifest 地址（'' = 用
+        # updater.DEFAULT_MANIFEST_URLS（仅 https）回退；自建/内网 http 源
+        # 在这里显式配置，域名进更新白名单）+ 两个行为开关。全自动
+        # 静默更新为默认（分发版目标用户少碰设置）；关掉 auto_check 则只
+        # 能手动「检查更新」。
+        self.update_manifest_url = ''
+        self.update_auto_check = True
+        self.update_auto_apply = True
         self.email = ''            # NCBI EUtils 联系邮箱（可选，礼貌性参数）
         self.language = 'zh'       # 界面语言: zh | en
         # AI 助手（对话驱动智能代理）：OpenAI 兼容端点配置。键结构与预设
@@ -1249,9 +1419,18 @@ class Config:
         # explain/broadcast/gate = 主动驱动三层开关（讲解/解读/决策闸门），
         # 详见 ai_agent/broadcast.py；gate 默认关——它会改变流水线行为
         # （关键阶段收尾后阻塞等确认），必须用户显式开启。
-        self.ai = {'enabled': False, 'provider': 'deepseek', 'base_url': '',
+        self.ai = {'enabled': True, 'provider': 'deepseek', 'base_url': '',
                    'api_key': '', 'model': '', 'temperature': 0.3,
-                   'max_tokens': 2048,
+                   # 2026-11-06：8192 → 32768，与设置页 HTML 默认、provider
+                   # 兜底、/api/ai/test 上限统一为一个口径（此前三处 8192 /
+                   # 32768 混用：配置默认压过页面默认，用户看到 8192）。
+                   # 8192 是 2026-11-03~11-06 的旧默认，加载时一并迁移（见
+                   # _load_extras）。
+                   'max_tokens': 32768,
+                   # 内部版口径（2026-11-06）：设置页回显 Key 明文（默认开），
+                   # 便于核对所配 Key；外部分发如需隐藏，platform.json 置
+                   # ai.reveal_key=false 即回到掩码（••••+尾 4 位）。
+                   'reveal_key': True,
                    'explain': True, 'broadcast': True, 'gate': False,
                    'gate_timeout_min': 15,
                    'broadcast_stages': ['kvsuite', 'assembly', 'report'],
@@ -1264,6 +1443,9 @@ class Config:
                    # 供应商档案（ZCode 式多端点并存）：每套 name/base_url/model，
                    # Key 永不进本文件（分离在 run/ai_local.json provider_keys）
                    'providers': [], 'active_profile': ''}
+        # 内存里 api_key 是**展开后**的值；这里记住它在盘上的 ${ENV_VAR}
+        # 原样占位符，save() 时优先写回占位符而不是明文（零密钥落盘）。
+        self._ai_key_placeholder = ''
         # 分析默认参数（预填硬编码缺省，platform.json 的已存值在 _load_extras 覆盖）
         self.defaults = {k: v for k, _t, v, *_r in self.DEFAULT_FIELDS}
         self.databases = {
@@ -1378,6 +1560,13 @@ class Config:
             _pref = str(data.get('plugin_source_pref') or '').strip().lower()
             if _pref in ('auto', 'mirror', 'gitee', 'github'):
                 self.plugin_source_pref = _pref
+            if data.get('update_manifest_url') is not None:
+                self.update_manifest_url = \
+                    str(data['update_manifest_url']).strip()
+            for _uk, _uv in (('update_auto_check', 'update_auto_check'),
+                             ('update_auto_apply', 'update_auto_apply')):
+                if _uk in data:
+                    self.__dict__[_uk] = bool(data[_uk])
             for k, v in data.get('tools', {}).items():
                 if not v:
                     continue
@@ -1440,36 +1629,73 @@ class Config:
             os.makedirs(os.path.dirname(lp), exist_ok=True)
             # 合并写：保留 ai_local.json 里的其他本地字段（如供应商档案
             # 的 provider_keys）——整文件覆盖会把它们抹掉。
-            prev = {}
-            if os.path.isfile(lp):
-                try:
-                    with open(lp, encoding='utf-8') as f:
-                        prev = json.load(f)
-                    if not isinstance(prev, dict):
-                        prev = {}
-                except (OSError, ValueError):
-                    prev = {}
-            prev['api_key'] = ai_out.get('api_key', '')
-            with open(lp, 'w', encoding='utf-8') as f:
-                json.dump(prev, f, ensure_ascii=False, indent=1)
+            # 与 web/ai_assist 的档案读写共用同一把锁，避免两边交错覆盖。
+            with _AI_LOCAL_LOCK:
+                prev = _ai_local_read()
+                mem_key = str(ai_out.get('api_key') or '').strip()
+                disk_key = str(prev.get('api_key') or '').strip()
+                # 盘上可能是 ${ENV_VAR} 占位符：内存里是展开后的明文，
+                # 若两者对得上，落盘必须继续写占位符（否则一次保存设置
+                # 就把"配置文件零密钥"变成明文 Key）。
+                placeholders = []
+                if _SECRET_ENV_RE.fullmatch(disk_key):
+                    placeholders.append(disk_key)
+                _hint = str(getattr(self, '_ai_key_placeholder', '') or '').strip()
+                if _hint and _SECRET_ENV_RE.fullmatch(_hint):
+                    placeholders.append(_hint)
+                _active = str(ai_out.get('active_profile') or '').strip()
+                if _active:
+                    _pk = prev.get('provider_keys') or {}
+                    if isinstance(_pk, dict):
+                        _raw = str(_pk.get(_active) or '').strip()
+                        if _SECRET_ENV_RE.fullmatch(_raw):
+                            placeholders.append(_raw)
+                keep_ph = ''
+                for ph in placeholders:
+                    if mem_key and expand_secret(ph) == mem_key:
+                        keep_ph = ph
+                        break
+                if keep_ph:
+                    prev['api_key'] = keep_ph
+                elif mem_key:
+                    # 本进程内存里有 Key（用户刚填 / 激活供应商档案 / 启动时从
+                    # 本文件载入成功）→ 照旧落盘；新 Key 覆盖旧 Key 属正常换钥。
+                    prev['api_key'] = mem_key
+                elif disk_key:
+                    # 内存空 + 磁盘有 Key → **本进程从未持有这把 Key**（第二实例
+                    # 启动早于用户填 Key、更新换代期间新旧实例并存、${ENV} 占位符
+                    # 展开失败等），此前它任何一次保存设置都会把盘上的 Key 抹成
+                    # 空串——正是「每次更新 / 多开窗口后都得重设 Key」的根因
+                    # （2026-11-05 用户反馈）。保留磁盘值，绝不用空值覆盖。
+                    pass
+                else:
+                    prev['api_key'] = ''
+                _ai_local_write(prev)
         except OSError as e:
             if ai_out.get('api_key'):
                 sys.stderr.write(f'[config] 警告：密钥文件写入失败（{e}），'
                                  f'API Key 本次不落盘，重启后需重新填写\n')
-        ai_out['api_key'] = ''
+        ai_out['api_key'] = ''      # 快照对象此后不再进 platform.json（见下）
         # 平台根之下的路径一律转相对再落盘：platform.json 搬目录/换电脑/换
         # 盘符仍可用（_load 侧按 PLATFORM_ROOT 解析回来）；平台外的路径
         # （外置库等）保持绝对，属用户显式登记的外部资源。
         data = {'threads': self.threads,
                 'plugin_index_url': self.plugin_index_url,
                 'plugin_source_pref': self.plugin_source_pref,
+                # 自动更新三键（2026-11-05）：manifest 地址 + 行为开关；
+                # updater.py 读，web/settings.py 可改（照 plugin_index_url 同款）
+                'update_manifest_url': self.update_manifest_url,
+                'update_auto_check': self.update_auto_check,
+                'update_auto_apply': self.update_auto_apply,
                 'tools': {k: _rel_if_under(v) for k, v in self.tools.items()},
                 # 插件提供的库不落盘（值与 plugin_databases 相同即为插件来源）：
                 # 卸载插件后 platform.json 里不能残留死路径
                 'databases': {k: _rel_if_under(v) for k, v in self.databases.items()
                               if self.plugin_databases.get(k) != v},
                 'defaults': self.defaults, 'language': self.language,
-                'ai': ai_out,
+                # ai 段占位：真正取值在 _SAVE_LOCK 内做**新鲜快照**（见下），
+                # 避免与 set_ai 交错时把旧段写回盘（丢失更新）。
+                'ai': None,
                 'output_root': self.output_root,
                 'input_root': self.input_root,
                 'database_root': self.database_root,
@@ -1485,23 +1711,30 @@ class Config:
         # 磁盘上的代码更新后旧进程仍在跑；它一旦保存设置就会按自己的 schema
         # 重写配置，把新版本新增的键**抹掉**。实测踩过：旧实例（不认
         # active_host_db）一次保存就把 active_host_db 抹了，databases.host 也
-        # 被写回旧路径。这里先读回磁盘上的未知键再覆盖已知键——旧进程不会
+        # 被写回旧路径。这里读回磁盘上的未知键再覆盖已知键——旧进程不会
         # 再吃掉新版本的配置项。
-        try:
-            if os.path.isfile(CONFIG_FILE):
-                with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                    old = json.load(f)
-                if isinstance(old, dict):
-                    for k, v in old.items():
-                        data.setdefault(k, v)
-        except (OSError, ValueError):
-            pass                     # 旧文件损坏/读不了：按全新写入即可
         if self.email:
             data['email'] = self.email
         # 原子写：先写临时文件再替换，断电/崩溃不会损坏现有配置。
         # 加锁 + 临时名带 pid/线程 id：Flask 以 threaded=True 运行，设置页
         # 并发保存会共用同一个 platform.json.tmp，交错写入会写出损坏 JSON。
         with _SAVE_LOCK:
+            # ai 段取**锁内新鲜快照**（2026-11-06 并发收敛）：与 set_ai
+            # （AI 段唯一写通道）共用 _SAVE_LOCK（RLock 可重入），并发
+            # 「设置页保存 × 存档案/切档案」不再整段 last-writer-wins。
+            data['ai'] = dict(getattr(self, 'ai', {}) or {})
+            data['ai']['api_key'] = ''      # Key 只落 ai_local.json
+            # 未知键回读也**进锁**：此前在锁外读盘，两个并发保存线程都读到
+            # 旧盘 → 后写者把先写者的新增未知键抹掉（丢失更新）。
+            try:
+                if os.path.isfile(CONFIG_FILE):
+                    with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                        old = json.load(f)
+                    if isinstance(old, dict):
+                        for k, v in old.items():
+                            data.setdefault(k, v)
+            except (OSError, ValueError):
+                pass                 # 旧文件损坏/读不了：按全新写入即可
             tmp = f'{CONFIG_FILE}.{os.getpid()}.{threading.get_ident()}.tmp'
             try:
                 with open(tmp, 'w', encoding='utf-8') as f:
@@ -1518,6 +1751,20 @@ class Config:
     @property
     def lang(self):
         return 'en' if self.language == 'en' else 'zh'
+
+    def set_ai(self, ai):
+        """AI 段整段替换的**唯一**写通道：替换 + 落盘一次完成。
+
+        2026-11-06 并发收敛：此前各 AI 路由直接 `cfg.ai = dict(...)` 再各自
+        save()，与设置页并发保存时整段 last-writer-wins，会丢并发另一侧刚
+        写入的 providers / active_profile。现在「替换 + save」整体持
+        _SAVE_LOCK（RLock 可重入，save 内部再次进入安全），save 的 ai 段
+        快照也在同一把锁内取——AI 段的读改写不再交错。读侧（broadcast /
+        executors / chat 取 cfg.ai）是 dict 快照读取，GIL 下安全，无需加锁。
+        """
+        with _SAVE_LOCK:
+            self.ai = dict(ai or {})
+            self.save()
 
     def set_input_root(self, path):
         """设置自定义输入根（'' = 恢复默认平台目录），持久化并立即生效。"""
@@ -1626,7 +1873,10 @@ class Config:
             ai = data.get('ai')
             if isinstance(ai, dict):
                 merged = dict(self.ai)
-                merged['enabled'] = bool(ai.get('enabled'))
+                # 2026-11-06 加固：尊重盘上显式写下的 enabled=false（老配置/
+                # 运维手工关闭）。字段缺省（含从无 ai 段的旧配置升级）仍按
+                # True 处理；设置页已取消该开关，仅在播报/执行单分级读取。
+                merged['enabled'] = bool(ai.get('enabled', True))
                 for k in ('provider', 'base_url', 'api_key', 'model'):
                     if k in ai:
                         merged[k] = str(ai.get(k) or '').strip()
@@ -1640,6 +1890,11 @@ class Config:
                         32768, int(ai.get('max_tokens', merged['max_tokens']))))
                 except (TypeError, ValueError):
                     pass
+                # 迁移（2026-11-06）：8192 是 11-03~11-06 的旧默认，绝大多数
+                # 盘上 8192 并非用户选择 —— 统一升到新默认 32768；显式改过
+                # 其他值的用户不受影响。
+                if merged.get('max_tokens') == 8192:
+                    merged['max_tokens'] = 32768
                 # 供应商档案：白名单清洗（Key 永不从 platform.json 读）
                 clean, _seen = [], set()
                 for _pr in (ai.get('providers') or []):
@@ -1655,10 +1910,11 @@ class Config:
                     except (TypeError, ValueError):
                         _tp = 0.3
                     try:
+                        # 2026-11-06 对齐主默认 32768（8192 为 11-03~11-06 旧默认）
                         _mt = max(64, min(32768, int(
-                            _pr.get('max_tokens', 2048))))
+                            _pr.get('max_tokens', 32768))))
                     except (TypeError, ValueError):
-                        _mt = 2048
+                        _mt = 32768
                     clean.append({'name': _nm,
                                   'base_url': str(_pr.get('base_url') or '').strip(),
                                   'model': str(_pr.get('model') or '').strip(),
@@ -1689,16 +1945,44 @@ class Config:
                 # 落进它——真身在 run/ai_local.json（run/ 整体 gitignore），
                 # 这里读回合并。platform.json 里即便残留历史 api_key（旧版
                 # 直接落盘的），也以密钥文件为准，避免"两处真身"漂移。
+                #
+                # 2026-11-06 加固：存在 active_profile 时**只**取该档案自己的
+                # Key（provider_keys[档案]），取不到就置空并留痕——绝不回落到
+                # 顶层 api_key。否则「激活空 Key 档案」会保留上一家供应商的
+                # 顶层 Key，重启后把 A 的 Key 发给 B 的 base_url。
+                self._ai_key_placeholder = ''
+                _local = {}
                 try:
-                    lp = _ai_local_path()
-                    if os.path.isfile(lp):
-                        with open(lp, encoding='utf-8') as _f:
+                    if os.path.isfile(_ai_local_path()):
+                        with open(_ai_local_path(), encoding='utf-8') as _f:
                             _local = json.load(_f)
-                        if isinstance(_local, dict):
-                            merged['api_key'] = str(_local.get('api_key')
-                                                    or '').strip()
+                    if not isinstance(_local, dict):
+                        _local = {}
                 except (OSError, ValueError):
-                    pass
+                    _local = {}
+                _active = str(merged.get('active_profile') or '').strip()
+                if _active:
+                    _pk = _local.get('provider_keys') or {}
+                    _raw = ''
+                    if isinstance(_pk, dict):
+                        _raw = str(_pk.get(_active) or '').strip()
+                    merged['api_key'] = expand_secret(_raw)
+                    if _SECRET_ENV_RE.fullmatch(_raw):
+                        self._ai_key_placeholder = _raw
+                    if not merged['api_key']:
+                        try:
+                            sys.stderr.write(
+                                f'[config] 供应商档案 {_active} 没有可用 API Key'
+                                f'（{_raw or "未填写"} 展开为空），本次不回落顶层 Key\n')
+                        except Exception:                   # noqa: BLE001
+                            pass
+                else:
+                    _raw = str(_local.get('api_key') or '').strip()
+                    # ${ENV_VAR} 占位符就地展开（借鉴 shim）：
+                    # Key 可只存在于环境变量，配置文件零密钥
+                    merged['api_key'] = expand_secret(_raw)
+                    if _SECRET_ENV_RE.fullmatch(_raw):
+                        self._ai_key_placeholder = _raw
                 self.ai = merged
             known = {kk: t for kk, t, *_r in self.DEFAULT_FIELDS}
             for k, v in (data.get('defaults') or {}).items():
@@ -1759,6 +2043,14 @@ class Config:
             cur = self.databases.get(k)
             if not cur or not os.path.isdir(cur):
                 self.databases[k] = v
+        # 插件增删会改变外部工具/数据库的探测结果：清掉进程内环境自检缓存。
+        # 否则设置页装好插件后，顶栏环境条与其它页面最多 5 分钟仍显示旧状态
+        # （2026-11-05「设置页改完/装完，别的页面还得刷新」的根因之一）。
+        try:
+            from Virus_Platform_Core.selfcheck import invalidate as _sc_inv
+            _sc_inv()
+        except ImportError:          # 自检模块不可用不应影响插件挂载
+            pass
         return self.plugin_tools, self.plugin_databases
 
     def ensure_dir(self, key):

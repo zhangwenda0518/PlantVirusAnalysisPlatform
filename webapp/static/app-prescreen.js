@@ -7,7 +7,7 @@
  */
 'use strict';
 
-const PS = { data: null, chart: null };
+const PS = { data: null, chart: null, sel: new Set() };
 
 /* ── 输入来源切换 ── */
 function psSrcChange() {
@@ -266,13 +266,21 @@ function psRender() {
     t('ps.cPct', '病毒%'), t('ps.cPctI', '病毒%(已鉴定口径)'),
     t('ps.cTopV', '主要病毒'), t('ps.cReads', '测序量'),
     t('ps.cTopO', '主要非病毒物种'), t('ps.cPass', '通过')];
+  const allSel = PS.sel.size > 0 && rows.every(function (r) { return PS.sel.has(r.acc); });
   let html = '<table class="tbl"><thead><tr>'
+    + '<th style="width:36px" title="' + esc(t('ps.cSelAll', '全选/取消本视图')) + '">'
+    + '<input type="checkbox" ' + (allSel ? 'checked ' : '')
+    + 'onclick="psSelAll(this)"></th>'
     + head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('')
+    + '<th style="width:56px">' + esc(t('ps.cOps', '操作')) + '</th>'
     + '</tr></thead><tbody>';
   html += rows.map(function (r) {
     const isV = Number(r.virus_pct || 0) > 0;
     const okst = r.status === 'OK';
     return '<tr style="cursor:pointer" onclick="psDetail(\'' + esc(r.acc) + '\')">'
+      + '<td onclick="event.stopPropagation()"><input type="checkbox" '
+      + (PS.sel.has(r.acc) ? 'checked ' : '')
+      + 'onclick="psSel(\'' + esc(r.acc) + '\', this)"></td>'
       + '<td class="mono">' + esc(r.acc) + '</td>'
       + '<td>' + esc(r.source || '') + '</td>'
       + '<td><span class="ps-tag ' + (okst ? 'ok' : 'no') + '">'
@@ -283,10 +291,62 @@ function psRender() {
       + '<td class="num">' + esc(r.analysed ? Number(r.analysed).toLocaleString() : '—') + '</td>'
       + '<td>' + esc(r.top_organism || '—') + '</td>'
       + '<td>' + (r.pass === 'PASS' ? '<span class="ps-tag ok">PASS</span>' : '') + '</td>'
+      + '<td><a class="btn small" href="javascript:void(0)" title="' + esc(t('ps.dlOne', '转入数据下载')) + '" '
+      + 'onclick="psDlOne(\'' + esc(r.acc) + '\', event)">⬇</a> '
+      + '<a class="btn small" href="javascript:void(0)" title="' + esc(t('lg.btnLoganTip', '查 Logan 组装 → 转入 LOGAN 数据下载')) + '" '
+      + 'onclick="loganSendTo(\'' + esc(r.acc) + '\', event)">'
+      + '🧬</a></td>'
       + '</tr>';
   }).join('');
   html += '</tbody></table>';
   el.innerHTML = html;
+  psDlUpdateBtn();
+}
+
+/* ---- 勾选与转入数据下载（2026-11-05 重建：此前的未提交版本随一次误操作丢失，按 prescreen.html 的 psDlSelBtn/psDlSelN 元素与渲染端调用恢复；行为对齐检索页 intoDownload/dlOneRun 同款）---- */
+function psSel(acc, cb) {
+  if (cb.checked) PS.sel.add(acc); else PS.sel.delete(acc);
+  psDlUpdateBtn();
+}
+function psSelAll(cb) {
+  PS.sel.clear();
+  const rows = psRows();
+  if (cb.checked) rows.forEach(function (r) { PS.sel.add(r.acc); });
+  psRender();
+}
+function psDlUpdateBtn() {
+  const btn = document.getElementById('psDlSelBtn');
+  const n = document.getElementById('psDlSelN');
+  if (n) n.textContent = PS.sel.size ? ('已选 ' + PS.sel.size + ' 个 Run') : '';
+  if (btn) btn.disabled = !PS.sel.size;
+}
+
+async function psDlSel(btn) {
+  if (!PS.sel.size) { alert(t('ps.needSel', '请先勾选 Run')); return; }
+  btn.disabled = true;
+  try {
+    await fetch('/api/dl/create', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name: 'prescreen_runs',
+                            items: Array.from(PS.sel), concurrency: 1})});
+    toast(t('ps.dlOk', '已转入数据下载'),
+      Array.from(PS.sel).slice(0, 8).join(', '), {ttl: 6000});
+    PS.sel.clear();
+    psRender();
+    setTimeout(function () { gotoModule('/download'); }, 900);
+  } catch (e) { alert(e.message); }
+  btn.disabled = false;
+}
+async function psDlOne(acc, ev) {
+  if (ev) { try { ev.stopPropagation(); } catch (e) {} }
+  try {
+    await fetch('/api/dl/create', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name: 'prescreen_runs',
+                            items: [acc], concurrency: 1})});
+    toast(t('ps.dlOk', '已转入数据下载'), acc, {ttl: 5000});
+    setTimeout(function () { gotoModule('/download'); }, 700);
+  } catch (e) { alert(e.message); }
 }
 
 async function psDetail(acc) {

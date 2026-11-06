@@ -4,9 +4,8 @@
  * 目的：任何模块都不需要用户先准备数据 —— 点「✨ 示例」即填好该模块
  *       所需输入；页面首次打开且输入为空时也会自动填入（可在设置关闭）。
  *
- * 数据文件全部在 examples/，由 tests/make_example_reads.py 与
- * tests/make_examples.py 生成（确定性、可重跑）：
- *   example_R1/R2.fastq.gz      3 种植物病毒模拟双端 reads（~60x）
+ * 数据文件全部在 examples/（FASTA/GB/NWK 等由 tests/make_examples.py 生成，
+ * 确定性、可重跑；reads 见下方 SIM 注释）：
  *   example_viral_contigs.fasta 2 条病毒 contig（含 Pepper yellows virus）
  *   example_virus_set.fasta     6 条同属近缘基因组（比对/建树/SDT）
  *   example_conserved_set.fasta 5 条同种近缘序列（保守区引物）
@@ -14,10 +13,18 @@
  *   example_tree.nwk            示例树
  *   example_synteny_A/B/C.gb    同属三基因组（GenBank 集合导入示例）
  *   example_tmv/pvy/cmv/pstvd/mix.fasta  Metabuli 示例病毒
- *   example_sim100x_R1/R2.fastq.gz  模拟多病毒混染双端 reads（96 条植物
- *                              病毒参考基因组、固定 100×、166,436 对 /
- *                              150 bp；reads 头=来源登记号-坐标/1|2，自带
- *                              ground truth；仅 /samples 接入示例用）
+ *   example_rdp.fasta(+meta)   RDP 重组检测示例：5 条模拟分离物比对
+ *                              （examples/results/rdp 生成时用的同一输入）
+ *   example_hostfree.fasta     病毒识别一键链（virchain）示例输入：sim100x
+ *                              病毒序列提取产物降采样（2 万条 FASTA）
+ *   example_sim100x_R1/R2.fastq.gz  内置示例双端 reads：多病毒混染模拟
+ *                              （服务器 snap/simulator-data eval3_depth100，
+ *                              固定 100×，96 条植物病毒参考基因组，
+ *                              166,436 对 / 150 bp；reads 头=来源登记号-
+ *                              坐标/1|2，自带 ground truth）。
+ *                              2026-11-03 起替代旧合成对 example_R1/R2
+ *                              （3 种病毒 ~60x，已退役删除；其生成脚本
+ *                              tests/make_example_reads.py 保留备查）。
  *
  * 新增模块只改下面的 MAP / PAGE_MAP 两个表，不要在页面里散写示例路径。
  * ============================================================ */
@@ -26,14 +33,17 @@
 
   var DIR = 'examples/';
   var F = {
-    R1: DIR + 'example_R1.fastq.gz',
-    R2: DIR + 'example_R2.fastq.gz',
-    /* 模拟数据示例（不参与生成）：多病毒混染模拟 reads（服务器
-       snap/simulator-data eval3_depth100，固定 100×，96 条植物病毒参考
-       基因组）。只接 /samples 样品接入页 —— 分析卡的 ✨ 仍用合成示例，
-       因为捆绑的「👁 示例结果」是拿合成 reads 跑出来的，输入换数据会对不上。 */
+    /* 内置示例双端 reads：多病毒混染模拟（服务器 snap/simulator-data
+       eval3_depth100，固定 100×）。2026-11-03 起唯一示例 —— 分析卡 ✨ 与
+       /samples 接入页共用；配套「👁 示例结果」已用同一数据重新生成。 */
+    R1: DIR + 'example_sim100x_R1.fastq.gz',
+    R2: DIR + 'example_sim100x_R2.fastq.gz',
     SIM_R1: DIR + 'example_sim100x_R1.fastq.gz',
     SIM_R2: DIR + 'example_sim100x_R2.fastq.gz',
+    /* 病毒识别一键链（virchain）专用：sim100x 经 kunpeng 病毒序列提取后的
+       降采样 FASTA（2 万条，3.4MB）——该链 2026-11-02 起只收去宿主/病毒
+       序列 FASTA，不再吃原始 FASTQ */
+    HOSTFREE: DIR + 'example_hostfree.fasta',
     CONTIGS: DIR + 'example_viral_contigs.fasta',
     CONTIG1: DIR + 'example_contig_1.fasta',
     SET: DIR + 'example_virus_set.fasta',
@@ -51,7 +61,10 @@
     PDPREP_META: DIR + 'example_pdprep.meta.csv',
     ACMV: DIR + 'example_acmv.fasta',
     RENAME_MAP: DIR + 'example_rename_map.tsv',
-    MIRNA: DIR + 'example_mirna.fasta'
+    MIRNA: DIR + 'example_mirna.fasta',
+    /* RDP 重组检测示例输入（与 examples/results/rdp 的生成输入同源：
+       5 条模拟分离物比对 + meta；见 tests/make_examples.py） */
+    RDP: DIR + 'example_rdp.fasta'
   };
 
   /* 工具卡（tools.html 里 <section class="card" id="t-xxx">）→ 字段映射。
@@ -62,9 +75,9 @@
     't-identify':  { i_type: 'pe', i_input: 'R1', i_input2: 'R2' },
     't-assemble':  { a_r1: 'R1', a_r2: 'R2' },
     't-contigs':   { c_fa: 'CONTIGS' },
-    't-verify':    { vf_fa: 'CONTIGS' },
-    't-virchain':  { vc_input: 'R1', vc_input2: 'R2' },
-    't-hom':       { homSeqText: 'CONTIGS_TEXT' },
+    't-verify':    { vf_fa: 'CONTIGS', homSeqText: 'CONTIGS_TEXT' },
+    't-virchain':  { vc_input: 'HOSTFREE' },
+    /* 2026-11-03：t-hom 卡并入 t-verify（homSeqText 映射随迁，深链不再指向 t-hom） */
     't-consensus': { cs_fa: 'CONTIGS', cs_reads: 'R1' },
     't-variant':   { vr_ref: 'CONTIGS' },
     't-dsrna':     { ds_input: 'CMV' },
@@ -73,6 +86,17 @@
     't-phylogeo':  { pg_input: 'PHYLOGEO', pg_meta: 'PHYLOGEO_META' },
     't-pdprep':    { pd_src: 'files', pd_fa: 'PHYLOGEO', pd_meta: 'PDPREP_META' },
     't-mirna':     { mirna_fasta: 'MIRNA', virus_fasta: 'ACMV' },
+    /* 2026-11-05 补齐未接示例的工具卡：annochain 吃 contigs FASTA；
+       t-crispr 用 ACMV 单序列目标；rdp 用现成的 example_rdp.fasta（其
+       示例结果就是用这份输入生成的）；loganfetch / cmpchain 需联网拉
+       参考，只填字面量 */
+    't-annochain': { ano_input: 'CONTIGS' },
+    't-crispr':    { cr_input: 'ACMV' },
+    't-lamp':      { lp_input: 'ACMV' },
+    't-rdp':       { rdp_input: 'RDP' },
+    't-loganfetch': { lf_accs: 'SRR24759446, ERR3382580' },
+    't-cmpchain':  { cmpMode: 'ictv', cmpRank: 'Genus', cmpTaxon: 'Potyvirus',
+                     cmpLimit: '12', cmpSdtMax: '12' },
     't-seqprep':   null,      /* 已有自带示例按钮，保持原样 */
     't-align':     null,
     't-treebuild': null,
@@ -97,7 +121,11 @@
        填病毒名（曾写 Tobacco mosaic virus）会让人以为在按病毒检索，且与
        placeholder「如 Lycium barbarum」和平台示例宿主（host-db/112863_
        Lycium barbarum、提交示例的 Host 字段）自相矛盾。统一用枸杞。 */
-    '/meta':        { mtSpecies: 'Lycium barbarum', mtSource: 'All' }
+    '/meta':        { mtSpecies: 'Lycium barbarum', mtSource: 'All' },
+    /* 预筛 / 批量下载：示例 Run 列表与预筛页 placeholder 同源（SRA/ENA/GSA
+       各一），逐行一个编号；只填输入，不自动发起任何下载或检索 */
+    '/prescreen':   { psRuns: 'SRR23843744\nERR7586041\nCRR125671' },
+    '/download':    { dlItems: 'SRR23843744\nERR7586041\nCRR125671' }
   };
 
   var AUTO_KEY = 'vp_example_autofill';
@@ -232,7 +260,10 @@
     return m ? fillMap(m) : 0;
   }
 
-  /* ---------- 「✨ 示例」/「👁 示例结果」按钮注入 ---------- */
+  /* ---------- 「✨ 示例」/「👁 示例结果」按钮注入 ----------
+     2026-11-04 用户要求：示例结果不再自动弹出（原「首次访问自动摊开」
+     已删），一律手动点按钮；且按钮统一放在**输出区之后**，不再挤在标题旁。
+     ✨ 示例（填输入）按钮仍留在标题旁——它属于输入区。 */
   function mkBtn(label, title, handler) {
     var b = document.createElement('button');
     b.type = 'button';
@@ -244,58 +275,99 @@
     return b;
   }
 
+  /* 独立页（/orf /primer …）的输出锚点：示例结果按钮条插在它后面 */
+  var PAGE_OUT_ANCHOR = {
+    '/orf': '#toolrun-orf', '/annotation': '#toolrun-orfa',
+    '/genome': '#toolrun-genoplot', '/primer': '#pd_out',
+    '/hostremoval': '#toolrun-hostremoval', '/logan': '#fragCard'
+  };
+  /* 一张卡承载多个模块时，主示例外再补的按钮（t-sdt 卡同时有 NT+AA
+     同一性面板，同一性示例结果也该能从这里看） */
+  var RESULT_BTN_EXTRA = {
+    't-sdt': [{ module: 'identity', labelKey: 'ui.ex.btnResultIdentity' }]
+  };
+
+  function injectResultBar(anchor, entries) {
+    if (!anchor || !entries || !entries.length) return false;
+    var bar = document.createElement('div');
+    bar.className = 'vp-ex-resultbar';
+    bar.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;' +
+      'margin:8px 0 2px;padding:6px 10px;border:1px dashed var(--line-200,#dcdcdc);' +
+      'border-radius:8px;background:var(--surface-2,#fafafa)';
+    var tip = t('ui.ex.btnResultTip', '查看内置示例的运行结果（只读）');
+    entries.forEach(function (e) {
+      var label = e.label || (e.labelKey ? t(e.labelKey, '👁 示例') : null) ||
+                  t('ui.ex.btnResult', '👁 示例结果');
+      var btn = mkBtn(label, tip,
+        function () { showExampleResult(e.module); });
+      btn.style.marginLeft = '0';
+      bar.appendChild(btn);
+    });
+    var hint = document.createElement('span');
+    hint.className = 'hint';
+    hint.textContent = t('ui.ex.barHint', '示例结果不会自动加载，点按钮手动查看');
+    bar.appendChild(hint);
+    anchor.insertAdjacentElement('afterend', bar);
+    return true;
+  }
+
   function injectButtons() {
     document.querySelectorAll('section.card[id^="t-"]').forEach(function (sec) {
-      if (sec.querySelector('.vp-ex-btn')) return;
       var hasFill = !!MAP[sec.id] || sec.id === 't-kvsuite' ||
                     sec.id === 't-kvchain';
       var mod = resultModule(sec.id);
-      if (!hasFill && !mod) return;
-      var h2 = sec.querySelector('h2');
-      if (!h2) return;
       if (hasFill) {
-        h2.appendChild(mkBtn(t('ui.ex.btnFill'), t('ui.ex.btnFillTip'),
-          function () {
-            var n = applyFor(sec);
-            if (typeof toast === 'function') {
-              toast(n ? t('ui.ex.fillOk', '已填入示例数据') : t('ui.ex.noCfg', '该模块暂未配置示例'), '', { ttl: 2200 });
-            }
-          }));
+        var h2 = sec.querySelector('h2');
+        if (h2 && !h2.querySelector('.vp-ex-btn')) {
+          h2.appendChild(mkBtn(t('ui.ex.btnFill'), t('ui.ex.btnFillTip'),
+            function () {
+              var n = applyFor(sec);
+              if (typeof toast === 'function') {
+                toast(n ? t('ui.ex.fillOk', '已填入示例数据') : t('ui.ex.noCfg', '该模块暂未配置示例'), '', { ttl: 2200 });
+              }
+            }));
+        }
       }
-      if (mod) {
-        h2.appendChild(mkBtn(t('ui.ex.btnResult'), t('ui.ex.btnResultTip'),
-          function () { showExampleResult(mod); }));
+      /* 👁 示例结果：输出区（卡内最后一个 .toolrun）之后 */
+      if (mod && !sec.querySelector('.vp-ex-resultbar')) {
+        var outs = sec.querySelectorAll('.toolrun');
+        var anchor = outs.length ? outs[outs.length - 1] : null;
+        var entries = [{ module: mod }]
+          .concat(RESULT_BTN_EXTRA[sec.id] || []);
+        injectResultBar(anchor, entries);
       }
     });
-    /* 独立页面：在页面主标题旁注入。独立页标题可能是 h1（如 /orf /hostremoval
-       改版后用 h1），故 h1/h2 都要认；只看标题里有没有按钮，避免页面自带
-       示例按钮时全局 .vp-ex-btn 判断把注入整体跳过。 */
+    /* 独立页面：✨ 示例（填输入）仍挂页面主标题旁（输入区的入口）。
+       独立页标题可能是 h1（如 /orf /hostremoval 改版后用 h1），故
+       h1/h2 都要认；只看标题里有没有按钮，避免页面自带示例按钮时
+       全局 .vp-ex-btn 判断把注入整体跳过。 */
     var pm = PAGE_MAP[location.pathname];
-    var pmod = resultModule(location.pathname);
-    if (pm || pmod) {
+    if (pm) {
       var h = document.querySelector('main h1, main h2, .card h2');
       if (h && !h.querySelector('.vp-ex-btn')) {
-        if (pm) {
-          h.appendChild(mkBtn(t('ui.ex.btnFill', '✨ 示例'), t('ui.ex.btnFillTip', '一键填入内置示例数据'), function () {
-            var n = applyFor('page');
-            if (typeof toast === 'function') {
-              toast(n ? t('ui.ex.fillOk', '已填入示例数据') : t('ui.ex.noCfg', '该模块暂未配置示例'), '', { ttl: 2200 });
-            }
-          }));
-        }
-        if (pmod) {
-          h.appendChild(mkBtn(t('ui.ex.btnResult', '👁 示例结果'), t('ui.ex.btnResultTip', '查看内置示例的运行结果（只读）'),
-            function () { showExampleResult(pmod); }));
-        }
+        h.appendChild(mkBtn(t('ui.ex.btnFill', '✨ 示例'), t('ui.ex.btnFillTip', '一键填入内置示例数据'), function () {
+          var n = applyFor('page');
+          if (typeof toast === 'function') {
+            toast(n ? t('ui.ex.fillOk', '已填入示例数据') : t('ui.ex.noCfg', '该模块暂未配置示例'), '', { ttl: 2200 });
+          }
+        }));
       }
+    }
+    /* 独立页面：示例结果按钮条放该页输出容器之后。
+       页面主体可能由页内 JS 异步渲染（/logan /primer /orf 实测），锚点
+       晚出现 → boot 里的定时补注入会反复进来，直到按钮条就位。 */
+    var pmod = resultModule(location.pathname);
+    var psel = PAGE_OUT_ANCHOR[location.pathname];
+    if (pmod && psel && !document.querySelector('main .vp-ex-resultbar')) {
+      var entries = [{ module: pmod }]
+        .concat(RESULT_BTN_EXTRA[location.pathname] || []);
+      injectResultBar(document.querySelector(psel), entries);
     }
   }
 
-  /* ---------- 首次打开自动填充 + 自动展示示例结果（Phase C） ---------- */
-  var SEEN_KEY = 'vp_example_seen';
-
+  /* ---------- 首次打开自动填充输入（示例结果一律手动，不再自动展示） ---------- */
   function autoFill(tries) {
-    /* 上游页面带参数跳进来时（如「组装结果再鉴定」→ /primer 带 contig 序列），
+    /* 上游页面带参数跳进来时（如「病毒鉴定」→ /primer 带 contig 序列），
        页内脚本会把 window.__vpNoAutoFill 置 true：示例填充必须让路，否则
        它 400ms 后的一次性写入会把刚带进来的输入覆盖成示例文件路径。 */
     if (window.__vpNoAutoFill) return;
@@ -308,13 +380,10 @@
     var pm = PAGE_MAP[location.pathname];
     var sec = pm ? null
                  : document.querySelector('section.card[id^="t-"]:not([style*="display: none"])');
-    var mod = null;
     if (sec) {
       applyFor(sec);
-      mod = resultModule(sec.id);
     } else if (pm) {
       var n = applyFor('page');
-      mod = resultModule(location.pathname);
       /* /logan /primer 等页主体由页内 JS 异步渲染，字段可能晚于本次执行出现；
          一次没填上（n=0）就按轮次重试，与工具卡的等待逻辑对齐。 */
       if (!n && (tries || 0) < 8) {
@@ -327,27 +396,25 @@
       setTimeout(function () { autoFill((tries || 0) + 1); }, 400);
       return;
     }
-    /* 首次访问：直接把示例结果摊开给用户看（之后不再自动弹，可点按钮再看） */
-    var seen = false;
-    try { seen = localStorage.getItem(SEEN_KEY) === '1'; } catch (e) {}
-    if (mod && !seen) {
-      try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {}
-      setTimeout(function () { showExampleResult(mod); }, 600);
-    }
+    /* 示例结果不自动弹出（2026-11-04 用户要求）：想看就点输出区后的
+       「👁 示例结果」按钮，加载动作完全由用户触发。 */
   }
 
   function boot() {
     injectButtons();
     setTimeout(autoFill, 400);
     /* 独立页主体可能由页内 JS 异步渲染（/logan /primer 实测）：
-       标题晚出现 → 首轮 injectButtons 找不到挂点。定时补注入，
-       直到标题上出现按钮（或超时放弃）。 */
+       标题与输出容器都晚出现 → 首轮 injectButtons 挂不上按钮条。
+       定时补注入，直到 ✨ 按钮与示例结果按钮条都就位（或超时放弃）。 */
     if (PAGE_MAP[location.pathname]) {
       var tries = 0;
       var iv = setInterval(function () {
         tries++;
         var h = document.querySelector('main h1, main h2, .card h2');
-        var done = h && h.querySelector('.vp-ex-btn');
+        var fillOk = !PAGE_MAP[location.pathname] ||
+          (h && h.querySelector('.vp-ex-btn'));
+        var barOk = !!document.querySelector('main .vp-ex-resultbar');
+        var done = fillOk && barOk;
         if (!done) injectButtons();
         if (done || tries > 12) clearInterval(iv);
       }, 400);
@@ -382,11 +449,19 @@
     't-kvsuite': 'kvsuite', 't-consensus': 'consensus', 't-variant': 'variant',
     '/orf': 'orf', '/annotation': 'orfa', '/genome': 'genoplot',
     '/primer': 'primer', '/hostremoval': 'hostremoval',
-    't-hom': 'hom', '/logan': 'logan',
+    /* 2026-11-03：旧 hom 卡键已删（并入 t-verify）；hom 示例产物
+       examples/results/hom/ 仍在 /api/examples/hom 可读 */
+    '/logan': 'logan',
     't-dsrna': 'dsrna', 't-mirna': 'mirna',
     't-rdp': 'rdp', 't-rtt': 'rtt', 't-phylogeo': 'phylogeo',
     't-pdprep': 'pdprep',
-    't-phylodyn': 'phylodyn', 't-seqprep': 'seqprep'
+    't-phylodyn': 'phylodyn', 't-seqprep': 'seqprep',
+    /* 2026-11-05 补：t-crispr + 注释一键链（示例结果见 examples/results/，
+       由 tests/make_example_results.py 经 /api/tool/run 真跑固化；loganfetch /
+       cmpchain 需联网拉参考，无离线示例结果，故不在此表） */
+    't-crispr': 'crispr',
+    't-lamp': 'lamp',
+    't-annochain': 'annochain'
   };
 
   function resultModule(idOrPath) {

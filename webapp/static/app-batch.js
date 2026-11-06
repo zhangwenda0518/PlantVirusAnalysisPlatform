@@ -190,7 +190,7 @@ const PIPE_TEMPLATES = [
     tip: '已知病毒识别与定量 → 共识序列与变异',
     stages: ['kvsuite', 'consensus'] },
   { id: 'asm',  label: '⚡ 组装·kunpeng鉴定分类·宿主预测·再结构域鉴定',
-    tip: '③ 组装（kunpeng 鉴定分类·提取 viral_contigs）→ ④ ICTV 宿主预测 → ③b blastx/BFVD 再结构域鉴定',
+    tip: '③ 组装（kunpeng 鉴定分类·提取 viral_contigs）→ ④ ICTV 宿主预测 → ③b blastx/BFVD/CDD 再结构域鉴定',
     stages: ['assembly', 'hostana', 'verify'] },
   { id: 'anno', label: '⚡ 注释三连',
     tip: '⑥ ORF 预测 → ⑥b 功能注释 → ⑨ 基因组图谱；完成后可到「数据提交」页准备 NCBI 提交包',
@@ -224,7 +224,7 @@ async function adoptSubmit(sample) {
     toast(t('pp.submitGo', '一键生成提交项目（NCBI）'),
       (d.created ? t('pp.adoptNew', '已建档 ') : t('pp.adoptReuse', '已更新 '))
         + d.name + '：' + parts.join('，'), { ttl: 8000 });
-    location.href = '/submit?open=' + encodeURIComponent(d.name);
+    gotoModule('/submit?open=' + encodeURIComponent(d.name));
   } catch (e) {
     if (netFail(e)) setConnBanner(true);
     alert(t('c.connFail', '无法连接平台服务') + ': ' + e);
@@ -381,13 +381,13 @@ async function hydrateKvLibSelects(pref) {
   } catch (e) { /* 拉不到列表就只留默认项 + 自选 */ }
   const libVal = l => l.scope === 'platform' ? l.name : l.path;
   const usable = l => !!(l.salmon || l.minibwa || l.reference);
-  const isDefault = l => l.scope === 'platform' && l.name === 'kv_index';
+  const isDefault = l => l.scope === 'platform' && ['kv_index', 'plant_ref'].includes(l.name); // 旧名 kv_index = plant_ref（2026-09-29 更名，两处兼容）
   const nonDefault = libs.filter(l => !isDefault(l));
   const def = libs.find(isDefault);
   sels.forEach(sel => {
     const cur = (pref !== undefined && pref !== null) ? pref : sel.value;
     sel.options.length = 0;
-    sel.add(new Option(t('pp.kvLibDefault', '默认鉴定库 kv_index'), ''));
+    sel.add(new Option(t('pp.kvLibDefault', '默认鉴定库 plant_ref'), ''));
     nonDefault.forEach(l => {
       const tag = l.scope === 'external' ? t('pp.kvLibExternal', '（外部）')
                 : l.scope === 'internal' ? t('pp.kvLibInternal', '（库根内）')
@@ -478,8 +478,8 @@ const STAGE_PARAMS = {
              ['vertebrates', 'vertebrates'], ['algae', 'algae'],
              ['protists', 'protists'], ['archaea', 'archaea']] },
     { id: 'verify_methods', label: 'pp.verify_methods', type: 'multichk',
-      def: ['blastx', 'bfvd'],
-      opts: [['blastx', 'blastx'], ['bfvd', 'BFVD']] },
+      def: ['blastx', 'bfvd', 'cdd'],
+      opts: [['blastx', 'blastx'], ['bfvd', 'BFVD'], ['cdd', 'CDD']] },
     { id: 'verify_combine', label: 'pp.verify_combine', type: 'select',
       def: 'union',
       opts: [['union', 'union'], ['intersection', 'intersection']] },
@@ -581,7 +581,7 @@ function collectParams() {
     subsample_prop: +($('subsample_prop')?.value) || undefined,
     db_host: ($('db_host')?.value || '').trim() || null,
     db_virus: ($('db_virus')?.value || '').trim() || null,
-    // ②b 鉴定库：''/自选占位未确认 = 默认 kv_index（resolve_kv_lib 解析）
+    // ②b 鉴定库：''/自选占位未确认 = 默认 plant_ref（resolve_kv_lib 解析）
     kv_lib: (() => {
       const v = ($('kv_lib')?.value || '').trim();
       return (!v || v === KVLIB_CUSTOM) ? null : v;

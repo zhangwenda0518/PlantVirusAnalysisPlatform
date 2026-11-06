@@ -49,7 +49,7 @@
   </div>
 
   <!-- ① 项目列表 -->
-  <div class="card">
+  <div class="card" data-guide="NCBI-Submission"">
     <h2 data-i18n="sb.projects">① 提交项目</h2>
     <div class="grid2">
       <div>
@@ -577,9 +577,13 @@ async function doTaxCheck(btn) {
     for (;;) {
       await new Promise(r => setTimeout(r, 2000));
       snap = await jfetch(`/api/task/${d.task}?log_lines=20`);
+      // 逐物种 esearch 是分钟级任务：只显示 stage/msg 时用户看不出卡在哪
+      // 一个物种上，把后端日志尾（最近 4 行）一起贴出来。
+      const tail = (snap.log || []).slice(-4);
       box.textContent = `[${snap.stage || ''}] ${snap.msg || ''}`
         + (snap.pct != null ? `（${Math.round((snap.pct || 0) * 100)}%）` : '')
-        + '\n⏳ 校验中…（可留在本页等结果，也可切到任务中心看进度）';
+        + '\n⏳ 校验中…（可留在本页等结果，也可切到任务中心看进度）'
+        + (tail.length ? '\n' + tail.join('\n') : '');
       if (snap.status !== 'running') break;
     }
     if (snap.status !== 'done') {

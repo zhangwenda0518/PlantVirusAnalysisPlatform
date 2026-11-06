@@ -49,7 +49,7 @@
   't-variant':    ('🧬 Viral variant analysis',
                    'BAM / VCF input → bcftools caller (optional) → SnpEff annotation → 8 variant plots + SNPGenie'),
 
-  't-virchain':   ('⚡ One-click analysis (②→③→④)',
+  't-virchain':   ('⚡ One-click analysis',
                    'Extract sequences → assemble → re-identify assemblies → verify candidates, optionally starting with ① virus extraction'),
   't-identify':   ('Virus identification, classification & extraction',
                    'FASTQ / FASTA / host-removed reads → classification + viral sequence extraction'),
@@ -58,16 +58,13 @@
   't-contigs':    ('Re-identify assemblies',
                    'Second-pass contig classification + lineage annotation'),
   't-verify':     ('🛡 Candidate sequence verification',
-                   'Host screening → length routing → blastx/BFVD dual filtering + virus-like blastn'),
+                   'Batch verify (host screening → length routing → blastx/BFVD/CDD three-route filtering + viroid blastn) + single-sequence deep dive (BLASTN · BLASTX homology search)'),
 
-  't-annochain':  ('⚡ One-click annotation (ORF→function→plot)',
-                   'FASTA input: ORF prediction → functional annotation → genome plot in one run; the products can be linked and turned into a featuretable from the Submissions page'),
   '/orf':         ('🧬 ORF prediction',
                    'pyrodigal / pyrodigal-rv gene prediction (standalone module)'),
-  '/annotation':  ('🧾 Functional annotation',
-                   'DIAMOND / MMseqs2 / blastp against the RefSeq viral protein DB + category voting + ICTV mapping (standalone module)'),
-  't-hom':        ('🎯 Homology search (BLASTN · BLASTX)',
-                   'NCBI nt / nr homology search restricted to viruses: evidence for GenBank submission annotation'),
+  '/annotation':  ('🧾 Functional annotation (+ORF prediction)',
+                   'ORF prediction + functional annotation in one step: pyrodigal(-rv) prediction → '
+                   'DIAMOND / MMseqs2 / blastp against the PVDB protein DB + category voting + ICTV mapping'),
   '/genome':      ('Genome visualization',
                    'gbdraw / DFV circular + linear plots (standalone module)'),
 
@@ -75,8 +72,6 @@
                    'primer3 full-length windowing / conserved-region design (standalone module) for PCR / qPCR detection'),
   't-crispr':     ('CRISPR detection reagent design',
                    'Cas12a crRNA × RPA/PCR primer co-design: multi-isolate MSA conservation → TTTV PAM scan + funnel filtering → dual-DB specificity screen (host + close relatives) → composite score × population coverage → ordering table + L1–L5 validation checklist'),
-  't-conan':      ('CONAN-SWIFT detection design (Cas3)',
-                   'Cas3 / type I-E crRNA design (RT-LAMP + lateral flow): multi-isolate targets + merged negative set via MAFFT → AAG PAM + 32 nt spacer duplex scanning → dual-mismatch scoring at homologous negative-set sites (leak / coverage) → end / GC / seed filtering → candidate table + site inspection'),
   't-dsrna':      ('dsRNA design',
                    'Full chain: dsRNAmax deterministic window selection (maximin over candidates) → dsRIP potency → panel off-target scan (lethal-gene weighting + zero-mismatch veto) → T7 primers (best window only) → amplicon QC (drop a panel FASTA into databases/dsrna/panel/ to enable the off-target panel)'),
   't-mirna':      ('🧬 miRNA target prediction (PAmiRDB)',
@@ -93,13 +88,13 @@
   't-sdt':        ('📐 SDT identity analysis (genus level)',
                    'Pairwise MAFFT exact alignment → identity matrix / heatmap / distribution plot; NT+AA identity table + composite heatmap'),
 
-  't-pdprep':     ('🧬 Phylodynamics data intake',
+  't-pdprep':     ('Phylodynamics data intake',
                    'Build a standard dataset (alignment FASTA + metadata) from three sources: file pair / manual entry (time and place together) / online download; metadata column names are auto-detected and preferred (Collection_Date↔Release_Date, Geo_Location↔Country). Includes timeline, location distribution and map summary'),
-  't-rdp':        ('🔁 RDP5 recombination analysis',
+  't-rdp':        ('RDP5 recombination analysis',
                    'RDP5 nine-method detection with per-method p-values; exports a clean alignment with recombined regions masked'),
-  't-rtt':        ('⏱ Temporal signal & dating',
+  't-rtt':        ('Temporal signal & dating',
                    'Root-to-tip regression: high R² = strong temporal signal, slope = substitutions per site per year'),
-  't-phylogeo':   ('🌍 Phylogeographic analysis',
+  't-phylogeo':   ('Phylogeographic analysis',
                    'Fitch migration reconstruction + three-way distance classification (haversine) / MOTP time binning / weighted bands / migration GIF export'),
   't-phylodyn':   ('⚡ One-click analysis (dating → migration → provenance)',
                    'A0 data prep → A1 dating → A2 geographic migration → A3 skyline → A4 ancestral sequences → A5 provenance summary; run everything at once, a single stage, or continue from the previous run. Fully local, no MCMC'),
@@ -109,8 +104,8 @@
   '/svguest/':    ('🎨 Result figure composer (svguest)',
                    'Local SVG editor: merge figures / layout / annotate / add scale bars, export PNG · SVG · PDF; files are never uploaded'),
 
-  '/logan':       ('LOGAN tracing / batch submission',
-                   'Public sample tracing'),
+  '/logan':       ('LOGAN tracing query',
+                   'Split sequences into ≤2.5kb fragments · copy/export · embedded Logan-Search dashboard'),
   '/submit':      ('Data submission',
                    'NCBI submission preparation')
 } -%}
@@ -124,8 +119,7 @@
   'detect':    'Detection & control',
   'compare':   'Comparative genomics',
   'phylodyn':  'Phylodynamics',
-  'result':    'Result center',
-  'trace':     'Tracing & submission'
+  'result':    'Result center'
 } -%}
 
 {#- 条目显示标题：en 查表，zh 原样 -#}

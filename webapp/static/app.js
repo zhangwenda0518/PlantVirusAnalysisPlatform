@@ -105,6 +105,11 @@ async function watchTaskBtn(tid, btn, busyText, onEnd, opts) {
     if (stopBtn) stopBtn.remove();
     unlock();
     if (onEnd) onEnd(snap);
+    // 终态后立刻补一次任务列表刷新：结果预览/下载按钮不必等下一轮空闲
+    // 轮询（最长 8s）才出现（2026-11-02 用户报告「完成时没有、切页才有」）。
+    try {
+      if (typeof refreshTasks === 'function') refreshTasks();
+    } catch (e) {}
     return snap;
   };
   let misses = 0;              // 任务快照不可达计数（404/网络）
@@ -951,6 +956,27 @@ function pagerHtml(page, totalPages, fnExpr) {
   return html;
 }
 
+// ---------------- 模块间跳转（走保活外壳，别把整页重载） ----------------
+// 2026-11-02：`location.href = '/xxx'` 在保活外壳里等于把 iframe 自己再载一遍，
+// 用户看到的还是「刷新」。凡是「切模块」的跳转都走这里：
+//   · 父文档（外壳）里 → VP_SHELL.open()；
+//   · iframe 里 → postMessage 交给父层换帧，本帧保留（不重建）；
+//   · 都不在（老页面 / 直接打开）→ 退回普通跳转。
+function gotoModule(href) {
+  if (!href) return;
+  if (window.VP_SHELL && typeof window.VP_SHELL.open === 'function') {
+    window.VP_SHELL.open(href);
+    return;
+  }
+  if (window.self !== window.top) {
+    try {
+      parent.postMessage({ vpNav: href }, location.origin);
+      return;
+    } catch (e) {}
+  }
+  location.href = href;
+}
+
 // ---------------- 跨模块文件交接（下载页 → 其它模块预填） ----------------
 // 把文件参数暂存到 sessionStorage，再跳到目标模块页；目标页用 takePrefill 取出并预填输入框。
 function sendTo(page, params) {
@@ -959,9 +985,39 @@ function sendTo(page, params) {
       JSON.stringify(Object.assign({ page: page, ts: Date.now() }, params)));
   } catch (e) {}
   if (page === 'fastp' || page === 'identify') {
-    location.href = '/tools?g=sample#t-' + page;
+    gotoModule('/tools?g=sample#t-' + page);
   } else {
-    location.href = '/' + page;
+    gotoModule('/' + page);
+  }
+}
+
+// 行级「LOGAN 数据下载」关联按钮（检索 / 预筛样本行共用）：
+// 先探测 Logan 有无该样本组装 → 有：预填 accession 跳 LOGAN 数据下载；
+// 无：toast 说明（不在覆盖范围 / GSA·CRR 样本）。ev 传参用于阻止行点击。
+async function loganSendTo(acc, ev) {
+  if (ev) { try { ev.stopPropagation(); } catch (e) {} }
+  const a = String(acc || '').trim().toUpperCase();
+  if (!a) return;
+  try {
+    const r = await fetch('/api/logan/has_assembly', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({accessions: [a]})});
+    if (!r.ok) { throw new Error((await r.json()).error || r.status); }
+    const d = await r.json();
+    if (d[a]) {
+      try {
+        sessionStorage.setItem('vp_prefill', JSON.stringify(
+          {page: 'loganfetch', accessions: a, ts: Date.now()}));
+      } catch (e) {}
+      gotoModule('/tools?g=resource#t-loganfetch');
+    } else {
+      toast(t('lg.noAssembly', 'Logan 无该样本的组装'),
+        a + ' · ' + t('lg.noAssemblyTip',
+          '不在 Logan 覆盖范围（GSA/CRR 样本或未收录），无法拉取 contigs'),
+        {ttl: 6000});
+    }
+  } catch (e) {
+    toast(t('lg.checkFail', 'Logan 组装探测失败'), String(e.message || e), {ttl: 5000});
   }
 }
 
@@ -1067,6 +1123,11 @@ function injectGlobalCtx() {
   wrap.innerHTML =
     `<span class="navctx-chip" id="navCtxSample" onclick="gxPickSample()"></span>`
     + `<span class="navctx-chip" id="navCtxProject" onclick="gxPickProject()"></span>`
+    /* 清后台小火箭（2026-11-06 用户要求）：一键停掉运行中/排队中的分析、
+       工具与下载任务，给 CPU/内存腾地方 —— 后端复用任务中心的
+       /api/tasks/stop_all（不删记录、不碰结果文件）。 */
+    + `<button class="navctx-rocket" id="navCtxRocket" type="button" `
+    + `onclick="gxStopAllTasks(this)"></button>`
     + `<button class="navctx-reset" id="navCtxReset" type="button" `
     + `onclick="gxGlobalReset(this)"></button>`;
   host.appendChild(wrap);
@@ -1096,6 +1157,11 @@ function renderNavCtx() {
   if (r) {
     r.textContent = t('gx.reset', '🧹 全局清理');
     r.title = t('gx.resetTitle', '');
+  }
+  const rk = $('navCtxRocket');
+  if (rk) {
+    rk.textContent = t('gx.rocket', '🚀 清后台');
+    rk.title = t('gx.rocketTip', '一键停止全部后台任务（分析与下载）；任务记录与结果文件保留');
   }
 }
 
@@ -1129,12 +1195,28 @@ function _uiDragSave(name, pos) {
   try { localStorage.setItem(UI_DRAG_KEY, JSON.stringify(all)); } catch (e) {}
 }
 
+/* 顶部「安全线」：存储/连接横幅是 position:sticky 且 z-index 98，浮层拖上去会被
+   它盖住——盖住的正好是拖动标题栏，用户就再也抓不回来了。所以浮层的最低 y 从横幅
+   下沿算起（没横幅时就是 6px 边距）。 */
+function _uiSafeTop() {
+  let top = 6;
+  const ids = ['storage-banner', 'conn-banner'];
+  for (const id of ids) {
+    const b = document.getElementById(id);
+    if (!b) continue;
+    const r = b.getBoundingClientRect();
+    if (r.height > 0 && r.top <= 12) top = Math.max(top, Math.round(r.bottom) + 6);
+  }
+  return top;
+}
+
 function _uiClamp(x, y, w, h) {
   const vw = window.innerWidth || 800;
   const vh = window.innerHeight || 600;
+  const minY = _uiSafeTop();
   const maxX = Math.max(6, vw - (w || 120) - 6);
-  const maxY = Math.max(6, vh - (h || 30) - 6);
-  return {x: Math.max(6, Math.min(x, maxX)), y: Math.max(6, Math.min(y, maxY))};
+  const maxY = Math.max(minY, vh - (h || 30) - 6);
+  return {x: Math.max(6, Math.min(x, maxX)), y: Math.max(minY, Math.min(y, maxY))};
 }
 
 function _uiPlace(el, x, y) {
@@ -1167,6 +1249,33 @@ function vpDragApply(el) {
   _uiPlace(el, p.x, p.y);
 }
 
+/* 贴边吸附（2026-11-02，vpDraggable 的 opts.snap）：
+   只有「已经拖到边缘附近」才吸到边（左右各留 56px 吸附带）；拖到屏幕中间就
+   停在中间。用户要的是「能移、能拖、能贴边」，不是「一松手就被拽回角落」——
+   早先无差别吸附 + 过渡里读坐标，手感就是「拖不动、还乱跳」。 */
+const _UI_SNAP_PX = 24;
+
+function _uiSnapTarget(el) {
+  const r = el.getBoundingClientRect();
+  const vw = window.innerWidth || 800;
+  const w = r.width || 0;
+  const toLeft = r.left - 6;                 // 离左边缘（6px 边距）还差多少
+  const toRight = (vw - 6) - (r.left + w);   // 离右边缘还差多少
+  if (Math.min(toLeft, toRight) > _UI_SNAP_PX) return null;   // 不在吸附带：原地停
+  return _uiClamp(toLeft <= toRight ? 6 : vw, r.top, w, r.height);
+}
+
+/* 返回落点坐标（没吸就返回 null）。调用方要用这个返回值存档：吸附加了
+   transition，紧跟其后 getBoundingClientRect() 读到的是过渡起点，不是落点。 */
+function _uiSnapSide(el) {
+  const p = _uiSnapTarget(el);
+  if (!p) return null;
+  el.classList.add('is-snapping');
+  setTimeout(() => el.classList.remove('is-snapping'), 180);
+  _uiPlace(el, p.x, p.y);
+  return p;
+}
+
 function vpDraggable(el, name, opts) {
   if (!el || !el.dataset || el.dataset.dragName) return;
   const o = opts || {};
@@ -1174,6 +1283,7 @@ function vpDraggable(el, name, opts) {
   el.dataset.dragName = name;
   if (o.anchorBottom) el.dataset.dragBottom = '1';
   vpDragApply(el);
+  if (o.snap && el.style.left) _uiSnapSide(el);   // 存档本来就贴着边的，加载时归位
 
   let down = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0;
   const onDown = (ev) => {
@@ -1196,6 +1306,7 @@ function vpDraggable(el, name, opts) {
     if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return;
     if (!moved) {
       moved = true;
+      el.classList.remove('is-snapping');   // 手动拖的时候别让吸附过渡拖后腿
       el.classList.add('is-dragging');
       try { el.setPointerCapture(ev.pointerId); } catch (e) { /* 合成事件没有捕获 */ }
     }
@@ -1209,11 +1320,22 @@ function vpDraggable(el, name, opts) {
     down = false;
     if (!moved) return;
     el.classList.remove('is-dragging');
+    /* 贴边：先算出落点，再用落点存档（不能读 rect：过渡刚开始，读到的还是老位置） */
+    const snapTo = o.snap ? _uiSnapSide(el) : null;
     const r2 = el.getBoundingClientRect();
     const vh = window.innerHeight || 600;
+    const fx = snapTo ? snapTo.x : r2.left;
+    const fy = snapTo ? snapTo.y : r2.top;
     _uiDragSave(name, el.dataset.dragBottom === '1'
-      ? {x: r2.left, b: Math.round(vh - r2.bottom)}
-      : {x: r2.left, y: r2.top});    /* 拖完这一下不算点击：吞掉紧随其后的 click，免得误触链接/按钮 */
+      ? {x: fx, b: Math.round(vh - (fy + (r2.height || 0)))}
+      : {x: fx, y: fy});    /* 拖完这一下不算点击：吞掉紧随其后的 click，免得误触链接/按钮 */
+    if (o.onChange) { try { o.onChange(el); } catch (e) { /* 回调炸了不影响拖动 */ } }
+    /* 事件顺序坑：document 上的 pointerup 比 window 上的先跑（冒泡先到 document），
+       所以「拖完通知别人」必须用自派事件，不能用 pointerup —— 否则跟着球走的面板
+       会拿着拖动前的坐标先排一次，把刚要存档的落点覆盖掉。 */
+    try {
+      document.dispatchEvent(new CustomEvent('vp:dragend', {detail: {name: name, el: el}}));
+    } catch (e) { /* 老浏览器没有 CustomEvent 构造器就跳过 */ }
     const kill = (e) => { e.stopPropagation(); e.preventDefault(); };
     el._dragKill = kill;
     el.addEventListener('click', kill, true);
@@ -1223,6 +1345,20 @@ function vpDraggable(el, name, opts) {
     }, 350);
   };
   el.addEventListener('pointerdown', onDown);
+  /* 真机坑（2026-11-02）：浮层里常有 <img>/文字，浏览器会把「按住拖图片」当成原生
+     drag&drop（幽灵图 + 元素不跟手），文字则被当成选区。自动化鼠标事件不触发原生
+     拖拽，所以只有真机复现得到。mousedown 与 dragstart 掐掉，click 不受影响；
+     但只在「这一下确实会开始拖」时掐，否则面板里的输入框点不进、按钮点不动。 */
+  el.addEventListener('mousedown', (ev) => {
+    if (ev.button !== 0) return;
+    const t = ev.target;
+    if (handle && !(t.closest && t.closest(handle))) return;      // 不在手柄上
+    if (t !== el && t.closest && t.closest('input, textarea, select, a, button')) {
+      return;                                                      // 手柄里的控件
+    }
+    ev.preventDefault();
+  });
+  el.addEventListener('dragstart', (ev) => ev.preventDefault());
   window.addEventListener('pointermove', onMove, {passive: false});
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onUp);
@@ -1234,12 +1370,15 @@ function vpDraggable(el, name, opts) {
     _uiDragSave(name, null);          // 双击：回右下角默认位
     el.style.left = ''; el.style.top = '';
     el.style.right = ''; el.style.bottom = '';
+    if (o.onReset) { try { o.onReset(el); } catch (err) { /* 忽略 */ } }
   });
   window.addEventListener('resize', () => {
     if (!el.style.left) return;
+    const snapTo = o.snap ? _uiSnapSide(el) : null;   // 视口变了也照样贴边（同样用算术落点存档）
     const r = el.getBoundingClientRect();
-    const p = _uiClamp(r.left, r.top, r.width, r.height);
-    _uiPlace(el, p.x, p.y);
+    const p = _uiClamp(snapTo ? snapTo.x : r.left, snapTo ? snapTo.y : r.top,
+                       r.width, r.height);
+    if (!snapTo) _uiPlace(el, p.x, p.y);
     const vh = window.innerHeight || 600;
     _uiDragSave(name, el.dataset.dragBottom === '1'
       ? {x: p.x, b: Math.round(vh - (p.y + r.height))}
@@ -1254,6 +1393,7 @@ function vpDraggable(el, name, opts) {
    接口不存在、锚文件坏了、字段缺了，这条就整条隐藏，绝不弹错、绝不挡操作。
    窄屏收起指纹只留样品名，并抬到 AI 按钮上方，避免盖住按钮。 */
 const ANC_POLL_MS = 6000;
+let TOOL_PROBE = {};   // /api/tools 探测结果 {工具键: 路径|''}；插件行渲染检测芯片用
 const ANC_DONE_SHOW_MS = 5 * 60 * 1000;   // 结束后仍显示一会儿，便于确认「跑完了」
 let _ancTimer = null;
 let _ancHiddenRun = '';                   // 用户手动藏起来的 run_id
@@ -1327,10 +1467,16 @@ function anchorBarPaint(d) {
   if (main) main.innerHTML = parts.filter(Boolean).join(' ');
   const open = $('abOpen');
   if (open) {
-    open.textContent = finished ? t('anc.recent', '刚完成') : t('anc.running', '正在分析');
+    /* 2026-11-03：stale（30 分钟无账本事件，多半是平台重启过的遗留）不再
+       谎报「正在分析」，改「疑似中断」；点击照旧进任务中心核实 */
+    const stale = st === 'stale';
+    open.textContent = finished ? t('anc.recent', '刚完成')
+      : stale ? t('anc.stale', '疑似中断') : t('anc.running', '正在分析');
     /* 2026-10-30 用户要求：「正在分析」跳任务中心（进度页） */
     open.href = '/tasks';
-    open.title = t('anc.openTasks', '打开任务中心查看进度');
+    open.title = stale
+      ? t('anc.staleTip', '长时间无进展（多半是平台重启留下的运行记录）。重启平台即自动收尾，重新分析也可覆盖')
+      : t('anc.openTasks', '打开任务中心查看进度');
   }
   const ver = $('abVerify');
   if (ver) {
@@ -1372,11 +1518,15 @@ window.anchorBarTick = anchorBarTick;     // 其它页（如管道页）可在�
    背景：任务跑在服务端线程里，切模块只是整页刷新，任务本身不会丢；丢的是
    「在哪里看」——各模块页只认自己前缀的任务（如 meta.html 的 refreshTasks），
    工具页干脆没有任务面板，于是用户看到的像「一换模块就被归档了」。
-   这里给每个页面挂一条常驻运行条（右下角、AI 按钮上方）：
+   这里给每个页面挂一条常驻运行条：
    - 运行中 / 排队中：全部列出，带进度，可停止；
    - 已结束：继续留在条里，**只有用户点「📦」才进历史归档**（可恢复）；
    - 数据源 /api/tasks?logs=0（元信息，几百字节），5s 轮询，后台标签页不轮询。
-   口径定案：切换模块 / 切功能 / 整页刷新一律不归档任何任务。 */
+   口径定案：切换模块 / 切功能 / 整页刷新一律不归档任何任务。
+   2026-11-06 用户定案：直接**常驻顶栏**（插在右侧胶囊簇之前，列表从胶囊
+   下方弹出），不再做右下角悬浮、拖动与 📌 固定开关。每个页面（含保活外壳
+   里的 iframe 页）都有自己的顶栏，落点永远是当前可见的那条；外壳模式下
+   父层顶栏整体隐藏，自然不会双份。 */
 const RUNBAR_POLL_MS = 5000;
 const RUNBAR_DONE_MAX = 6;        // 已完成最多显示 6 条，其余去任务中心看
 let _runbarTimer = null;
@@ -1393,8 +1543,15 @@ function runBarMount() {
     + '<span class="rb-dot"></span><span class="rb-sum" id="rbSum"></span>'
     + '<span class="rb-caret" id="rbCaret">▴</span></button>'
     + '<div class="rb-body" id="rbBody" hidden></div>';
-  document.body.appendChild(bar);
-  vpDraggable(bar, 'runbar', {handle: '.rb-head', anchorBottom: true});  // 拖头部；双击回右下角
+  const topbar = document.querySelector('.topbar');
+  if (topbar) {
+    /* 插在右侧胶囊簇（EN/📂/🧠）之前：状态芯片与右簇之间，不挤最右 */
+    const tail = topbar.querySelector('.navtail');
+    topbar.insertBefore(bar, tail || null);
+  } else {
+    document.body.appendChild(bar);  // 兜底：无顶栏页面走旧浮动样式
+  }
+  _uiDragSave('runbar', null);       // 清掉旧版右下角拖动存档（已无拖动）
   const head = $('rbHead');
   if (head) {
     head.title = t('rb.toggle', '展开/收起运行任务（任何模块页都可见）');
@@ -1415,8 +1572,7 @@ function runBarRender(list) {
   const running = _runbarData.filter(x => x.status === 'running' || x.status === 'queued');
   const done = _runbarData.filter(x => x.status !== 'running' && x.status !== 'queued');
   if (!running.length && !done.length) { bar.hidden = true; return; }
-  bar.hidden = false;
-  vpDragApply(bar);                      // 显示后按实际尺寸落一次拖动位置
+  bar.hidden = false;                    // 常驻顶栏（2026-11-06）：无需拖动定位
   bar.classList.toggle('open', _runbarOpen);
   bar.classList.toggle('is-run', running.length > 0);
   const sum = $('rbSum');
@@ -1515,7 +1671,9 @@ function runBarInit() {
     if (!document.hidden) runBarTick();
   });
   const fab = $('aiFab');
-  if (fab) vpDraggable(fab, 'fab');      // AI 按钮也可拖走；双击复位（拖动不触发打开）
+  /* AI 圆钮（现在是「问答平台」入口）可拖走，松手自动贴边、双击复位；
+     拖动不触发打开（vpDraggable 会吞掉拖完那一次 click）。 */
+  if (fab) vpDraggable(fab, 'fab', {snap: true});
 }
 window.runBarTick = runBarTick;          // 任务中心归档/恢复后手动刷一次
 
@@ -1676,6 +1834,61 @@ function gxGlobalReset(btn) {
     });
 }
 
+/* 清后台小火箭（2026-11-06 用户要求）：一键停止全部运行中/排队中的任务，
+   给 CPU/内存腾地方。后端就是任务中心的 /api/tasks/stop_all —— 不删任务
+   记录、不碰结果文件；分析任务连子进程硬停，下载批次经 on_cancel 转发到
+   DownloadManager（terminate aria2c/sracha 子进程）。停止后顶栏的
+   CPU/内存徽章会在下一轮 3 秒轮询自然回落，无需额外刷新。 */
+async function gxStopAllTasks(btn) {
+  if (btn && btn.disabled) return;
+  const li = k => `<li>${esc(t(k, ''))}</li>`;
+  gxModal(t('gx.rocketTitle', '清后台：停止全部后台任务'),
+    `<p style="margin:0 0 8px">${esc(t('gx.rocketIntro', ''))}</p>`
+    + `<ul style="margin:0 0 10px 18px;padding:0;font-size:12.5px;line-height:1.9">`
+    + li('gx.rocketItem1') + li('gx.rocketItem2') + `</ul>`
+    + `<p style="margin:0;padding:8px 10px;border-radius:8px;`
+    + `background:var(--green-50,#eef4f0);color:var(--green-900,#14532d);font-size:12.5px">`
+    + `✅ ${esc(t('gx.rocketKeep', ''))}</p>`,
+    (body, close) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin-top:16px';
+      row.innerHTML = `<button class="btn small" id="gxRocketNo">`
+        + `${esc(t('gx.rocketCancel', '取消'))}</button>`
+        + `<button class="btn primary" id="gxRocketYes">`
+        + `${esc(t('gx.rocketConfirm', '确认停止'))}</button>`;
+      body.appendChild(row);
+      body.querySelector('#gxRocketNo').onclick = close;
+      const yes = body.querySelector('#gxRocketYes');
+      yes.onclick = async () => {
+        yes.disabled = true;
+        yes.textContent = t('gx.rocketStopping', '⏳ 停止中…');
+        try {
+          const r = await fetch('/api/tasks/stop_all', { method: 'POST' });
+          const d = await r.json();
+          if (!r.ok) throw new Error((d && d.error) || ('HTTP ' + r.status));
+          close();
+          if (d.active_left > 0) {
+            toast(t('tk.stoppingAll', '正在停止'),
+                  t('tk.stopAllLeft', '已受理 {n} 个停止请求，还有 {m} 个任务在收尾')
+                    .replace('{n}', d.cancelled).replace('{m}', d.active_left),
+                  { ttl: 6000 });
+          } else {
+            toast(t('tk.stoppedAll', '已全部停止'),
+                  t('tk.cancelledN', '共停止 {n} 个任务').replace('{n}', d.cancelled),
+                  { ttl: 4000 });
+          }
+          if (window.runBarTick) runBarTick();
+        } catch (e) {
+          yes.disabled = false;
+          yes.textContent = t('gx.rocketConfirm', '确认停止');
+          toast(t('gx.rocketFail', '停止失败'), String(e.message || e),
+                { kind: 'failed', ttl: 10000 });
+          return;
+        }
+      };
+    });
+}
+
 function gxClearBrowserCtx() {
   for (const k of VP_CTX_RESET_KEYS) {
     try { localStorage.removeItem(k); } catch (e) { /* ignore */ }
@@ -1806,6 +2019,7 @@ async function loadTools() {
   try {
     const r = await fetch('/api/tools');
     const d = await r.json();
+    TOOL_PROBE = d.tools || {};
     box.innerHTML = Object.entries(d.tools).map(([k, v]) =>
       `<div class="trow"><span>${esc(k)}</span>
        <span class="${v ? 'ok' : 'no'}">${v ? '✔ ' + esc(v.split('\\').pop()) : '✘ ' + t('bd.notFound', '未找到')}</span></div>`
@@ -1979,8 +2193,18 @@ async function qryHostAsm(btn) {
 
 function pickHostAcc(acc) {
   $('hostDlAcc').value = acc;
+  /*「选用」= 按组装号精确下载，而组装号只有 NCBI 认（gget/Ensembl 按物种名
+    取官方组装）。以前这里只回填输入框、不动来源：来源停在默认 gget 时点下载
+    会被后端 400 拦下（gget/Ensembl 源不支持 accession），用户得自己发现是
+    来源没切。这里顺手切到 NCBI 并说明，杜绝「选了号还是下不了」。 */
+  const sel = $('hostDlSource');
+  const switched = !!(sel && sel.value !== 'ncbi');
+  if (switched) sel.value = 'ncbi';
   if (typeof toast === 'function') {
-    toast(t('rd.qryPicked', '已填入 Assembly Accession') + ': ' + acc, '', {ttl: 4000});
+    toast(t('rd.qryPicked', '已填入 Assembly Accession') + ': ' + acc
+          + (switched ? ' · ' + t('rd.qryPickedSrc',
+            '下载来源已切换为 NCBI（组装号只走 NCBI）') : ''),
+          '', {ttl: 4200});
   }
 }
 
@@ -1991,7 +2215,21 @@ async function dlHostGenome(btn) {
     alert(t('bd.hostDlNeedSp', '请填写宿主物种拉丁名（如 Oryza sativa）或 Assembly Accession'));
     return;
   }
-  const source = $('hostDlSource').value || 'gget';
+  let source = $('hostDlSource').value || 'gget';
+  /* 组装号与 gget/Ensembl 源互斥（后端 :576 直接 400）：与其让用户读完一句
+     报错再回头改下拉，不如在这里把来源切到 NCBI —— 填了组装号就是在要「那
+     一个」组装，而 gget 按物种名取的是 Ensembl 官方版本，不是这个号。 */
+  let accForced = false;
+  if (accession && source !== 'ncbi') {
+    source = 'ncbi';
+    accForced = true;
+    if ($('hostDlSource')) $('hostDlSource').value = source;
+  }
+  if (accForced && typeof toast === 'function') {
+    toast(t('rd.hostDlAccSrc',
+            '检测到 Assembly Accession，来源已自动切换为 NCBI（要按物种走 Ensembl 请清空它）'),
+          '', {ttl: 5200});
+  }
   if (source === 'ncbi' && !accession) {
     /* 先查后下闸门：同一物种常有多个组装版本，盲下会把多个版本合并进
        同一个宿主库（互相污染）。单版本自动选用后继续；多版本渲染选用表
@@ -2294,7 +2532,7 @@ async function loadHome() {
       const pct = Math.round(s.done / (s.total || 7) * 100);
       /* 2026-10-11：/pipeline 归档后样品卡改跳结果中心（按样品看产物） */
       return `<div class="module-card home-sample"
-        onclick="location.href='/results'">
+        onclick="gotoModule('/results')">
         <div class="mc-name">🧪 ${esc(s.name)}</div>
         <div class="pr-bar" style="height:6px;background:var(--line-100);border-radius:4px;overflow:hidden;margin:8px 0 4px">
           <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--green-600),#43b47c)"></div></div>
@@ -2303,22 +2541,83 @@ async function loadHome() {
   } catch (e) { if (netFail(e)) setConnBanner(true); else console.error('加载失败:', e); }
 }
 
-// ---------------- 阶段结果预览（表格/JSON 就地弹窗，HTML 新窗口打开） ----------------
+// ---------------- 模块结果页：本页预览（默认不跳转） ----------------
+/* 结果中心 / 任务卡 / 阶段卡等所有「模块结果」入口统一走这里：当前页弹层
+   iframe 预览 results.html，预览头再给「新标签打开 / 刷新 / 关闭」——需要
+   整页或分享时再跳转。入口写法：
+     <button data-mp-url="…" data-mp-title="…"
+             onclick="previewModulePageFrom(this)">🧩 模块结果</button>
+*/
+function _mpT(key, fallback) {
+  return (typeof t === 'function') ? t(key, fallback) : fallback;
+}
+function previewModulePage(url, title) {
+  const old = document.getElementById('mpPageMask');
+  if (old) old.remove();
+  const u = String(url || '');
+  const name = String(title || _mpT('c.modulePage', '模块结果页'));
+  const mask = document.createElement('div');
+  mask.id = 'mpPageMask';
+  mask.className = 'dlgmask';
+  mask.style.zIndex = 130;            // 高于普通文件预览（120）
+  mask.innerHTML = `<div class="dlg" style="width:min(1500px,96vw);max-width:96vw;height:90vh;max-height:90vh">
+    <div class="dlghead" style="gap:10px">
+      <b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🧩 ${esc(name)}</b>
+      <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn small" data-mp-act="reload">↻ ${esc(_mpT('c.refresh', '刷新'))}</button>
+        <a class="btn small" data-mp-act="newtab" href="${esc(u)}" target="_blank" rel="noopener">↗ ${esc(_mpT('c.newTab', '新标签打开'))}</a>
+        <button class="btn small" data-mp-act="close">✕ ${esc(_mpT('c.close', '关闭'))}</button>
+      </span></div>
+    <iframe title="${esc(name)}" style="flex:1;width:100%;border:0;background:#fff"
+            src="${esc(u)}"></iframe></div>`;
+  document.body.appendChild(mask);
+  const frame = mask.querySelector('iframe');
+  const onKey = ev => { if (ev.key === 'Escape') close(); };
+  const close = () => { mask.remove(); document.removeEventListener('keydown', onKey); };
+  mask.addEventListener('click', ev => {
+    if (ev.target === mask) { close(); return; }
+    const act = ev.target.closest && ev.target.closest('[data-mp-act]');
+    if (!act) return;
+    if (act.dataset.mpAct === 'close') close();
+    else if (act.dataset.mpAct === 'reload') frame.src = u;
+  });
+  document.addEventListener('keydown', onKey);
+  return false;
+}
+function previewModulePageFrom(el) {
+  if (!el) return false;
+  return previewModulePage(el.dataset.mpUrl, el.dataset.mpTitle);
+}
+
+// ---------------- 阶段结果预览（表格/JSON 就地弹窗，HTML 也走本页预览） ----------------
 function previewStageFile(sample, stageDir, filename, stageKey) {
-  // view 路径可含子目录（如 02b 的 filter/filtered.tsv），逐段编码
-  const enc = filename.split('/').map(encodeURIComponent).join('/');
-  // HTML 报告类（fastp/桑基/旭日/主报告）直接整页打开，体验更好
-  if (filename.endsWith('.html')) {
-    window.open(`/api/samples/${encodeURIComponent(sample)}/${encodeURIComponent(stageDir)}/${enc}`, '_blank');
+  // 两种入参：目录内相对路径（可含子目录）或 pipeline 给的完整 /api/samples/… 路径
+  const raw = String(filename || '');
+  const full = /^https?:/i.test(raw) || raw.startsWith('/api/');
+  const enc = raw.split('/').map(encodeURIComponent).join('/');
+  const url = full ? raw
+    : `/api/samples/${encodeURIComponent(sample)}/${encodeURIComponent(stageDir)}/${enc}`;
+  const baseName = raw.split('?')[0].split('/').pop() || raw;
+  // HTML（模块结果页 / fastp / 桑基 / 旭日等）默认本页弹层预览，需要整页再点「新标签打开」
+  if (baseName === 'results.html' && stageKey) {
+    // 走 module_report 顺带刷新页面（老 results.html 可能还是旧版跳转链接）
+    previewModulePage(
+      `/api/module_report?sample=${encodeURIComponent(sample)}&stage=${encodeURIComponent(stageKey)}`,
+      `${sample} · ${stageKey}`);
+    return;
+  }
+  if (/\.html?$/i.test(baseName)) {
+    previewModulePage(url, `${sample} · ${stageKey || stageDir}`);
     return;
   }
   const mask = document.createElement('div');
   mask.className = 'dlgmask';
   mask.style.zIndex = 120;
   mask.innerHTML = `<div class="dlg" style="width:900px">
-    <div class="dlghead"><b>📄 ${esc(filename)}</b>
+    <div class="dlghead"><b>📄 ${esc(baseName)}</b>
       <span>
-        <button class="btn small" onclick="window.open('/api/samples/${encodeURIComponent(sample)}/${encodeURIComponent(stageDir)}/${enc}?dl=1','_blank')">⬇ 下载</button>
+        <a class="btn small" href="${esc(url)}" target="_blank" rel="noopener">↗ ${esc(_mpT('c.newTab', '新标签打开'))}</a>
+        <button class="btn small" data-dlurl="${esc(url)}?dl=1" onclick="window.open(this.dataset.dlurl,'_blank')">⬇ 下载</button>
         <button class="btn small" onclick="this.closest('.dlgmask').remove()">✕</button>
       </span></div>
     <div class="pv-body" style="padding:6px 18px 16px;overflow:auto;max-height:70vh">
@@ -2326,10 +2625,10 @@ function previewStageFile(sample, stageDir, filename, stageKey) {
   document.body.appendChild(mask);
   mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
   const body = mask.querySelector('.pv-body');
-  fetch(`/api/samples/${encodeURIComponent(sample)}/${encodeURIComponent(stageDir)}/${enc}`)
+  fetch(url)
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(text => {
-      if (filename.endsWith('.json')) {
+      if (/\.json$/i.test(baseName)) {
         let obj;
         try { obj = JSON.parse(text); } catch (e) { obj = null; }
         body.innerHTML = obj
@@ -2340,7 +2639,7 @@ function previewStageFile(sample, stageDir, filename, stageKey) {
       // TSV/CSV → 表格（每页 20 行分页，全量行数保留）
       const rows = text.split(/\r?\n/).filter(l => l.trim());
       if (!rows.length) { body.innerHTML = `<p class="hint">${t('c.noData')}</p>`; return; }
-      const sep = filename.endsWith('.csv') ? ',' : '\t';
+      const sep = /\.csv$/i.test(baseName) ? ',' : '\t';
       pvCells = rows.map(l => l.split(sep));
       pvPage = 1;
       renderPvTable(body);
@@ -2401,7 +2700,7 @@ function renderPvTable(body) {
 const TOOL_REGISTRY = [
   { id: 't-convert',  href: '/tools#t-convert',  ic: '🔄', zh: '⓪ 格式转换',         en: '⓪ Format convert' },
   { id: 't-fastp',    href: '/tools#t-fastp',    ic: '🧹', zh: '① 序列质控',         en: '① Sequence QC' },
-  { id: 't-identify', href: '/tools#t-identify', ic: '🦠', zh: '② 病毒识别和分类',   en: '② Virus classify' },
+  { id: 't-identify', href: '/tools#t-identify', ic: '🦠', zh: '病毒识别和分类',     en: 'Virus classify' },
   { id: 't-assemble', href: '/tools#t-assemble', ic: '🧩', zh: '③ 病毒组装',         en: '③ Assembly' },
   { id: 't-contigs',  href: '/tools#t-contigs',  ic: '🔎', zh: '④ 病毒 contig 深度分析', en: '④ Contig deep-dive' },
   { id: 't-seqprep',  href: '/tools#t-seqprep',  ic: '⬇', zh: '⑤ 参考序列下载',    en: '⑤ NCBI references' },
@@ -2463,6 +2762,10 @@ function applyTheme(theme) {
 function wirePathInput(input) {
   if (input.dataset.pathWired) return;
   input.dataset.pathWired = '1';
+  /* 2026-11-06：序列粘贴框（primer 的 FASTA textarea）也接拖放/路径清洗，
+     但不进「最近路径」历史——整段 FASTA 塞进 localStorage 会撑爆配额，
+     弹层里也没法读。 */
+  const noHist = input.dataset && input.dataset.nohist === '1';
   input.addEventListener('paste', e => {
     const cd = e.clipboardData || window.clipboardData;
     const txt = cd ? cd.getData('text') : null;
@@ -2478,10 +2781,10 @@ function wirePathInput(input) {
   input.addEventListener('change', () => {
     const clean = cleanPathText(input.value);
     if (clean && clean !== input.value) input.value = clean;
-    pushPathHist(input.id, input.value);
+    if (!noHist) pushPathHist(input.id, input.value);
   });
-  input.addEventListener('focus', () => showPathHist(input));
-  input.addEventListener('click', () => showPathHist(input));
+  input.addEventListener('focus', () => { if (!noHist) showPathHist(input); });
+  input.addEventListener('click', () => { if (!noHist) showPathHist(input); });
   input.addEventListener('keydown', e => {
     if (e.key === 'Escape') closePathHist();
   });
@@ -2531,7 +2834,9 @@ setInterval(async () => {
 function wireDropzones() {
   document.querySelectorAll('.filerow').forEach(row => {
     if (row.dataset.dropWired) return;
-    const input = row.querySelector('input[type=text]');
+    // 2026-11-06：filerow 里也可能放 textarea（primer 页 FASTA 粘贴框要
+    // 多行显示）；拖放上传 / 路径清洗对 input 与 textarea 同样适用。
+    const input = row.querySelector('input[type=text], textarea');
     if (!input) return;
     row.classList.add('drop-able');
     row.dataset.dropWired = '1';
@@ -2642,6 +2947,133 @@ async function seqviewLoad(page) {
     $('svPageInfo').textContent = `${t('pp.progress').split(' ')[0] || ''} ${svPage + 1} / ${d.pages}`;
   } catch (e) { box.innerHTML = `<p class="hint" style="color:#b91c1c">${t('c.loadFail', '读取失败')}: ${esc(e)}</p>`; }
 }
+
+// ---------------- 页面状态快照（2026-11-02，见 app-state.js 头注释） ----------------
+// 一级导航是整页刷新，页面级状态只活在内存里；这一层把表单值与
+// 标了 data-ps 的面板按「路径+查询串」存进 sessionStorage 并还原。
+// 从 app.js 里动态挂载，省得 21 个模板各加一行 <script>。
+(function mountPageState() {
+  if (window.PS) return;
+  try {
+    const s = document.createElement('script');
+    s.src = '/static/app-state.js';
+    s.async = false;
+    document.head.appendChild(s);
+  } catch (e) { /* 快照是便利功能，挂了不影响主流程 */ }
+})();
+
+// ---------------- 模块切换不刷新（2026-11-02，见 app-shell.js 头注释） ----------------
+// 点左侧导航不再整页重载：把目标页装进 iframe 保活，切回来原样显示。
+// 只拦同源普通左键；右键 / 新标签 / 下载 / 跨站链接照旧。
+(function mountShell() {
+  if (window.VP_SHELL) return;
+  try {
+    const s = document.createElement('script');
+    s.src = '/static/app-shell.js';
+    s.async = false;
+    document.head.appendChild(s);
+  } catch (e) { /* 外壳挂了就退回整页跳转，不影响使用 */ }
+})();
+
+// ---------------- 设置实时同步（跨 iframe 保活外壳） ----------------
+/* 2026-11-05 用户反馈「设置页面需要刷新才生效」。
+   根因是保活外壳（app-shell.js）：设置页通常装在 iframe 里，原先保存/切换
+   只改**当前文档**——主题只黑自己、语言只 reload 自己、分析默认参数只刷新
+   自己；外壳顶栏与其它已加载模块仍是旧状态，只能整窗刷新才看得到。
+   这里给所有页面装一条同源总线（app.js 每个页面都加载）：
+     · settingsChanged(软刷新)：外壳与全部保活 iframe 重新拉取配置，
+       不重载页面、不丢正在进行的轮询与图表；
+     · theme(主题)：立即把 data-theme 应用到外壳与所有 iframe；
+     · reloadAll(语言/导航位置)：这两项要重渲染服务端模板，整窗重载。
+   消息只认同源；父层转发时跳过发送者，帧内不反向广播，不会成环。 */
+(function mountSettingsSync() {
+  if (window.VP_SYNC) return;
+  const isFrame = window.self !== window.top;
+  const origin = location.origin;
+
+  function fire(detail) {
+    try {
+      document.dispatchEvent(new CustomEvent('vp:settings-changed',
+                                            {detail: detail || {}}));
+    } catch (e) { /* 老浏览器：退化为无 detail 的普通事件 */ }
+  }
+  function allFrames() {
+    const box = (window.VP_SHELL && window.VP_SHELL.frames) || {};
+    return Object.keys(box).map(k => box[k]).filter(Boolean);
+  }
+  function relay(msg, skipWin) {
+    allFrames().forEach(f => {
+      try {
+        if (f.contentWindow && f.contentWindow !== skipWin) {
+          f.contentWindow.postMessage(msg, origin);
+        }
+      } catch (e) { /* 跨源 / 已卸载：跳过 */ }
+    });
+  }
+  function toParent(msg) {
+    try { if (isFrame) parent.postMessage(msg, origin); } catch (e) {}
+  }
+  function applyThemeHere(theme) {
+    if (typeof applyTheme === 'function') { applyTheme(theme); return; }
+    if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
+  }
+
+  window.VP_SYNC = {
+    settingsChanged: function (detail) {
+      fire(detail);
+      const msg = {vpSettingsChanged: detail || {}};
+      if (isFrame) toParent(msg); else relay(msg, null);
+    },
+    theme: function (theme) {
+      applyThemeHere(theme);
+      const msg = {vpTheme: theme};
+      if (isFrame) toParent(msg); else relay(msg, null);
+    },
+    reloadAll: function () {
+      // 外壳模式下整窗重载：父层 reload 后按 history.state 把当前模块装回来；
+      // 只刷本帧会留下「设置页新语言、顶栏旧语言」的半套状态。
+      if (isFrame) toParent({vpReloadAll: true});
+      else location.reload();
+    },
+  };
+
+  window.addEventListener('message', function (ev) {
+    if (ev.origin !== origin) return;
+    const d = ev.data || {};
+    if (d.vpSettingsChanged) {
+      fire(d.vpSettingsChanged);
+      if (!isFrame) relay(d, ev.source);      // 外壳转发给其它保活模块
+    } else if (d.vpTheme) {
+      applyThemeHere(d.vpTheme);
+      if (!isFrame) relay(d, ev.source);
+    } else if (d.vpReloadAll) {
+      location.reload();
+    }
+  });
+})();
+
+/* 收到设置变更：各页按自己有的刷新函数软刷新（不重载、不丢分析状态）。
+   loadDefaults/loadDbs/loadTools 在无关页面要么自身有元素判断、要么只多发
+   一条小请求；AI 坞的 ready 态与「输出到工作空间」按钮跟着服务端对齐。 */
+document.addEventListener('vp:settings-changed', function () {
+  try { if (typeof loadDefaults === 'function') loadDefaults(); } catch (e) {}
+  try { if (typeof loadDbs === 'function') loadDbs(); } catch (e) {}
+  try {
+    if (typeof envStripLoad === 'function') envStripLoad(false);
+  } catch (e) {}
+  try {
+    if (typeof loadTools === 'function' && document.getElementById('toolList')) {
+      loadTools();
+    }
+  } catch (e) {}
+  try {
+    if (window.AI) {
+      if (AI.refreshReady) AI.refreshReady();
+      if (AI.syncOutputState) AI.syncOutputState();
+    }
+  } catch (e) {}
+});
 
 // ---------------- 初始化 ----------------
 window.addEventListener('DOMContentLoaded', () => {
@@ -2965,6 +3397,10 @@ var PROG_MSG_EN = {
   'ICTV 宿主概率级联预测': 'ICTV host-probability cascade',
   'DIAMOND blastx vs 病毒蛋白库': 'DIAMOND blastx vs viral protein DB',
   'diamond 蛋白搜索（RefSeq viral）': 'diamond protein search (RefSeq viral)',
+  '宿主筛选 → 长度分流 → 三路证据（blastx/BFVD/CDD）':
+    'host screening → length routing → three-route evidence (blastx/BFVD/CDD)',
+  'mmseqs2 病毒域搜索 vs BFVD': 'mmseqs2 viral domain search vs BFVD',
+  'mmseqs2 结构域搜索 vs PVDB CDD': 'mmseqs2 domain search vs PVDB CDD',
   '生成氨基酸序列': 'building protein sequences',
   '读取核苷酸序列': 'reading nucleotide sequences',
   '读取氨基酸序列': 'reading amino-acid sequences',
@@ -3114,4 +3550,793 @@ function trSc(x) {
     v = v.replace(/\s*（/g, ' (').replace(/）/g, ')');
   }
   return v;
+}
+
+/* ── 顶栏「本模块环境」状态条（2026-11-03）────────────────────────────────
+   数据：/api/env_status?page=<路径>&scope=<工具页卡片 hash>（服务端映射模块，
+   5 分钟缓存；?force=1 重新检测）。四件套口径：
+   模块=全局导入健康；外部工具=本模块 MODULE_TOOLS 声明的键；数据库=本模块
+   SCOPE_DBS 依赖的库；磁盘=平台根剩余。点击弹 env-pop 详情，「全局自检」
+   入口收进弹层底部（不再整颗胶囊跳设置页）。异常一律静默——状态条不能
+   影响页面本身。 */
+let ENVSTRIP_DATA = null;
+let _envScopeSig = null;    // 上次已取/在途的口径签名（path+g+#card）
+let _envSeq = 0;            // 口径请求序号：旧响应晚到不许覆盖新口径
+
+function envScopeParams() {
+  const p = new URLSearchParams();
+  p.set('page', location.pathname);
+  if (location.pathname === '/tools') {
+    const g = new URLSearchParams(location.search).get('g');
+    if (g) p.set('g', g);      // 组页（含切卡）：一律组口径——2026-11-06 用户反馈，
+                               // 组内切卡不该把环境条切成单卡口径（1/1 · 全局依赖数）
+    const h = (location.hash || '').replace(/^#/, '');
+    if (h && /^t-/.test(h) && !g) p.set('scope', h);   // 无组直链才用卡片口径
+  }
+  return p.toString();
+}
+
+async function envStripLoad(force) {
+  const strip = document.getElementById('envStrip');
+  if (!strip) return;
+  const sig = envScopeParams();
+  /* 2026-11-05：工具页切卡走 history.replaceState，**不触发 hashchange**，
+     原先状态条永远停在组口径（点「格式转换」仍显示 3/3 · 4/4）。切卡后
+     页面主动调本函数；同口径去重，避免初始加载与切卡各发一次。 */
+  if (!force) {
+    if (sig === _envScopeSig) return;
+    _envScopeSig = sig;                          // 先占位：并发只发一次
+  }
+  const seq = ++_envSeq;
+  try {
+    const r = await fetch('/api/env_status?' + sig + (force ? '&force=1' : ''));
+    if (!r.ok) { if (!force) _envScopeSig = null; return; }
+    const data = await r.json();
+    /* 慢请求（首次 collect 要数秒）可能与切卡后的新请求交错：旧口径的
+       响应晚到就丢弃，否则切到单卡后又被组口径盖回去。 */
+    if (seq !== _envSeq) return;
+    ENVSTRIP_DATA = data;
+    envStripRender();
+    if (force) _envScopeSig = sig;
+  } catch (e) { if (!force) _envScopeSig = null; }   // 网络抖动：允许下次重试
+}
+
+function envBitHtml(label, ok, summary, id, warn) {
+  /* 2026-11-06 支持 warn（琥珀）：ok=false 红、true 绿，true 但有降级项
+     （如仅缺可选 Python 依赖）走琥珀，一眼分清「能用但降级」。 */
+  const cls = ok === true ? ' ok' : ok === false ? ' bad' : (warn ? ' warn' : '');
+  const mark = ok === true ? '✔' : ok === false ? '✘' : (warn ? '△' : '—');
+  /* 口径提示（2026-11-05）：用户拿页面卡片数一比就以为「模块 3/3」错了 ——
+     悬停说明每个数怎么来的（模块 = 卡片数、工具 = 声明键数）。 */
+  const tip = t('hm.env.tip.' + id, '');
+  return '<span class="env-bit' + cls + '"'
+    + (tip ? ' title="' + esc(tip) + '"' : '') + '>' + mark + ' ' + esc(label)
+    + ' <b>' + esc(trSc(String(summary))) + '</b></span>';
+}
+
+function envStripRender() {
+  const d = ENVSTRIP_DATA;
+  if (!d || !(d.bits || []).length) return;
+  const labels = {
+    modules: t('hm.env.modules', '模块'),
+    pydeps: t('hm.env.pydeps', 'Python 依赖'),
+    tools: t('hm.env.tools', '外部工具'),
+    db: t('hm.env.databases', '数据库'),
+    disk: t('hm.env.disk', '磁盘')
+  };
+  document.getElementById('envStripBody').innerHTML =
+    (d.bits || []).map(function (b) {
+      return envBitHtml(labels[b.id] || b.id, b.ok, b.summary, b.id, b.warn);
+    }).join('');
+  document.getElementById('envStrip').hidden = false;
+}
+
+/* ── 详情弹层 ── */
+function envPopToggle() {
+  const p = document.getElementById('envPop');
+  if (!p) return;
+  if (p.hidden) { envPopRender(); p.hidden = false; }
+  else p.hidden = true;
+}
+
+function envPopClose() {
+  const p = document.getElementById('envPop');
+  if (p) p.hidden = true;
+}
+
+function envChip(txt, cls) {
+  return '<span class="env-pop-chip' + (cls ? ' ' + cls : '') + '">'
+    + esc(trSc(String(txt))) + '</span>';
+}
+
+function envPopRender() {
+  const d = ENVSTRIP_DATA;
+  /* 环境位请求失败/未回来时，弹层仍要能看实时资源（CPU/内存不依赖自检） */
+  if (!d) {
+    document.getElementById('envPop').innerHTML =
+      '<div class="env-pop-head">🩺 <span>'
+      + esc(t('hm.env.globalTitle', '全局环境')) + '</span></div>'
+      + '<div class="env-pop-body"><div class="env-pop-sec" id="envPopSys"></div></div>'
+      + '<div class="env-pop-foot">'
+      + '<button class="btn small env-pop-refresh" type="button" onclick="envStripReload()">'
+      + esc(t('hm.env.recheck', '重新检测')) + '</button></div>';
+    envPopSysRender();
+    return;
+  }
+  const det = d.detail || {};
+  /* 组概览优先用 nav.g.<gid> 的 i18n 键（切英文时组名跟着翻）；
+     服务端 title 作兜底。 */
+  const scopeName = d.group
+    ? t('nav.g.' + d.group, d.title || d.group)
+    : (d.title ? trSc(d.title) : '');
+  const head = scopeName
+    ? t('hm.env.scopeTitle', '本模块环境') + ' · ' + esc(scopeName)
+    : t('hm.env.globalTitle', '全局环境');
+  let h = '<div class="env-pop-head">🩺 <span>' + head + '</span></div><div class="env-pop-body">';
+
+  /* 模块：本作用域引擎模块导入健康（scope 模式）或全局导入（全局页），
+     列出失败明细；全局另有失败时补一条说明（不影响本模块的也如实带出） */
+  const mm = det.modules_missing || [];
+  const gm = det.modules_global_missing || [];
+  h += '<div class="env-pop-sec"><b>' + esc(t('hm.env.modules', '模块')) + '</b><div class="env-pop-chips">'
+    + (mm.length ? mm.map(function (m) { return envChip(m, 'bad'); }).join('')
+                 : envChip(t('hm.env.modulesOk', '全部可导入'), 'ok'))
+    + '</div>'
+    + ((gm.length && !mm.length)
+       ? '<p class="env-pop-note">' + esc(
+           t('hm.env.globalNote',
+             '全局另有 {n} 个模块导入失败（不影响本模块，详见「全局自检」）')
+             .replace('{n}', String(gm.length))) + '</p>'
+       : '')
+    + '</div>';
+
+  /* Python 依赖包（2026-11-06 用户要求：外部工具位之前）。
+     全局口径（本进程 site-packages），与磁盘位同性质、5 分钟缓存；
+     na = 冻结分发无源码树（依赖已固化，以「模块」位为准）。 */
+  const pd = det.pydeps || null;
+  if (pd && pd.na) {
+    h += '<div class="env-pop-sec"><b>' + esc(t('hm.env.pydeps', 'Python 依赖')) + '</b>'
+      + '<p class="env-pop-note">' + esc(t('hm.env.pydepsNa',
+        '冻结分发无源码树可扫描（依赖已在打包环节固化，以「模块」位为准）')) + '</p></div>';
+  } else if (pd) {
+    const pdHard = pd.hard_missing || [];
+    const pdOpt = pd.optional_missing || [];
+    h += '<div class="env-pop-sec"><b>' + esc(t('hm.env.pydeps', 'Python 依赖')) + '</b><div class="env-pop-chips">'
+      + ((pdHard.length || pdOpt.length)
+          ? pdHard.map(function (n) { return envChip('✘ ' + n, 'bad'); }).join('')
+            + pdOpt.map(function (n) {
+                return envChip('△ ' + n + ' · ' + t('hm.env.pydepsOptTag', '可选'), 'warn');
+              }).join('')
+          : envChip(t('hm.env.pydepsOk', '全部就绪（{n} 个）').replace('{n}', String(pd.scanned || 0)), 'ok'))
+      + '</div>'
+      + (pdOpt.length ? '<p class="env-pop-note">' + esc(t('hm.env.pydepsOpt',
+          '可选依赖缺失（对应功能降级）')) + '</p>' : '')
+      + (pdHard.length ? '<p class="env-pop-note">' + esc(t('hm.env.pydepsInstall',
+          '安装：python -m pip install -r requirements.txt')) + '</p>' : '')
+      + '</div>';
+  }
+
+  /* 外部工具：本模块声明的键逐一列（'—' = 本模块无本地工具依赖） */
+  const tl = det.tools_list || [];
+  if (!tl.length) {
+    h += '<div class="env-pop-sec"><b>' + esc(t('hm.env.tools', '外部工具')) + '</b>'
+      + '<p class="env-pop-note">' + esc(t('hm.env.noTools', '本模块无本地工具依赖')) + '</p></div>';
+  } else {
+    const fixable = det.fixable || {};
+    h += '<div class="env-pop-sec"><b>' + esc(t('hm.env.tools', '外部工具')) + '</b><div class="env-pop-chips">'
+      + tl.map(function (x) {
+          return envChip((x.ok ? '✔ ' : '✘ ') + x.key, x.ok ? 'ok' : 'bad');
+        }).join('')
+      + (det.tools_missing || []).map(function (k) {
+          return fixable[k] ? ' <span class="env-pop-chip warn">'
+            + esc(t('hm.env.fixable', '可自动安装')) + '</span>' : '';
+        }).join('')
+      + '</div></div>';
+  }
+
+  /* 可选工具（缺了只降级子功能） */
+  const om = det.opt_missing || [];
+  const opt = det.optional || {};
+  if (om.length) {
+    h += '<div class="env-pop-sec"><b>' + esc(t('hm.env.optional', '可选')) + '</b>'
+      + om.map(function (k) {
+          return '<p class="env-pop-note">△ ' + esc(k) + ' — ' + esc(trSc(opt[k] || '')) + '</p>';
+        }).join('') + '</div>';
+  }
+
+  /* 数据库：本模块依赖的库项（'—' = 无数据库依赖） */
+  const di = det.db_items || [];
+  if (!di.length) {
+    h += '<div class="env-pop-sec"><b>' + esc(t('hm.env.databases', '数据库')) + '</b>'
+      + '<p class="env-pop-note">' + esc(t('hm.env.noDbs', '本模块无数据库依赖')) + '</p></div>';
+  } else {
+    h += '<div class="env-pop-sec"><b>' + esc(t('hm.env.databases', '数据库')) + '</b><div class="env-pop-chips">'
+      + di.map(function (x) {
+          const cls = x.ok ? 'ok' : (x.soft ? 'warn' : 'bad');
+          const mark = x.ok ? '✔' : (x.soft ? '△' : '✘');
+          return envChip(mark + ' ' + x.name, cls);
+        }).join('') + '</div>'
+      + di.filter(function (x) { return x.detail; }).map(function (x) {
+          return '<p class="env-pop-note">' + esc(trSc(x.name)) + '：' + esc(trSc(x.detail)) + '</p>';
+        }).join('') + '</div>';
+  }
+
+  /* 磁盘 */
+  const dk = det.disk_items || [];
+  if (dk.length) {
+    h += '<div class="env-pop-sec"><b>' + esc(t('hm.env.disk', '磁盘')) + '</b><div class="env-pop-chips">'
+      + dk.map(function (x) {
+          return envChip((x.ok ? '✔ ' : '✘ ') + x.name + ' ' + trSc(x.detail), x.ok ? 'ok' : 'bad');
+        }).join('') + '</div></div>';
+  }
+  /* 系统资源（CPU/内存）：内容由 sysStrip 控制器每 3 秒单独刷新本节，
+     不随环境位重绘（否则整段弹层会跟着跳）。 */
+  h += '<div class="env-pop-sec" id="envPopSys"></div>';
+  h += '</div>';  // env-pop-body
+
+  h += '<div class="env-pop-foot">'
+    + '<a href="/settings#sec-selfcheck">' + esc(t('hm.env.golink', '全局自检 →')) + '</a>'
+    + '<button class="btn small env-pop-refresh" type="button" onclick="envStripReload()">'
+    + esc(t('hm.env.recheck', '重新检测')) + '</button></div>';
+  document.getElementById('envPop').innerHTML = h;
+  envPopSysRender();
+}
+
+/* ── 顶栏 CPU / 内存实时徽章（2026-11-06 用户要求）────────────────────────
+   数据：/api/sys_metrics（毫秒级系统计数器；0.8 秒内的并发请求由后端合并）。
+   与 /api/env_status 分开：后者首次 collect 要递归 import 全部模块（数秒级、
+   5 分钟缓存），不能每 3 秒轮询。
+   策略：
+   · 3 秒轮询；document.hidden 时暂停，切回立即补一次（后台标签页不占资源）；
+   · 阈值：CPU ≥80% 黄 / ≥95% 红；内存 ≥85% 黄 / ≥93% 红；
+   · 失败降级：连续 2 次失败只把徽章调淡（保留最后读数、不弹错、不清空）；
+   · 首次 CPU 读数需要基线，显示「—」，下一次轮询即出真值。 */
+var SYS_POLL_MS = 3000;
+var SYS_DATA = null;
+var _sysFails = 0;
+var _sysTimer = null;
+var _sysInflight = false;
+var _sysVisHooked = false;
+
+function sysFmtPct(p) {
+  if (p == null) return '—';
+  return (p >= 10 ? Math.round(p) : p.toFixed(1)) + '%';
+}
+
+function sysLevelCls(pct, warn, bad) {
+  if (pct == null) return '';
+  return pct >= bad ? 'bad' : pct >= warn ? 'warn' : 'ok';
+}
+
+function sysCpuTip(c) {
+  return t('hm.sys.cpuTip', 'CPU：整机占用 {p} · {n} 核 · 峰值 {peak}')
+    .replace('{p}', sysFmtPct(c.percent))
+    .replace('{n}', String(c.cores || '?'))
+    .replace('{peak}', sysFmtPct(c.peak));
+}
+
+function sysMemTip(m) {
+  return t('hm.sys.memTip', '内存：已用 {used} / {total}（{p}，可用 {avail}）· 峰值 {peak}')
+    .replace('{used}', m.used_h || '—')
+    .replace('{total}', m.total_h || '—')
+    .replace('{p}', sysFmtPct(m.percent))
+    .replace('{avail}', m.available_h || '—')
+    .replace('{peak}', sysFmtPct(m.peak));
+}
+
+function sysBitHtml(kind, label, pct, tip) {
+  const cls = kind === 'mem'
+    ? sysLevelCls(pct, 85, 93)
+    : sysLevelCls(pct, 80, 95);
+  const w = pct == null ? 0 : Math.max(2, Math.min(100, pct));
+  return '<span class="env-bit sys-bit' + (cls ? ' ' + cls : '')
+    + (_sysFails >= 2 ? ' stale' : '') + '" title="' + esc(tip) + '">'
+    + '<span class="sys-meter" aria-hidden="true"><i style="width:' + w + '%"></i></span>'
+    + esc(label) + ' <b>' + sysFmtPct(pct) + '</b></span>';
+}
+
+function sysStripRender() {
+  const body = document.getElementById('sysStripBody');
+  const d = SYS_DATA;
+  if (!body || !d || d.ok === false) return;
+  let html = '';
+  if (d.cpu) html += sysBitHtml('cpu', t('hm.sys.cpu', 'CPU'), d.cpu.percent, sysCpuTip(d.cpu));
+  if (d.mem) html += sysBitHtml('mem', t('hm.sys.mem', '内存'), d.mem.percent, sysMemTip(d.mem));
+  body.innerHTML = html;
+  if (html) {
+    const strip = document.getElementById('envStrip');
+    if (strip) strip.hidden = false;      // 环境位失败时资源位也能独立显示
+  }
+  envPopSysRender();
+}
+
+/* 弹层里的「系统资源」段：只更新本节（弹层其它内容不跳） */
+function envPopSysRender() {
+  const box = document.getElementById('envPopSys');
+  if (!box) return;
+  const d = SYS_DATA;
+  let h = '<b>' + esc(t('hm.sys.title', '系统资源')) + '</b>';
+  if (!d || d.ok === false) {
+    box.innerHTML = h + '<p class="env-pop-note">'
+      + esc(t('hm.sys.unavailable', '采样暂不可用（系统计数器读取失败）')) + '</p>';
+    return;
+  }
+  const c = d.cpu, m = d.mem, pr = d.proc;
+  h += '<div class="env-pop-chips">';
+  if (c) {
+    h += '<span class="env-pop-chip ' + (sysLevelCls(c.percent, 80, 95) || 'ok') + '">'
+      + '🖥 CPU ' + sysFmtPct(c.percent) + '</span>';
+  }
+  if (m) {
+    h += '<span class="env-pop-chip ' + (sysLevelCls(m.percent, 85, 93) || 'ok') + '">'
+      + '🧠 ' + esc(t('hm.sys.mem', '内存')) + ' ' + sysFmtPct(m.percent) + '</span>';
+  }
+  if (pr) {
+    h += '<span class="env-pop-chip">📦 '
+      + esc(t('hm.sys.procChip', '平台 {n} 进程 · {rss}')
+            .replace('{n}', String(pr.count)).replace('{rss}', pr.rss_h))
+      + '</span>';
+  }
+  h += '</div>';
+  if (c) h += '<p class="env-pop-note">' + esc(sysCpuTip(c)) + '</p>';
+  if (m) h += '<p class="env-pop-note">' + esc(sysMemTip(m)) + '</p>';
+  if (pr) {
+    h += '<p class="env-pop-note">'
+      + esc(t('hm.sys.procNote', '平台自身：{n} 个进程 · 合计 {rss} · 约 {cores} 核')
+            .replace('{n}', String(pr.count))
+            .replace('{rss}', pr.rss_h)
+            .replace('{cores}', pr.cpu_cores == null ? '—' : String(pr.cpu_cores)))
+      + ((pr.top || []).length
+         ? ' · ' + esc(t('hm.sys.top', '占用最高：'))
+           + esc((pr.top || []).map(function (it) { return it.name + ' ' + it.rss_h; }).join(' · '))
+         : '')
+      + '</p>';
+  } else {
+    h += '<p class="env-pop-note">' + esc(t('hm.sys.procNone', '平台进程明细不可用')) + '</p>';
+  }
+  h += '<p class="env-pop-note">'
+    + esc(t('hm.sys.note', 'CPU 为整机占用（所有进程）；每 3 秒刷新，页面隐藏时暂停。'))
+    + '</p>';
+  box.innerHTML = h;
+}
+
+async function sysMetricsPoll(force) {
+  if (_sysInflight) return;
+  _sysInflight = true;
+  const ac = new AbortController();
+  const timer = setTimeout(function () { ac.abort(); }, 4000);
+  try {
+    const r = await fetch('/api/sys_metrics' + (force ? '?force=1' : ''),
+                          { cache: 'no-store', signal: ac.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if (!d || d.ok === false) throw new Error((d && d.error) || 'bad payload');
+    SYS_DATA = d;
+    _sysFails = 0;
+    sysStripRender();
+  } catch (e) {
+    _sysFails++;
+    if (SYS_DATA) sysStripRender();       // 让「连续失败」的淡化状态生效
+  } finally {
+    clearTimeout(timer);
+    _sysInflight = false;
+  }
+}
+
+function sysMetricsStart() {
+  if (_sysTimer) return;
+  sysMetricsPoll();
+  _sysTimer = setInterval(function () {
+    if (!document.hidden) sysMetricsPoll();
+  }, SYS_POLL_MS);
+  if (!_sysVisHooked) {
+    _sysVisHooked = true;
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) sysMetricsPoll();
+    });
+  }
+}
+
+async function envStripReload() {
+  await envStripLoad(true);
+  sysMetricsPoll(true);
+  if (!document.getElementById('envPop').hidden) envPopRender();
+}
+
+/* 弹层外点关闭 / Esc 关闭 / 工具页切卡片（hashchange）重取模块口径 */
+document.addEventListener('click', function (e) {
+  const p = document.getElementById('envPop');
+  if (!p || p.hidden) return;
+  if (p.contains(e.target)) return;
+  if (e.target.closest && e.target.closest('#envStripBtn')) return;
+  envPopClose();
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') envPopClose();
+});
+window.addEventListener('hashchange', function () {
+  envPopClose();
+  envStripLoad();
+});
+envStripLoad();
+/* CPU/内存实时徽章：与 env 状态各自独立启动（env 首次 collect 慢时不拖累资源位） */
+sysMetricsStart();
+
+/* ===== 一键类工具 · 目录批量：先解析预览、勾选样本，再批量跑 =====
+   原 tools.html 内联段（2026-11-03 移入 app.js）：prepchain/kvchain/virchain
+   共用同一套扫描/预览/汇总渲染；工具箱单工具卡（convert/fastp/identify/
+   assemble/kvsuite）与宿主去除页的目录批量同样复用（SCAN_UI 登记各自条目）。
+   host_removal.html 独立页面因此也能直接使用全套 scan* 组件。 */
+const SCAN_UI = {
+  pc: {mode: 'pc_mode', file: 'pcFilePane', dir: 'pcDirPane',
+       input: 'pc_input_dir', box: 'pcScanBox', tbl: 'pcScanTable',
+       sum: 'pcSummary', chain: 'prepchain'},
+  kv: {mode: 'kvc_mode', file: 'kvFilePane', dir: 'kvDirPane',
+       input: 'kvc_input_dir', box: 'kvScanBox', tbl: 'kvScanTable',
+       sum: 'kvChainSummary', chain: 'kvchain'},
+  vir: {mode: 'vc_mode_sel', file: 'vcFilePane', dir: 'vcDirPane',
+        input: 'vc_input_dir', box: 'vcScanBox', tbl: 'vcScanTable',
+        sum: 'vcChainSummary', chain: 'virchain'},
+  /* 2026-11-03：工具箱单工具卡与宿主去除页的目录批量（无链汇总，
+     sum/chain 缺省即不加载汇总）。kvq 是 kvsuite 卡的目录批量条目。 */
+  cv: {mode: 'cv_mode', file: 'cvFilePane', dir: 'cvDirPane',
+       input: 'cv_input_dir', box: 'cvScanBox', tbl: 'cvScanTable'},
+  fp: {mode: 'f_mode', file: 'fpFilePane', dir: 'fpDirPane',
+       input: 'f_input_dir', box: 'fpScanBox', tbl: 'fpScanTable'},
+  id: {mode: 'i_mode', file: 'idFilePane', dir: 'idDirPane',
+       input: 'i_input_dir', box: 'idScanBox', tbl: 'idScanTable'},
+  as: {mode: 'as_mode', file: 'asFilePane', dir: 'asDirPane',
+       input: 'a_input_dir', box: 'asScanBox', tbl: 'asScanTable'},
+  /* 2026-11-03：病毒鉴定（t-contigs）卡的目录批量条目（只收 contigs FASTA） */
+  ct: {mode: 'c_mode', file: 'ctFilePane', dir: 'ctDirPane',
+       input: 'c_input_dir', box: 'ctScanBox', tbl: 'ctScanTable',
+       chain: 'fasta'},   // 病毒鉴定目录批量只收 contigs FASTA
+  hrm: {mode: 'hr_mode', file: 'hrFilePane', dir: 'hrDirPane',
+        input: 'hr_input_dir', box: 'hrScanBox', tbl: 'hrScanTable'},
+  kvq: {mode: 'kv_mode', file: 'kvqFilePane', dir: 'kvqDirPane',
+        input: 'kv_input_dir', box: 'kvqScanBox', tbl: 'kvqScanTable'},
+};
+const _scanCache = {};
+const _scanView = {};
+function scanCfg(k) { return SCAN_UI[k] || null; }
+function scanMode(k) {
+  const r = document.querySelector(`input[name="${scanCfg(k).mode}"]:checked`);
+  return r ? r.value : 'file';
+}
+function scanSync(k) {
+  const c = scanCfg(k), mode = scanMode(k);
+  const fp = $(c.file), dp = $(c.dir);
+  if (fp) fp.style.display = mode === 'file' ? '' : 'none';
+  if (dp) dp.style.display = mode === 'dir' ? '' : 'none';
+}
+function scanReset(k) {
+  delete _scanCache[k];
+  delete _scanView[k];
+  const c = scanCfg(k), b = $(c.box), tb = $(c.tbl);
+  if (b) b.innerHTML = '';
+  if (tb) tb.innerHTML = '';
+}
+function scanBase(p) {
+  return String(p || '').split(/[\\/]/).pop();
+}
+function scanView(k) {
+  if (!(k in _scanView)) {
+    _scanView[k] = {sort: 'name', dir: 1, page: 0, size: 10, sel: new Set()};
+  }
+  const v = _scanView[k];
+  if (!(v.sel instanceof Set)) v.sel = new Set(v.sel || []);
+  return v;
+}
+function scanTypeText(s) {
+  if (s.kind === 'fasta') return 'FASTA';
+  return s.kind === 'sra' ? 'SRA' : (s.r2 ? t('tk.pcTypePair') : t('tk.pcTypeSingle'));
+}
+function scanPick(k, on) {
+  const d = _scanCache[k] || {}, v = scanView(k);
+  const names = (d.samples || []).map(s => s.name);
+  v.sel = new Set(on ? names : []);
+  scanRenderRows(k);
+}
+function pcBytes(n) {
+  n = +n || 0;
+  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (i ? n.toFixed(1) : String(n)) + ' ' + u[i];
+}
+function scanSizeText(s) {
+  // 样品库来源没有文件大小（/api/samples 不返回），用 — 表示未知而不是 0 B
+  return (+s.size || 0) > 0 ? pcBytes(s.size) : '—';
+}
+function scanSorted(k) {
+  const d = _scanCache[k] || {}, v = scanView(k);
+  const rows = (d.samples || []).slice();
+  const keyFn = {
+    name: s => String(s.name || '').toLowerCase(),
+    type: s => scanTypeText(s),
+    size: s => +s.size || 0,
+    r1: s => scanBase(s.r1 || '').toLowerCase(),
+    r2: s => scanBase(s.r2 || '').toLowerCase(),
+  }[v.sort] || (s => String(s.name || '').toLowerCase());
+  rows.sort((a, b) => {
+    const x = keyFn(a), y = keyFn(b);
+    const c = (typeof x === 'number' && typeof y === 'number')
+      ? (x - y)
+      : String(x).localeCompare(String(y), 'zh-Hans-CN', {numeric: true, sensitivity: 'base'});
+    return c * v.dir;
+  });
+  return rows;
+}
+function scanSort(k, col) {
+  const v = scanView(k);
+  if (v.sort === col) v.dir = -v.dir; else { v.sort = col; v.dir = 1; }
+  v.page = 0;
+  scanRenderRows(k);
+}
+function scanPage(k, delta) {
+  const v = scanView(k);
+  v.page = Math.max(0, v.page + delta);
+  scanRenderRows(k);
+}
+function scanPageSize(k, size) {
+  const v = scanView(k);
+  v.size = +size || 10;
+  v.page = 0;
+  scanRenderRows(k);
+}
+function scanToggle(k, name, on) {
+  const v = scanView(k), d = _scanCache[k] || {};
+  if (on) v.sel.add(name); else v.sel.delete(name);
+  const tbl = $(scanCfg(k).tbl);
+  if (!tbl) return;
+  const n = (d.samples || []).length;
+  const all = tbl.querySelector('.sc-pick-all');
+  if (all) {
+    all.checked = n > 0 && v.sel.size === n;
+    all.indeterminate = v.sel.size > 0 && v.sel.size < n;
+  }
+  const info = tbl.querySelector('.sc-selinfo');
+  if (info) info.textContent = t('tk.pcSelInfo')
+    .replace('{a}', v.sel.size).replace('{b}', n);
+}
+function scanRenderRows(k) {
+  const c = scanCfg(k), tbl = $(c.tbl);
+  if (!tbl) return;
+  const d = _scanCache[k] || {}, v = scanView(k);
+  const rows = scanSorted(k), n = rows.length;
+  if (!n) { tbl.innerHTML = '<p class="hint">' + t('tk.pcScanEmpty') + '</p>'; return; }
+  const size = v.size > 0 ? v.size : n;
+  const pages = Math.max(1, Math.ceil(n / size));
+  v.page = Math.min(Math.max(0, v.page), pages - 1);
+  const pageRows = rows.slice(v.page * size, v.page * size + size);
+  const arrow = col => v.sort === col ? (v.dir > 0 ? ' ▲' : ' ▼') : '';
+  const th = (col, label) => `<th style="cursor:pointer;white-space:nowrap;user-select:none"`
+    + ` onclick="scanSort('${k}','${col}')" title="${t('tk.pcSortHint')}">${label}${arrow(col)}</th>`;
+  const body = pageRows.map(s => `<tr>
+      <td><input type="checkbox" class="sc-pick" value="${esc(s.name)}"${v.sel.has(s.name) ? ' checked' : ''}`
+    + ` onchange="scanToggle('${k}', this.value, this.checked)"></td>
+      <td>${esc(s.name)}</td><td>${scanTypeText(s)}</td>
+      <td>${esc(scanSizeText(s))}</td>
+      <td class="hint" title="${esc(s.r1)}">${esc(scanBase(s.r1))}</td>
+      <td class="hint" title="${esc(s.r2 || '')}">${esc(s.r2 ? scanBase(s.r2) : '—')}</td>
+    </tr>`).join('');
+  const allSel = n > 0 && v.sel.size === n;
+  const sizes = [10, 20, 50].map(x => `<option value="${x}"${x === v.size ? ' selected' : ''}>${x}</option>`).join('');
+  tbl.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0">
+      <span class="hint">${t('tk.pcPickHint')}</span>
+      <button class="btn small" onclick="scanPick('${k}', true)">${t('tk.pcPickAll')}</button>
+      <button class="btn small" onclick="scanPick('${k}', false)">${t('tk.pcPickNone')}</button>
+      <span class="hint sc-selinfo">${t('tk.pcSelInfo').replace('{a}', v.sel.size).replace('{b}', n)}</span>
+      <span style="flex:1"></span>
+      <span class="hint">${t('tk.pcPerPage')}</span>
+      <select class="inp" style="width:auto" onchange="scanPageSize('${k}', this.value)">${sizes}</select>
+      <button class="btn small" onclick="scanPage('${k}', -1)"${v.page <= 0 ? ' disabled' : ''}>${t('tk.pcPrev')}</button>
+      <span class="hint">${t('tk.pcPageInfo').replace('{a}', v.page + 1).replace('{b}', pages)}</span>
+      <button class="btn small" onclick="scanPage('${k}', 1)"${v.page >= pages - 1 ? ' disabled' : ''}>${t('tk.pcNext')}</button>
+    </div>
+    <table class="tbl"><thead><tr>
+      <th><input type="checkbox" class="sc-pick-all"${allSel ? ' checked' : ''} onchange="scanPick('${k}', this.checked)"></th>
+      ${th('name', t('tk.pcThSample'))}${th('type', t('tk.pcThType'))}${th('size', t('tk.pcThSize'))}
+      ${th('r1', 'R1')}${th('r2', 'R2')}
+    </tr></thead><tbody>${body}</tbody></table>`;
+}
+function scanRender(k, d) {
+  const c = scanCfg(k), box = $(c.box), tbl = $(c.tbl);
+  const view = scanView(k);
+  view.sel = new Set((d.samples || []).map(s => s.name));
+  if (box) {
+    let msg = t('tk.pcScanDone')
+      .replace('{n}', d.n_samples || 0)
+      .replace('{p}', d.n_paired || 0)
+      .replace('{s}', d.n_single || 0)
+      .replace('{r}', d.n_sra || 0);
+    if (d.n_fasta) {
+      msg += t('tk.pcScanFasta', ' · FASTA {f}').replace('{f}', d.n_fasta);
+    }
+    if (d.total_bytes) {
+      msg += ' · ' + t('tk.pcScanSize').replace('{s}', pcBytes(d.total_bytes));
+    }
+    if (d.subdirs) msg += ' · ' + t('tk.pcScanSub').replace('{d}', d.subdirs);
+    if ((d.orphan_r2 || []).length) {
+      msg += ' · ' + t('tk.pcScanOrphan').replace('{n}', d.orphan_r2.length);
+    }
+    box.innerHTML = esc(msg);
+  }
+  if (!tbl) return;
+  if (!(d.samples || []).length) {
+    tbl.innerHTML = '<p class="hint">' + t('tk.pcScanEmpty') + '</p>';
+    return;
+  }
+  view.page = 0;
+  scanRenderRows(k);
+}
+async function scanDir(k) {
+  const c = scanCfg(k);
+  const folder = (val(c.input) || '').trim();
+  if (!folder) { alert(t('ui.tk.needDir')); return; }
+  scanReset(k);
+  const box = $(c.box);
+  if (box) box.innerHTML = esc(t('tk.pcScanning'));
+  try {
+    const r = await fetch('/api/tool/chain_scan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder, kind: c.chain })});
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      if (box) box.innerHTML = esc(d.error || t('tk.pcScanFail'));
+      return;
+    }
+    _scanCache[k] = d;
+    scanRender(k, d);
+  } catch (e) {
+    if (box) box.innerHTML = esc(t('ui.common.connFail') + ': ' + e);
+  }
+}
+function scanSelected(k) {
+  const c = scanCfg(k), tbl = $(c.tbl);
+  if (!tbl) return null;
+  const d = _scanCache[k];
+  if (!d || !(d.samples || []).length) return null;  // 没解析 → 交给后端解析全部
+  const norm = s => String(s || '').replace(/[\\/]+$/, '').toLowerCase();
+  if (norm(d.folder) !== norm(val(c.input))) return null;
+  const v = scanView(k);
+  if (v.sel.size >= d.samples.length) return null;   // 全选 = 全部
+  return d.samples.filter(s => v.sel.has(s.name)).map(s => s.name);
+}
+function pcRelIn(outDir, p) {
+  const o = String(outDir || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  const q = String(p || '').replace(/\\/g, '/');
+  if (!o || !q.toLowerCase().startsWith(o + '/')) return '';
+  return q.slice(o.length + 1);
+}
+function pcFileLink(run, outDir, p, label) {
+  const rel = pcRelIn(outDir, p);
+  if (!rel) return '';
+  const parts = rel.split('/').map(encodeURIComponent).join('/');
+  return `<a class="dlbtn" href="/tool_runs/${encodeURIComponent(run)}/${parts}"`
+    + ` download>⬇ ${esc(label || scanBase(p))}</a>`;
+}
+async function scanLoadSummary(k, run) {
+  const c = scanCfg(k), box = $(c.sum);
+  if (!box || !run) return;
+  try {
+    const r = await fetch('/api/tool/chain_result?chain='
+                          + encodeURIComponent(c.chain)
+                          + '&run=' + encodeURIComponent(run));
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.meta) { box.innerHTML = ''; return; }
+    scanRenderSummary(k, box, run, d);
+  } catch (e) { /* 汇总失败不打扰用户 */ }
+}
+function scanRenderSummary(k, box, run, d) {
+  const meta = d.meta || {};
+  const outDir = d.out_dir || '';
+  const samples = meta.samples || [];
+  if (!samples.length) { box.innerHTML = ''; return; }  // 单样本模式无逐样本表
+  const okN = (meta.ok_samples != null) ? meta.ok_samples
+    : samples.filter(s => s.status === 'done').length;
+  const failN = (meta.failed_samples != null) ? meta.failed_samples
+    : samples.filter(s => s.status !== 'done').length;
+  const head = `
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0">
+      <b>${t('tk.pcSumTitle')}</b>
+      <span class="sbadge ${failN ? 'failed' : 'done'}">${t('tk.pcSumHead')
+        .replace('{ok}', okN).replace('{fail}', failN)
+        .replace('{n}', meta.n_samples || samples.length)}</span>
+      ${pcFileLink(run, outDir, outDir + '/_chain.json', '_chain.json')}
+      ${meta.mode === 'batch' || meta.mode === 'samples'
+        ? pcFileLink(run, outDir, outDir + '/samples.tsv', 'samples.tsv') : ''}
+      ${chainReportLink(run)}
+    </div>
+    <div class="hint" style="margin-bottom:6px">${esc(outDir)}</div>`;
+  const rows = samples.map(s => {
+    const type = s.kind === 'sra' ? 'SRA'
+      : (s.pe ? t('tk.pcTypePair') : t('tk.pcTypeSingle'));
+    const done = s.status === 'done';
+    // 产物链接在汇总目录 <outDir>/<样本>/（单样本模式在 outDir 根），
+    // 下载走这些链接，不能用 meta 里的原始运行目录绝对路径拼 URL。
+    const linkDir = meta.mode === 'batch' || meta.mode === 'samples'
+      ? outDir + '/' + (s.name || '') : outDir;
+    const links = (s.links || [])
+      .map(n => pcFileLink(run, outDir, linkDir + '/' + n, n))
+      .filter(Boolean).join(' ');
+    const err = (!done && s.error)
+      ? ` <span class="hint" title="${esc(s.error)}">${esc(s.error.slice(0, 40))}</span>` : '';
+    return `<tr>
+      <td>${esc(s.name || '')}</td><td>${type}</td>
+      <td>${esc(pcBytes(s.size))}</td>
+      <td>${done ? t('tk.pcStatusDone') : t('tk.pcStatusFail')}${err}</td>
+      <td>${links || '<span class="hint">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  box.innerHTML = head + (rows
+    ? `<table class="tbl"><thead><tr><th>${t('tk.pcThSample')}</th>
+         <th>${t('tk.pcThType')}</th><th>${t('tk.pcThSize')}</th>
+         <th>${t('tk.pcThStatus')}</th>
+         <th>${t('tk.pcThFiles')}</th></tr></thead><tbody>${rows}</tbody></table>`
+    : '');
+}
+/* 兼容旧入口：runTool（sampletools 一键前处理）与 app-jobs.js 仍调用 pc* 名字 */
+function pcMode() { return scanMode('pc'); }
+function pcSyncMode() { scanSync('pc'); }
+function pcScanReset() { scanReset('pc'); }
+function pcPick(on) { scanPick('pc', on); }
+function pcRenderScan(d) { scanRender('pc', d); }
+async function pcScanDir() { return scanDir('pc'); }
+function pcSelectedSamples() { return scanSelected('pc'); }
+async function pcLoadSummary(run) { return scanLoadSummary('pc', run); }
+
+/* ── 目录批量（scan 组件）通用提交：把勾选样本逐个转成单样本任务提交 ──
+   与 batchRunForSamples 的差别：样本数据直接来自目录解析结果（_scanCache），
+   不要求样品已在平台登记。makeParams(s) 收样本对象 {name,r1,r2,kind}；
+   返回 null / 抛错则该样本跳过并计入汇总。提交完刷新任务中心轮询。 */
+async function batchRunScan(btn, key, tool, makeParams, opts) {
+  const d = _scanCache[key] || {}, v = scanView(key);
+  const samples = (d.samples || []).filter(s => v.sel.has(s.name));
+  if (!samples.length) {
+    alert(t('tk.batchScanNeed', '请先「🔍 解析样本」并勾选要运行的样本'));
+    return;
+  }
+  // opts.threads / opts.out_dir：卡上两态共用的线程数 / 输出目录
+  // （不传时按 null/'' 口径，与单样本提交一致）
+  const extra = {
+    threads: (opts && opts.threads) || null,
+    out_dir: (opts && opts.out_dir) || '',
+  };
+  // 同一批的所有任务共享 batch 号（任务卡据此汇总展示每一个样本的结果），
+  // 每个任务带 sample，任务名与运行目录元数据都能分辨是哪件样本。
+  const batchId = 'b' + Date.now().toString(36)
+    + Math.random().toString(36).slice(2, 6);
+  return withBtn(btn, async () => {
+    let ok = 0;
+    const skip = [];
+    for (const s of samples) {
+      let p = null;
+      try { p = makeParams(s); }
+      catch (e) { skip.push(s.name + '(' + e.message + ')'); continue; }
+      if (!p) { skip.push(s.name); continue; }
+      try {
+        const r = await fetch('/api/tool/run', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool, params: p,
+                                 threads: extra.threads,
+                                 out_dir: extra.out_dir,
+                                 sample: s.name, batch: batchId }) });
+        if (!r.ok) {
+          const e = await r.json().catch(() => ({}));
+          skip.push(s.name + '(' + (e.error || t('tk.batchSubmitFail', '提交失败')) + ')');
+          continue;
+        }
+        ok++;
+      } catch (e) { skip.push(s.name + '(' + t('sc.connFail', '连接失败') + ')'); }
+    }
+    if (typeof startPolling === 'function') startPolling();
+    toast(t('tk.batchDone', '批量提交'),
+      t('tk.cvBatchDone', '已提交 {n} 个转换任务（任务中心看进度）')
+        .replace('{n}', ok)
+      + (skip.length ? '；' + t('tk.cvBatchFail', '失败') + ' ' + skip.length
+                      + '：' + skip.join('、') : ''),
+      { ttl: 8000 });
+  }, t('tk.batchSubmitting', '⏳ 提交中…'));
 }

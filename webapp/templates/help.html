@@ -140,7 +140,7 @@ mindmap
       Consensus Analysis
       Variant Analysis
     🦠 Virus Identification & Classification
-      One-click ②→③→④
+      One-click analysis
       Virus ID, Classification & Extraction
       Assembly of Extracted Reads
       Re-identification of Assemblies
@@ -195,11 +195,11 @@ mindmap
 | ① Host removal | same page | kunpeng (host DB) | kept_R1/R2, host fraction |
 | ②b Known-virus ID & quantification | [Kvsuite](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Kvsuite.md) | salmon (EM quantification) / minibwa | ID table, quantification table, BAM+depth, viral reads |
 | ③ Assembly & classification | [Assembly](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Assembly.md) | SPAdes metaviral/rna + BLAST | contigs, viral-contig annotation table |
-| ③b Candidate sequence verification | same page | host filtering → length split → blastx/BFVD/viroid | verified candidate set |
+| ③b Candidate sequence verification | same page | host filtering → length split → blastx/BFVD/CDD/viroid | verified candidate set |
 | ③c Consensus & variants | same page | reads re-mapped to the reference → per-position counts | consensus sequences, variant table |
 | ④ Host prediction | [Host-Prediction](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Host-Prediction.md) | kunpeng + ICTV host-probability cascade | host_prediction.tsv, sankey/sunburst plots |
 | ⑥ ORF prediction | [ORF](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/ORF.md) | pyrodigal + pyrodigal-rv | faa/ffn/gff |
-| ⑥b ORF functional annotation | same page | DIAMOND/MMseqs2/blastp × RefSeq viral proteins + Pfam HMM + BFVD viral domains | orf_annotation.tsv, GFF3, feature diagrams |
+| ⑥b ORF functional annotation | same page | PVDB plant-virus library (homology + polyprotein segmentation) + PVDB HMM (Pfam/VOG/VFAM) + PVDB CDD + PVDB BFVD | orf_annotation.tsv, GFF3, feature diagrams |
 | ⑦ Phylogeny & SDT | [Phylo](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Phylo.md) | MAFFT + trimAl + FastTree/RAxML-NG/NJ; exact SDT engine | tree.nwk, identity matrix + heatmap |
 | ⑧ Primer design | [Primer](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Primer.md) | primer3 (conserved regions / full length) + thermodynamic scoring | primers.tsv |
 | ⑨ Genome plots | [Genome-Plots](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Genome-Plots.md) | gbdraw / dna_features_viewer | circular + linear SVG |

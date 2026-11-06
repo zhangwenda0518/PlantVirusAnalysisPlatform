@@ -51,7 +51,7 @@
   </div>
 
   <!-- ① 输入来源 -->
-  <div class="card">
+  <div class="card" data-guide="Prescreen">
     <h2 data-i18n="ps.inTitle">① 输入来源</h2>
     <div class="ps-tabs">
       <label class="chk" style="margin:0"><input type="radio" name="psSrc" value="paste" checked onchange="psSrcChange()"><span data-i18n="ps.srcPaste">粘贴 Run 列表</span></label>
@@ -80,8 +80,8 @@
       </div>
     </div>
 
-    <label data-i18n="ps.nameLbl" style="margin-top:12px">项目名（结果归档到 run/meta_search/&lt;项目名&gt;/prescreen/，可复用 JSON 缓存断点续跑）</label>
-    <input id="psName" type="text" spellcheck="false" placeholder="如 Lycium_prescreen_20261001">
+    <label data-i18n="ps.nameLbl" style="margin-top:12px">项目名（可留空自动生成；结果归档到 run/meta_search/&lt;项目名&gt;/prescreen/，同名重跑复用 JSON 缓存断点续跑）</label>
+    <input id="psName" type="text" spellcheck="false" placeholder="留空自动生成，如 prescreen_20261102_1530">
   </div>
 
   <!-- ② 参数 -->
@@ -108,9 +108,10 @@
       <label class="chk" style="margin:0"><input type="checkbox" id="psRecheck">
         <span data-i18n="ps.recheck">复查 GSA「无数据」标记（GSA 会陆续补做分析）</span></label>
     </div>
-    <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+    <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <button class="btn primary" id="psRunBtn" onclick="psRun(this)" data-i18n="ps.run">▶ 开始预筛</button>
       <button class="btn small" onclick="psRefresh()" data-i18n="ps.load">读取已有结果</button>
+      <select id="psHistory" style="min-width:220px;max-width:380px" onchange="psPickHistory()"></select>
       <span class="hint" id="psHint" style="margin:0"></span>
     </div>
     <div class="err" id="psErr"></div>
@@ -135,6 +136,12 @@
       <label class="chk" style="margin:0"><input type="radio" name="psView" value="pass" onchange="psRender()"><span data-i18n="ps.vPass">通过清单</span></label>
       <label class="chk" style="margin:0"><input type="radio" name="psView" value="virus" onchange="psRender()"><span data-i18n="ps.vVirus">检出病毒</span></label>
       <label class="chk" style="margin:0"><input type="radio" name="psView" value="unres" onchange="psRender()"><span data-i18n="ps.vUnres">无分类数据</span></label>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn small primary" id="psDlSelBtn" onclick="psDlSel(this)"
+              data-i18n="ps.dlSel">⬇ 勾选 Run 转入数据下载</button>
+      <span class="hint" id="psDlSelN" style="margin:0"></span>
+      <span class="hint" style="margin:0" data-i18n="ps.dlHint">把勾选的 Run 转入「公共数据下载」页取原始数据（FASTQ）；数据量可能很大，请按需勾选。</span>
     </div>
     <div class="ps-tbl" id="psTable"></div>
     <div style="margin-top:10px">

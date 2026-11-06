@@ -28,6 +28,7 @@
 """
 import itertools
 import json
+import os
 import sys
 import threading
 import time
@@ -46,21 +47,77 @@ _next_id = itertools.count(1)
 ATTENTION_TYPES = ('ai_read', 'stage_failed', 'ai_gate')
 
 
-def publish(ev_type, **fields):
+# 子进程事件回传（2026-11-02）：对话坞发起的跑批跑在 MCP 子进程里
+# （mcp_console 用 stdio 拉起 mcp_server.py），它的环形缓冲与网页进程
+# 不是同一个 —— 阶段卡因此收不到。父进程拉起子进程时注入
+# VP_EVENT_SPOOL=<目录>，子进程把每条 publish 追加成一行 JSON；网页进程的
+# relay 线程（ai_agent/spool_relay.py）tail 这个目录，再 ingest 进本地缓冲。
+SPOOL_ENV = 'VP_EVENT_SPOOL'
+_spool_lock = threading.Lock()
+
+
+def spool_dir():
+    """当前进程的事件回传目录（未设置 = 不回传，返回 ''）。"""
+    return (os.environ.get(SPOOL_ENV) or '').strip()
+
+
+def publish(ev_type, _ts=None, **fields):
     """发布一条事件（返回带 id 的完整事件 dict）。
 
     事件**同时**写入审计盘（`ai_agent/audit.py`）：内存环形缓冲只有
     MAX_EVENTS 条且重启即失，而"AI 播报过什么、闸门什么时候弹的"属审计
     范畴，必须能事后追溯。落盘在后台线程，不阻塞流水线。
+
+    `_ts`：保留原始时间戳（relay 回放子进程事件时用，别让它看起来像刚才发生）。
+    `relay=True`：这条事件是从子进程回传的 —— 不再往 spool 写（防回环）。
     """
-    ev = {'id': next(_next_id), 'type': ev_type, 'ts': time.time()}
+    ev = {'id': next(_next_id), 'type': ev_type,
+          'ts': _ts if _ts else time.time()}
     ev.update(fields)
     with _lock:
         _events.append(ev)
         if len(_events) > MAX_EVENTS:
             del _events[:len(_events) - MAX_EVENTS]
-    _audit(ev)
+    # relay 事件在子进程里已经写过审计盘，别重复记一遍
+    if not ev.get('relay'):
+        _audit(ev)
+    try:
+        _spool(ev)
+    except (OSError, TypeError, ValueError):   # 回传失败绝不影响发布本身
+        pass
     return ev
+
+
+def _spool(ev):
+    """把事件追加到本进程的回传文件（仅子进程设置 VP_EVENT_SPOOL 时）。"""
+    d = spool_dir()
+    if not d or ev.get('relay'):
+        return
+    try:
+        os.makedirs(d, exist_ok=True)
+        path = os.path.join(d, '%d.jsonl' % os.getpid())
+        line = json.dumps(ev, ensure_ascii=False) + '\n'
+        with _spool_lock:
+            with open(path, 'a', encoding='utf-8') as f:
+                f.write(line)
+    except OSError:
+        pass
+
+
+def ingest(ev):
+    """把子进程回传的事件并进本地缓冲（保留原 ts，标记 relay=True）。
+
+    返回新事件 dict；无效输入返回 None。幂等性由 relay 的读取水位保证。
+    """
+    if not isinstance(ev, dict):
+        return None
+    ev = dict(ev)
+    t = ev.pop('type', None)
+    if not t or ev.get('relay'):
+        return None
+    ts = ev.pop('ts', None)
+    ev.pop('id', None)
+    return publish(t, _ts=ts, relay=True, **ev)
 
 
 def _audit(ev):
@@ -68,7 +125,8 @@ def _audit(ev):
     try:
         from . import audit
         audit.record('events', ev)
-    except Exception:
+    except ImportError:
+        # audit.record 自身「永不抛异常」是它的契约；这里只兜 import 失败。
         pass
 
 
@@ -136,8 +194,8 @@ STAGE_NOTES = {
                  'Stage ③ assembly: SPAdes (rnaviral) rebuilds viral contigs from virus reads, then classifies each contig — the main route to viruses absent from the reference library.'),
     'hostana': ('④ 宿主预测：把每条病毒 contig 与 ICTV 宿主知识级联匹配，预测其自然寄主并给出置信度——提示"该病毒可能感染哪些作物"。',
                 'Stage ④ host prediction: matches each viral contig against ICTV host knowledge to predict natural hosts with confidence — hints which crops may be at risk.'),
-    'verify': ('③b 候选验证：对组装 contig 做 blastx/BFVD 复核，排除宿主污染与假阳性，把"像病毒"变成"确认是病毒"。',
-               'Stage ③b verification: blastx/BFVD re-screening of contigs to exclude host contamination and false positives — from "looks viral" to "confirmed viral".'),
+    'verify': ('③b 候选验证：对组装 contig 做 blastx/BFVD/CDD 复核，排除宿主污染与假阳性，把"像病毒"变成"确认是病毒"。',
+               'Stage ③b verification: blastx/BFVD/CDD re-screening of contigs to exclude host contamination and false positives — from "looks viral" to "confirmed viral".'),
     'consensus': ('③c 共识与变异：reads 回贴参考生成共识序列并逐位置计数变异——为进化分析和引物设计提供干净的代表性序列。',
                   'Stage ③c consensus & variants: reads are re-aligned to references to build consensus and per-position variant counts — clean representative sequences for downstream use.'),
     'orf': ('⑥ ORF 预测：pyrodigal 在病毒基因组上找编码区，产出 faa/ffn/gff——下一步功能注释的对象。',
@@ -219,7 +277,7 @@ def _ai_text(ai, sys_prompt, user_msg, max_tokens=700):
                 try:
                     from .chat import _strip_dsml
                     text = _strip_dsml(text).strip()
-                except Exception:
+                except ImportError:
                     pass
                 return text or None
             last_err = RuntimeError('空响应')
@@ -253,15 +311,184 @@ def _interpret_run(sample, stage, failure=False, error=''):
                         '请输出播报。' if _lang() == 'zh' else 'Output the briefing.')
         if text:
             publish('ai_read', sample=sample, stage=stage,
-                    name=_stage_disp(stage), text=text[:4000], failure=failure)
+                    name=_stage_disp(stage), text=text[:4000], failure=failure,
+                    artifacts=_text_artifacts(text))
     except Exception as e:                     # 播报绝不能影响流水线
         sys.stderr.write(f'[ai_agent.broadcast] 播报失败（静默）: '
                          f'{type(e).__name__}: {e}\n')
 
 
+# ------------------------------------------------------------------
+# 产物卡片（2026-11-02）：播报里只给路径，对话坞把它渲染成可点开的卡片。
+# 这里只读落盘文件、绝不抛异常——卡片是锦上添花，不能反过来影响播报。
+# ------------------------------------------------------------------
+def _text_artifacts(text, limit=6):
+    """播报正文里提到的平台内文件 → 卡片（越界路径由 artifacts 过滤）。"""
+    try:
+        from . import artifacts as _art
+        return _art.finish(_art.from_text(str(text or '')), limit=limit)
+    except Exception:
+        return []
+
+
+# 阶段/目录级产物：只挑「点开就能看」的（html/svg/png/tsv），
+# 不把 summary.json、日志这类长文本铺满对话坞。
+_ART_EXT = {'.html': 0, '.htm': 0, '.pdf': 1, '.png': 2, '.jpg': 2,
+            '.jpeg': 2, '.svg': 2, '.webp': 2, '.gif': 2,
+            '.tsv': 3, '.csv': 3}
+#: 模块结果页文件名（_prefer 把它排在阶段卡片最前）
+OUT_PAGE = 'results.html'
+# 已知的"每 contig 一份"明细表：数量多、单看意义小，做卡片只会挤掉主表
+_ART_DENY = ('.poscounts.tsv',)
+
+
+def _candidates(root, max_depth=2):
+    """目录下（含最多 max_depth 层子目录）值得做成卡片的文件。
+
+    排序键 (prio, depth, path)：**浅的先**。实测 ③c 的 poscounts/ 子目录里
+    有 20 个按 contig 命名的表，深层的若排在前面会把 coverage.tsv 挤掉；
+    另外每个目录最多贡献 2 张表，防止单个子目录刷屏。
+    """
+    out = []
+    root = os.path.abspath(root)
+    for dirpath, dirnames, filenames in os.walk(root):
+        rel = os.path.relpath(dirpath, root)
+        depth = 0 if rel == '.' else rel.count(os.sep) + 1
+        if depth >= max_depth:
+            dirnames[:] = []                  # 不再下钻
+        dirnames[:] = sorted(dirnames)[:12]    # 目录数封顶，防超大运行目录
+        for fn in filenames:
+            low = fn.lower()
+            if low.endswith(_ART_DENY):
+                continue
+            prio = _ART_EXT.get(os.path.splitext(fn)[1].lower())
+            if prio is None:
+                continue
+            # 名字小写参与排序：否则 'NODE_10…tsv' 会排在 'coverage.tsv' 前面
+            out.append((prio, depth, fn.lower(),
+                        os.path.join(dirpath, fn)))
+    out.sort()
+    return [(prio, depth, path) for prio, depth, _n, path in out]
+
+
+def _pick(cands, limit, per_subdir=2):
+    """按 (prio, depth, 名字) 取前 limit 个；子目录里的表每目录最多 2 张。"""
+    picked, counts = [], {}
+    for prio, depth, path in cands:
+        if prio >= 3 and depth >= 1:          # 只管子目录，阶段自己的根目录放宽
+            d = os.path.dirname(path)
+            if counts.get(d, 0) >= per_subdir:
+                continue
+            counts[d] = counts.get(d, 0) + 1
+        picked.append(path)
+        if len(picked) >= limit:
+            break
+    return picked
+
+
+def _prefer(items):
+    """模块结果页/结论文档排最前：同 kind 内按文件名排序会把
+    report_v2 排到 report 之后、results.html 沉底。"""
+    def _rank(x):
+        n = x.get('name') or ''
+        if n == OUT_PAGE:
+            return 0
+        if n == 'report_v2.html':
+            return 1
+        return 2
+    items.sort(key=_rank)
+    return items
+
+
+def _dir_artifacts(root, limit=4):
+    """某个产物目录里最值得点开的文件（越界/不存在由 artifacts 过滤）。"""
+    try:
+        from . import artifacts as _art
+        if not root or not os.path.isdir(root):
+            return []
+        paths = _pick(_candidates(root)[:40], max(limit * 3, 8))
+        return _prefer(_art.finish(paths, limit=limit))
+    except Exception:
+        return []
+
+
+def _stage_artifacts(sample, stage, limit=3):
+    """单阶段完成时给这个阶段的产物卡片（阶段目录映射以 report_kit 为准）。"""
+    try:
+        from Virus_Platform_Core.config import DIRS
+        from Virus_Platform_Core.report_kit.model import STAGE_DIR
+        d = STAGE_DIR.get(str(stage or ''))
+        if not d:
+            return []
+        root = os.path.join(DIRS.get('results') or '', str(sample or ''), d)
+        return _dir_artifacts(root, limit=limit)
+    except Exception:
+        return []
+
+
+def _tool_run_artifacts(tool, since, limit=4):
+    """工具箱执行单完成后，找它刚建的那个 run 目录（按 mtime 取最新一个）。"""
+    try:
+        from Virus_Platform_Core.config import DIRS
+        base = DIRS.get('tool_runs') or ''
+        for root in (base, os.path.join(base, '_archive')):
+            if not os.path.isdir(root):
+                continue
+            hits = []
+            for name in os.listdir(root):
+                p = os.path.join(root, name)
+                if not os.path.isdir(p):
+                    continue
+                if tool and not name.startswith(str(tool) + '_'):
+                    continue
+                try:
+                    m = os.path.getmtime(p)
+                except OSError:
+                    continue
+                if m >= float(since or 0) - 5:
+                    hits.append((m, p))
+            if hits:
+                hits.sort()
+                return _dir_artifacts(hits[-1][1], limit=limit)
+        return []
+    except Exception:
+        return []
+
+
+def _sample_artifacts(sample, limit=8):
+    """整轮完成时值得直接点开的产物：报告 → 漏斗图 → 进化树 → 基因组图。"""
+    try:
+        import glob
+        from Virus_Platform_Core.config import DIRS
+        from . import artifacts as _art
+        root = os.path.join(DIRS.get('results') or '', sample)
+        if not os.path.isdir(root):
+            return []
+        paths = [os.path.join(root, '07_report', 'results.html'),
+                 os.path.join(root, '07_report', 'report_v2.html'),
+                 os.path.join(root, '07_report', 'report.html'),
+                 os.path.join(root, '07_report', 'stage_funnel.png')]
+        for pat in ('05_phylo/*/tree.png',
+                    '07_report/genome_*.png',
+                    '09_genome_plots/*.circular.svg'):
+            hits = glob.glob(os.path.join(root, *pat.split('/')))
+            paths.extend(sorted(hits)[:3])
+        items = _art.finish([p for p in paths if os.path.isfile(p)],
+                            limit=limit)
+        # 模块结果页/结论文档排最前：同 kind 内按文件名排序会把 report_v2
+        # 排到 report 之后。list.sort 稳定，其余顺序不动。
+        items.sort(key=lambda x: 0 if x.get('name') == 'results.html'
+                   else (1 if x.get('name') == 'report_v2.html' else 2))
+        return items
+    except Exception:
+        return []
+
+
+
 def note_stage_done(sample, stage):
     """层2 挂点：阶段成功收尾。轻量完成条必发；关键节点另起 AI 播报线程。"""
-    publish('stage_done', sample=sample, stage=stage, name=_stage_disp(stage))
+    publish('stage_done', sample=sample, stage=stage, name=_stage_disp(stage),
+            artifacts=_stage_artifacts(sample, stage))
     ai = _ai_cfg()
     if not (ai.get('enabled') and ai.get('broadcast', True)):
         return
@@ -293,7 +520,7 @@ def note_stage_failed(sample, stage, error):
 
 def note_run_done(sample):
     """层2 挂点：整轮分析完成 → 最终总结播报。"""
-    publish('run_done', sample=sample)
+    publish('run_done', sample=sample, artifacts=_sample_artifacts(sample))
     ai = _ai_cfg()
     if ai.get('enabled') and ai.get('broadcast', True):
         threading.Thread(target=_interpret_run, args=(sample, 'report'),

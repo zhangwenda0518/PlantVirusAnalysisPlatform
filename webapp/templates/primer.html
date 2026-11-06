@@ -142,7 +142,7 @@
 
         <!-- ==================== 左栏：参数 ==================== -->
         <div class="pd-panel">
-          <div class="card">
+          <div class="card" data-guide="Primer">
             <h1 data-i18n="prd.title">🧪 引物设计（primer3）</h1>
             <p class="hint" data-i18n="prd.hint">输入 FASTA 序列，设计 PCR 或 qPCR 引物（qPCR 含 TaqMan 探针），
             并完成热力学评估。结果含序列覆盖图与明细表格。</p>
@@ -155,12 +155,16 @@
             </select>
 
             <label data-i18n="prd.faLabel" style="margin-top:8px">输入 FASTA</label>
-            <div class="filerow">
-              <input id="pd_fa" type="text" data-i18n-ph="prd.faPh" placeholder="选择 .fasta 或粘贴序列">
-              <button class="btn small" onclick="browse('pd_fa')" title="选择文件">📁</button>
-              <button class="btn small" onclick="pdPaste()" data-i18n-title="prd.pasteFa" title="粘贴 FASTA">📋</button>
-              <button class="btn small" onclick="fillExample('pd_fa', EXAMPLE_FASTA)"
-                      data-i18n-title="prd.fillExample" title="填入内置示例（2 条病毒基因组）" data-i18n="ui.ex.btnFill">✨ 示例</button>
+            <div class="filerow" style="align-items:flex-start">
+              <textarea id="pd_fa" rows="8" spellcheck="false" data-nohist="1"
+                        data-i18n-ph="prd.faPh" placeholder="选择 .fasta、拖入文件，或直接粘贴 FASTA / 序列正文"
+                        style="flex:1;min-height:150px;font-family:var(--mono,Consolas,monospace);font-size:12.5px;line-height:1.55;resize:vertical"></textarea>
+              <div style="display:flex;flex-direction:column;gap:6px;flex:none">
+                <button class="btn small" onclick="browse('pd_fa')" title="选择文件">📁</button>
+                <button class="btn small" onclick="pdPaste()" data-i18n-title="prd.pasteFa" title="粘贴 FASTA">📋</button>
+                <button class="btn small" onclick="fillExample('pd_fa', EXAMPLE_FASTA)"
+                        data-i18n-title="prd.fillExample" title="填入内置示例（2 条病毒基因组）" data-i18n="ui.ex.btnFill">✨ 示例</button>
+              </div>
             </div>
 
             <div class="pd-sec" data-i18n="prd.secCore">核心参数</div>
@@ -870,7 +874,7 @@ window.addEventListener('resize', function () {
   if (adv) adv.classList.remove('open');
 })();
 
-// 从「组装结果再鉴定」分类表跳过来时带上的 contig 序列（2026-10-28）。
+// 从「病毒鉴定」分类表跳过来时带上的 contig 序列（2026-10-28）。
 // pdRun() 的口径：字段值含换行 → 当 FASTA 文本；否则当文件路径。
 (function () {
   let j = null;
@@ -889,8 +893,13 @@ window.addEventListener('resize', function () {
       if (!el || !j.fasta) return;
       el.value = j.fasta;
       el.dispatchEvent(new Event('input', { bubbles: true }));
+      /* 多行框：程序化赋值后 Chrome 会把光标留在末尾，focus 时视口就滚到序列
+         尾部（用户只看到半截序列，误以为导入错了）。强制回到开头。 */
+      el.scrollTop = 0;
+      try { el.setSelectionRange(0, 0); } catch (e) {}
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.focus();
+      el.scrollTop = 0;
       if (typeof toast === 'function') {
         toast(t('tk.primerJump', '已带入 contig'), j.contig || '', { ttl: 4000 });
       }

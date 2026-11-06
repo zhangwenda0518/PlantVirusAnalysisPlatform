@@ -8,6 +8,8 @@
     GET  /api/storage           磁盘容量 + 目录占用（占用走后台扫描 + 缓存）
     POST /api/storage/rescan    强制重新统计目录占用
     GET  /api/selfcheck         环境自检（模块/工具/数据库/磁盘；?force=1 强制重跑）
+    GET  /api/env_status        顶栏「本模块环境」四件套（按页面/卡片作用域）
+    GET  /api/sys_metrics       顶栏 CPU / 内存实时徽章（毫秒级，3 秒轮询）
     GET  /api/plugin/list       插件清单（plugins/ 目录扫描）
     GET  /api/plugin/available  插件源索引 × 本机现状（自动检测缺失工具）
     GET  /api/plugin/modules    模块视图（每模块依赖哪些工具、还缺哪些）
@@ -41,6 +43,24 @@ _STORAGE_TTL = 600            # 目录占用缓存有效期（秒）
 _storage = {'ts': 0, 'scanning': False, 'items': [], 'error': None,
             'scanned_at': None}
 _storage_lock = threading.Lock()
+
+
+def _parse_strict_bool(value):
+    """严格布尔解析：JSON true/false，或字符串 "true"/"false"/"1"/"0"。
+
+    以前用 bool(value)：前端/脚本传字符串 "false" 时 bool("false") 为
+    True——「关闭自动更新」反而把它打开。其它值一律 ValueError，由调用方
+    转 400，不猜用户意图。
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        s = value.strip().lower()
+        if s in ('true', '1'):
+            return True
+        if s in ('false', '0'):
+            return False
+    raise ValueError(f'不是合法布尔值: {value!r}')
 
 
 def _dir_size(path):
@@ -172,6 +192,11 @@ def api_settings_get():
         'examples_effective': DIRS.get('examples', ''),
         'plugin_index_url': getattr(cfg, 'plugin_index_url', ''),
         'plugin_source_pref': getattr(cfg, 'plugin_source_pref', 'auto'),
+        # 自动更新三键（2026-11-05，机制见 updater.py）：设置页「软件更新」
+        # 卡片读；manifest 地址空 = 内置双源回退。
+        'update_manifest_url': getattr(cfg, 'update_manifest_url', ''),
+        'update_auto_check': getattr(cfg, 'update_auto_check', True),
+        'update_auto_apply': getattr(cfg, 'update_auto_apply', True),
         'dirs': {'results': DIRS['results'],
                  'tool_runs': tool_runs_root(),
                  'databases': DIRS['databases'],
@@ -205,6 +230,49 @@ def api_selfcheck():
                         'sections': []}), 500
 
 
+@bp.route('/api/env_status', methods=['GET'])
+def api_env_status():
+    """顶栏「本模块环境」状态条（2026-11-03）：按当前页面所属模块出五件套。
+
+    ?page=/xxx       当前页面路径（浏览器发请求时带上；服务端映射到模块）
+    ?scope=t-xxx     工具页卡片（/tools?g=…#t-xxx 的 hash 原样传上来）
+    ?g=<组id>        组概览（/tools?g=xxx 无卡片 hash）→ 组内各卡依赖并集
+    ?force=1         重新检测（清 collect / Python 依赖包缓存重跑）
+    都认不出 → 全局口径（与总览页一致）。
+    2026-11-06：补「Python 依赖包」位（插在模块与外部工具之间，全局口径）。
+    """
+    from Virus_Platform_Core.selfcheck import collect, scoped_status
+    force = request.args.get('force') in ('1', 'true')
+    try:
+        base = collect(force=force)
+        return jsonify(scoped_status(path=request.args.get('page'),
+                                     hash_id=request.args.get('scope'),
+                                     group=request.args.get('g'),
+                                     base=base, force=force))
+    except Exception as e:             # 状态条出错不能带崩页面，给明确信号
+        return jsonify({'ok': False, 'error': f'{type(e).__name__}: {e}',
+                        'bits': [], 'detail': {}}), 500
+
+
+@bp.route('/api/sys_metrics', methods=['GET'])
+def api_sys_metrics():
+    """顶栏 CPU / 内存实时徽章（2026-11-06）：毫秒级，不碰 selfcheck。
+
+    与 /api/env_status 分开的原因：后者首次 collect 要递归 import 全部模块
+    （数秒级、5 分钟缓存），不能每 3 秒轮询。本端点只读系统计数器；
+    0.8 秒内的并发请求由 sysmon 合并成同一份快照。
+
+    ?force=1  强制重新采样（弹层「重新检测」用；平时轮询不带）
+    """
+    from Virus_Platform_Core.sysmon import sample
+    force = request.args.get('force') in ('1', 'true')
+    try:
+        return jsonify(sample(force=force))
+    except Exception as e:             # 采样失败不能带崩页面/轮询
+        return jsonify({'ok': False, 'error': f'{type(e).__name__}: {e}',
+                        'cpu': None, 'mem': None, 'proc': None})
+
+
 @bp.route('/api/settings', methods=['POST'])
 def api_settings_set():
     """设置中心保存：language/email/threads/defaults（逐项校验后持久化）。"""
@@ -234,6 +302,20 @@ def api_settings_set():
         if v not in SOURCE_PREFS:
             abort(400, 'plugin_source_pref 仅支持 ' + ' / '.join(SOURCE_PREFS))
         pending['plugin_source_pref'] = v
+    if 'update_manifest_url' in body:
+        # 更新源：空 = 内置双源回退；填了就校验为 http/https URL（域名校验
+        # 在 updater.check_update_url 运行时做，这里只挡明显非法值）
+        v = str(body['update_manifest_url'] or '').strip()
+        if v and not v.lower().startswith(('http://', 'https://')):
+            abort(400, 'update_manifest_url 需为 http/https 地址（空 = 内置默认）')
+        pending['update_manifest_url'] = v
+    for _uk in ('update_auto_check', 'update_auto_apply'):
+        if _uk in body:
+            try:
+                pending[_uk] = _parse_strict_bool(body[_uk])
+            except ValueError:
+                abort(400, f'{_uk} 只接受 true / false'
+                           '（字符串 "true"/"false"/"1"/"0" 亦可）')
     if 'defaults' in body and isinstance(body['defaults'], dict):
         merged = dict(cfg.defaults)          # 基于现值合并，逐键覆盖
         for k, v in body['defaults'].items():
@@ -287,6 +369,9 @@ def api_settings_set():
     # ── ② 统一应用（校验已全过；万一仍出错则整体回滚，不留半套用）──
     _snap = {'language': cfg.language, 'email': getattr(cfg, 'email', ''),
              'threads': cfg.threads, 'defaults': dict(cfg.defaults),
+             'update': {k: getattr(cfg, k) for k in
+                        ('update_manifest_url', 'update_auto_check',
+                         'update_auto_apply') if hasattr(cfg, k)},
              'roots': {k: getattr(cfg, k, '') for k, _s, _l in root_setters}}
 
     def _restore():
@@ -294,6 +379,8 @@ def api_settings_set():
         cfg.email = _snap['email']
         cfg.threads = _snap['threads']
         cfg.defaults = _snap['defaults']
+        for k, v in _snap.get('update', {}).items():
+            setattr(cfg, k, v)
         for k, setter, _l in root_setters:
             try:                     # 回滚失败（磁盘/权限）也只能尽力
                 setter(_snap['roots'][k])

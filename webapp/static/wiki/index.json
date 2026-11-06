@@ -1,44 +1,80 @@
 {
-  "note": "wiki/*.md 的静态副本与分组映射。改文档后跑 dev_tools/sync_wiki.py；tests/test_wiki_docs.py 会校验两份逐字节一致。",
+  "note": "wiki/*.md 的静态副本与分组映射（1 模块 1 文档）。改文档后跑 dev_tools/sync_wiki.py；tests/test_wiki_docs.py 校验一致性与映射。",
   "groups": {
     "resource": [
       "Public-Data",
+      "Meta-Search",
+      "Prescreen",
+      "Open-Virome",
+      "Logan",
+      "Logan-Fetch",
+      "Download",
+      "Ref-Data",
       "Databases"
     ],
     "sample": [
+      "Sample-Intro",
       "Preprocess",
-      "Toolbox"
+      "Prepchain",
+      "Samples",
+      "Fastp",
+      "Convert",
+      "Host-Removal",
+      "Identify"
     ],
     "kvsuite": [
-      "Kvsuite"
+      "Kvsuite-Intro",
+      "Kvchain",
+      "Kvsuite",
+      "Consensus",
+      "Variant"
     ],
     "virus": [
+      "Virus-Intro",
+      "Virchain",
       "Assembly",
+      "Contigs",
+      "Verify",
       "Host-Prediction"
     ],
     "annotate": [
+      "Annotate-Intro",
+      "Annochain",
       "ORF",
-      "Genome-Plots"
+      "Genome-Plots",
+      "NCBI-Submission"
     ],
     "detect": [
+      "Detect-Intro",
       "Primer",
-      "CRISPR-Design"
+      "CRISPR-Design",
+      "LAMP-Design",
+      "DsRNA",
+      "Mirna"
     ],
     "compare": [
+      "Compare",
+      "Cmpchain",
+      "Seq-Prep",
+      "Cds-Export",
+      "Align",
       "Phylo"
     ],
     "phylodyn": [
       "Phylodynamics",
+      "Phylodyn",
+      "Pd-Prep",
+      "Rtt",
+      "Rdp",
       "Phylogeography",
       "BEAST"
     ],
     "result": [
+      "Result-Intro",
+      "Results",
       "Result-Interpretation",
-      "Report"
-    ],
-    "trace": [
-      "Logan",
-      "NCBI-Submission"
+      "Report",
+      "Svguest"
     ]
   },
   "global": [
@@ -49,6 +85,7 @@
     "AI-Assistant",
     "CLI-Reference",
     "Settings-Ops",
-    "FAQ"
+    "FAQ",
+    "Toolbox"
   ]
 }

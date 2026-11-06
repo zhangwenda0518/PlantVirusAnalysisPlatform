@@ -149,7 +149,10 @@ def _publish(rec, event='ai_action'):
                         'base_params', 'reason', 'status', 'source',
                         'error', 'tid', 'runs', 'tool', 'tool_params',
                         'steps', 'step', 'step_total', 'step_action',
-                        'step_title', 'result_sample')}
+                        'step_title', 'result_sample',
+                        # 2026-11-02：执行单跑完要把产物做成卡片（app-ai.js
+                        # 的 ai_action 处理器直接渲染，无需再问路径）
+                        'artifacts')}
     if isinstance(payload.get('runs'), list):
         payload['runs'] = payload['runs'][:10]   # 事件里只带前 10 条防膨胀
         payload['runs_n'] = rec.get('params', {}).get('runs_n')
@@ -167,7 +170,9 @@ def _snapshot(rec):
              # 2026-11-02：create_sample 是同步动作，返回值是**样品名**而不是
              # 任务 id。这里漏了它，刷新页面（走 /api/ai/actions 对账）时
              # 卡片就丢了「建了哪个样品」，只剩一个 ✓ 完成。
-             'result_sample')}
+             'result_sample',
+             # 2026-11-02：执行单完成后能直接点开的产物（只存 ≤4 条，很小）
+             'artifacts')}
 
 
 def _audit(rec):
@@ -180,7 +185,8 @@ def _audit(rec):
     try:
         from . import audit
         audit.record_sync('actions', rec)
-    except Exception:
+    except ImportError:
+        # record_sync 自身「永不抛异常」是它的契约；这里只兜 import 失败。
         pass
 
 
@@ -610,15 +616,63 @@ def _create_plan(params, reason, source):
     return rec, None
 
 
+def _action_artifacts(rec, limit=4):
+    """执行单跑完后「点开就能看」的产物：阶段产物 / 工具运行目录 / 整轮报告。
+
+    只在终态 done 时算一次（列表很小，随事件与审计盘一起带走），
+    任何异常都返回空——卡片是锦上添花，不能反过来影响执行单收尾。
+    """
+    try:
+        from . import broadcast
+        action = str(rec.get('action') or '')
+        sample = str(rec.get('result_sample') or rec.get('sample') or '')
+        if action in ('rerun_stage', 'retry_failed', 'run_analysis', 'analysis'):
+            stages = rec.get('stages') or (rec.get('params') or {}).get('stages') or []
+            if isinstance(stages, str):
+                stages = [stages]
+            stages = [s for s in stages if s]
+            # 整轮跑完 / 没指明阶段：直接给报告那一套（与 run_done 同口径）
+            if action in ('run_analysis', 'analysis') or not stages:
+                return broadcast._sample_artifacts(sample, limit=limit)
+            # 合并多阶段的卡片：这里已经是 item（dict）不是路径，
+            # 交给 finish 会被当成路径过滤 → 必须按 path 去重后再截断。
+            out, seen = [], set()
+            for st in stages[:3]:
+                for it in broadcast._stage_artifacts(sample, st, limit=limit):
+                    if it['path'] not in seen:
+                        seen.add(it['path'])
+                        out.append(it)
+            return broadcast._prefer(out[:limit])
+        if action == 'run_tool':
+            return broadcast._tool_run_artifacts(
+                str(rec.get('tool') or rec.get('params', {}).get('tool') or ''),
+                rec.get('ts') or 0, limit=limit)
+        if action == 'plan' and sample:
+            return broadcast._sample_artifacts(sample, limit=limit)
+        return []
+    except Exception:
+        return []
+
+
 def _snapshot_publish(rec, status):
     """状态迁移的唯一出口：改状态 → 发事件 → 写审计盘。"""
     rec['status'] = status
+    if status == 'done':
+        rec['artifacts'] = _action_artifacts(rec)
+    else:
+        rec.pop('artifacts', None)
     _publish(rec)
     _audit(rec)
 
 
-def resolve(aid, decision):
-    """批准 / 驳回。返回 (rec, error)。decision: approve | reject。"""
+def resolve(aid, decision, stages_override=None):
+    """批准 / 驳回。返回 (rec, error)。decision: approve | reject。
+
+    stages_override（2026-11-03）：请求里带的阶段列表，批准时用它覆盖 AI
+    起草的 stages（仅 rerun_stage / retry_failed / run_analysis / analysis
+    支持）；None 表示不覆盖，老调用方行为不变。校验与覆盖都在锁内、
+    状态翻转之前完成——校验失败时执行单保持 pending，不会被"批了一半"。
+    """
     _hydrate()
     if decision not in ('approve', 'reject'):
         return None, 'decision 只允许 approve / reject'
@@ -628,6 +682,35 @@ def resolve(aid, decision):
             return None, '执行单不存在'
         if rec['status'] != 'pending':
             return None, f'执行单已处理（{rec["status"]}）'
+        # 2026-11-03：阶段覆盖只认批准；驳回时忽略。校验必须在置 executing
+        # 之前（同一把锁内），否则校验失败的单子已被消费，用户想改也不能再批。
+        if decision == 'approve' and stages_override is not None:
+            if not isinstance(stages_override, list):
+                return None, 'stages 需为字符串数组'
+            if not stages_override:
+                return None, '阶段列表不能为空'
+            norm = []
+            for s in stages_override:
+                if not isinstance(s, str) or not s.strip():
+                    return None, 'stages 需为非空字符串数组'
+                s = s.strip()
+                if s not in norm:        # 去重保序：重复阶段没有执行意义
+                    norm.append(s)
+            if rec.get('action') not in ('rerun_stage', 'retry_failed',
+                                         'run_analysis', 'analysis'):
+                return None, '该动作类型不支持阶段覆盖'
+            from Virus_Platform_Core.pipeline import STAGE_ORDER
+            bad = [s for s in norm if s not in STAGE_ORDER]
+            if bad:
+                return None, (f'未知阶段: {", ".join(bad)}'
+                              f'（可选: {" / ".join(STAGE_ORDER)}）')
+            orig = list(rec.get('stages') or [])
+            if norm != orig:
+                # 两处读取口径都要命中：_execute → _dispatch 读 rec['stages']，
+                # _action_artifacts 还会读 params['stages']。
+                rec['stages'] = norm
+                rec.setdefault('params', {})['stages'] = norm
+                rec['stages_override'] = {'from': orig, 'to': list(norm)}
         # 2026-11-02：状态翻转必须与「是不是 pending」的判定在同一把锁里。
         # 以前校验与置 executing 分两段加锁，双击「批准」时两个请求都看到
         # pending，各起一个执行线程 → 同一动作真的跑了两次。
@@ -956,6 +1039,13 @@ def _launch_tool(tool, tool_params):
         if isinstance(res, dict):
             res.setdefault('run', run_name)
             res['out_dir'] = str(run_dir)
+        # 模块结果页（与 tools_api 同口径）：AI 执行单发起的工具运行
+        # 完成时也出 results.html。失败只跳过，不影响任务。
+        try:
+            from Virus_Platform_Core.report_kit import module_page
+            module_page.build_tool_run_page(str(run_dir), logger=log)
+        except Exception as _mp_e:
+            log(f"模块结果页生成失败（跳过）: {type(_mp_e).__name__}: {_mp_e}")
         try:
             os.utime(base_dir)
         except OSError:

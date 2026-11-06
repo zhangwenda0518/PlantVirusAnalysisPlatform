@@ -29,7 +29,7 @@
   </nav>
 
   <div class="rs-sec" id="sec-samples">
-  <div class="card">
+  <div class="card" data-guide="Results">
     <h2><span data-i18n="rs.title">已分析样品</span>
       <select id="resProjFilter" title="按项目筛选（与顶部全局项目同步）"
               style="font-size:12px;margin-left:auto;max-width:190px"
@@ -41,7 +41,7 @@
     <table class="tbl" id="sampleTbl">
       <tr><th data-i18n="rs.sample">样品</th><th data-i18n="rs.project">项目</th><th data-i18n="rs.mtime">最近运行</th><th data-i18n="rs.report">报告</th><th data-i18n="rs.ops">操作</th></tr>
       {% for s in samples %}
-      <tr data-project="{{ s.project }}">
+      <tr data-project="{{ s.project }}" data-sample="{{ s.name }}">
         <td>{{ s.name }}</td>
         <td>{% if s.project %}<span class="hint">🏷 {{ s.project }}</span>{% else %}<span class="no">—</span>{% endif %}</td>
         <td>{{ s.mtime }}</td>
@@ -53,6 +53,9 @@
           {% if s.report_v2 %}
           <a class="btn small primary" target="_blank" href="/report/{{ s.name }}?v=paper">📄 结论文档</a>
           {% endif %}
+          <button class="btn small" data-mp-url="/api/module_report?sample={{ s.name|urlencode }}&stage=report"
+                  data-mp-title="{{ s.name }} · 模块结果页"
+                  onclick="previewModulePageFrom(this)">🧩 模块结果</button>
           <button class="btn small" onclick="openDir('{{ s.name }}')" data-i18n="rs.dir">📂 目录</button>
           <button class="btn small" onclick="toggleFiles('{{ s.name }}', this)" data-i18n="rs.filesBtn">📁 文件</button>
           <button class="btn small" onclick="clearSample('{{ s.name }}', this)"
@@ -265,6 +268,17 @@
 <script>
 /* ---------------- 样品/集合列表：fetchSampleList/sampleLabel 由 app.js 提供 ---------------- */
 
+/* ?sample=<样品> 深链接（2026-11-02）：历史归档 / 任务卡「在页面中打开」跳回来时，
+   三个分页签各自的样品下拉都直接选到那个样品，省得用户自己找。 */
+const RS_WANT_SAMPLE = new URLSearchParams(location.search).get('sample') || '';
+function rsPickSample(sel) {
+  if (!RS_WANT_SAMPLE || !sel) return false;
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === RS_WANT_SAMPLE) { sel.value = RS_WANT_SAMPLE; return true; }
+  }
+  return false;
+}
+
 /* ---------------- MSA SNP-only 查看器 ---------------- */
 let msaData = null, msaPageNo = 0;
 
@@ -275,7 +289,7 @@ async function msaLoadSamples() {
     sel.innerHTML = list.length
       ? list.map(x => `<option value="${esc(x.sample)}">${esc(sampleLabel(x))}</option>`).join('')
       : `<option value="">${t('rs.noAln')}</option>`;
-    if (sel.value) msaLoadGroups();
+    if (rsPickSample(sel) || sel.value) msaLoadGroups();
   } catch (e) { sel.innerHTML = `<option value="">${t('rs.loadFail')}</option>`; }
 }
 
@@ -368,7 +382,7 @@ async function sdtLoadSamples() {
     sel.innerHTML = list.length
       ? list.map(x => `<option value="${esc(x.sample)}">${esc(sampleLabel(x))}</option>`).join('')
       : `<option value="">${t('rs.noAlnYet')}</option>`;
-    if (sel.value) sdtLoadGroups();
+    if (rsPickSample(sel) || sel.value) sdtLoadGroups();
   } catch (e) { sel.innerHTML = `<option value="">${t('rs.loadFail')}</option>`; }
 }
 
@@ -388,7 +402,7 @@ async function treeLoadSamples() {
     sel.innerHTML = treeSamples.length
       ? treeSamples.map(x => `<option value="${esc(x.sample)}">${esc(x.label || x.sample)}</option>`).join('')
       : `<option value="">${t('rs.noTree')}</option>`;
-    if (sel.value) treeLoadGroups();
+    if (rsPickSample(sel) || sel.value) treeLoadGroups();
   } catch (e) { sel.innerHTML = `<option value="">${t('rs.loadFail')}</option>`; }
 }
 
@@ -506,6 +520,9 @@ async function loadSpecialRuns() {
           <button class="btn small" onclick="toggleRunFiles('${esc(run.name)}')">${open ? t('rs.collapse') : '📁 ' + t('c.files')}</button>
           ${isContig ? `<a class="btn small primary" target="_blank" href="/api/tool/report?run=${esc(run.name)}">📊 分类报告</a>` : ''}
           <a class="btn small" target="_blank" href="/api/tool/report?run=${esc(run.name)}&v=paper">📄 结论文档</a>
+          <button class="btn small primary" data-mp-url="/api/module_report?run=${encodeURIComponent(run.name)}"
+                  data-mp-title="${esc(run.name)} · 模块结果页"
+                  onclick="previewModulePageFrom(this)">🧩 模块结果</button>
           <button class="btn small" onclick="openRunDir('${esc(run.name)}')" data-i18n="rs.openDirRun">📂 打开目录</button>
         </div>
         ${open ? `<div class="scroll-sm" style="margin-top:6px">${fileHtml}</div>` : ''}
@@ -526,6 +543,25 @@ async function openRunDir(name) {
   } catch (e) { alert(t('ui.common.openFail') + ': ' + e); }
 }
 loadSpecialRuns();
+
+/* ?run=<名称> 深链接（2026-11-02）：历史归档 / 任务卡「在页面中打开」跳到结果中心时，
+   直接切到「专项分析运行」、展开这次运行的文件并高亮滚到眼前。 */
+const RS_WANT_RUN = new URLSearchParams(location.search).get('run') || '';
+async function rsFocusRun() {
+  if (!RS_WANT_RUN) return;
+  const box = $('runsBox');
+  if (!box) return;
+  openRuns.add(RS_WANT_RUN);
+  await loadSpecialRuns();
+  for (const el of box.children) {
+    if ((el.textContent || '').includes(RS_WANT_RUN)) {
+      el.classList.add('rs-hit');
+      try { el.scrollIntoView({ block: 'center' }); } catch (e) {}
+      return;
+    }
+  }
+}
+setTimeout(() => { try { rsFocusRun(); } catch (e) {} }, 600);
 
 sdtLoadSamples();
 treeLoadSamples();
@@ -632,6 +668,17 @@ function rsShow(id) {
     a.classList.toggle('on', a.dataset.sec === id);
   });
 }
+/* ?sample= 深链接：把「已分析样品」里那一行高亮并滚到中间
+   （历史归档 → 在页面中打开，落到这次运行对应的样品）。 */
+function rsFocusSample() {
+  if (!RS_WANT_SAMPLE) return;
+  const sel = '#sampleTbl tr[data-sample="' + RS_WANT_SAMPLE.replace(/["\\]/g, '\\$&') + '"]';
+  let tr = null;
+  try { tr = document.querySelector(sel); } catch (e) { tr = null; }
+  if (!tr) return;
+  tr.classList.add('rs-hit');
+  try { tr.scrollIntoView({ block: 'center' }); } catch (e) {}
+}
 (function rsInit() {
   document.querySelectorAll('#rsPills .gt-item').forEach(a => {
     a.addEventListener('click', ev => {
@@ -641,6 +688,7 @@ function rsShow(id) {
     });
   });
   rsShow((location.hash || '').replace('#', ''));
+  rsFocusSample();
 })();
 window.addEventListener('hashchange', () => rsShow((location.hash || '').replace('#', '')));
 </script>

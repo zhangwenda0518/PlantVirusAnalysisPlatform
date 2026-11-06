@@ -25,9 +25,12 @@ import requests
 TIMEOUT = (15, 300)
 
 # 提供方预设：选预设后前端自动回填 base_url 与推荐模型；custom 由用户全填。
+# 2026-11-03：DeepSeek 官方模型名已改为 deepseek-flash / deepseek-v4-pro
+# （旧 deepseek-chat 在官网定价页已不再列出），预设随之更新；/v1 端点保持
+# 不变（DeepSeek 的 OpenAI 兼容端点，带不带 /v1 都通）。
 PROVIDER_PRESETS = [
     {'id': 'deepseek', 'name': 'DeepSeek（深度求索）',
-     'base_url': 'https://api.deepseek.com/v1', 'model': 'deepseek-chat',
+     'base_url': 'https://api.deepseek.com/v1', 'model': 'deepseek-flash',
      'key_url': 'https://platform.deepseek.com'},
     {'id': 'zhipu', 'name': '智谱 GLM',
      'base_url': 'https://open.bigmodel.cn/api/paas/v4', 'model': 'glm-4-flash',
@@ -61,17 +64,35 @@ class AIProviderError(Exception):
         self.status = status
 
 
+def _key_of(ai_cfg):
+    """取可用 Key（就地展开 ${ENV_VAR}，兼容任何入口塞进来的占位符）。"""
+    raw = str((ai_cfg or {}).get('api_key') or '').strip()
+    if not raw:
+        return ''
+    try:
+        from Virus_Platform_Core.config import expand_secret
+        return expand_secret(raw)
+    except Exception:                     # pragma: no cover - 极端导入失败
+        return raw
+
+
 def ai_ready(ai_cfg):
-    """配置是否可用（启用 + base_url + model；Ollama 允许无 Key）。"""
-    return bool(ai_cfg and ai_cfg.get('enabled') and ai_cfg.get('base_url')
-                and ai_cfg.get('model')
-                and (ai_cfg.get('api_key') or 'ollama' == ai_cfg.get('provider')))
+    """配置是否可用（base_url + model；Ollama 允许无 Key）。
+
+    2026-11-03 用户定案：**取消「启用 AI 工作台」总开关**——填好端点就等于
+    启用，不再要求额外的 enabled 标志（实测用户填完 Key 却卡在「未配置完整」，
+    根因就是这个默认关闭、位置还不显眼的开关）。字段仍保留写入（老配置、
+    播报/执行单分级仍读它），但不再参与就绪判定。
+    """
+    return bool(ai_cfg and ai_cfg.get('base_url') and ai_cfg.get('model')
+                and (_key_of(ai_cfg) or 'ollama' == ai_cfg.get('provider')))
 
 
 def _headers(ai_cfg):
     h = {'Content-Type': 'application/json'}
-    if ai_cfg.get('api_key'):
-        h['Authorization'] = f"Bearer {ai_cfg['api_key']}"
+    key = _key_of(ai_cfg)
+    if key:
+        h['Authorization'] = f"Bearer {key}"
     return h
 
 
@@ -149,7 +170,7 @@ def chat_stream(ai_cfg, messages, tools=None, temperature=None, max_tokens=None,
     requests 层异常（DNS/超时/拒绝连接）也归一为 AIProviderError。
     """
     if not ai_ready(ai_cfg):
-        raise AIConfigError('AI 助手未配置完整（设置页需启用并填写 Base URL / '
+        raise AIConfigError('AI 助手未配置完整（设置页需填写 Base URL / '
                             'API Key / 模型）')
     payload = {
         'messages': messages,
@@ -157,7 +178,7 @@ def chat_stream(ai_cfg, messages, tools=None, temperature=None, max_tokens=None,
         'stream': True,
         'temperature': (ai_cfg.get('temperature') if temperature is None
                         else temperature),
-        'max_tokens': ai_cfg.get('max_tokens') or 2048,
+        'max_tokens': ai_cfg.get('max_tokens') or 32768,
     }
     if tools:
         payload['tools'] = tools

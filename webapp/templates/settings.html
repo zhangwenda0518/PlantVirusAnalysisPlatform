@@ -17,7 +17,7 @@
              border-right: 1px solid rgba(127, 140, 120, .18); }
   .se-group { font-size: 11.5px; color: var(--ink-400, #7b8a99);
               padding: 10px 10px 4px; letter-spacing: .4px; }
-  .se-side a { display: block; padding: 7px 10px; border-radius: 8px;
+  .se-side a { display: block; padding: 7px 10px 7px 24px; border-radius: 8px;
                font-size: 13px; color: var(--ink-700, #2c3a4b);
                text-decoration: none; cursor: pointer; }
   .se-side a:hover { background: rgba(26, 122, 73, .10); }
@@ -164,7 +164,7 @@
   <div class="se-main">
   <div class="settings-grid">
     <!-- 通用设置 -->
-    <section id="sec-outputs" class="card">
+    <section id="sec-outputs" class="card" data-guide="Settings-Ops">
       <h2 data-i18n="se.outRoot">📁 输出目录</h2>
       <p class="hint" data-i18n="se.outRootHint">所有分析产物写入此目录，并按推荐结构自动创建子目录：
          results（样品结果）/ tool_runs（工具运行）/ downloads（数据下载）/
@@ -299,37 +299,21 @@
   </section>
 
   <!-- 平台目录 -->
-  <!-- 工具探测（环境自检，从「数据库构建」页移入） -->
-  <section class="card" style="margin-top:18px">
-    <h2 id="m-tools" data-i18n="bd.toolDetect">🧰 工具探测</h2>
-    <p class="hint" data-i18n="bd.toolDetectHint">分析所用外部程序（bin/ 与 tools/ 目录）的探测结果；
-       缺失只影响对应功能，不影响平台运行。</p>
-    <div id="toolList" class="tools"></div>
-  </section>
-
-  <!-- 插件管理（plugins/ 目录；zip 顶层带 plugin.json 清单，见
-       Virus_Platform_Core/plugin_manager.py）。插件只「填缺」：3rd/ 与
-       platform.json 优先，卸载后配置零残留。 -->
+  <!-- 工具探测 + 插件管理（2026-11-03 定案：合一卡 + 多列——检测与安装
+       同卡，探测总览 3 列、插件包 2 列，窄屏自动退单列。
+       2026-11-04 定案：插件源与「按模块安装」两节合并——插件源直接按
+       功能模块分组展示（模块名 + 就绪/缺少徽标 + 该模块的包行），
+       不再单独勾选模块；索引无 modules 段时退回平铺。
+       plugins/ 目录：zip 顶层带 plugin.json 清单（见 plugin_manager.py），
+       插件只「填缺」：3rd/ 与 platform.json 优先，卸载后配置零残留。 -->
   <section id="sec-plugins" class="card" style="margin-top:18px">
-    <h2 id="m-plugins" data-i18n="se.plugins">🧩 插件管理</h2>
-    <p class="hint" data-i18n="se.pluginsHint">外部工具/数据库包的一键安装：zip 顶层需带
-       plugin.json 清单（name / version / kind / provides），安装到平台
-       plugins/ 目录后自动接入工具探测。同色样例见帮助文档；缺失的工具
-       也可在此安装对应插件补齐。</p>
-    <div id="pluginList" class="tools"><span class="hint">…</span></div>
-    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-      <input id="pluginZipPath" type="text" style="flex:1;min-width:220px"
-             placeholder="本地插件包路径（…\plugin.zip）" data-i18n-ph="se.pluginsPathPh">
-      <button class="btn" onclick="pluginInstallLocal()">📦 <span data-i18n="se.pluginsInstallLocal">本地安装</span></button>
-      <input id="pluginUrl" type="text" style="flex:1;min-width:220px"
-             placeholder="或插件包 URL（https://…/plugin.zip）" data-i18n-ph="se.pluginsUrlPh">
-      <button class="btn" onclick="pluginInstallUrl()">🌐 <span data-i18n="se.pluginsInstallUrl">URL 安装</span></button>
-      <button class="btn" onclick="pluginInstallPick()">📂 <span data-i18n="se.pluginsPick">选择文件</span></button>
-      <input id="pluginZipFile" type="file" accept=".zip" style="display:none">
-      <button class="btn" onclick="loadPlugins(true)">⟳ <span data-i18n="se.pluginsRefresh">刷新</span></button>
-    </div>
-    <p class="hint" id="pluginMsg" style="margin-top:8px"></p>
-    <hr style="margin:14px 0 10px;border:none;border-top:1px solid var(--border,#ddd)">
+    <h2 id="m-tools" data-i18n="se.toolsPlugins">🧰 工具探测与插件</h2>
+    <p class="hint" data-i18n="se.toolsPluginsHint">上半：外部程序探测总览（多列紧凑）；
+       下半：插件源按功能模块分组，缺的包点「安装」即补齐。
+       缺失只影响对应功能，不影响平台运行。</p>
+    <div id="toolList" class="tools tools-grid tools-grid-3"></div>
+
+    <hr style="margin:12px 0 10px;border:none;border-top:1px solid var(--border,#ddd)">
     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
       <b data-i18n="se.pluginsSrc">🛰 插件源（自动检测缺失工具）</b>
       <select id="pluginSourcePref" onchange="savePluginSourcePref()"
@@ -346,22 +330,24 @@
         ⏬ <span data-i18n="se.pluginsFixAll">一键补齐缺失</span>
       </button>
     </div>
-    <div id="pluginAvailable" class="tools" style="margin-top:8px">
+    <div id="pluginAvailable" class="tools tools-grid tools-grid-2" style="margin-top:8px">
       <span class="hint" data-i18n="se.pluginsSrcIdle">尚未检测</span>
     </div>
-    <hr style="margin:14px 0 10px;border:none;border-top:1px solid var(--border,#ddd)">
-    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-      <b data-i18n="se.pluginsByModule">📦 按模块安装</b>
-      <span class="hint" data-i18n="se.pluginsByModuleHint">勾选功能模块 → 自动算所需工具（多模块共用的只下一次）→ 跳过本机已有的，只装缺的。</span>
-      <span style="flex:1"></span>
-      <button class="btn" onclick="loadModules(true)">⟳ <span data-i18n="se.pluginsModuleRefresh">刷新</span></button>
-      <button class="btn" id="moduleInstallBtn" onclick="installSelectedModules()" style="display:none">
-        ⏬ <span data-i18n="se.pluginsModuleInstall">安装选中模块</span>
-      </button>
+
+    <hr style="margin:12px 0 10px;border:none;border-top:1px solid var(--border,#ddd)">
+    <div id="pluginList" class="tools tools-grid tools-grid-2"><span class="hint">…</span></div>
+    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+      <input id="pluginZipPath" type="text" style="flex:1;min-width:220px"
+             placeholder="本地插件包路径（…\plugin.zip）" data-i18n-ph="se.pluginsPathPh">
+      <button class="btn" onclick="pluginInstallLocal()">📦 <span data-i18n="se.pluginsInstallLocal">本地安装</span></button>
+      <input id="pluginUrl" type="text" style="flex:1;min-width:220px"
+             placeholder="或插件包 URL（https://…/plugin.zip）" data-i18n-ph="se.pluginsUrlPh">
+      <button class="btn" onclick="pluginInstallUrl()">🌐 <span data-i18n="se.pluginsInstallUrl">URL 安装</span></button>
+      <button class="btn" onclick="pluginInstallPick()">📂 <span data-i18n="se.pluginsPick">选择文件</span></button>
+      <input id="pluginZipFile" type="file" accept=".zip" style="display:none">
+      <button class="btn" onclick="loadPlugins(true)">⟳ <span data-i18n="se.pluginsRefresh">刷新</span></button>
     </div>
-    <div id="moduleList" class="tools" style="margin-top:8px">
-      <span class="hint" data-i18n="se.pluginsModuleIdle">尚未加载模块列表</span>
-    </div>
+    <p class="hint" id="pluginMsg" style="margin-top:8px"></p>
   </section>
 
   <!-- 环境自检（模块 / 数据库 / 磁盘；工具明细见上方「工具探测」）。
@@ -381,6 +367,59 @@
     </div>
   </section>
 
+  <!-- 软件更新（2026-11-05 自动更新功能）：当前版本 / 检查更新 / 自动更新
+       状态与进度 / 版本档与更新源高级项。数据来自 /api/update/*（机制见
+       updater.py）；app.py 起 daemon 线程跑全自动静默更新，本卡片同时
+       展示后台线程状态。 -->
+  <section id="sec-update" class="card" style="margin-top:18px">
+    <h2 data-i18n="se.upd.title">🔄 软件更新</h2>
+    <p class="hint" data-i18n="se.upd.hint">平台自动保持最新：启动后静默检查新版本，发现新版自动下载校验，
+       等运行中/排队任务结束后自动换装重启（约 400MB，全程校验 sha256）。
+       可在下方关闭自动检查/自动安装，改为手动。</p>
+    <div id="updateBox" class="tools">
+      <span class="hint" data-i18n="se.upd.idle">尚未检查</span>
+    </div>
+    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
+      <button class="btn" onclick="checkUpdate()">
+        ▶ <span data-i18n="se.upd.check">检查更新</span>
+      </button>
+      <button class="btn" id="updInstallBtn" hidden
+              onclick="installUpdate()">
+        ⬇ <span data-i18n="se.upd.install">立即安装</span>
+      </button>
+      <button class="btn" id="updSkipBtn" hidden
+              onclick="skipUpdate()">
+        ✕ <span data-i18n="se.upd.skip">跳过此版本</span>
+      </button>
+    </div>
+    <p class="hint" style="margin-top:10px">
+      <span data-i18n="se.upd.curVer">当前版本</span>:
+      <b id="updCurVer">—</b>
+      <span style="margin-left:14px">
+        <span data-i18n="se.upd.edition">版本档</span>:
+        <b id="updEdition">—</b>
+      </span>
+    </p>
+    <div style="margin-top:8px; border-top:1px solid var(--border, #e5e5e5); padding-top:8px">
+      <label style="display:flex; align-items:center; gap:6px">
+        <input type="checkbox" id="updAutoCheck" checked>
+        <span data-i18n="se.upd.autoCheck">启动时自动检查更新</span>
+      </label>
+      <label style="display:flex; align-items:center; gap:6px; margin-top:4px">
+        <input type="checkbox" id="updAutoApply" checked>
+        <span data-i18n="se.upd.autoApply">发现新版本自动下载并安装（空闲时换装重启）</span>
+      </label>
+      <div style="margin-top:8px">
+        <span class="hint" data-i18n="se.upd.srcLabel">更新源（空 = 内置双源回退）</span><br>
+        <input type="text" id="updSrc" class="inp" style="width:100%; max-width:520px"
+               placeholder="http://…/updates/manifest.json">
+      </div>
+      <button class="btn" style="margin-top:8px" onclick="saveUpdateSettings()">
+        💾 <span data-i18n="se.upd.save">保存更新设置</span>
+      </button>
+    </div>
+  </section>
+
   <!-- AI 工作台（对话驱动智能代理）：两栏布局 —— 左侧供应商档案，右侧分组表单。
        2026-10-30 按用户要求参考 ZCode 模型设置页重排：分组卡片、拨动开关、
        档案列表竖排。配置仍走 /api/ai/config，保存/测连在右栏底部。 -->
@@ -390,10 +429,9 @@
         <h2 data-i18n="ai.se.title">🤖 AI 工作台（对话驱动智能代理）</h2>
         <p class="hint" data-i18n="ai.se.hint">在总览页提供对话式结果解读与全过程指导。AI 只读取平台落盘的分析产物做解读（顾问层，只读）；关键数字全部由代码从结果文件算出后注入，不由模型编造。隐私口径：默认只发送统计摘要与表格行，不发送任何序列本体；选本地 Ollama 可完全离线。</p>
       </div>
-      <label class="sw" title="启用 AI 工作台">
-        <input type="checkbox" id="aiEnabled">
-        <span class="sw-track"></span>
-      </label>
+      {# 2026-11-03 用户定案：取消「启用 AI 工作台」总开关——填好端点即启用。
+         原来的开关默认关着且缩在卡片右上角，用户填完 Key 仍被判「未配置完整」。
+         判定口径见 ai_agent/provider.py:ai_ready（只看 base_url / model / Key）。 #}
     </div>
 
     <div class="ai-set-grid">
@@ -429,11 +467,19 @@
               <a id="aiKeyUrl" class="btn small" href="#" target="_blank" rel="noopener"
                  data-i18n="ai.se.keyUrl" style="display:none;white-space:nowrap">获取 Key</a>
             </div>
-            <small data-i18n="ai.se.keyKeep">留空 = 保持已保存的 Key 不变；仅存本机 platform.json</small>
+            <small data-i18n="ai.se.keyKeep">留空 = 保持已保存的 Key 不变；支持写 ${环境变量名}（如 ${DEEPSEEK_API_KEY}，真 Key 只存环境变量、不落盘；环境变量未设置会直接提示错误）</small>
           </div>
           <div class="ai-field">
             <label data-i18n="ai.se.model">模型</label>
-            <input id="aiModel" placeholder="deepseek-chat">
+            <input id="aiModel" placeholder="deepseek-flash">
+          </div>
+          <!-- 连通性测试就近放在「连接」卡内（2026-11-06）：此前测试按钮只在
+               AI 卡底部的保存行，用户配完 Key 根本看不到。结果就近显示；
+               AI 卡底部的按钮保留（复用同一 /api/ai/test）。 -->
+          <div class="ai-actions" style="margin:6px 0 0">
+            <button class="btn" onclick="aiTest('aiConnMsg')">
+              <span data-i18n="ai.se.test">🔌 测试连接</span></button>
+            <span id="aiConnMsg" class="hint"></span>
           </div>
         </div>
 
@@ -446,7 +492,7 @@
             </div>
             <div class="ai-field">
               <label data-i18n="ai.se.maxtok">最大生成长度（tokens）</label>
-              <input id="aiMaxTok" type="number" min="64" max="32768" step="64" value="2048">
+              <input id="aiMaxTok" type="number" min="64" max="32768" step="64" value="32768">
             </div>
           </div>
         </div>
@@ -524,6 +570,7 @@
   <script src="/static/app-browse.js?v={{ asset_v }}"></script>
   <script src="/static/app-batch.js?v={{ asset_v }}"></script>
   <script src="/static/app-storage.js?v={{ asset_v }}"></script>
+<script src="/static/app-update.js?v={{ asset_v }}"></script>
 <script src="/static/examples.js?v={{ asset_v }}"></script>
 <script>
 /* $ / esc / t / setConnBanner 等均来自 i18n.js 与 app.js，勿重复声明 */
@@ -565,7 +612,13 @@ function markTheme() {
 }
 
 document.querySelectorAll('#themeSeg button').forEach(b =>
-  b.addEventListener('click', () => { applyTheme(b.dataset.theme); markTheme(); }));
+  b.addEventListener('click', () => {
+    /* 2026-11-05：设置页常在外壳 iframe 里，只改本文档会让外壳顶栏与其它
+       保活模块保持旧色，用户只能整窗刷新。VP_SYNC 把主题同步到所有文档。 */
+    if (window.VP_SYNC && VP_SYNC.theme) VP_SYNC.theme(b.dataset.theme);
+    else applyTheme(b.dataset.theme);
+    markTheme();
+  }));
 markTheme();
 
 /* 功能栏位置（顶部 / 左侧）。与主题一样存 localStorage（纯视觉偏好，
@@ -588,7 +641,10 @@ document.querySelectorAll('#navPosSeg button').forEach(b =>
     if (b.dataset.pos === (document.documentElement.getAttribute('data-nav') === 'side' ? 'side' : 'top')) return;
     applyNavPos(b.dataset.pos);
     markNavPos();
-    location.reload();
+    /* 2026-11-05：导航位置影响外壳与每个 iframe 的布局，只刷本帧会留下
+       「设置页换了、外壳没换」的半套状态 —— 走整窗重载。 */
+    if (window.VP_SYNC && VP_SYNC.reloadAll) VP_SYNC.reloadAll();
+    else location.reload();
   }));
 markNavPos();
 
@@ -668,6 +724,16 @@ async function applyRoot(kind, path, msgId) {
       toast(doneTxt, '', {ttl: 3000});
     }
     loadSettings();
+    /* 2026-11-05：目录切换只刷本帧不够 —— 外壳的工作空间条、其它模块的
+       默认参数/库徽标都还按旧配置显示。广播一次，全部保活文档软刷新。 */
+    if (window.VP_SYNC && VP_SYNC.settingsChanged) VP_SYNC.settingsChanged({root: kind});
+    // 输出/数据库根变了：占用表要按新目录重算（服务端缓存 10 分钟，
+    // 不重算会一直显示旧路径的占用，看起来又像"改了没生效"）。
+    if ((kind === 'output_root' || kind === 'database_root')
+        && typeof rescanStorage === 'function') {
+      rescanStorage();
+      if (typeof checkStorageBanner === 'function') checkStorageBanner();
+    }
   } catch (e) { msg.textContent = String(e); }
 }
 
@@ -714,17 +780,36 @@ async function saveSettings() {
     // email/defaults —— 用户改完「模型」点这颗绿色按钮，弹「✔ 已保存并生效」，
     // 但 AI 配置根本没落盘（坞里仍显示旧模型，用户以为"改了没效果"）。
     // 这里补一次 AI 配置落盘，两颗按钮行为一致；AI 卡片不在本页则跳过。
+    // 2026-11-03 修正：原实参是 aiBody(false)，把「刚填进 Key 框的 Key」整段
+    // 丢掉（false 只用于"别覆盖已存 Key"，而 aiBody(true) 本身就只在 Key 框
+    // 非空时才带 api_key）——用户填了 Key 点绿色按钮 = Key 静默丢失。
     let aiOk = true;
+    let aiMiss = [];
     if (typeof aiBody === 'function' && $('aiModel')) {
       try {
         const ra = await fetch('/api/ai/config', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(aiBody(false))});   // false: 不覆盖已存 Key
+          body: JSON.stringify(aiBody(true))});
         aiOk = ra.ok;
+        if (ra.ok) {
+          try { const rd = await ra.json(); aiMiss = aiMissing(rd.config); } catch (e2) {}
+        }
       } catch (e) { aiOk = false; }
+      await aiSyncDock();        // 同页对话坞立即对齐新配置
     }
-    const doneTxt = aiOk ? t('se.saved', '✔ 已保存并生效')
-      : t('se.savedAiFail', '✔ 常规设置已保存；AI 设置保存失败');
+    let doneTxt;
+    if (!aiOk) doneTxt = t('se.savedAiFail', '✔ 常规设置已保存；AI 设置保存失败');
+    else if (aiMiss.length) {
+      doneTxt = t('ai.se.missPre', '已保存，但 AI 还不能用，还缺：') + aiMiss.join('、');
+    } else doneTxt = t('se.saved', '✔ 已保存并生效');
+    // 保存后立即回读面板（2026-11-03）：数据库徽标、目录解析结果、示例路径
+    // 都来自 /api/settings，原先只弹 toast 不重读——用户看到的仍是保存前的
+    // 旧状态，以为没生效，只能手动刷新页面。
+    try { await loadSettings(); } catch (e) { /* 回读失败不影响已保存 */ }
+    /* 2026-11-05：保存后把变更广播给外壳与其它保活模块（分析默认参数 /
+       线程 / 库徽标 / AI 就绪态都变了）。原先只有本帧重读，别的模块要等
+       整窗刷新才看到新值。 */
+    if (window.VP_SYNC && VP_SYNC.settingsChanged) VP_SYNC.settingsChanged({saved: true});
     $('saveHint').textContent = doneTxt;
     toast(doneTxt, '', {ttl: 3000});
     setTimeout(() => { $('saveHint').textContent = ''; }, 4000);
@@ -834,7 +919,6 @@ loadSettings();
 loadTools();
 loadPlugins(false);
 loadPluginsAvailable(false);
-loadModules(false);
 runSelfcheck(false);   // 进页展示缓存结果；强制重跑点按钮
 
 /* ---- 插件管理（/api/plugin/*，机制见 Virus_Platform_Core/plugin_manager.py）---- */
@@ -879,6 +963,18 @@ function pluginMsg(msg, ok) {
   if (el) el.innerHTML = `<span class="${ok ? 'ok' : 'no'}">${esc(msg)}</span>`;
 }
 
+/* 插件增删后：本页工具探测 + 其它保活模块的顶栏环境条/工具状态一起刷新。
+   2026-11-05：此前只刷本帧，用户在其他模块仍看到「工具缺失」，只能整窗刷新。
+   本页的 loadTools 由总线监听器统一触发（settingsChanged 先在本地 fire），
+   这里只在没有总线时兜底。 */
+function pluginChanged() {
+  if (window.VP_SYNC && VP_SYNC.settingsChanged) {
+    VP_SYNC.settingsChanged({plugins: true});
+  } else {
+    loadTools();
+  }
+}
+
 async function pluginInstallLocal() {
   const path = $('pluginZipPath') && $('pluginZipPath').value.trim();
   if (!path) { pluginMsg(t('se.pluginsNeedPath', '请先填本地插件包路径'), false); return; }
@@ -904,7 +1000,7 @@ function pluginInstallPick() {
       const d = await r.json();
       pluginMsg(d.ok ? `${t('se.pluginsDone', '安装成功')}: ${d.installed}`
                      : `${t('se.pluginsFail', '安装失败')}: ${d.error || ''}`, !!d.ok);
-      if (d.ok) { loadPlugins(false); loadTools(); }
+      if (d.ok) { loadPlugins(false); pluginChanged(); }
     } catch (e) {
       pluginMsg(`${t('se.pluginsFail', '安装失败')}: ${e}`, false);
     }
@@ -943,7 +1039,9 @@ async function pluginUninstall(name) {
   }
 }
 
-/* ---- 插件源：自动检测缺失工具 → 一键下载解压（/api/plugin/available）---- */
+/* ---- 插件源：按模块分组展示（2026-11-04 定案：与「按模块安装」合并——
+ * 两节原本把同一批包各渲染一遍，现在一张按模块分组的表：模块名 + 就绪/缺少
+ * 徽标 + 该模块的包行；索引没有 modules 段时退回平铺。 ---- */
 let PLUGIN_AVAIL = [];
 
 async function loadPluginsAvailable(force) {
@@ -951,15 +1049,20 @@ async function loadPluginsAvailable(force) {
   if (!box) return;
   box.innerHTML = `<span class="hint">${t('se.pluginsSrcChecking', '检测中…（拉取插件源索引）')}</span>`;
   try {
-    const d = await (await fetch('/api/plugin/available' + (force ? '?force=1' : ''))).json();
-    if (!d.ok) {
-      box.innerHTML = `<span class="no">✘ ${t('se.pluginsSrcFail', '插件源拉取失败')}: ${esc(d.error || '')}</span>`;
-      $('pluginSrcUrl').textContent = d.index_url || '';
+    const [a, m] = await Promise.all([
+      fetch('/api/plugin/available' + (force ? '?force=1' : '')).then(r => r.json()),
+      // modules 接口失败不连累主列表：降级为平铺（index 旧/模块接口 502/非 JSON 都算）
+      fetch('/api/plugin/modules' + (force ? '?force=1' : ''))
+        .then(r => r.json()).catch(() => null),
+    ]);
+    if (!a.ok) {
+      box.innerHTML = `<span class="no">✘ ${t('se.pluginsSrcFail', '插件源拉取失败')}: ${esc(a.error || '')}</span>`;
+      $('pluginSrcUrl').textContent = a.index_url || '';
       return;
     }
-    PLUGIN_AVAIL = d.items || [];
-    $('pluginSrcUrl').textContent = d.index_url || '';
-    $('pluginSrcUrl').title = d.index_url || '';
+    PLUGIN_AVAIL = a.items || [];
+    $('pluginSrcUrl').textContent = a.index_url || '';
+    $('pluginSrcUrl').title = a.index_url || '';
     if (!PLUGIN_AVAIL.length) {
       box.innerHTML = `<span class="hint">${t('se.pluginsSrcEmpty', '插件源为空')}</span>`;
       return;
@@ -970,23 +1073,95 @@ async function loadPluginsAvailable(force) {
       $('pluginFixAllBtn').querySelector('span').textContent =
         `${t('se.pluginsFixAll', '一键补齐缺失')}（${needCnt}）`;
     }
-    box.innerHTML = PLUGIN_AVAIL.map(p => {
+    /* 2026-11-03 合一卡：检测与安装同行——provides 的每个工具键给一枚
+       ✔/✘ 芯片（数据来自 /api/tools 的 TOOL_PROBE），✘ 即「缺什么」一眼可见 */
+    const probe = (typeof TOOL_PROBE === 'object' && TOOL_PROBE) || {};
+    const row = (p) => {
       const size = p.size ? ` · ${(p.size / 1048576).toFixed(1)}MB` : '';
       const badge = p.installed
         ? `<span class="ok">✔ ${t('se.pluginsInstalledTag', '已安装')}</span>`
         : p.needed
           ? `<span class="no">● ${t('se.pluginsNeededTag', '缺失')}</span>`
-          : `<span class="hint">○ ${t('se.pluginsOptionalTag', '本机已具备')}</span>`;
-      const keys = (p.missing_keys && p.missing_keys.length)
-        ? ` → ${t('se.pluginsMissingKeys', '缺')}: ${p.missing_keys.map(esc).join(', ')}`
-        : '';
-      const btn = (p.installed || !(p.url || (p.urls || []).length)) ? '' :
+          : (p.kind === 'database')
+            ? `<span class="hint">◌ ${t('se.pluginsDbAbsent', '未安装（可选下载件）')}</span>`
+            : `<span class="hint">○ ${t('se.pluginsOptionalTag', '本机已具备')}</span>`;
+      const chips = Object.keys(p.provides || {}).map(k =>
+        `<span class="${probe[k] ? 'ok' : 'no'}" title="${esc(k)}"
+           style="font-family:var(--mono);font-size:11px;margin-left:6px">${probe[k] ? '✔' : '✘'}${esc(k)}</span>`
+      ).join('');
+      /* 2026-11-06：本机已具备的工具包不再提供「安装」——已具备还挂安装
+         按钮会让人误以为缺了什么（用户实测反馈）。只有缺失（needed）或
+         未安装的可选数据库件才出按钮；刷新后状态会重算，删了工具再来看
+         按钮自然回来。 */
+      const localReady = !p.installed && !p.needed && p.kind !== 'database';
+      const btn = (p.installed || localReady
+                   || !(p.url || (p.urls || []).length)) ? '' :
         `<button class="btn small" data-act="install" data-name="${esc(p.name)}">${t('se.pluginsInstall', '安装')}</button>`;
-      return `<div class="trow"><span>📦 <b>${esc(p.name)}</b> <small>${esc(p.version || '')}${size}${keys}</small></span>
+      return `<div class="trow" style="padding-left:18px"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis">📦 <b>${esc(p.name)}</b> <small>${esc(p.version || '')}${size}</small>${chips}</span>
         <span>${badge} ${btn}</span></div>`;
-    }).join('');
+    };
+    /* 分组：按索引 modules 的顺序排组；共用工具在每个引用它的模块下都显示
+       （与旧「按模块安装」的依赖明细口径一致，badge 是全局同一份状态）；
+       模块组内没有可解析包 → 整组跳过；不属于任何模块的 → 「其他」组收尾。
+       每组包一层 grid-column:1/-1 的 wrapper——tools-grid-2 是两列 grid，
+       模块头不包层会被拆到另一列（2026-11-04 自查修正）；组内包行再开一张
+       两列小网格，保住原先的紧凑密度。 */
+    const mods = (m && m.ok && Array.isArray(m.modules)) ? m.modules : [];
+    const used = new Set();
+    const group = (title, desc, id, ps) => {
+      const missN = ps.filter(p => p.needed && !p.installed).length;
+      const badge = missN
+        ? `<span class="no">${t('se.pluginsModuleMissing', '缺')} ${missN}/${ps.length}</span>`
+        : `<span class="ok">✔ ${t('se.pluginsModuleReady', '就绪')}</span>`;
+      const fix = (missN && id)
+        ? ` <button class="btn small" data-act="modfix" data-name="${esc(id)}">${t('se.pluginsModuleFix', '补齐本模块')}</button>` : '';
+      return `<div style="grid-column:1/-1;margin-top:8px">
+        <div class="trow" style="display:block;padding-bottom:2px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <b>🧩 ${esc(title)}</b>
+            <small class="hint">${esc(desc)}</small>
+            <span style="flex:1"></span>${badge}${fix}
+          </div>
+        </div>
+        <div class="tools-grid tools-grid-2">${ps.map(row).join('')}</div>
+      </div>`;
+    };
+    let html = '';
+    for (const mo of mods) {
+      const ps = (mo.plugins || []).map(n => PLUGIN_AVAIL.find(p => p.name === n)).filter(Boolean);
+      if (!ps.length) continue;
+      ps.forEach(p => used.add(p.name));
+      html += group(t('pm.' + mo.id + '.t', mo.title || mo.id),
+                    t('pm.' + mo.id + '.d', mo.desc || ''), mo.id, ps);
+    }
+    const rest = PLUGIN_AVAIL.filter(p => !used.has(p.name));
+    if (rest.length) html += group(t('se.pluginsOtherGroup', '其他工具 / 数据库'), '', '', rest);
+    // 索引没有 modules 段（旧版插件源）→ 平铺兜底
+    if (!html) html = PLUGIN_AVAIL.map(p => row(p)).join('');
+    box.innerHTML = html;
   } catch (e) {
     box.innerHTML = `<span class="no">✘ ${t('se.pluginsSrcFail', '插件源拉取失败')}: ${esc(e)}</span>`;
+  }
+}
+
+/* 模块头上的「补齐本模块」：单模块走 install_modules（自动去重、跳过已有） */
+async function pluginInstallModule(id) {
+  if (!id) return;
+  if (!confirm(`${t('se.pluginsModuleConfirm', '安装该模块所需工具（自动去重、跳过已有')}?`)) return;
+  pluginMsg(t('se.pluginsInstalling', '安装中…'), true);
+  try {
+    const r = await fetch('/api/plugin/install_modules', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({modules: [id]})});
+    const d = await r.json();
+    if (!d.ok) { pluginMsg(`${t('se.pluginsFail', '操作失败')}: ${d.error || ''}`, false); return; }
+    const ins = d.installed || [], fail = d.failed || [], skip = d.skipped || [];
+    pluginMsg(`${t('se.pluginsModuleDone', '模块安装完成')}：✔${ins.length} 新装, `
+      + `${skip.length} 跳过(已有), ${fail.length} 失败`
+      + (fail.length ? ' — ' + fail.map(f => f.name).join(', ') : ''), !fail.length);
+    loadPlugins(false); pluginChanged(); loadPluginsAvailable(false);
+  } catch (e) {
+    pluginMsg(`${t('se.pluginsFail', '操作失败')}: ${e}`, false);
   }
 }
 
@@ -1028,103 +1203,6 @@ async function pluginInstallMissing() {
   loadPlugins(false); loadTools(); loadPluginsAvailable(false);
 }
 
-/* ---- 按模块安装（/api/plugin/modules）：勾选模块 → 自动算依赖 → 只装缺的 ---- */
-let MODULE_DATA = null;
-let MODULE_SELECTED = new Set();
-
-async function loadModules(force) {
-  const box = $('moduleList');
-  if (!box) return;
-  box.innerHTML = `<span class="hint">${t('se.pluginsModuleLoading', '加载模块列表…')}</span>`;
-  try {
-    const d = await (await fetch('/api/plugin/modules' + (force ? '?force=1' : ''))).json();
-    if (!d.ok) {
-      box.innerHTML = `<span class="no">✘ ${esc(d.error || '')}</span>`;
-      return;
-    }
-    MODULE_DATA = d;
-    const mods = d.modules || [];
-    if (!mods.length) {
-      box.innerHTML = `<span class="hint">${t('se.pluginsModuleEmpty', '索引里没有模块分组（插件源版本较旧）')}</span>`;
-      return;
-    }
-    // 保留用户已勾选、且仍存在的模块
-    const valid = new Set(mods.map(m => m.id));
-    MODULE_SELECTED = new Set([...MODULE_SELECTED].filter(x => valid.has(x)));
-    box.innerHTML = mods.map(m => {
-      const miss = m.missing || [];
-      const badge = m.ready
-        ? `<span class="ok">✔ ${t('se.pluginsModuleReady', '就绪')}</span>`
-        : `<span class="no">${t('se.pluginsModuleMissing', '缺')} ${miss.length}/${m.total}</span>`;
-      const deps = (m.plugins || []).map(n => {
-        const bad = miss.includes(n);
-        return `<span class="${bad ? 'no' : 'ok'}" style="margin-left:6px">${bad ? '○' : '●'} ${esc(n)}</span>`;
-      }).join('');
-      return `<div class="trow" style="display:block">
-        <label style="display:flex;gap:8px;align-items:center;cursor:pointer">
-          <input type="checkbox" value="${esc(m.id)}" ${MODULE_SELECTED.has(m.id) ? 'checked' : ''}
-                 onchange="toggleModule(this.value, this.checked)">
-          <b>${esc(t('pm.' + m.id + '.t', m.title))}</b>
-          <small>${esc(t('pm.' + m.id + '.d', m.desc || ''))}</small>
-          <span style="flex:1"></span>${badge}
-        </label>
-        <div style="margin:4px 0 0 24px;font-size:12px">${deps || '<span class="hint">' + esc(t('se.noToolDeps', '无外部工具依赖')) + '</span>'}</div>
-      </div>`;
-    }).join('');
-    updateModuleBtn();
-  } catch (e) {
-    box.innerHTML = `<span class="no">✘ ${esc(e)}</span>`;
-  }
-}
-
-function toggleModule(id, on) {
-  if (on) MODULE_SELECTED.add(id); else MODULE_SELECTED.delete(id);
-  updateModuleBtn();
-}
-
-function updateModuleBtn() {
-  const btn = $('moduleInstallBtn');
-  if (!btn) return;
-  const n = MODULE_SELECTED.size;
-  btn.style.display = n ? '' : 'none';
-  if (!n) return;
-  // 预估：所选模块待装插件的并集大小
-  const mods = (MODULE_DATA && MODULE_DATA.modules) || [];
-  const plan = (MODULE_DATA && MODULE_DATA.plan) || [];
-  const byName = {};
-  for (const p of plan) byName[p.name] = p;
-  const want = new Set();
-  for (const m of mods) {
-    if (MODULE_SELECTED.has(m.id)) (m.plugins || []).forEach(p => want.add(p));
-  }
-  let size = 0;
-  for (const n of want) if (byName[n]) size += byName[n].size || 0;
-  btn.querySelector('span').textContent =
-    `${t('se.pluginsModuleInstall', '安装选中模块')}（${n} 个模块, ${(size / 1048576).toFixed(0)}MB）`;
-}
-
-async function installSelectedModules() {
-  const ids = [...MODULE_SELECTED];
-  if (!ids.length) return;
-  if (!confirm(`${t('se.pluginsModuleConfirm', '安装所选模块所需工具（自动去重、跳过已有）')} (${ids.length})?`))
-    return;
-  pluginMsg(t('se.pluginsInstalling', '安装中…'), true);
-  try {
-    const r = await fetch('/api/plugin/install_modules', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({modules: ids})});
-    const d = await r.json();
-    if (!d.ok) { pluginMsg(`${t('se.pluginsFail', '操作失败')}: ${d.error || ''}`, false); return; }
-    const ins = d.installed || [], fail = d.failed || [], skip = d.skipped || [];
-    pluginMsg(`${t('se.pluginsModuleDone', '模块安装完成')}：✔${ins.length} 新装, `
-      + `${skip.length} 跳过(已有), ${fail.length} 失败`
-      + (fail.length ? ' — ' + fail.map(f => f.name).join(', ') : ''), !fail.length);
-    loadPlugins(false); loadTools(); loadPluginsAvailable(false); loadModules(false);
-  } catch (e) {
-    pluginMsg(`${t('se.pluginsFail', '操作失败')}: ${e}`, false);
-  }
-}
-
 
 /* ---- AI 助手配置 ----
  * Key 输入框留空 = 不修改已保存的 Key（后端把掩码回传识别为"未变"）。
@@ -1163,13 +1241,25 @@ async function loadAiConfig() {
     sel.innerHTML = AI_PRESETS.map(p =>
       `<option value="${p.id}">${esc(t('ai.pv.' + p.id, p.name))}</option>`).join('');
     sel.value = c.provider || 'deepseek';
-    aiSwSet('aiEnabled', c.enabled);
     $('aiBaseUrl').value = c.base_url || '';
     $('aiModel').value = c.model || '';
-    $('aiKey').value = '';
-    $('aiKey').placeholder = c.api_key_set ? (c.api_key || '') : '';
+    /* 2026-11-03：全新安装 / 清空过的配置里 base_url、model 是空串，而预设
+       只在「提供方」下拉 change 时才回填——用户看到的是空输入框 + 灰色
+       placeholder，以为「DeepSeek 没有预设」。加载时用当前预设补空值
+       （已有值一律不动，避免覆盖用户手填的端点）。 */
+    aiFillPresetEmpty();
+    /* 2026-11-06 内部版：reveal_key 开启时 GET 回明文 → 输入框直接回填；
+       掩码口径（•••• 开头）仍走「留空 = 保持已存」的占位提示。 */
+    const _rk = String(c.api_key || '');
+    if (_rk && !_rk.startsWith('••••')) {
+      $('aiKey').value = _rk;
+      $('aiKey').placeholder = '';
+    } else {
+      $('aiKey').value = '';
+      $('aiKey').placeholder = c.api_key_set ? _rk : '';
+    }
     $('aiTemp').value = c.temperature ?? 0.3;
-    $('aiMaxTok').value = c.max_tokens ?? 2048;
+    $('aiMaxTok').value = c.max_tokens ?? 32768;
     AI_STAGE_OPTS = d.stage_options || [];
     aiRenderStages($('aiBcastStages'), AI_STAGE_OPTS,
                    c.broadcast_stages || ['kvsuite', 'assembly', 'report']);
@@ -1199,14 +1289,42 @@ function aiFillPreset(overwrite) {
   if (p.model) $('aiModel').value = p.model;
 }
 
+/* 只补空字段（加载期调用）：预设里有、输入框里没有才填 */
+function aiFillPresetEmpty() {
+  const p = aiPreset();
+  if (!$('aiBaseUrl').value.trim() && p.base_url) $('aiBaseUrl').value = p.base_url;
+  if (!$('aiModel').value.trim() && p.model) $('aiModel').value = p.model;
+}
+
+/* 保存后「还缺什么」——按后端 ai_ready 的口径逐项点名。
+   实测（2026-11-03 用户反馈）：总开关没开、Key 没落盘，两种问题在坞里都只
+   表现为同一句「AI 助手未配置完整」，用户以为设置没生效。 */
+function aiMissing(c) {
+  const miss = [];
+  if (!String((c && c.base_url) || '').trim()) miss.push('Base URL');
+  if (!String((c && c.model) || '').trim()) miss.push(t('ai.se.missModel', '模型'));
+  if (c && !c.api_key_set && String(c.provider || '') !== 'ollama') {
+    miss.push(t('ai.se.missKey', 'API Key'));
+  }
+  return miss;
+}
+
+/* 保存后立刻同步对话坞（设置页与坞同页，坞的就绪态只在加载时取一次；
+   不同步就会出现「明明保存了，坞里还是未配置，必须刷新页面」） */
+async function aiSyncDock() {
+  try {
+    if (window.AI && AI.refreshReady) await AI.refreshReady();
+  } catch (e) { /* 坞未加载时忽略 */ }
+}
+
 function aiBody(includeKey) {
   return {
-    enabled: aiSwGet('aiEnabled'),
+    enabled: true,              // 总开关已取消：填好端点即启用
     provider: $('aiProvider').value,
     base_url: $('aiBaseUrl').value.trim(),
     model: $('aiModel').value.trim(),
     temperature: parseFloat($('aiTemp').value) || 0,
-    max_tokens: parseInt($('aiMaxTok').value, 10) || 2048,
+    max_tokens: parseInt($('aiMaxTok').value, 10) || 32768,
     explain: aiSwGet('aiExplain'),
     broadcast: aiSwGet('aiBroadcast'),
     gate: aiSwGet('aiGate'),
@@ -1227,25 +1345,37 @@ async function aiSave() {
       body: JSON.stringify(aiBody(true))});
     if (!r.ok) { $('aiMsg').textContent = '✘ ' + ((await r.json()).error || t('se.applyFail', '失败')); return; }
     const d = await r.json();
-    $('aiMsg').textContent = t('ai.se.saved', '✔ AI 设置已保存并生效');
+    const miss = aiMissing(d.config);
+    if (miss.length) {
+      $('aiMsg').textContent = '✘ ' + t('ai.se.missPre', '已保存，但还不能用，还缺：')
+        + miss.join('、');
+      toast(t('ai.se.missPre', '已保存，但还不能用，还缺：') + miss.join('、'),
+            '', {ttl: 6000});
+    } else {
+      $('aiMsg').textContent = t('ai.se.saved', '✔ AI 设置已保存并生效');
+      toast(t('ai.se.saved', '✔ AI 设置已保存并生效'), '', {ttl: 3000});
+    }
     $('aiKey').value = '';
     $('aiKey').placeholder = d.config && d.config.api_key_set
       ? (d.config.api_key || '') : '';
-    toast(t('ai.se.saved', '✔ AI 设置已保存并生效'), '', {ttl: 3000});
+    await aiSyncDock();          // 同页的对话坞立即对齐，不必刷新页面
+    // 其它保活模块里的坞也按新配置对齐（同一浏览器里不止这一个文档）
+    if (window.VP_SYNC && VP_SYNC.settingsChanged) VP_SYNC.settingsChanged({ai: true});
   } catch (e) { $('aiMsg').textContent = String(e); }
 }
 
-async function aiTest() {
-  $('aiMsg').textContent = t('ai.se.testing', '测试中…（首次连接可能需数秒）');
+async function aiTest(msgId) {
+  const m = $(msgId || 'aiMsg');
+  m.textContent = t('ai.se.testing', '测试中…（首次连接可能需数秒）');
   try {
     const r = await fetch('/api/ai/test', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(aiBody(true))});
     const d = await r.json();
-    $('aiMsg').textContent = r.ok && d.ok
+    m.textContent = r.ok && d.ok
       ? `${t('ai.se.testOk', '✔ 连接正常')} · ${d.latency_ms}ms · ${esc(d.reply || '')}`
       : `${t('ai.se.testFail', '✘ 连接失败')} ${esc(d.error || '')}`;
-  } catch (e) { $('aiMsg').textContent = String(e); }
+  } catch (e) { m.textContent = String(e); }
 }
 
 
@@ -1259,8 +1389,8 @@ async function aiTest() {
       ['sec-storage', 'se.storage'], ['sec-paths', 'se.paths']] },
     { key: 'se.nav.analysis', fb: '分析与工具', items: [
       ['sec-general', 'se.general'], ['sec-dbs', 'se.dbs'],
-      ['sec-defaults', 'se.defaults'], ['m-tools', 'bd.toolDetect'],
-      ['sec-plugins', 'se.plugins'], ['sec-selfcheck', 'se.selfcheck']] },
+      ['sec-defaults', 'se.defaults'], ['sec-plugins', 'se.toolsPlugins'],
+      ['sec-selfcheck', 'se.selfcheck'], ['sec-update', 'se.upd.title']] },
     { key: 'se.nav.ai', fb: 'AI 助手', items: [['aiCard', 'ai.se.title']] },
   ];
   const side = document.getElementById('seSide');
@@ -1349,11 +1479,31 @@ async function aiTest() {
     const el = document.getElementById(id);
     if (!el) return;
     setActive(id);
-    const y = el.getBoundingClientRect().top + window.scrollY
-            - headOffset() - GAP + 2;
+    // 目标位置每次现算：上方的卡片（存储与磁盘 / 插件管理 / 环境自检）是异步加载
+    // 的，点得越远、文档在滚动期间长得越高，点击时算出的 y 就越不准。
+    // +6 是在 GAP 之外再留一点余量，顶栏高度小幅变动时落点也不会贴到边框上。
+    const targetY = () => Math.max(0, el.getBoundingClientRect().top
+                                   + window.scrollY - headOffset() - GAP - 6 + 2);
     // 锁 = 平滑滚动的最长预期时长；期间不接受位置计算的高亮
-    lockUntil = Date.now() + 700;
-    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    lockUntil = Date.now() + 1500;
+    window.scrollTo({ top: targetY(), behavior: 'smooth' });
+    // 落定后校正：平滑滚动跑完之前锁就到期的话，最后几个 scroll 事件会把高亮判成
+    // 上一项（实测点「通用设置」亮着「平台目录」）；文档异步长高造成的欠滚也在这
+    // 里补，反复校几轮直到对得上为止。
+    if (side._settle) clearInterval(side._settle);
+    let tries = 0;
+    side._settle = setInterval(() => {
+      const t = targetY();
+      if (Math.abs(window.scrollY - t) > 2 && tries < 4) {
+        tries += 1;
+        window.scrollTo({ top: t });
+        return;
+      }
+      clearInterval(side._settle);
+      side._settle = null;
+      setActive(id);
+      lockUntil = Date.now() + 120;
+    }, 320);
     // 同步地址栏（不新增历史记录）：刷新/分享后仍能落到同一区块
     try { history.replaceState(null, '', '#' + id); } catch (err) {}
   });
@@ -1404,7 +1554,7 @@ async function aiPfSave() {
     body: JSON.stringify({name, base_url: $('aiBaseUrl').value.trim(),
       model: $('aiModel').value.trim(), api_key: $('aiKey').value.trim(),
       temperature: parseFloat($('aiTemp').value) || 0,
-      max_tokens: parseInt($('aiMaxTok').value, 10) || 2048}) });
+      max_tokens: parseInt($('aiMaxTok').value, 10) || 32768}) });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) return alert(d.detail || d.error || ('HTTP ' + r.status));
   $('aiPfName').value = '';
@@ -1419,6 +1569,7 @@ async function aiPfUse(name) {
   if (!r.ok) return alert(d.detail || d.error || ('HTTP ' + r.status));
   await loadAiConfig();
   await aiPfLoad();
+  if (window.VP_SYNC && VP_SYNC.settingsChanged) VP_SYNC.settingsChanged({ai: true});
   toast(t('ai.pf.active', '✔ 已切换当前供应商：') + name
         + (d.ready ? '' : t('ai.pf.notReady', '（注意：配置尚不完整/未启用）')),
         '', {ttl: 3000});
@@ -1467,6 +1618,8 @@ async function aiPfDel(name) {
   };
   bind('pluginList', 'uninstall', pluginUninstall);
   bind('pluginAvailable', 'install', pluginInstallAvail);
+  // 2026-11-04：模块头「补齐本模块」——模块 id 放 data-name（bind 统一取它）
+  bind('pluginAvailable', 'modfix', pluginInstallModule);
 })();
 aiPfLoad();
 </script>

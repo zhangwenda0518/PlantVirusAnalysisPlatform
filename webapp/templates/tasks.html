@@ -245,6 +245,29 @@ function resultLink(task) {
   return null;
 }
 
+/* 归档任务「结果还在吗」——2026-11-02 用户原话：「我说的归档，是现在运行保留的
+   页面是否归档到历史任务，以及结果重新还原到页面中」。光把任务记录搬进历史不算
+   归档：历史里的每一条得能**把结果重新装回对应页面**。
+   公共检索的结果集是 meta_search/<集合名>/search/…，所以按集合名拼 /meta?p=，
+   页面自己会把这套检索结果重新查出来；其它任务沿用发起方登记的 link。 */
+function restoreHref(task) {
+  const hay = [
+    (task.result && (task.result.msg || task.result.report || '')) || '',
+    task.log_file || '', task.out_dir || ''
+  ].join(' ');
+  const mMeta = /meta_search[\\/]+([^\\/]+)[\\/]+search/.exec(hay);
+  if (mMeta) return '/meta?p=' + encodeURIComponent(mMeta[1]) + '#sb';
+  // 工具运行：产物在 tool_runs/<run>/，结果中心「专项分析运行」能把这次展开（run 名形如 convert_20261102_144320_c64ce1）
+  const mRun = /tool_runs[\\/]+([^\\/]+)/.exec(hay)
+    || (/[\\/]_[A-Za-z0-9]*out[\\/]+([^\\/]+)/i.exec(hay));
+  if (mRun) return '/results?run=' + encodeURIComponent(mRun[1]) + '#runs';
+  // 样品/流水线：产物在 run/results/<样品>/
+  const mSample = /results[\\/]+([^\\/]+)/.exec(hay);
+  if (mSample) return '/results?sample=' + encodeURIComponent(mSample[1]) + '#samples';
+  if (task.link && task.link !== '/meta') return task.link;
+  return task.link || null;
+}
+
 const LOG_OPEN = new Set();   // 展开状态的日志卡（重绘后保持）
 const cardSigs = {};          // tid -> 状态签名（增量渲染，防日志卡闪烁）
 
@@ -267,8 +290,13 @@ function actionsHtml(task, archived) {
   if (!archived && !task.external && task.status !== 'running' && task.status !== 'queued')
     btns.push(`<button class="btn small" onclick="archiveTask('${task.id}', this.dataset.n)"`
       + ` data-n="${esc(task.name || '')}" title="${t('tk.archiveTip', '移入历史归档（可随时恢复）')}">${t('tk.archive', '📦 归档')}</button>`);
-  if (archived)
+  if (archived) {
+    const rh = restoreHref(task);
+    if (rh && task.status === 'done')
+      btns.push(`<a class="btn small" href="${esc(rh)}" style="text-decoration:none"`
+        + ` title="${t('tk.restoreToPageTip', '把这次运行的结果重新装回对应页面')}">${t('tk.restoreToPage', '↗ 在页面中打开')}</a>`);
     btns.push(`<button class="btn small" onclick="restoreTask('${task.id}')">${t('tk.restore', '↩ 恢复')}</button>`);
+  }
   btns.push(`<button class="btn small" onclick="delTask('${task.id}', ${archived})">🗑 ${t('tk.del', '删除')}</button>`);
   return `<span class="tk-actions">${btns.join('')}</span>`;
 }
@@ -469,7 +497,11 @@ function onLogToggle(details, tid, archived) {
   else { LOG_OPEN.delete(tid); clearTimeout(logTimers[tid]); }
 }
 
-/* ── 数据拉取与轮询 ── */
+/* ── 数据拉取：首屏拉全量，运行中改走 SSE 推送 ──
+   /api/task/<tid>/stream 早已由 LOGAN 批量面板在用（tasks_api.py：
+   0.7s 快照差量 + 20s 心跳 + 单连接最多 also=8 个任务），这里不重复造轮子，
+   只把任务中心的 2.5s 轮询接到它上面。推送不可用（浏览器不支持 / 运行中
+   任务超过 8 路 / 断流）时自动回落原有轮询节拍，行为不变。 */
 async function fetchActive() {
   TASKS = await jf('/api/tasks?logs=0');
   render();
@@ -481,19 +513,84 @@ async function fetchArch() {
   archLoaded = true;
   renderArch(); render();
 }
+
+const SSE_MAX = 8;          // 与服务端 also= 的上限对齐
+let streamSrc = null;       // 常驻推送连接
+let streamIds = [];         // 本连接订阅的任务 id
+
+function closeStream() {
+  if (streamSrc) { streamSrc.close(); streamSrc = null; }
+  streamIds = [];
+}
+
+/* 按 id 合并快照：SSE 的 payload 与 /api/tasks 条目同源（都是
+   tm.snapshot()），字段是超集，直接覆盖；新任务插到表头，与服务端
+   order 的「最新在前」一致。 */
+function mergeSnap(snap) {
+  if (!snap || !snap.id) return;
+  const i = TASKS.findIndex(x => x.id === snap.id);
+  if (i >= 0) TASKS[i] = Object.assign({}, TASKS[i], snap);
+  else TASKS.unshift(snap);
+  render();
+}
+
+function openStream() {
+  closeStream();
+  if (typeof EventSource === 'undefined') return false;
+  const running = TASKS.filter(t => t.status === 'running').map(t => t.id);
+  if (!running.length || running.length > SSE_MAX) return false;
+  const ids = running;
+  const [head, ...rest] = ids;
+  const url = '/api/task/' + encodeURIComponent(head) + '/stream'
+    + (rest.length ? '?also=' + rest.map(encodeURIComponent).join(',') : '');
+  let es;
+  try { es = new EventSource(url); } catch (e) { return false; }
+  streamSrc = es;
+  streamIds = ids;
+  const done = new Set();
+  es.onmessage = ev => {
+    let snap;
+    try { snap = JSON.parse(ev.data); } catch (e) { return; }
+    mergeSnap(snap);
+    if (snap && snap.id && snap.status !== 'running') done.add(snap.id);
+    // 订阅的任务全到终态：主动收流，否则浏览器会立刻重连、再被服务端关掉
+    if (done.size >= ids.length) { closeStream(); refreshAll(); }
+  };
+  // 任务被删除/归档后服务端发 gone：同样收流做一次全量刷新
+  es.addEventListener('gone', () => { closeStream(); refreshAll(); });
+  es.onerror = () => {
+    if (!streamSrc) return;          // 自己关的不算错误
+    // 服务端正常收尾也会走到这里：收流 → 全量刷新 → 按新状态重新调度
+    closeStream();
+    pollTimer = setTimeout(refreshAll, 1500);
+  };
+  return true;
+}
+
 async function refreshAll(manual) {
+  closeStream();
   try { await fetchActive(); } catch (e) { /* 静默 */ }
   if (manual || !archLoaded) { try { await fetchArch(); } catch (e) {} }
   schedule();
 }
+
+/* 调度：有运行中任务优先开推送流；没有 / 不支持 / 超 8 路时按原节拍轮询。 */
 function schedule() {
   clearTimeout(pollTimer);
+  closeStream();
   if (document.hidden || !document.getElementById('autoChk').checked) return;
   const running = TASKS.some(t => t.status === 'running');
+  if (running && openStream()) return;
   pollTimer = setTimeout(refreshAll, running ? 2500 : 10000);
 }
+
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && document.getElementById('autoChk').checked) refreshAll();
+  if (document.hidden) {          // 后台不收推送，回前台再审
+    closeStream();
+    clearTimeout(pollTimer);
+    return;
+  }
+  if (document.getElementById('autoChk').checked) refreshAll();
 });
 
 /* ── 操作 ── */
@@ -532,7 +629,11 @@ async function archiveTask(tid, name) {
 }
 async function restoreTask(tid) {
   try {
+    // 任务若被「📥 放入历史运行」收起过，恢复任务时同步解除输出区隐藏
+    let run = '';
+    try { run = ((await jf(`/api/task/${tid}`)) || {}).result?.run || ''; } catch (e) {}
     await jf(`/api/task/${tid}/unarchive`, { method: 'POST' });
+    if (run && typeof outUnhideRun === 'function') outUnhideRun(run);
     toast(t('tk.restored', '已恢复到运行列表'), '', { ttl: 3000 });
   } catch (e) { alert(t('tk.restoreFail', '恢复失败') + '：' + e.message); }
   archLoaded = false;
@@ -646,6 +747,7 @@ syncCurOnly();
 document.getElementById('autoChk').onchange = () => {
   clearTimeout(pollTimer);
   if (document.getElementById('autoChk').checked) schedule();
+  else closeStream();          // 关掉自动刷新就断开推送，不再后台收流
 };
 refreshAll(true);
 

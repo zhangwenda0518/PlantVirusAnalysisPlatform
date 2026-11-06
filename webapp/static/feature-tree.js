@@ -14,12 +14,14 @@
   'use strict';
 
   window.VP_FEATURE_TREE = {
-    updatedAt: '2026-10-11',
+    updatedAt: '2026-11-04',
     groups: [
       { id: 'resource', icon: '🌐', zh: '数据资源', en: 'Data Resources', items: [
         { zh: '公共数据检索', en: 'Public Data Search', href: '/meta' },
         { zh: '病毒样本预筛', en: 'Virus Sample Prescreen', href: '/prescreen' },
         { zh: 'Open-Virome 公共病毒组', en: 'Open-Virome Public Virome', href: '/virome' },
+        { zh: 'LOGAN 溯源', en: 'LOGAN Tracing', href: '/logan' },
+        { zh: 'LOGAN 数据下载', en: 'LOGAN data download', href: '/tools?g=resource#t-loganfetch' },
         { zh: '公共数据下载', en: 'Bulk Data Download', href: '/download' },
         { zh: '基因组查询下载', en: 'Genome Query & Download', href: '/refdata' },
         { zh: '数据库构建', en: 'Database Builder', href: '/build' }
@@ -29,7 +31,8 @@
         { zh: '样品创建 / 批量导入', en: 'Sample Registry & Batch Import', href: '/samples' },
         { zh: '格式转换', en: 'Format Conversion', href: '/tools?g=sample#t-convert' },
         { zh: '序列质控', en: 'Read QC (fastp)', href: '/tools?g=sample#t-fastp' },
-        { zh: '宿主去除与序列提取', en: 'Host Removal & Extraction', href: '/hostremoval' }
+        { zh: '非宿主序列提取（宿主去除）', en: 'Non-host extraction (host removal)', href: '/hostremoval' },
+        { zh: '病毒序列提取（样本分析）', en: 'Viral extraction (sample analysis)', href: '/tools?g=sample#t-identify' }
       ] },
       { id: 'kvsuite', icon: '📈', zh: '病毒定量与共识', en: 'Virus Quantification & Consensus', items: [
         { zh: '一键分析（全流程）', en: 'One-click Full Pipeline', href: '/tools?g=kvsuite#t-kvchain' },
@@ -38,18 +41,16 @@
         { zh: '病毒变异分析', en: 'Variant Analysis', href: '/tools?g=kvsuite#t-variant' }
       ] },
       { id: 'virus', icon: '🦠', zh: '病毒识别和分类分析', en: 'Virus Identification & Classification', items: [
-        { zh: '一键分析（②→③→④）', en: 'One-click ②→③→④', href: '/tools?g=virus#t-virchain' },
-        { zh: '病毒识别分类与提取', en: 'Virus ID, Classification & Extraction', href: '/tools?g=virus#t-identify' },
-        { zh: '提取序列组装', en: 'Assembly of Extracted Contigs', href: '/tools?g=virus#t-assemble' },
-        { zh: '组装结果再鉴定', en: 'Re-identification of Assemblies', href: '/tools?g=virus#t-contigs' },
-        { zh: '候选序列验证', en: 'Candidate Verification', href: '/tools?g=virus#t-verify' }
+        { zh: '一键分析', en: 'One-click analysis', href: '/tools?g=virus#t-virchain' },
+        { zh: '病毒组装', en: 'Virus Assembly', href: '/tools?g=virus#t-assemble' },
+        { zh: '病毒鉴定', en: 'Virus Identification', href: '/tools?g=virus#t-contigs' },
+        { zh: '候选序列验证（含同源比对）', en: 'Candidate Verification (+Homology)', href: '/tools?g=virus#t-verify' }
       ] },
       { id: 'annotate', icon: '🔬', zh: '病毒注释分析', en: 'Virus Annotation', items: [
-        { zh: '注释三连（ORF→功能→图谱）', en: 'Annotation Trio (ORF→Func→Map)', href: '/tools?g=annotate#t-annochain' },
-        { zh: 'ORF 预测', en: 'ORF Prediction', href: '/orf' },
-        { zh: '功能注释', en: 'Functional Annotation', href: '/annotation' },
-        { zh: '同源比对（BLASTN · BLASTX）', en: 'Homology BLASTN · BLASTX', href: '/tools?g=annotate#t-hom' },
-        { zh: '基因组图谱', en: 'Genome Plot', href: '/genome' }
+      { zh: '⚡ 一键分析（注释→图谱→提交）', en: 'One-click (annotation→plots→submission)', href: '/tools?g=annotate#t-annochain' },
+        { zh: '功能注释（含 ORF 预测）', en: 'Functional Annotation (+ORF)', href: '/annotation' },
+        { zh: '基因组图谱', en: 'Genome Plot', href: '/genome' },
+        { zh: '数据提交（NCBI 提交准备）', en: 'NCBI Submission Prep', href: '/submit' }
       ] },
       { id: 'detect', icon: '💊', zh: '检测与防治', en: 'Detection & Control', items: [
         { zh: '引物设计', en: 'Primer Design', href: '/primer' },
@@ -58,6 +59,7 @@
         { zh: 'miRNA 靶标预测', en: 'miRNA Target Prediction', href: '/tools?g=detect#t-mirna' }
       ] },
       { id: 'compare', icon: '⚖️', zh: '比较基因组分析', en: 'Comparative Genomics', items: [
+        { zh: '一键分析（参考→提取→比对→建树→SDT）', en: 'One-click (refs→extract→align→tree→SDT)', href: '/tools?g=compare#t-cmpchain' },
         { zh: '参考序列获取', en: 'Reference Acquisition', href: '/tools?g=compare#t-seqprep' },
         { zh: 'CDS / PEP 提取产物', en: 'CDS · PEP Export', href: '/cds-export' },
         { zh: '序列比对（MAFFT + trimAl）', en: 'MSA (MAFFT + trimAl)', href: '/tools?g=compare#t-align' },
@@ -65,19 +67,15 @@
         { zh: 'SDT 同一性分析（属级）', en: 'SDT Identity', href: '/tools?g=compare#t-sdt' }
       ] },
       { id: 'phylodyn', icon: '🧬', zh: '进化动力学分析', en: 'Phylodynamics', items: [
+        { zh: '⚡ 一键分析', en: '⚡ One-click analysis', href: '/tools?g=phylodyn#t-phylodyn' },
         { zh: '进化动力学数据接入', en: 'Data Intake & Curation', href: '/tools?g=phylodyn#t-pdprep' },
         { zh: 'RDP5 重组分析', en: 'RDP5 Recombination', href: '/tools?g=phylodyn#t-rdp' },
         { zh: '时间信号与定年', en: 'Temporal Signal & Dating', href: '/tools?g=phylodyn#t-rtt' },
-        { zh: '系统地理分析', en: 'Phylogeography', href: '/tools?g=phylodyn#t-phylogeo' },
-        { zh: '一键分析（定年→地理→溯源）', en: 'One-click Dating→Dispersal→Report', href: '/tools?g=phylodyn#t-phylodyn' }
+        { zh: '系统地理分析', en: 'Phylogeography', href: '/tools?g=phylodyn#t-phylogeo' }
       ] },
       { id: 'result', icon: '📊', zh: '结果中心', en: 'Results Center', items: [
         { zh: '样品结果 / 专项结果', en: 'Sample & Special Results', href: '/results' },
         { zh: '进化树 · SDT · MSA 查看器', en: 'Tree · SDT · MSA Viewers', href: '/results' }
-      ] },
-      { id: 'trace', icon: '🔍', zh: '溯源与提交', en: 'Provenance & Submission', items: [
-        { zh: 'LOGAN 溯源 / 批量提交', en: 'LOGAN Provenance & Bulk Submit', href: '/logan' },
-        { zh: '数据提交（NCBI）', en: 'NCBI Submission Prep', href: '/submit' }
       ] },
       { id: 'platform', icon: '✨', zh: '平台级能力', en: 'Platform Capabilities', items: [
         { zh: 'AI 助手（解读 · 播报 · 闸门 · 检索执行）', en: 'AI Assistant (interpret · brief · gates · search-act)', href: '/help' },

@@ -40,30 +40,72 @@ TOOLS_SPEC = [
             'limit': {'type': 'integer', 'description': '最多返回条数，默认 12'}},
             'required': []}}},
     {'type': 'function', 'function': {
+        'name': 'get_anchor_overview',
+        'description': '样品锚总览：当前正在分析/疑似中断（30 分钟无进展，'
+                       '多半是平台重启留下的运行记录）/最近完成的样品清单。'
+                       '回答「现在在跑什么」「有没有卡住的」「刚跑完什么」'
+                       '时优先用这里——比任务中心多了「疑似中断」状态。',
+        'parameters': {'type': 'object', 'properties': {
+            'limit': {'type': 'integer', 'description': '最多返回条数，默认 6'}},
+            'required': []}}},
+    {'type': 'function', 'function': {
+        'name': 'read_result_file',
+        'description': '读取结果目录里的**任意文本文件**（不只表格）：报告'
+                       ' HTML 的源文本、.md/.txt/.log/.json 说明、FASTA 头'
+                       ' 预览等。与 read_result_table 互补——表格用后者，'
+                       '其余文本用本工具。返回文件片段（默认前 8000 字符）；'
+                       'offset=跳过前 N 个字符（翻页用）。',
+        'parameters': {'type': 'object', 'properties': {
+            'kind': {'type': 'string', 'enum': ['sample', 'run'],
+                     'description': 'sample=样品结果目录 / run=工具箱任务目录'},
+            'name': {'type': 'string',
+                     'description': '样品名（kind=sample）或任务目录名（kind=run）'},
+            'relpath': {'type': 'string',
+                        'description': '相对目录的文件路径，如 '
+                                       '09_report/report_v2_meta.json'},
+            'max_chars': {'type': 'integer',
+                          'description': '最多返回字符数（默认 8000，上限 24000）'},
+            'offset': {'type': 'integer',
+                       'description': 'offset=跳过前 N 个字符（翻页用）'}},
+            'required': ['kind', 'name', 'relpath']}}},
+    {'type': 'function', 'function': {
+        'name': 'get_env_brief',
+        'description': '平台环境简报（轻量，毫秒级）：线程数、数据库就绪状态'
+                       '（taxonomy/宿主/病毒）、磁盘剩余、输出根、样品总数。'
+                       '回答「环境怎么样」「库就绪没」「磁盘够不够」「结果'
+                       '落在哪」用本工具，不要跑全量 selfcheck。',
+        'parameters': {'type': 'object', 'properties': {}, 'required': []}}},
+    {'type': 'function', 'function': {
         'name': 'read_result_table',
         'description': '读取样品结果目录下某个 TSV/CSV 表的表头与前若干行'
-                       '（只限 results/ 内的文本表格，不适用于序列/BAM）',
+                       '（只限 results/ 内的文本表格，不适用于序列/BAM）；'
+                       'offset=跳过前 N 行（翻页用）。',
         'parameters': {'type': 'object', 'properties': {
             'sample': {'type': 'string', 'description': '样品名'},
             'relpath': {'type': 'string',
                         'description': '相对样品目录的路径，如 '
                                        '02b_kvsuite/identify/all_viruses.summary.tsv'},
             'max_rows': {'type': 'integer',
-                         'description': '最多数据行数（默认 12，上限 30）'}},
+                         'description': '最多数据行数（默认 12，上限 30）'},
+            'offset': {'type': 'integer',
+                       'description': 'offset=跳过前 N 行（翻页用）'}},
             'required': ['sample', 'relpath']}}},
     {'type': 'function', 'function': {
         'name': 'read_tool_run_file',
         'description': '读取某次工具箱/扩展分析任务目录下的 TSV/CSV 文本表，'
                        '返回表头与前若干行。任务名从平台上下文的 tool_runs 里'
                        '取（如 align_20261004_042206_4e2f3e）。只限该任务目录'
-                       '内的文本表格，不适用于序列/BAM。',
+                       '内的文本表格，不适用于序列/BAM；offset=跳过前 N 行'
+                       '（翻页用）。',
         'parameters': {'type': 'object', 'properties': {
             'run': {'type': 'string',
                     'description': '任务目录名（run/tool_runs/ 下的一级目录）'},
             'relpath': {'type': 'string',
                         'description': '相对该任务目录的路径'},
             'max_rows': {'type': 'integer',
-                         'description': '最多数据行数（默认 12，上限 30）'}},
+                         'description': '最多数据行数（默认 12，上限 30）'},
+            'offset': {'type': 'integer',
+                       'description': 'offset=跳过前 N 行（翻页用）'}},
             'required': ['run', 'relpath']}}},
     {'type': 'function', 'function': {
         'name': 'read_prescreen_file',
@@ -72,7 +114,8 @@ TOOLS_SPEC = [
                        'stat_run_summary.tsv（权威判定，一行一个 run，'
                        'pass 列 = 判定通过）、stat_viral_taxa.tsv（检出的病毒分类）、'
                        'prescreen_pass.tsv（通过的 run）、unresolved.tsv（未决）。'
-                       '项目名从平台上下文的 prescreen 段取。返回表头与前若干行。',
+                       '项目名从平台上下文的 prescreen 段取。返回表头与前若干行；'
+                       'offset=跳过前 N 行（翻页用）。',
         'parameters': {'type': 'object', 'properties': {
             'project': {'type': 'string',
                         'description': '项目目录名（run/meta_search/ 下的一级目录）'},
@@ -80,7 +123,9 @@ TOOLS_SPEC = [
                         'description': '相对该项目 prescreen/ 目录的路径，如 '
                                        'stat_run_summary.tsv'},
             'max_rows': {'type': 'integer',
-                         'description': '最多数据行数（默认 12，上限 30）'}},
+                         'description': '最多数据行数（默认 12，上限 30）'},
+            'offset': {'type': 'integer',
+                       'description': 'offset=跳过前 N 行（翻页用）'}},
             'required': ['project', 'relpath']}}},
     {'type': 'function', 'function': {
         'name': 'wait_task',
@@ -237,8 +282,35 @@ def dispatch(name, args):
             except (TypeError, ValueError):
                 limit = 12
             return json.dumps(digest.task_overview(limit), ensure_ascii=False)
+        if name == 'get_anchor_overview':
+            try:
+                limit = max(1, min(20, int(args.get('limit') or 6)))
+            except (TypeError, ValueError):
+                limit = 6
+            from .. import anchor as _anchor
+            a = _anchor.active(limit=limit)
+            # 精简到对话友好的字段；stale = 30 分钟无进展（多半是重启遗留）
+            slim = [{'sample': s.get('sample'), 'status': s.get('status'),
+                     'stage': s.get('stage') or s.get('stage_done') or '',
+                     'stages_done': s.get('stages_done'),
+                     'stages_total': s.get('stages_total'),
+                     'started': s.get('started'),
+                     'finished': s.get('finished') or ''}
+                    for s in (a.get('running') or [])]
+            rec = [{'sample': s.get('sample'), 'status': s.get('status'),
+                    'finished': s.get('finished') or '',
+                    'dur_s': s.get('dur_s')}
+                   for s in (a.get('recent') or [])]
+            return json.dumps(
+                {'running_or_stale': slim, 'recent': rec,
+                 'hint': 'stale=长时间无进展（多半是平台重启遗留，重启平台即收尾）'},
+                ensure_ascii=False)
         if name == 'read_result_table':
             return _read_result_table(args)
+        if name == 'read_result_file':
+            return _read_result_file(args)
+        if name == 'get_env_brief':
+            return _env_brief()
         if name == 'read_tool_run_file':
             return _read_tool_run_file(args)
         if name == 'read_prescreen_file':
@@ -517,17 +589,71 @@ def _mcp_call(args):
     return out
 
 
-def _safe_read_table_under(root, relpath, max_rows):
+def _table_total_rows(path):
+    """表的数据行数（不含表头，按换行计数，与 digest._tsv_head 同口径）。
+
+    2026-11-04 分页需要：_tsv_head 只返回 truncated 布尔，无法区分"刚好
+    读满"和"后面还有"；这里数一遍总行数，has_more 才算得准。文件已过
+    64MB 体积闸，额外一遍扫描可接受。
+    """
+    n = 0
+    try:
+        with open(path, encoding='utf-8', errors='replace') as f:
+            for _line in f:
+                n += 1
+    except OSError:
+        return 0
+    return max(0, n - 1)
+
+
+def _relpath_is_absolute(relpath):
+    """relpath 是否实际是绝对路径（POSIX 或 Windows 盘符/UNC 形式）。
+
+    两个读文件入口都先 `replace('\\\\','/').lstrip('/')`，这会把手写的
+    绝对路径"伪装"成相对路径；而 os.path.join(root, 'C:/x') 在 Windows
+    会整段替换 root，于是越界检查失效。必须在拼接前显式拒绝。
+    """
+    s = str(relpath or '').replace('\\', '/').strip()
+    return bool(os.path.isabs(s) or re.match(r'^[A-Za-z]:', s)
+                or s.startswith('//'))
+
+
+def _path_within(target, root):
+    """target 是否真的在 root 内（realpath + normcase + 分隔符边界）。
+
+    以前用 `normcase(abspath(target)).find(normcase(abspath(root))) == 0`：
+    同前缀的兄弟目录可互读（root=`…/results/S1`，target=`…/results/S1evil/x`
+    的 find 也是 0），且不解析符号链接。改为 realpath 后要求
+    `target == root` 或 `target.startswith(root + os.sep)`。
+    """
+    try:
+        t = os.path.normcase(os.path.realpath(os.path.abspath(target)))
+        r = os.path.normcase(os.path.realpath(os.path.abspath(root)))
+    except (OSError, ValueError):
+        return False
+    return t == r or t.startswith(r + os.sep)
+
+
+def _safe_read_table_under(root, relpath, max_rows, offset=0):
     """在**给定白名单根**下安全读一张文本表，返回给 LLM 的 JSON 串。
 
     三重防线（两个入口共用同一份实现，避免"只修一处"）：
       1. `check_path(..., in_platform=True)` 两次 —— 根与目标都必须在平台内；
-      2. 规范化后前缀比对 —— 防符号链接 / `..` 相对段逃逸出根；
+      2. realpath + 规范化后按分隔符边界比对 —— 防符号链接 / `..` 相对段
+         / 同前缀兄弟目录逃逸出根；
       3. 体积闸 64MB —— 防上下文炸弹。
+
+    offset（2026-11-04 T3）：跳过前 N 行数据（表头始终返回），用于翻页。
+    _tsv_head 本身不支持 offset，这里多读 offset+max_rows 行再切片；
+    返回体带 offset / n_total / has_more。
     """
     from Virus_Platform_Core.utils import check_path
     from . import digest
-    relpath = str(relpath or '').replace('\\', '/').lstrip('/')
+    raw_rel = str(relpath or '')
+    if _relpath_is_absolute(raw_rel):
+        return json.dumps({'error': 'relpath 不能是绝对路径'},
+                          ensure_ascii=False)
+    relpath = raw_rel.replace('\\', '/').lstrip('/')
     if not relpath:
         return json.dumps({'error': '需要 relpath'}, ensure_ascii=False)
     try:
@@ -536,8 +662,7 @@ def _safe_read_table_under(root, relpath, max_rows):
                             must_exist=True, in_platform=True)
     except (ValueError, OSError) as e:
         return json.dumps({'error': f'路径不合法: {e}'}, ensure_ascii=False)
-    if os.path.normcase(os.path.abspath(target)).find(
-            os.path.normcase(os.path.abspath(root))) != 0:
+    if not _path_within(target, root):
         return json.dumps({'error': '路径越界'}, ensure_ascii=False)
     if os.path.getsize(target) > 64 * 1024 * 1024:
         return json.dumps({'error': '文件过大，不予读取'}, ensure_ascii=False)
@@ -545,9 +670,20 @@ def _safe_read_table_under(root, relpath, max_rows):
         max_rows = max(1, min(30, int(max_rows or 12)))
     except (TypeError, ValueError):
         max_rows = 12
-    t = digest._tsv_head(target, max_rows=max_rows)
+    try:
+        offset = max(0, min(1000000, int(offset or 0)))
+    except (TypeError, ValueError):
+        offset = 0
+    t = digest._tsv_head(target, max_rows=offset + max_rows)
     if t is None:
         return json.dumps({'error': '文件不存在或为空'}, ensure_ascii=False)
+    total = _table_total_rows(target)
+    t['rows'] = (t.get('rows') or [])[offset:offset + max_rows]
+    t['offset'] = offset
+    t['n_total'] = total
+    t['has_more'] = total > offset + max_rows
+    # truncated 改成更精确的"还有下一页"（旧值在刚好读满时也会误报 True）
+    t['truncated'] = t['has_more']
     return json.dumps(t, ensure_ascii=False)
 
 
@@ -559,7 +695,126 @@ def _read_result_table(args):
         return json.dumps({'error': '需要 sample 与 relpath'},
                           ensure_ascii=False)
     return _safe_read_table_under(os.path.join(DIRS['results'], sample),
-                                  args.get('relpath'), args.get('max_rows'))
+                                  args.get('relpath'), args.get('max_rows'),
+                                  offset=args.get('offset'))
+
+
+def _read_result_file(args):
+    """读结果目录里的任意**文本**文件（2026-11-03 AI 工作台扩展）。
+
+    与 _safe_read_table_under 同款三重防线，但放宽内容形态：
+    - 白名单根：kind=sample → run/results/<样品>/；kind=run → run/tool_runs/<任务>/
+    - 扩展名白名单（纯文本形态）：.txt .md .log .json .tsv .csv .njs .seq
+      .fa .fasta .fna .faa .vcf .gb .gbf .bed .sam 头部预览也走这里
+      （sam/vcf 只回头部，不给全量）
+    - 体积闸 256KB + 返回片段（默认 8000 字符，上限 24000）——上下文
+      炸弹防线；超长返回 has_more 标记。
+    - offset（2026-11-04 T3）：字符偏移，跳过前 N 个字符再取 cap 个，用于
+      翻页。文本模式直接 seek 有编码风险，改为整读后切片（文件本身 ≤256KB）。
+    """
+    from Virus_Platform_Core.config import DIRS
+    from Virus_Platform_Core.utils import check_path
+    kind = str(args.get('kind') or 'sample').strip().lower()
+    nm = str(args.get('name') or '').strip()
+    raw_rel = str(args.get('relpath') or '')
+    if _relpath_is_absolute(raw_rel):
+        return json.dumps({'error': 'relpath 不能是绝对路径'},
+                          ensure_ascii=False)
+    relpath = raw_rel.replace('\\', '/').lstrip('/')
+    if not nm or not relpath:
+        return json.dumps({'error': '需要 kind / name / relpath'},
+                          ensure_ascii=False)
+    if kind == 'sample':
+        root = os.path.join(DIRS['results'], nm)
+    elif kind == 'run':
+        root = os.path.join(DIRS['tool_runs'], nm)
+    else:
+        return json.dumps({'error': "kind 只支持 'sample' 或 'run'"},
+                          ensure_ascii=False)
+    ext = os.path.splitext(relpath)[1].lower()
+    if ext not in ('.txt', '.md', '.log', '.json', '.tsv', '.csv', '.njs',
+                   '.seq', '.fa', '.fasta', '.fna', '.faa', '.vcf', '.gb',
+                   '.gbf', '.bed', '.sam'):
+        return json.dumps({'error': f'不支持的文件类型: {ext or "(无扩展名)"}'
+                                    '（只允许文本形态；序列/BAM 全量请走文件选择）'},
+                          ensure_ascii=False)
+    try:
+        root = check_path(root, must_exist=True, in_platform=True)
+        target = check_path(os.path.join(root, relpath),
+                            must_exist=True, in_platform=True)
+    except (ValueError, OSError) as e:
+        return json.dumps({'error': f'路径不合法: {e}'}, ensure_ascii=False)
+    if not _path_within(target, root):
+        return json.dumps({'error': '路径越界'}, ensure_ascii=False)
+    size = os.path.getsize(target)
+    if size > 256 * 1024:
+        return json.dumps({'error': f'文件过大（{size // 1024}KB > 256KB 上限），'
+                                    '请改读其中的表格（read_result_table）'},
+                          ensure_ascii=False)
+    try:
+        cap = max(500, min(24000, int(args.get('max_chars') or 8000)))
+    except (TypeError, ValueError):
+        cap = 8000
+    try:
+        offset = max(0, int(args.get('offset') or 0))
+    except (TypeError, ValueError):
+        offset = 0
+    try:
+        with open(target, 'r', encoding='utf-8', errors='replace') as f:
+            text = f.read()
+    except OSError as e:
+        return json.dumps({'error': f'读取失败: {e}'}, ensure_ascii=False)
+    total = len(text)
+    has_more = total > offset + cap
+    # 'head' 沿用旧字段名（模型与前端已按它取值），语义变为"offset 起的片段"
+    return json.dumps({'path': relpath, 'size': size,
+                       'total_chars': total, 'offset': offset,
+                       'truncated': has_more, 'has_more': has_more,
+                       'head': text[offset:offset + cap]}, ensure_ascii=False)
+
+
+def _env_brief():
+    """平台环境简报（毫秒级，无子进程）：库就绪 / 磁盘 / 线程 / 输出根。"""
+    from Virus_Platform_Core import config as _cfg
+    from Virus_Platform_Core.kunpeng import db_ready
+    import shutil as _sh
+    out = {}
+    try:
+        out['threads'] = int(_cfg.cfg.threads or 0)
+    except Exception:                                   # noqa: BLE001
+        out['threads'] = None
+    try:
+        dbs = _cfg.cfg.databases or {}
+        out['virus_db_ready'] = bool(dbs.get('virus')) and db_ready(dbs['virus'])
+        out['host_db_path'] = str(dbs.get('host') or '')
+        out['host_db_exists'] = bool(dbs.get('host')) and os.path.isdir(
+            str(dbs.get('host') or ''))
+    except Exception:                                   # noqa: BLE001
+        out['virus_db_ready'] = None
+        out['host_db_exists'] = None
+    try:
+        tax = os.path.join(_cfg.DIRS['databases'], 'tax_db', 'nodes.dmp')
+        out['taxonomy_ready'] = os.path.isfile(tax)
+    except Exception:                                   # noqa: BLE001
+        out['taxonomy_ready'] = None
+    try:
+        u = _sh.disk_usage(_cfg.DIRS['results'])
+        out['disk_free_gb'] = round(u.free / 1e9, 1)
+    except Exception:                                   # noqa: BLE001
+        out['disk_free_gb'] = None
+    try:
+        out['output_root'] = _cfg.get_output_root() or '(平台目录 run/)'
+    except Exception:                                   # noqa: BLE001
+        out['output_root'] = ''
+    try:
+        from Virus_Platform_Core.config import DIRS
+        rd = DIRS['results']
+        out['samples_n'] = sum(
+            1 for x in os.listdir(rd)
+            if os.path.isdir(os.path.join(rd, x)) and not x.startswith('_'))
+    except Exception:                                   # noqa: BLE001
+        out['samples_n'] = None
+    return json.dumps(out, ensure_ascii=False)
 
 
 def _read_tool_run_file(args):
@@ -575,7 +830,8 @@ def _read_tool_run_file(args):
         return json.dumps({'error': '需要 run（任务目录名）'},
                           ensure_ascii=False)
     return _safe_read_table_under(os.path.join(DIRS['tool_runs'], run),
-                                  args.get('relpath'), args.get('max_rows'))
+                                  args.get('relpath'), args.get('max_rows'),
+                                  offset=args.get('offset'))
 
 
 # 项目目录名（与 web/prescreen.py 的 _NAME_RE 同口径）：挡掉分隔符与 `..`
@@ -600,7 +856,8 @@ def _read_prescreen_file(args):
             ensure_ascii=False)
     root = os.path.join(DIRS['meta_search'], project, 'prescreen')
     return _safe_read_table_under(root, args.get('relpath'),
-                                  args.get('max_rows'))
+                                  args.get('max_rows'),
+                                  offset=args.get('offset'))
 
 
 # ------------------------------------------------------------------

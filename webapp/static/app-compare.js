@@ -118,7 +118,7 @@ async function gbBuildTree(name, btn) {
       ? (_v('tbAlignedPath') || '')
       : `run/gb_collections/${name}/extract/selected/${mol}.fa`;
     if (!seqs) { alert(t('ui.cmp.needAlnPath')); return; }
-    const method = treeTool === 'nj' ? 'nj' : 'fasttree';
+    const method = treeTool;
     const r = await fetch('/api/tool/run', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tool: 'quicktree',
@@ -209,6 +209,9 @@ async function loadGbCollections() {
   if (!mgmtBox) return;
   try {
     const cols = await (await fetch('/api/gb/collections')).json();
+    /* 「⚡ 一键分析」卡（cmpchain）的集合下拉（cmpColl）与上面的管理表同一份数据源：
+       在同一个 fetch 里顺带填充，避免多打一次 /api/gb/collections。 */
+    _fillCmpColl(cols);
     const gbRow = c => {
       const cds = (c.records || []).reduce((s, r) => s + (+r.cds || 0), 0);
       const src = c.source === 'query' ? esc((c.term || '').slice(0, 36))
@@ -557,7 +560,9 @@ async function quickTreeRun(btn) {
     const d = await r.json();
     qtRun = d.run;
     $('tvMeta').textContent =
-      `⏳ MAFFT 比对 + ${method === 'fasttree' ? 'FastTree' : 'NJ'} 建树中…`;
+      `⏳ MAFFT 比对 + ${
+        method === 'fasttree' ? 'FastTree'
+          : (method === 'nj' ? 'NJ' : 'RAxML-NG')} 建树中…`;
     taskLogOpen.add(d.task);
     startPolling();
     _watchTask(d.task, () => quickTreeLoad(), btn, '⏳ 建树中…');
@@ -575,7 +580,8 @@ async function quickTreeLoad() {
     treeToolRender();
     const dl = $('qtDl');
     dl.style.display = '';
-    dl.href = `/tool_runs/${encodeURIComponent(qtRun)}/${encodeURIComponent(d.file)}`;
+    dl.href = `/tool_runs/${encodeURIComponent(qtRun)}/` +
+      String(d.file || '').split('/').map(encodeURIComponent).join('/');
     dl.download = d.file;
   } catch (e) { $('tvMeta').textContent = '无法连接: ' + esc(e); }
 }
@@ -625,10 +631,15 @@ async function sdtRunMatrix(btn) {
   } catch (e) { alert(t('ui.common.connFail') + ': ' + e); }
 }
 
-async function identityLoad(run) {
+/* silent=历史结果恢复专用：不弹错误框、不滚动定位 —— 恢复失败或无数据时
+   静默退回，避免切到 SDT 卡就被一条 alert / 自动滚动打断（2026-11-04）。 */
+async function identityLoad(run, silent) {
   try {
     const r = await fetch(`/tool_runs/${encodeURIComponent(run)}/identity.json`);
-    if (!r.ok) { alert(t('ui.common.loadFail') + ': ' + ((await r.json()).error || '')); return; }
+    if (!r.ok) {
+      if (!silent) alert(t('ui.common.loadFail') + ': ' + ((await r.json()).error || ''));
+      return;
+    }
     const d = await r.json();
     const base = `/tool_runs/${encodeURIComponent(run)}`;
     $('idtHeat').innerHTML = d.aa
@@ -651,14 +662,19 @@ async function identityLoad(run) {
         ` <a class="btn small" href="${base}/identity_composite.pdf?dl=1">⬇ 复合热图 PDF（矢量）</a>` : '') +
       ` <a class="btn small" href="${base}/nt_heatmap.png?dl=1">⬇ NT 热图 PNG</a>`;
     $('idtResult').style.display = '';
-    $('idtResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  } catch (e) { alert(t('ui.common.connShort') + ': ' + e); }
+    if (!silent) $('idtResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (e) { if (!silent) alert(t('ui.common.connShort') + ': ' + e); }
 }
 
-async function sdtExactLoad() {
+/* silent=历史结果恢复：矩阵文件缺失时不写「加载失败」提示，静默返回 false，
+   让恢复循环去试上一次运行（2026-11-05 全面排查恢复路径）。 */
+async function sdtExactLoad(silent) {
   try {
     const r = await fetch(`/tool_runs/${encodeURIComponent(sdRun)}/sdt_matrix.json`);
-    if (!r.ok) { $('sdMeta').textContent = '加载失败: ' + (await r.json()).error; return; }
+    if (!r.ok) {
+      if (!silent) $('sdMeta').textContent = '加载失败: ' + (await r.json()).error;
+      return false;
+    }
     sdData = await r.json();
     const base = `/tool_runs/${encodeURIComponent(sdRun)}`;
     const names = sdData.names, m = sdData.matrix;
@@ -731,8 +747,12 @@ async function sdtExactLoad() {
       `${names.length} 条序列（${st}） · ${sdData.pairs} 对独立比对 · SDT v1.3 口径` +
       (sdData.aligned ? ' · 已比对直算' : '') +
       (sdData.palette === 'sdt' ? ' · SDT 经典色阶' : ` · ${sdData.palette} 色阶`);
-    $('sdExact').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  } catch (e) { $('sdMeta').textContent = '无法连接: ' + esc(e); }
+    if (!silent) $('sdExact').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return true;
+  } catch (e) {
+    if (!silent) $('sdMeta').textContent = '无法连接: ' + esc(e);
+    return false;
+  }
 }
 
 async function sdtToolLoadGroups() {
@@ -787,5 +807,219 @@ async function sdtToolInit() {
 
 alPickInit();
 treeToolInit();
+
+/* ================= ⚡ 一键分析（cmpchain） ================= */
+/* 一条任务：参考集获取（00_refs）→ CDS/PEP + 保守基因（01_extract）→
+   MAFFT+trimAl（02_align）→ 建树（03_tree）→ SDT（04_sdt）。
+   后端 /api/tool/run tool='cmpchain'（_tool_job_cmpchain → compare_suite），
+   阶段结果以 <run>/run_summary.json 为准；本卡只负责收参与渲染。 */
+let cmpRunName = null;
+
+/* 三种输入模式：选哪个只显示对应控件（existing / ictv / acc） */
+function cmpModeSwitch() {
+  const mode = ($('cmpMode') && $('cmpMode').value) || 'existing';
+  const ex = $('cmpExistingWrap'), ic = $('cmpIctvWrap'), ac = $('cmpAccWrap');
+  if (ex) ex.style.display = mode === 'existing' ? '' : 'none';
+  if (ic) ic.style.display = mode === 'ictv' ? '' : 'none';
+  if (ac) ac.style.display = mode === 'acc' ? '' : 'none';
+}
+
+/* cmpColl 与集合管理表共用同一份 /api/gb/collections 返回
+   （由 loadGbCollections 在同一个 fetch 里顺带调用） */
+function _fillCmpColl(cols) {
+  const sel = $('cmpColl');
+  if (!sel) return;
+  const keep = sel.value;
+  const list = cols || [];
+  sel.innerHTML = list.length
+    ? list.map(c => `<option value="${esc(c.name)}">${esc(c.name)}（${c.n_records} 条记录）</option>`).join('')
+    : '<option value="">（暂无集合——先到「参考序列获取」下载）</option>';
+  if (keep && list.some(c => c.name === keep)) sel.value = keep;
+}
+
+async function cmpRun(btn) {
+  const mode = ($('cmpMode') && $('cmpMode').value) || 'existing';
+  const p = {};
+  if (mode === 'existing') {
+    const coll = _v('cmpColl');
+    if (!coll) { alert(t('ui.cmp.needGbSet')); return; }
+    p.mode = 'collection';
+    p.coll = coll;
+  } else if (mode === 'ictv') {
+    const rank = ($('cmpRank') && $('cmpRank').value) || 'Genus';
+    const taxon = _v('cmpTaxon');
+    if (!taxon) { alert(t('ui.cmp.needTaxon', '请填写 ICTV 分类名（如 Potyvirus）')); return; }
+    p.mode = 'ictv';
+    p.ranks = { [rank]: taxon };
+    p.limit = +_v('cmpLimit') || 200;
+    p.per_genus = +_v('cmpPerGenus') || 0;
+  } else {
+    const accs = _v('cmpAcc').split(/[\s,;]+/).filter(Boolean).join(',');
+    if (!accs) { alert(t('ui.cmp.needAcc', '请填写至少一个 accession')); return; }
+    p.mode = 'accessions';
+    p.accessions = accs;
+  }
+  p.do_cds = !!($('cmpDoCds') && $('cmpDoCds').checked);
+  p.do_gene_cds = !!($('cmpDoGeneCds') && $('cmpDoGeneCds').checked);
+  p.do_gene_pep = !!($('cmpDoGenePep') && $('cmpDoGenePep').checked);
+  p.do_sdt = !!($('cmpDoSdt') && $('cmpDoSdt').checked);
+  p.tree_tool = _v('cmpTree') || 'fasttree';
+  p.mafft_strategy = _v('cmpMafft') || 'auto';
+  p.trimal = _v('cmpTrimal') || 'automated1';
+  p.sdt_max_n = +_v('cmpSdtMax') || 30;
+  const box = $('cmpResult');
+  if (box) box.innerHTML = `<p class="hint">${esc(t('tk.cmpchain.submitted', '⏳ 已提交，运行中…'))}</p>`;
+  try {
+    const r = await fetch('/api/tool/run', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tool: 'cmpchain', params: p })});
+    if (!r.ok) { alert(t('ui.common.startFail') + ': ' + ((await r.json()).error || '')); return; }
+    const d = await r.json();
+    cmpRunName = d.run;
+    if (typeof taskLogOpen !== 'undefined') taskLogOpen.add(d.task);
+    startPolling();
+    _watchTask(d.task, cmpLoadResult, btn, '⏳ 比较基因组链运行中…');
+  } catch (e) { alert(t('ui.common.connFail') + ': ' + e); }
+}
+
+/* 运行结束：读 run_summary.json → 五阶段 ok/failed + warnings + 产物链接。
+   路径口径：run_summary 里 outputs 的相对路径相对各阶段目录（00_refs /
+   01_extract / 02_align / 03_tree / 04_sdt）。 */
+async function cmpLoadResult() {
+  const box = $('cmpResult');
+  if (!box || !cmpRunName) return;
+  const run = cmpRunName;
+  const base = `/tool_runs/${encodeURIComponent(run)}`;
+  const titles = {
+    refs: 'B0 参考集获取', cds: 'B1 CDS/PEP + 保守基因提取',
+    align: 'B2 MAFFT 比对 + trimAl', tree: 'B3 建树（基因组树 + 基因树）',
+    sdt: 'B4 SDT 同一性矩阵',
+  };
+  try {
+    const r = await fetch(`${base}/run_summary.json`);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const st = d.stages || {};
+    const stateHtml = k => {
+      const s = st[k];
+      if (!s) return '<span style="color:#6b7280">— 未运行</span>';
+      return s.ok ? '<span style="color:#15803d">✅ ok</span>'
+        : `<span style="color:#b91c1c">❌ failed：${esc(s.error || '未知原因')}</span>`;
+    };
+    const extraHtml = k => {
+      const o = (st[k] && st[k].outputs) || {};
+      if (k === 'refs') {
+        const n = o.n_records != null ? o.n_records : o.n_fasta;
+        return [esc(o.mode), esc(o.coll), n != null ? `${n} 条` : '']
+          .filter(Boolean).join(' · ');
+      }
+      if (k === 'cds') {
+        return [o.n_genome != null ? `基因组 ${o.n_genome}` : '',
+                o.n_cds != null ? `CDS ${o.n_cds}` : '',
+                o.n_pep != null ? `PEP ${o.n_pep}` : '',
+                o.n_markers != null ? `保守基因 ${o.n_markers} 组` : '']
+          .filter(Boolean).join(' · ');
+      }
+      if (k === 'align') {
+        const g = o.genome || {};
+        return [g.n_seqs != null ? `基因组 MSA ${g.n_seqs} 条` : '',
+                `基因 MSA ${Object.keys(o.genes || {}).length} 个`]
+          .filter(Boolean).join(' · ');
+      }
+      if (k === 'tree') {
+        const g = o.genome || {};
+        const genes = Object.keys(o).filter(x => x !== 'genome');
+        return [g.tree_tool_used ? `基因组树 ${esc(g.tree_tool_used)}` : '',
+                `基因树 ${genes.filter(x => (o[x] || {}).ok).length} 棵`]
+          .filter(Boolean).join(' · ');
+      }
+      if (k === 'sdt') return o.csv ? esc(o.csv) : '';
+      return '';
+    };
+    const flow = Object.keys(titles).map(k =>
+      `<tr><td style="white-space:nowrap">${titles[k]}</td>` +
+      `<td style="white-space:nowrap">${stateHtml(k)}</td>` +
+      `<td class="hint">${extraHtml(k)}</td></tr>`).join('');
+    const warns = [];
+    Object.keys(st).forEach(k => (st[k].warnings || []).forEach(w =>
+      warns.push(`<li><b>${titles[k] || k}</b>：${esc(w)}</li>`)));
+    const sdtOut = (st.sdt && st.sdt.outputs) || {};
+    const treeOut = (st.tree && st.tree.outputs) || {};
+    const flink = (href, label) =>
+      `<a class="btn small" href="${href}" target="_blank" rel="noopener">${label}</a>`;
+    const links = [];
+    if (st.cds && st.cds.ok) {
+      links.push(flink(`${base}/01_extract/marker/marker_report.tsv`,
+                       '⬇ 保守基因清单 TSV'));
+    }
+    const gTree = (treeOut.genome || {}).tree;
+    if (gTree) links.push(flink(`${base}/03_tree/${gTree}`, '⬇ 基因组树 Newick'));
+    Object.keys(treeOut)
+      .filter(k => k !== 'genome' && (treeOut[k] || {}).ok && treeOut[k].tree)
+      .sort()
+      .forEach(k => links.push(flink(`${base}/03_tree/${treeOut[k].tree}`,
+                                     `⬇ 基因树 ${esc(k)}`)));
+    if (sdtOut.csv) links.push(flink(`${base}/04_sdt/${sdtOut.csv}`, '⬇ SDT 矩阵 CSV'));
+    if (sdtOut.heatmap) links.push(flink(`${base}/04_sdt/${sdtOut.heatmap}`, '⬇ SDT 热图 PNG'));
+    if (sdtOut.distribution) links.push(flink(`${base}/04_sdt/${sdtOut.distribution}`, '⬇ identity 分布图'));
+    links.push(flink(`${base}/run_summary.json`, '🧾 run_summary.json'));
+    links.push(`<button class="btn small primary"` +
+      ` data-mp-url="/api/module_report?run=${encodeURIComponent(run)}"` +
+      ` data-mp-title="${esc(run)} · ${esc(t('tk.cmpchain.openModule', '打开模块结果页'))}"` +
+      ` onclick="previewModulePageFrom(this)">📄 ${esc(t('tk.cmpchain.openModule', '打开模块结果页'))}</button>`);
+    const heat = sdtOut.heatmap ? `${base}/04_sdt/${sdtOut.heatmap}`
+      : (st.sdt && st.sdt.ok ? `${base}/04_sdt/sdt_heatmap.png` : '');
+    box.innerHTML =
+      `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">` +
+        `<b>${esc(t('tk.cmpchain.resH3', '运行结果'))} · <span style="font-family:monospace">${esc(run)}</span></b>` +
+        `<span style="display:flex;gap:8px;align-items:center">` +
+          `<span class="hint">${d.ok ? '✅ 全链完成' : '❌ 链中止'}</span>` +
+          `<button class="btn small" data-run="${esc(run)}"` +
+            ` onclick="pushRichRunToHistory('cmpchain', this.dataset.run, this)">` +
+            `${esc(t('c.toHistory', '📥 放入历史运行'))}</button>` +
+        `</span>` +
+      `</div>` +
+      `<table class="table" style="width:100%;border-collapse:collapse;margin-top:8px">` +
+        `<tr><th>阶段</th><th>状态</th><th>摘要</th></tr>${flow}</table>` +
+      (d.error ? `<p class="hint" style="color:#b91c1c">${esc(d.error)}</p>` : '') +
+      (warns.length
+        ? `<details style="margin-top:8px"><summary class="hint" style="color:#b45309;cursor:pointer">` +
+          `⚠ ${warns.length} 条 warnings</summary><ul class="hint" style="margin:4px 0 8px">` +
+          warns.join('') + '</ul></details>'
+        : '') +
+      `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${links.join('')}</div>` +
+      (heat
+        ? `<details style="margin-top:12px" open><summary style="cursor:pointer;font-weight:600">` +
+          `SDT 热图（聚类排序 · 三角）</summary>` +
+          `<a href="${heat}" target="_blank"><img src="${heat}"` +
+          ` style="width:100%;max-width:1100px;border:1px solid #dfe5ec;border-radius:8px;margin-top:6px"></a></details>`
+        : '') +
+      `<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:600">` +
+        `SDT 同一性矩阵（%）</summary>` +
+        `<div class="scroll-lg" style="border:1px solid #eee;border-radius:4px;margin-top:6px">` +
+        `<table class="tb" id="cmpSdtTable" style="font-size:12px"></table></div></details>`;
+    /* 矩阵表复用 SDT 卡的 identityMatrixTable（与 sdtExactLoad 同一渲染器）；
+       这里单独读 04_sdt/sdt_matrix.json，因为 sdtExactLoad 固定写 SDT 卡节点。 */
+    if (st.sdt && st.sdt.ok) {
+      try {
+        const jr = await fetch(`${base}/04_sdt/sdt_matrix.json`);
+        if (jr.ok) {
+          const sd = await jr.json();
+          const tEl = $('cmpSdtTable');
+          if (tEl) tEl.innerHTML = identityMatrixTable(sd.names || [], sd.matrix || []);
+        }
+      } catch (e) { /* 矩阵渲染失败不影响其它产物 */ }
+    }
+    if (typeof loadGbCollections === 'function') loadGbCollections();
+  } catch (e) {
+    box.innerHTML =
+      `<p class="hint" style="color:#b91c1c">结果摘要加载失败：${esc(e)}</p>` +
+      `<p class="hint"><a href="${base}/" target="_blank">浏览运行目录</a> · ` +
+      `<button class="btn small" data-mp-url="/api/module_report?run=${encodeURIComponent(run)}"` +
+      ` data-mp-title="${esc(run)} · 模块结果页"` +
+      ` onclick="previewModulePageFrom(this)">打开模块结果页</button></p>`;
+  }
+}
 sdtToolInit();
+if ($('cmpMode')) cmpModeSwitch();
 

@@ -513,6 +513,11 @@ def _install_one_url(url, root=None, progress=None, expected_sha256=None):
 # ------------------------------------------------------------------
 _index_cache = {'ts': 0, 'data': None, 'url': ''}
 _INDEX_TTL = 600            # 索引进程内缓存 10 分钟
+# 失败负缓存（2026-11-06 启动性能）：三源全部失败后 60s 内不再反复联网
+# 重试——离线机上 selfcheck.collect 每次冷跑都要 3 源 × 30s 超时，首屏
+# 状态条被卡到天荒地老；force=True（手动「重新检测」）不受负缓存限制。
+_FAIL_CACHE = {'ts': 0.0, 'err': ''}
+_FAIL_TTL = 60
 
 
 def _sha256_file(path):
@@ -537,6 +542,9 @@ def fetch_index(url=None, force=False, timeout=30):
             and _index_cache['url'] == urls[0]
             and now - _index_cache['ts'] < _INDEX_TTL):
         return _index_cache['data'], None
+    if (not force and _FAIL_CACHE['ts']
+            and now - _FAIL_CACHE['ts'] < _FAIL_TTL):
+        return None, _FAIL_CACHE['err']
     import urllib.request
     errors = []
     for u in urls:
@@ -550,10 +558,13 @@ def fetch_index(url=None, force=False, timeout=30):
             clean = [p for p in plugins
                      if isinstance(p, dict) and p.get('name') and p.get('url')]
             _index_cache.update(ts=now, data=clean, url=u)
+            _FAIL_CACHE['ts'] = 0.0
             return clean, None
         except Exception as e:
             errors.append(f'{u} → {type(e).__name__}: {e}')
-    return None, '；'.join(errors)
+    _FAIL_CACHE['ts'] = now
+    _FAIL_CACHE['err'] = '；'.join(errors)
+    return None, _FAIL_CACHE['err']
 
 
 def available_from_index(cfg, index_url=None, force=False):
@@ -561,8 +572,10 @@ def available_from_index(cfg, index_url=None, force=False):
 
     每条附：
       missing_keys   该插件提供、但本机当前缺失（探测不到也未由插件提供）的工具键
-      installed      同名插件目录是否已存在
-      needed         missing_keys 非空（缺失检测的核心标记）
+      installed      同名插件目录是否已存在（数据库包：install_to 目录已在位也算）
+      db_present     数据库包专用：install_to 指向的目录是否已存在
+      needed         missing_keys 非空（缺失检测的核心标记；数据库包永远不算
+                     needed —— 几百 MB~GB 级的库绝不能被「一键补齐」顺带下载）
     """
     plugins, err = fetch_index(index_url, force=force)
     if err:
@@ -573,9 +586,18 @@ def available_from_index(cfg, index_url=None, force=False):
     for p in plugins:
         keys = [k for k in (p.get('provides') or {})]
         missing = [k for k in keys if k not in have]
+        # 数据库包（provides 为空、install_to 指向 databases/…）：单独给
+        # 「目录是否已在位」的展示标记——此前 provides 为空 → needed 恒为
+        # False → 设置页把 712MB 的 ref-db 也标成「本机已具备」，纯误导。
+        db_present = False
+        if (p.get('kind') or 'tool') == 'database':
+            it_to = str(p.get('install_to') or '').strip()
+            db_present = bool(it_to) and os.path.isdir(
+                os.path.join(PLATFORM_ROOT, it_to.replace('/', os.sep)))
         out.append({**p,
                     'missing_keys': missing,
-                    'installed': p.get('name') in installed,
+                    'installed': p.get('name') in installed or db_present,
+                    'db_present': db_present,
                     'needed': bool(missing)})
     out.sort(key=lambda x: (not x['needed'], x['name']))
     return out, None

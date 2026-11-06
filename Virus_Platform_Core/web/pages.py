@@ -10,7 +10,7 @@ import time
 from werkzeug.exceptions import HTTPException
 
 from flask import (Blueprint, abort, current_app, jsonify, redirect,
-                   render_template, request, send_file)
+                   render_template, request, send_file, Response)
 
 from Virus_Platform_Core.config import DIRS, PLATFORM_ROOT
 from Virus_Platform_Core.utils import (check_path, safe_open)
@@ -74,6 +74,14 @@ NAV_GROUPS = [
         # 2026-09-30：Open-Virome 前移到检索之后（应用户要求）——检索/浏览
         # 都是对公共库的"只读取数"，下载/建基因组库是"取数落盘"。
         {'href': '/virome', 'title': 'Open-Virome', 'desc': '公共病毒组浏览 / 导出'},
+        # 2026-11-04：LOGAN 溯源移入本组（应用户要求），置于 Open-Virome 之后
+        # ——它是对公共 LOGAN 库的取数/比对，与检索/浏览同族；原「溯源与提交」
+        # 组随两项迁出撤销（数据提交另立一组，见 annotate 之后）。
+        {'href': '/logan', 'title': 'LOGAN 溯源', 'desc': '公共样本溯源 / 批量提交'},
+        # 2026-11-05：LOGAN 数据下载（原「Logan contigs 获取」改名并前移，应用户要求）——紧随 LOGAN 溯源，形成 溯源→取数 链位。
+        {'id': 't-loganfetch', 'title': 'LOGAN 数据下载',
+         'desc': '按 SRA accession 拉 Logan 预组装 contigs（匿名，可选环形/'
+                 '宿主过滤），直喂宿主去除/病毒序列提取（FASTA）/ORF/溯源查询'},
         # 2026-09-30：公共数据下载回归本组（2026-09-06 曾应要求移入样本处理组
         # 首位）。本组三卡同为"公共数据资源"语义（检索 / 下载 / 浏览），检索页
         # 「转入数据下载」直跳 /download，同组顺位衔接；而样本处理组其余各卡
@@ -96,12 +104,20 @@ NAV_GROUPS = [
         # 同构的文件级子链：转换 → 质控 → 转换(FASTA) → 宿主去除。
         # 2026-09-30：公共数据下载移回「数据资源」组（见上）。
         {'id': 't-prepchain', 'title': '⚡ 一键前处理',
-         'desc': 'SRA / FASTQ 自适应：转换 → 质控 → 转换(FASTA) → 宿主去除；'
-                 '宿主库未就绪自动跳过宿主去除，kept reads 可直喂 ②→③→④ 一键'},
+         'desc': 'SRA / FASTQ 自适应：转换 → 质控 → 转换(FASTA) → 宿主去除 → 病毒序列提取（样本分析）；'
+                 '宿主/病毒库未就绪自动跳过对应步骤；病毒序列产物（viral_*.fasta）与 kept reads 可直喂「病毒识别和分类分析」组 ⚡ 一键（组装→病毒鉴定→验证）'},
         {'href': '/samples', 'title': '样品创建 / 批量导入', 'desc': '样品名 + R1/R2 / TSV 批量'},
         {'id': 't-convert', 'title': '格式转换', 'desc': 'sra2fastq / sra2fasta / fastq2fasta'},
         {'id': 't-fastp', 'title': '序列质控', 'desc': 'fastp 去接头 / 过滤 / 去重'},
-        {'href': '/hostremoval', 'title': '宿主去除与序列提取', 'desc': 'kunpeng 宿主库分类'},
+        {'href': '/hostremoval', 'title': '非宿主序列提取（宿主去除）', 'desc': 'kunpeng 宿主库分类'},
+        # 2026-11-03：病毒识别分类与提取挪入本组 —— 它与宿主去除是同一引擎
+        # （kunpeng classify）对 reads 的一对互补集合运算：宿主去除 = 样本−宿主
+        # （kept 非宿主 reads），识别提取 = 样本∩病毒库（病毒候选序列）；两者
+        # 产物都是下游组装的备选输入。定位 = 含病毒样本的快速筛选（下载前
+        # STAT 预筛 → 下载后 identify 快筛 → 命中再组装/验证）。
+        {'id': 't-identify', 'title': '病毒序列提取（样本分析）',
+         'desc': '含病毒样本快速筛选：FASTQ / FASTA / 去宿主 → kunpeng 病毒库分类 '
+                 '+ 病毒候选序列提取（组装备选输入）'},
     ]},
     {'id': 'kvsuite', 'label': '病毒定量与共识', 'path': '病毒定量与共识', 'items': [
         {'id': 't-kvchain', 'title': '⚡ 一键分析（全流程）',
@@ -114,28 +130,87 @@ NAV_GROUPS = [
          'desc': 'BAM / VCF 直入 → bcftools caller（可选）→ SnpEff 注释 → 8 张变异图 + SNPGenie'},
     ]},
     {'id': 'virus', 'label': '病毒识别和分类分析', 'path': '病毒识别和分类分析', 'items': [
-        {'id': 't-virchain', 'title': '⚡ 一键分析（②→③→④）',
-         'desc': '提取序列组装 → 组装结果再鉴定 → 候选序列验证，可选先跑①提取病毒序列'},
-        {'id': 't-identify', 'title': '病毒识别分类与提取', 'desc': 'FASTQ / FASTA / 去宿主 → 分类 + 病毒序列提取'},
-        {'id': 't-assemble', 'title': '提取序列组装', 'desc': 'SPAdes rnaviral / contigs 过滤'},
-        {'id': 't-contigs', 'title': '组装结果再鉴定', 'desc': 'contig 二次分类 + 谱系注释'},
-        {'id': 't-verify', 'title': '候选序列验证', 'desc': '宿主筛选 → 长度分流 → blastx/BFVD 双路过滤 + 类病毒 blastn'},
+        {'id': 't-virchain', 'title': '⚡ 一键分析',
+         'desc': '病毒组装 → 病毒鉴定 → 候选序列验证（三步一键；只收去宿主 FASTA，FASTQ 请先在样本处理组提取）'},
+        # 2026-11-03：t-identify（病毒识别分类与提取）挪入「样本处理」组 ——
+        # read 层分选与宿主去除对仗；本组保留 contig 层分析（组装/鉴定/验证）。
+        {'id': 't-assemble', 'title': '病毒组装', 'desc': 'SPAdes rnaviral / contigs 过滤'},
+        {'id': 't-contigs', 'title': '病毒鉴定', 'desc': 'contig 病毒分类 + 谱系注释'},
+        # 2026-11-03：原「病毒注释分析」组的 t-hom「同源比对（BLASTN · BLASTX）」
+        # 卡并入本卡（单条深查模式）——一张卡回答"这批/这条候选序列撞库后
+        # 是什么、信不信"，证据源统一为同源验证库组（virusref 核酸 / PVDB
+        # 蛋白 / BFVD / 类病毒）+ 在线 NCBI nt/nr。
+        {'id': 't-verify', 'title': '候选序列验证',
+         'desc': '批量验证（宿主筛选 → 长度分流 → blastx/BFVD/CDD 三路过滤'
+                 ' + 类病毒 blastn）＋ 单条深查（BLASTN · BLASTX 同源比对）'},
     ]},
     {'id': 'annotate', 'label': '病毒注释分析', 'path': '病毒注释分析', 'items': [
-        # 2026-09-21：注释三连（annochain）置顶 —— 与定量/识别/样本三组的 ⚡ 卡
-        # 同构的文件级子链：ORF 预测 → 功能注释 → 基因组图谱，跑完即可在
-        # 「数据提交」页关联生成 featuretable。
-        {'id': 't-annochain', 'title': '⚡ 注释三连（ORF→功能→图谱）',
-         'desc': '输入 FASTA：ORF 预测 → 功能注释 → 基因组图谱，一键跑完；'
-                 '注释产物可在「数据提交」页一键关联、直接生成 featuretable'},
-        {'href': '/orf', 'title': 'ORF 预测',
-         'desc': 'pyrodigal / pyrodigal-rv 基因预测（独立模块）'},
+        # 2026-11-04：⚡ 一键卡（t-annochain）回归并扩为 4 步（应用户要求）——
+        # ① ORF 预测 → ② 功能注释 → ③ 基因组图谱 → ④ NCBI 提交准备（建档）。
+        # （当日早些时候本卡曾摘除，链本体保留；现按新口径恢复为一张卡。）
+        # 2026-11-04：ORF 预测卡摘除（应用户要求）——功能注释即「默认含 ORF
+        # 预测」：输入核酸 FASTA 一步完成预测+注释；/orf 页保留（直链可达），
+        # orf_ 运行仍可被「数据提交」页关联生成 featuretable。
+        # 2026-11-03：t-hom「同源比对」卡移除——功能并入「病毒识别和分类分析」
+        # 组的 t-verify（候选序列验证）卡单条深查模式，深链 #t-hom → #t-verify。
+        {'id': 't-annochain', 'title': '⚡ 一键分析',
+         'desc': '输入 FASTA → （可选 kunpeng 分类）→ 功能注释（ORF 预测+注释）'
+                 '→ 基因组图谱 → NCBI 提交准备（建项目/表行/关联注释/'
+                 'sequences.fsa/featuretable/提交包；organism 可自动回填'
+                 '或手动填写）'},
         {'href': '/annotation', 'title': '功能注释',
-         'desc': 'DIAMOND / MMseqs2 / blastp 对照 RefSeq 病毒蛋白库 + 类别投票 + ICTV 映射（独立模块）'},
-        {'id': 't-hom', 'title': '同源比对（BLASTN · BLASTX）',
-         'desc': 'NCBI nt / nr 同源比对（限病毒）：为 GenBank 提交注释提供依据'},
+         'desc': 'ORF 预测 + 功能注释（默认一步完成）：pyrodigal(-rv) 预测 → '
+                 'DIAMOND / MMseqs2 / blastp 对照 PVDB 蛋白库 + 类别投票 + ICTV 映射'},
         {'href': '/genome', 'title': '基因组图谱',
          'desc': 'gbdraw / DFV 圈图 + 线图（独立模块）'},
+        # 2026-11-04：数据提交（NCBI 提交准备）并入本组（应用户要求）——
+        # 当日曾独立成组，现撤销独立组：注释产物 → featuretable → NCBI 提交
+        # 本就是一条直通业务线；/submit 页本体不变，只挪导航归属。
+        {'href': '/submit', 'title': '数据提交', 'desc': 'NCBI 提交准备'},
+    ]},
+    # 当成同一件事一起移出了导航，这是错的 —— 两者是不同的业务对象：
+    # 比较基因组 = **不同病毒之间**的比较（跨科/属取参考序列 → 比对 → 建树 / SDT
+    # 同一性）；进化动力学 = **同一个基因/序列集内部**的时间与地理信号。
+    # 09-16 恢复 phylodyn 时用的是「覆盖」而不是「并列」，等于顺手把 compare 的
+    # 一级导航位吞了（有组、有卡、有路由，但界面上到不了）。
+    {'id': 'compare', 'label': '比较基因组分析', 'path': '比较基因组分析', 'items': [
+        {'id': 't-cmpchain', 'title': '⚡ 一键分析',
+         'desc': '参考获取 → CDS/PEP+保守基因（RdRp/CP/MP…）提取 → MAFFT+trimAl → 建树（基因组树+基因树）→ SDT；已有集合 / ICTV 科属 / accession 三种输入，一条任务全联通'},
+        {'id': 't-seqprep', 'title': '参考序列获取', 'desc': 'ICTV 科/属选择 或 accession / 检索式 → 下载整科整属序列（GenBank 集合 + FASTA 参考集）'},
+        {'href': '/cds-export', 'title': 'CDS / PEP 提取产物',
+         'desc': '集合内 CDS 明细 → 人工挑选 / 改名 → 按基因名归组导出 CDS + PEP（独立模块）'},
+        {'id': 't-align', 'title': '序列比对（MAFFT + trimAl）', 'desc': 'MAFFT 比对 + trimAl 清剪；彩色比对查看器支持查看与编辑，结果直接送建树 / SDT'},
+        {'id': 't-treebuild', 'title': '进化树构建（科/属级）', 'desc': 'GenBank 集合（全基因组 / CDS / PEP）或 FASTA → MAFFT 比对 + NJ / FastTree / RAxML-NG 建树；页内树查看'},
+        {'id': 't-sdt', 'title': 'SDT 同一性分析（属级）', 'desc': '逐对 MAFFT 精确比对 → identity 矩阵 / 热图 / 分布图；NT+AA 模式同一性表 + 复合热图'},
+    ]},
+    # 2026-09-16：本站移植了裁剪版系统地理能力（距离三分类 / MOTP / 权重分带 /
+    # 迁移 GIF，见 docs/主平台同步_裁剪移植_20260916.md），故恢复一个最小分组
+    # 让这三张卡可达。BEAST 产物导入 / 自研贝叶斯 ASR / T3 时间树 / LTT / skyline
+    # 仍只在进化平台。
+    # 2026-09-17：补充 VirPhyKit（Yin et al. 2025）方法学对齐的 12 张卡
+    # （数据接入三来源 + SeqIDRenamer/SeqGrouper/VirSpaceTime/GeoSubsampler/
+    #   RRT/TempMig/BSP-Viz/RSPP-Viz/TreeTime-RTT/TreeDater-LTT/MJRM），
+    # 代码全部自研（GPL-3.0 红线：只对齐方法与 I/O 契约，不复制代码），
+    # 见 Virus_Platform_Core/phylodyn_kit.py / phylodyn_trees.py。
+    # label 与一级导航 `nav.g.phylodyn`、进化平台同名组保持一致（同一业务线一个名字）。
+    {'id': 'phylodyn', 'label': '进化动力学分析', 'path': '进化动力学分析', 'items': [
+        # 2026-11-02：一键全链提到组内第一位（数据接入仍是它 A0 的上游，但入口
+        # 先给"跑完整条链"的操作，避免用户先被 9 张准备卡劝退）。
+        {'id': 't-phylodyn', 'title': '⚡ 一键分析',
+         'desc': 'A0 数据准备 → A1 定年 → A2 地理迁移 → A3 天际线 → A4 祖先序列 → A5 汇总溯源；可一键全跑，也可只跑单阶段或从上一轮产物续跑。全程本地、不跑 MCMC'},
+        {'id': 't-pdprep', 'title': '进化动力学数据接入',
+         'desc': '三种来源建标准数据集（比对 FASTA + 元数据）：**文件对**（两份文件直喂）/ 手动输入（时间地点同检）/ 在线下载；元数据列名自动识别并择优（Collection_Date↔Release_Date、Geo_Location↔Country）。附时间轴·地点分布·地图汇总'},
+        {'id': 't-rdp', 'title': 'RDP5 重组分析',
+         'desc': 'RDP5 九方法检测，逐方法 p 值；可导出掩蔽重组区后的干净比对'},
+        {'id': 't-rtt', 'title': '时间信号与定年',
+         'desc': '根到尾回归：R² 高＝时间信号强，斜率＝每位点每年替换数'},
+        {'id': 't-phylogeo', 'title': '系统地理分析',
+         'desc': 'Fitch 迁移重构 + 距离三分类（haversine）/ MOTP 时间分箱 / 权重分带 / 迁移 GIF 导出'},
+        # 2026-09-21 归档 t-pdrename / t-pdgroup 两卡（导航/section/job 注册已同摘，
+        # 底层 phylodyn_kit 函数保留）：
+        #   🏷 重命名 → 已接进「时间与地理推断·本地全链」可选前置（t-phylodyn 卡的
+        #     「🏷 重命名映射」字段，A0 之前 FASTA/元数据/树 tip 三处同改）；
+        #   🧩 分组 → 属导入/收集阶段职责（online 阶段自动跑，产物进 report）。
     ]},
     # 2026-09-18：引物设计 / dsRNA 设计从「病毒注释分析」拆出，独立成组。
     # 判定口径（用户提出后核过一遍）：注释组回答的是「这条序列是什么」——
@@ -157,17 +232,12 @@ NAV_GROUPS = [
          'desc': 'Cas12a crRNA × RPA/PCR 引物协同设计：多分离物 MSA 保守性 → '
                  'TTTV PAM 扫描 + 漏斗过滤 → 双库特异性筛查（宿主 + 近缘病毒）'
                  '→ 复合评分 × 群体覆盖率 → 订购表 + L1–L5 验证清单'},
-        # 2026-10-20：CONAN-SWIFT（Cas3 / I 型 I-E）crRNA 设计。引擎
-        # Virus_Platform_Core/conan_design.py（净室实现，规则来源见模块头：
-        # bioRxiv 2026.08.25.746999 + conan-swift-designer MIT），工具卡 t-conan。
-        # 与 t-crispr 的分工：那是 Cas12a/Cas13a（TTTV PAM / 无 PAM）+ 引物
-        # 协同；这张是 Cas3（AAG PAM、种子忽略 +6 位）+ 负组同源位点双重
-        # 失配评分 + 纯 crRNA 输出（RT-LAMP 侧流路线）。
-        {'id': 't-conan', 'title': 'CONAN-SWIFT 检测设计（Cas3）',
-         'desc': 'Cas3 / I 型 I-E crRNA 设计（RT-LAMP + 侧流层析路线）：多分离物'
-                 '目标 + 负组合并 MAFFT → AAG PAM + 32nt spacer 双链扫描 → '
-                 '负组同源位点双重失配评分（leak/覆盖率）→ 末端/GC/种子过滤 → '
-                 '候选表 + 位点核查 + 中文报告'},
+        # 2026-11-05：LAMP 引物组设计（引擎 lamp_design.py）。F3/F2/F1/B1/B2/B3
+        # + 可选 LF/LB；多分离物保守区逐窗设计。与 t-crispr 的 --amp LAMP 档共享内核。
+        {'id': 't-lamp', 'title': 'LAMP 引物组设计',
+         'desc': 'F3/F2/F1/B1/B2/B3 六引物组 + 可选 LF/LB 环引物：多分离物 '
+                 'MSA 保守区逐窗枚举 → 分段 Tm/GC/间距约束 → FIP/BIP 拼接 → '
+                 'all-pairs 二聚体快筛 + 发夹复核 → 评分排序 + 订购表'},
         {'id': 't-dsrna', 'title': 'dsRNA 设计',
          'desc': '全链路：dsRNAmax 确定性选窗（maximin 多候选）→ dsRIP 效价 → '
                  '面板脱靶扫描（致死基因加权 + 0 错配一票否决）→ T7 引物（限定最优窗）'
@@ -175,52 +245,12 @@ NAV_GROUPS = [
         # 2026-09-18：PAmiRDB（12.pamirdb）7 文件移植 → Virus_Platform_Core/mirna_target/。
         # 归入本组的口径与 dsRNA 相同：miRNA 介导的宿主抗病毒沉默是「天然防治线索」，
         # 产物回答「宿主哪些 miRNA 能靶向这条病毒基因组、位点在哪」，不是序列描述。
-        {'id': 't-mirna', 'title': '🧬 miRNA 靶标预测（PAmiRDB）',
+        {'id': 't-mirna', 'title': 'miRNA 靶标预测（PAmiRDB）',
          'desc': '输入 miRNA × 病毒序列 → Smith-Waterman 比对 + psRNATarget/RNAhybrid '
                  '复刻引擎共识投票（完整模式含 RNA22/TAPIR/psRobot）→ 结合位点 / 彩色比对 / '
                  '双链 SVG / 二级结构弧图；纯 Python 无外部依赖，线上参照 pamirdb'},
     ]},
     # 2026-09-17：恢复比较基因组分组。09-15 拆分时把它和「进化动力学分析」
-    # 当成同一件事一起移出了导航，这是错的 —— 两者是不同的业务对象：
-    # 比较基因组 = **不同病毒之间**的比较（跨科/属取参考序列 → 比对 → 建树 / SDT
-    # 同一性）；进化动力学 = **同一个基因/序列集内部**的时间与地理信号。
-    # 09-16 恢复 phylodyn 时用的是「覆盖」而不是「并列」，等于顺手把 compare 的
-    # 一级导航位吞了（有组、有卡、有路由，但界面上到不了）。
-    {'id': 'compare', 'label': '比较基因组分析', 'path': '比较基因组分析', 'items': [
-        {'id': 't-seqprep', 'title': '参考序列获取', 'desc': 'ICTV 科/属选择 或 accession / 检索式 → 下载整科整属序列（GenBank 集合 + FASTA 参考集）'},
-        {'href': '/cds-export', 'title': 'CDS / PEP 提取产物',
-         'desc': '集合内 CDS 明细 → 人工挑选 / 改名 → 按基因名归组导出 CDS + PEP（独立模块）'},
-        {'id': 't-align', 'title': '序列比对（MAFFT + trimAl）', 'desc': 'MAFFT 比对 + trimAl 清剪；彩色比对查看器支持查看与编辑，结果直接送建树 / SDT'},
-        {'id': 't-treebuild', 'title': '进化树构建（科/属级）', 'desc': 'GenBank 集合（全基因组 / CDS / PEP）或 FASTA → MAFFT 比对 + NJ / FastTree / IQ-TREE 建树；页内树查看'},
-        {'id': 't-sdt', 'title': 'SDT 同一性分析（属级）', 'desc': '逐对 MAFFT 精确比对 → identity 矩阵 / 热图 / 分布图；NT+AA 模式同一性表 + 复合热图'},
-    ]},
-    # 2026-09-16：本站移植了裁剪版系统地理能力（距离三分类 / MOTP / 权重分带 /
-    # 迁移 GIF，见 docs/主平台同步_裁剪移植_20260916.md），故恢复一个最小分组
-    # 让这三张卡可达。BEAST 产物导入 / 自研贝叶斯 ASR / T3 时间树 / LTT / skyline
-    # 仍只在进化平台。
-    # 2026-09-17：补充 VirPhyKit（Yin et al. 2025）方法学对齐的 12 张卡
-    # （数据接入三来源 + SeqIDRenamer/SeqGrouper/VirSpaceTime/GeoSubsampler/
-    #   RRT/TempMig/BSP-Viz/RSPP-Viz/TreeTime-RTT/TreeDater-LTT/MJRM），
-    # 代码全部自研（GPL-3.0 红线：只对齐方法与 I/O 契约，不复制代码），
-    # 见 Virus_Platform_Core/phylodyn_kit.py / phylodyn_trees.py。
-    # label 与一级导航 `nav.g.phylodyn`、进化平台同名组保持一致（同一业务线一个名字）。
-    {'id': 'phylodyn', 'label': '进化动力学分析', 'path': '进化动力学分析', 'items': [
-        {'id': 't-pdprep', 'title': '🧬 进化动力学数据接入',
-         'desc': '三种来源建标准数据集（比对 FASTA + 元数据）：**文件对**（两份文件直喂）/ 手动输入（时间地点同检）/ 在线下载；元数据列名自动识别并择优（Collection_Date↔Release_Date、Geo_Location↔Country）。附时间轴·地点分布·地图汇总'},
-        {'id': 't-rdp', 'title': '🔁 RDP5 重组分析',
-         'desc': 'RDP5 九方法检测，逐方法 p 值；可导出掩蔽重组区后的干净比对'},
-        {'id': 't-rtt', 'title': '⏱ 时间信号与定年',
-         'desc': '根到尾回归：R² 高＝时间信号强，斜率＝每位点每年替换数'},
-        {'id': 't-phylogeo', 'title': '🌍 系统地理分析',
-         'desc': 'Fitch 迁移重构 + 距离三分类（haversine）/ MOTP 时间分箱 / 权重分带 / 迁移 GIF 导出'},
-        # 2026-09-21 归档 t-pdrename / t-pdgroup 两卡（导航/section/job 注册已同摘，
-        # 底层 phylodyn_kit 函数保留）：
-        #   🏷 重命名 → 已接进「时间与地理推断·本地全链」可选前置（t-phylodyn 卡的
-        #     「🏷 重命名映射」字段，A0 之前 FASTA/元数据/树 tip 三处同改）；
-        #   🧩 分组 → 属导入/收集阶段职责（online 阶段自动跑，产物进 report）。
-        {'id': 't-phylodyn', 'title': '⚡ 一键分析（定年 → 地理迁移 → 汇总溯源）',
-         'desc': 'A0 数据准备 → A1 定年 → A2 地理迁移 → A3 天际线 → A4 祖先序列 → A5 汇总溯源；可一键全跑，也可只跑单阶段或从上一轮产物续跑。全程本地、不跑 MCMC'},
-    ]},
     {'id': 'result', 'label': '结果中心', 'path': '结果中心', 'items': [
         {'href': '/results', 'title': '样品结果 / 专项结果',
          'desc': '报告 / 专项运行 / SDT / MSA / 进化树 / 序列查看'},
@@ -231,10 +261,9 @@ NAV_GROUPS = [
          'desc': '本地 SVG 编辑器：多图合并 / 排版 / 标注 / 加比例尺，'
                  '导出 PNG · SVG · PDF；文件不上传'},
     ]},
-    {'id': 'trace', 'label': '溯源与提交', 'path': '溯源与提交', 'items': [
-        {'href': '/logan', 'title': 'LOGAN 溯源 / 批量提交', 'desc': '公共样本追踪'},
-        {'href': '/submit', 'title': '数据提交', 'desc': 'NCBI 提交准备'},
-    ]},
+    # 2026-11-04：「溯源与提交」组撤销 —— LOGAN 溯源归「数据资源」组
+    # （Open-Virome 之后）；「数据提交」独立组同日撤销（应用户要求并入
+    # 「病毒注释分析」组，见上），自此无独立提交组。
 ]
 
 
@@ -247,13 +276,14 @@ NAV_GROUPS = [
 # 2026-09-30：/download 随卡从 sample 迁回 resource，_PATH_TO_GROUP 同步 ——
 # /download 页侧栏改列数据资源组（检索/下载/Open-Virome/数据库构建）。
 _PATH_TO_GROUP = {'/meta': 'resource', '/virome': 'resource',
+                  '/logan': 'resource',
                   '/download': 'resource', '/build': 'resource',
                   '/refdata': 'resource',
                   '/hostremoval': 'sample', '/samples': 'sample',
                   '/orf': 'annotate', '/annotation': 'annotate',
                   '/genome': 'annotate', '/primer': 'detect',
                   '/cds-export': 'compare',
-                  '/logan': 'trace', '/submit': 'trace',
+                  '/submit': 'annotate',
                   '/svguest/': 'result', '/svguest': 'result'}
 
 
@@ -610,18 +640,54 @@ def _fs_read_roots():
     return [os.path.normpath(r) for r in roots if r]
 
 
+def _fs_sensitive_paths():
+    """文件预览/原样下载永远不允许命中的敏感路径（2026-11-06）。
+
+    平台根在 _fs_read_roots 里，run/ai_local.json（API Key 真身）与
+    run/ai_sessions/（对话镜像）也就在同一棵树内；不加这层时只要知道
+    路径就能 /api/fs/raw?path=… 直接取明文。
+    """
+    from Virus_Platform_Core.config import RUN_ROOT, _ai_local_path
+    cands = [_ai_local_path(), os.path.join(RUN_ROOT, 'ai_sessions')]
+    out = []
+    for p in cands:
+        try:
+            out.append(os.path.normcase(os.path.realpath(os.path.abspath(p))))
+        except (OSError, ValueError):
+            continue
+    return out
+
+
 def _fs_path(raw):
     raw = str(raw or '').strip()
     if not raw:
         abort(400, '需要 path')
     p = os.path.normpath(os.path.abspath(raw))
-    if not any(p == r or p.startswith(r + os.sep) for r in _fs_read_roots()):
+    # realpath 先解析软链接/junction，再做根判断（防根内链接指向系统目录）
+    try:
+        rp = os.path.realpath(p)
+    except OSError:
+        rp = p
+    nrp = os.path.normcase(rp)
+    inside = False
+    for r in _fs_read_roots():
+        try:
+            nr = os.path.normcase(os.path.realpath(r))
+        except OSError:
+            nr = os.path.normcase(r)
+        if nrp == nr or nrp.startswith(nr + os.sep):
+            inside = True
+            break
+    if not inside:
         abort(400, '路径越界（只允许平台目录、示例与下载目录）')
-    if not os.path.exists(p):
+    for sp in _fs_sensitive_paths():
+        if nrp == sp or nrp.startswith(sp + os.sep):
+            abort(400, '该路径属于平台敏感文件，不允许预览')
+    if not os.path.exists(rp):
         abort(400, f'路径不存在: {p}')
-    if not os.path.isfile(p):
+    if not os.path.isfile(rp):
         abort(400, '不是文件')
-    return p
+    return rp
 
 
 @bp.route('/api/fs/roots')
@@ -659,8 +725,115 @@ def api_fs_read():
                     'text': chunk.decode('utf-8', 'replace')})
 
 
+_RAW_SANDBOX_EXT = ('.html', '.htm', '.svg')
+
+
 @bp.route('/api/fs/raw')
 def api_fs_raw():
-    """原样输出（图片 / HTML 预览用）；同源，只读平台目录内文件。"""
+    """原样输出（图片 / HTML 预览用）；同源，只读平台目录内文件。
+
+    2026-11-06：HTML/SVG 是**可执行内容**，而本端点服务的是"任意平台目录
+    内文件"（产物、用户附加文件、工具输出都可能被写入）。加
+    `Content-Security-Policy: sandbox` 后即使文件里有脚本，也只能在唯一
+    源里跑，读不到平台同源 API / LocalStorage。results.html 的模块结果页
+    走 /api/samples/… 与 /api/module_report 专用路径，不受影响。
+    """
     p = _fs_path(request.args.get('path'))
-    return send_file(p)
+    resp = send_file(p)
+    if os.path.splitext(p)[1].lower() in _RAW_SANDBOX_EXT:
+        resp.headers['Content-Security-Policy'] = (
+            "sandbox; default-src 'none'; img-src 'self' data: blob:; "
+            "style-src 'self' 'unsafe-inline'; font-src 'self' data:; "
+            "form-action 'none'; base-uri 'none'")
+    return resp
+
+
+@bp.route('/api/module_report')
+def api_module_report():
+    """按需生成模块结果页（results.html）并跳转过去。
+
+    ?sample=X&stage=<阶段键|目录名>  → 生成（或刷新）目标阶段页并 302 过去
+                                       （其余阶段页由整轮完成时统一补齐）；
+    ?run=<工具运行名>               → 生成该运行目录页，302 到
+                                       /tool_runs/<run>/results.html。
+
+    跳转目标走 /api/samples/… 与 /tool_runs/… 这两个「服务目录内任意文件」
+    的原样路由，页面里的相对引用（图/表/文件链接）天然成立。
+    """
+    from Virus_Platform_Core.report_kit import module_page as MP
+    run = (request.args.get('run') or '').strip()
+    try:
+        if run:
+            if os.path.basename(run) != run or run in ('.', '..'):
+                abort(400, 'run 名非法')
+            base = os.path.abspath(check_path(
+                os.path.join(_tool_runs_root(), run),
+                must_exist=True, in_platform=True))
+            MP.build_tool_run_page(base)
+            return redirect(f'/tool_runs/{run}/{MP.OUT_NAME}')
+        sample = _safe_sample(request.args.get('sample') or '')
+        stage = (request.args.get('stage') or '').strip() or None
+        base = os.path.abspath(check_path(
+            os.path.join(DIRS['results'], sample),
+            must_exist=True, in_platform=True))
+        p = MP.build_stage_page(base, stage=stage)
+        if not p:
+            abort(404, '该样品没有可整理的阶段产物')
+        rel = os.path.relpath(p, base).replace('\\', '/')
+        return redirect(f'/api/samples/{sample}/{rel}')
+    except HTTPException:
+        raise
+    except (FileNotFoundError, ValueError) as e:
+        abort(400, str(e))
+
+
+@bp.route('/api/batch_report')
+def api_batch_report():
+    """批量合并模块结果页：?runs=<run1,run2,...>&title=...
+
+    同一次批量提交（目录批量）的多个运行汇成一页：汇总表（样本/关键数字/
+    模块结果页/产物）+ 逐样本图表与文件。只读 tool_runs/，不写任何文件。
+    """
+    from Virus_Platform_Core.report_kit import module_page as MP
+    from Virus_Platform_Core.web.state import run_real_dir
+    names = [x.strip() for x in (request.args.get('runs') or '').split(',')
+             if x.strip()]
+    entries = []
+    for name in names[:100]:
+        if os.path.basename(name) != name or name in ('.', '..'):
+            continue
+        try:
+            d = run_real_dir(name)
+        except Exception:
+            continue
+        if os.path.isdir(d):
+            entries.append({'run': name, 'dir': d})
+    title = (request.args.get('title') or '批量结果').strip()[:120]
+    html = MP.build_batch_html(entries, title=title)
+    return Response(html, mimetype='text/html')
+
+
+@bp.route('/api/ai/artifacts', methods=['POST'])
+def api_ai_artifacts():
+    """把正文里的路径解析成产物卡片（2026-11-02）。
+
+    对话坞把本轮的产物做成卡片；但**升级前存下的历史回答**里只有裸路径，
+    刷新后没有卡片。这里让前端拿旧回答的正文补一次，就不用靠重新提问。
+
+    只读：路径必须落在平台数据根内（`artifacts._inside` 判），系统目录一律丢弃。
+    """
+    from Virus_Platform_Core.ai_agent import artifacts as A
+    body = request.get_json(silent=True) or {}
+    texts = body.get('texts')
+    if texts is None:
+        texts = [body.get('text') or '']
+    if not isinstance(texts, list):
+        abort(400, 'texts 需为数组')
+    texts = [str(x or '')[:20000] for x in texts[:30]]
+    out = []
+    for tx in texts:
+        try:
+            out.append(A.finish(A.from_text(tx)) if tx else [])
+        except Exception:
+            out.append([])
+    return jsonify({'results': out})

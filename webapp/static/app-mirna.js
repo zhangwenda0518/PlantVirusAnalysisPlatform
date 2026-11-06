@@ -35,22 +35,29 @@ async function runMirna(btn) {
   _submitTool('mirna', params, null, btn, '预测中…', loadMirnaResult);
 }
 
-async function loadMirnaResult(run) {
+/* silent=历史结果恢复：summary/results 读不到时静默返回 false（不弹 alert），
+   让恢复循环去试上一次运行（2026-11-05 全面排查恢复路径）。 */
+async function loadMirnaResult(run, silent) {
+  let s, rows;
   try {
-    const s = await fetch(`/tool_runs/${run}/mirna_target/summary.json`).then(r => r.json());
-    const rows = await fetch(`/tool_runs/${run}/mirna_target/results.json`).then(r => r.json());
-    mirS.run = run;
-    mirS.results = Array.isArray(rows) ? rows : [];
-    const nAlg = (s.algorithms || []).length;
-    $('mirStats').textContent =
-      `miRNA ${s.n_mirna} × 病毒 ${s.n_virus} = ${s.n_pairs} 对 · 命中 ${s.n_hits} · ` +
-      `${nAlg || (s.full_mode ? 6 : 3)} 引擎 · ${s.elapsed_sec}s`;
-    $('mirResult').style.display = '';
-    $('mir-detail').style.display = 'none';
-    mirResetFilters();
+    s = await fetch(`/tool_runs/${run}/mirna_target/summary.json`)
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+    rows = await fetch(`/tool_runs/${run}/mirna_target/results.json`)
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
   } catch (e) {
-    alert(t('ui.mi.readResultFail') + ': ' + e);
+    if (!silent) alert(t('ui.mi.readResultFail') + ': ' + e);
+    return false;
   }
+  mirS.run = run;
+  mirS.results = Array.isArray(rows) ? rows : [];
+  const nAlg = (s.algorithms || []).length;
+  $('mirStats').textContent =
+    `miRNA ${s.n_mirna} × 病毒 ${s.n_virus} = ${s.n_pairs} 对 · 命中 ${s.n_hits} · ` +
+    `${nAlg || (s.full_mode ? 6 : 3)} 引擎 · ${s.elapsed_sec}s`;
+  $('mirResult').style.display = '';
+  $('mir-detail').style.display = 'none';
+  mirResetFilters();
+  return true;
 }
 
 function mirConsClass(c) {
@@ -73,6 +80,7 @@ function mirApplyFilters() {
   mirS.filtered = mirS.results.filter(r => {
     if (fTier && (MIR_CONS_ORDER[r.consensus_level] || 0) < (MIN_TIER[fTier] || 0)) return false;
     if (fSeed === '1' && r.seed_perfect_wc !== 7) return false;
+    if (fSeed === '5' && !(r.seed_perfect_wc >= 5)) return false;
     if (fQ2 && !mirIsQuery2(r)) return false;
     if (!isNaN(fE) && (r.best_energy ?? 0) > fE) return false;
     if (!isNaN(fId) && (r.best_identity || 0) < fId) return false;

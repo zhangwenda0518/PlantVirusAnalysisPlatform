@@ -14,11 +14,12 @@
 结论须附证据出处（阶段目录/表名）；超出数据范围时明说"数据不支持"。
 """
 import json
+import logging
 import os
 import re
 import time
 
-from . import digest, tools as ai_tools
+from . import artifacts as _artifacts, digest, tools as ai_tools
 from .provider import AIConfigError, AIProviderError, ai_ready, chat_stream
 
 # 2026-10-30 DSML 泄漏防护：个别异常场景（如请求被上游 422 后降级、或供应商
@@ -93,12 +94,18 @@ class _DsmlStreamGuard:
 # 2026-10-30：3 轮太紧 —— 模型查两次状态、准备提交预筛时就被截断（用户截图
 # 里的「工具调用轮次超限」）。长任务排查常要"列项目→读结果→再查一次→提交"，
 # 预算放到 10 轮；真正的失控由「重复调用检测」和轮次上限双保险。
-MAX_TOOL_ROUNDS = max(1, min(30, int(os.environ.get('VP_AI_MAX_TOOL_ROUNDS', '10'))))
+# 2026-11-04：10 → 24。真实长链路（列表→读表→翻页→查任务→起草→验收）
+# 十几轮很常见，10 轮仍会提前收尾；重复调用检测仍是防空转的第一道闸。
+MAX_TOOL_ROUNDS = max(1, min(30, int(os.environ.get('VP_AI_MAX_TOOL_ROUNDS', '24'))))
 # 同一工具+参数重复到该次数后不再执行，用工具结果提醒模型停止轮询
 MAX_SAME_CALL = 2
 # 随请求携带的历史条数上限（服务端无状态，前端传全量，这里裁剪）
-MAX_HISTORY = 12
+MAX_HISTORY = 32   # 2026-11-04：20→32（配合 _history_digest：被裁掉的更早消息压成前情摘要，不再静默丢记忆）
 MAX_MSG_CHARS = 6000
+# 生成长度预算上限（2026-11-04：8192 → 16384）。推理型模型会把预算先花在
+# reasoning_content 上，触顶时 run_chat 会自动加倍；上限跟着默认 max_tokens
+# （8192）抬高，给长回答/长思考留一次加倍空间。
+_BUDGET_MAX = 16384
 
 _SYSTEM_RULES_ZH = """你是「植物病毒分析平台」的内置 AI 助手，负责帮用户解读
 分析结果、指导下一步。你的身份是一位懂病毒基因组学与生信流程的顾问。
@@ -165,6 +172,39 @@ _SYSTEM_RULES_ZH = """你是「植物病毒分析平台」的内置 AI 助手，
     ② 可能更久 → 立即收尾：告知用户"已提交、在后台运行、完成后会播报"，
        本轮结束。不要空转轮询；用户问进度时用 get_task_overview 查一次，
        并可给用户链接 /tasks?focus=<tid> 直达该任务卡。
+
+14. **产物直接给路径，别让人自己翻**：报告、图、表、共识序列这些已经落盘的
+    东西，回答里写出**绝对路径**（对话坞会自动渲染成可点开的卡片：图片内联、
+    HTML 可预览/新标签打开、表格给前几行）。不要写「去结果中心点看」这类
+    指路话；也不要给相对路径。路径必须是真读到的（工具返回或列目录得到），
+    不许凭命名规则拼一个「应该在那」的路径。
+
+14. **平台状态只能来自本次注入或工具返回（2026-11-03 反编造红线）**：
+   下方 `platform` 字段（samples / tool_runs / extensions / prescreen /
+   databases）是平台状态的**唯一权威**。历史对话里的样品名、阶段进度、
+   任务号、计数一律视为过期，**不得当作当前状态复述**。
+   - `samples` 为空 → 必须说"当前没有样品"；
+   - **禁止列举任何未被 `platform`/工具返回的样品名**（如 Dataset_11、A、
+     MY-77）或"x/15 阶段、停在 fastq"这类细节——没有来源就是编造；
+   - 需要最新状态时调 list_samples / get_task_overview 现查，把返回原样
+     转述；查不到就说"当前上下文没有这项数据"。
+   自我介绍/欢迎语同样适用：只讲能力，不附带任何未查实的平台状态数字。
+
+17. **澄清优先（2026-11-04）**：缺关键信息时（样品名指代不明、多个候选路径
+    只能二选一、参数缺失且无法从上下文推断），先问**一个**最关键的问题再
+    动手；禁止猜测。能从上下文确定的就不要问（例如样品在选中态、路径在
+    workspace/attachments 里已给出）。
+18. **回答脚手架（2026-11-04）**：解读分析结果的回答按「结论 → 证据 →
+    下一步」三段组织；证据必须给出落盘产物的**绝对路径**或表名；下一步给
+    可执行建议（哪个模块/阶段、带什么参数）。
+19. **next_actions 输出（2026-11-04）**：若回答里建议了后续动作，在回答
+    **最末尾**另起一段输出一个 JSON 代码块：
+    ```next_actions
+    [{{"label":"按钮文案(中文≤12字)","action":"动作名","sample":"样品名(可选)","stages":["阶段(可选)"],"params":{{...}},"reason":"一句话理由"}}]
+    ```
+    action 取值与 propose_action 的 enum 一致；最多 3 个；每项必须填
+    reason；没有建议就完全不输出这个块；禁止把该块写进正文中间、禁止在
+    块外再解释 JSON 本身。
 
 平台能力清单（本平台**自带**以下模块，回答"平台能不能做 X"以此为准）：
 {capabilities}
@@ -265,6 +305,48 @@ Hard rules:
     when it finishes. Do not idle-poll; on progress questions use
     get_task_overview once, and link the user to /tasks?focus=<tid>.
 
+14. **Hand over artifacts by absolute path, not by pointing at the UI**: for
+    reports, figures, tables and consensus sequences that already exist on
+    disk, write the **absolute path** in the answer — the dock renders it as a
+    clickable card (images inline, HTML previewable / openable in a new tab,
+    tables with their first rows). Do not answer "go to the results center";
+    do not give relative paths. The path must be one you actually read (tool
+    result or directory listing) — never assemble a "should be there" path
+    from a naming convention.
+
+15. **Platform status may come only from this turn's context or a tool result
+    (2026-11-03 anti-fabrication rule)**: the `platform` field below
+    (samples / tool_runs / extensions / prescreen / databases) is the ONLY
+    authority. Sample names, stage progress, task ids and counts from earlier
+    turns are stale — never restate them as current status. If `samples` is
+    empty, say "there are no samples". **Never list sample names** (e.g.
+    Dataset_11, A, MY-77) or details like "x/15 stages, stopped at fastq"
+    that are not present in the context or a tool result — without a source
+    that is fabrication. Query list_samples / get_task_overview when you need
+    fresh state and relay the result verbatim; if unavailable, say the
+    context does not contain it. The same applies to greetings: describe
+    capabilities only, never attach unverified status numbers.
+
+17. **Clarify first (澄清优先, 2026-11-04)**: when key information is missing
+    (an ambiguous sample name, two candidate paths to choose between, a
+    required parameter that cannot be inferred from context), ask **one**
+    most critical question before acting; never guess. Do not ask when the
+    context already answers it (selected sample, paths in workspace or
+    attachments).
+18. **Answer scaffold (2026-11-04)**: when interpreting results, organise
+    the answer as **Conclusion → Evidence → Next step**; evidence must cite
+    the **absolute path** of an on-disk artifact or a table name; the next
+    step must be actionable (which module/stage, with which parameters).
+19. **next_actions output (2026-11-04)**: if your answer suggests follow-up
+    actions, append at the very end a single JSON code block:
+    ```next_actions
+    [{{"label":"button text (<=12 chars)","action":"action name","sample":"sample (optional)","stages":["stage (optional)"],"params":{{...}},"reason":"one-line reason"}}]
+    ```
+    `action` must match propose_action's enum; at most 3 items; every item
+    needs `reason`; if you suggest nothing, do not output the block at all;
+    never put it in the middle of the body and never explain the JSON
+    outside the block.
+
 Platform capability map (the platform ships all of the following modules —
 use this to answer "can the platform do X"):
 {capabilities}
@@ -294,9 +376,40 @@ def build_context(sample=None):
                        'seq': v.get('seq'),
                        'finished': v.get('finished')}
                 for slug, v in meta.items()}
-    except Exception:
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            'AI 上下文锚点摘要生成失败: %s: %s', type(e).__name__, e)
+    # 用户反馈钩子（2026-11-04 T7）：feedback.py 由反馈模块提供
+    # recent(n) -> list[str]；模块/接口尚不存在时静默跳过，绝不拦对话。
+    try:
+        from .feedback import recent as _fb_recent
+        _fb = _fb_recent(8)
+        if _fb:
+            ctx['user_feedback'] = _fb
+    except ImportError:
         pass
     return ctx
+
+
+def _plan_tools(allow_plan=True):
+    """任务分解可选（2026-11-03）：plan_mode='off' 时从工具契约里**物理移除**
+    propose_action 的 plan 动作——强制单步执行，不依赖提示词自觉。其余模式
+    直接复用模块级 TOOLS_SPEC（零拷贝）。"""
+    if allow_plan:
+        return ai_tools.TOOLS_SPEC
+    import copy as _copy
+    spec = _copy.deepcopy(ai_tools.TOOLS_SPEC)
+    for t in spec:
+        fn = t.get('function') or {}
+        if fn.get('name') != 'propose_action':
+            continue
+        enum = (((fn.get('parameters') or {}).get('properties') or {})
+                .get('action') or {}).get('enum') or []
+        if 'plan' in enum:
+            enum.remove('plan')
+        fn['description'] = str(fn.get('description') or '').replace(
+            'plan=多步计划', '（plan 动作已被用户关闭——只允许单步动作）')
+    return spec
 
 
 def _clip_history(messages):
@@ -308,6 +421,137 @@ def _clip_history(messages):
         content = str(m.get('content') or '')
         out.append({'role': role, 'content': content[:MAX_MSG_CHARS]})
     return out
+
+
+def _history_digest(messages):
+    """把 _clip_history 丢弃的更早消息压成一段「前情摘要」（2026-11-04）。
+
+    之前超出 MAX_HISTORY 的对话被静默丢弃，用户换几轮再问开头的事，模型
+    就"失忆"了。这里取 messages[:-MAX_HISTORY]，每条只留 role + 正文前
+    80 字（压成单行），用 '；' 连接，总量截 1200 字符，塞进系统提示的
+    history_digest 字段——告诉模型"前面聊过什么"，但不撑爆上下文。
+    没有可压缩内容时返回 ''（调用方据此不注入该字段）。
+    """
+    msgs = list(messages or [])
+    dropped = msgs[:-MAX_HISTORY] if len(msgs) > MAX_HISTORY else []
+    parts = []
+    for m in dropped:
+        if not isinstance(m, dict):
+            continue
+        role = str(m.get('role') or '')
+        if role not in ('user', 'assistant'):
+            continue
+        content = re.sub(r'\s+', ' ', str(m.get('content') or '')).strip()
+        if not content:
+            continue
+        parts.append(f'{role}: {content[:80]}')
+    if not parts:
+        return ''
+    return '；'.join(parts)[:1200]
+
+
+# ===== next_actions（2026-11-04 T5）====================================
+# 模型在回答最末尾用 ```next_actions [...] ``` 声明「建议的后续动作」，
+# 后端解析后下发给前端渲染成按钮，并把该围栏块从正文里删掉——否则用户会
+# 在正文里看到一坨裸 JSON，产物卡片解析也会把它当普通文本。
+_NEXT_ACTIONS_RE = re.compile(r'```next_actions\b(.*?)```',
+                              re.DOTALL | re.IGNORECASE)
+
+
+def _propose_action_enum():
+    """从 TOOLS_SPEC 现取 propose_action 的 action 枚举（不硬编码）。
+
+    平台增删动作时这里自动跟随；取不到时返回空表（调用方按"无合法动作"
+    处理——宁可不下发按钮，也不放过一个平台不认识的动作名）。
+    """
+    for t in ai_tools.TOOLS_SPEC:
+        fn = t.get('function') or {}
+        if fn.get('name') != 'propose_action':
+            continue
+        props = (fn.get('parameters') or {}).get('properties') or {}
+        return list((props.get('action') or {}).get('enum') or [])
+    return []
+
+
+def _parse_next_actions(text):
+    """从回答正文提取**最后一个** ```next_actions``` 块。
+
+    返回 (actions, cleaned_text)：
+      * 合法 → actions 为非空 list[dict]（最多 3 项），cleaned_text 是删掉
+        该围栏块（含 ``` 标记）后的正文；
+      * 不合法/解析失败/没有该块 → actions=[]，cleaned_text 原样返回
+        （静默保留原文，不向用户暴露错误）。
+    合法性：list、0<len<=3、每项 dict、action 属于 propose_action 的 enum、
+    reason 非空。合法时保留模型给的字段；缺 label 时用 action 补默认值。
+    """
+    raw_text = str(text or '')
+    if not raw_text:
+        return [], raw_text
+    matches = list(_NEXT_ACTIONS_RE.finditer(raw_text))
+    if not matches:
+        return [], raw_text
+    m = matches[-1]                     # 只认最后一个块
+    try:
+        data = json.loads(m.group(1).strip())
+    except (TypeError, ValueError):
+        return [], raw_text
+    if not isinstance(data, list) or not (0 < len(data) <= 3):
+        return [], raw_text
+    enum = _propose_action_enum()
+    if not enum:
+        return [], raw_text
+    actions = []
+    for item in data:
+        if not isinstance(item, dict):
+            return [], raw_text
+        action = str(item.get('action') or '').strip()
+        reason = str(item.get('reason') or '').strip()
+        if action not in enum or not reason:
+            return [], raw_text
+        item = dict(item)
+        if not str(item.get('label') or '').strip():
+            item['label'] = action
+        actions.append(item)
+    cleaned = (raw_text[:m.start()] + raw_text[m.end():]).strip()
+    return actions, cleaned
+
+
+def _result_scale(result):
+    """给工具事件算「结果规模」（2026-11-04 T6）：表 N 行 / 文件 N 字 / JSON N 键。"""
+    try:
+        data = json.loads(result) if isinstance(result, str) else result
+    except (TypeError, ValueError):
+        data = None
+    if isinstance(data, dict):
+        rows = data.get('rows')
+        if isinstance(rows, list):
+            return f'{len(rows)} 行'
+        head = data.get('head')
+        if isinstance(head, str):
+            return f'{len(head)} 字'
+        return f'{len(data)} 键'
+    if isinstance(data, list):
+        return f'{len(data)} 项'
+    if isinstance(result, str):
+        return f'{len(result)} 字'
+    return '0'
+
+
+def _tool_detail(name, args, result):
+    """工具事件的一行明细（2026-11-04 T6，≤120 字符）。
+
+    形如 ``read_result_table(sample=…, relpath=…) · 12 行``：前 2 个参数键值
+    （每值截 40 字）+ 结果规模，让用户在「思考过程」里一眼看出这次调用
+    到底读了什么、拿到多少，而不是只看到工具名。
+    """
+    pairs = []
+    for k, v in list((args or {}).items())[:2]:
+        s = re.sub(r'\s+', ' ', str(v))
+        if len(s) > 40:
+            s = s[:40] + '…'
+        pairs.append(f'{k}={s}')
+    detail = f"{name}({', '.join(pairs)}) · {_result_scale(result)}"
+    return detail[:120]
 
 
 def _sse(obj):
@@ -408,11 +652,16 @@ def _workspace_digest(path):
             'truncated': len(names) > len(entries)}
 
 
-def _system_prompt(sample, attachments=None, workspace=None):
+def _system_prompt(sample, attachments=None, workspace=None, plan_mode='',
+                   history_digest=''):
     from Virus_Platform_Core.config import get_config
     lang = get_config().lang
     try:
         ctx = build_context(sample)
+        # 前情摘要（2026-11-04 T2）：被 _clip_history 裁掉的更早对话压成的
+        # 摘要，让模型知道"前面聊过什么"，避免多轮后静默失忆。
+        if history_digest:
+            ctx['history_digest'] = history_digest
         if attachments:
             # 用户在本轮附加的文件（2026-10-30）：路径可直接用于 run_tool 等动作
             ctx['attachments'] = _attach_digest(attachments)
@@ -421,6 +670,16 @@ def _system_prompt(sample, attachments=None, workspace=None):
             # 用户在总览右侧选的工作空间目录（2026-10-30）：列出内容，
             # 模型可以直接从这些文件路径起草 create_sample / run_tool
             ctx['workspace'] = ws
+        # 输出目录（2026-11-02）：用户可能把输出根设到了别处（含对话坞里选的
+        # 工作空间），模型必须知道结果落在哪，否则给出的路径会指错地方。
+        try:
+            ctx['output_root'] = _artifacts.output_root_brief()
+        except Exception:                      # noqa: BLE001
+            pass
+        ctx['ui_artifacts'] = (
+            '回答里直接给产物的**绝对路径**即可：对话坞会自动把它渲染成可点开的'
+            '卡片（图片内联、HTML 可预览或新标签打开、表格给前几行）。'
+            '不要只说「去结果中心点」，也不要用相对路径。')
         ctx_json = json.dumps(ctx, ensure_ascii=False)
     except Exception as e:                     # 上下文失败不拦对话
         ctx_json = json.dumps({'error': f'context unavailable: {e}'},
@@ -428,11 +687,195 @@ def _system_prompt(sample, attachments=None, workspace=None):
     if len(ctx_json) > 60000:                  # 极端大样品：截断保底
         ctx_json = ctx_json[:60000] + '…(truncated)'
     tpl = _SYSTEM_RULES_ZH if lang == 'zh' else _SYSTEM_RULES_EN
-    return tpl.format(context=ctx_json, capabilities=_capability_map(),
+    base = tpl.format(context=ctx_json, capabilities=_capability_map(),
                       lang_name='简体中文' if lang == 'zh' else 'English')
+    # 任务分解口径（2026-11-03 用户定案「任务分解可选」）：随请求逐轮注入，
+    # 不改全局模板（deepcopy 大模板代价高且容易漂移）。
+    pm = str(plan_mode or '').strip().lower() or 'auto'
+    if pm == 'off':
+        base += ('\n\n16. **任务分解已由用户关闭**：不要提出 plan 多步计划'
+                 '（该动作已从你的工具清单移除）——复杂请求也拆成**单步动作**'
+                 '逐步起草，每步等用户批准后再谈下一步。')
+    elif pm == 'always':
+        base += ('\n\n16. **任务分解优先**：用户开启了「任务分解」——涉及 '
+                 '2 个以上阶段的链路（如建样品→组装→鉴定→建树）一律用 '
+                 'plan 多步计划一次提出（≤6 步，逐步执行）；单步请求仍直接'
+                 '起草单个动作。')
+    else:
+        base += ('\n\n16. **任务分解自判（auto）**：简单请求直接起草单个动作，'
+                 '不要拆计划；只有当请求确实涉及 ≥2 个有依赖的分析阶段链路时'
+                 '才用 plan 多步计划。拿不准时先问用户一句「要不要拆成多步'
+                 '计划」。')
+    return base
 
 
-def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
+# ===== 问答平台（2026-11-02）：与 AI 工作台彻底分开的第二条通道 ==========
+# 用户定案：「悬浮机器人的功能独立是问答平台，不是 AI 工作台，不驱动任务
+# 进行，全面分开」，并且「完全隔离：只答平台用法/概念」。
+# 所以这条通道：
+#   ① 不注入任何当前数据（样品 digest / 附件 / 工作空间 / 输出目录都不给）；
+#   ② 不发 tools（模型物理上无法 propose_action / mcp_call）；
+#   ③ 不产出产物卡片（没有工具就不会有新产物，避免把正文里的路径渲染成
+#      「结果卡」误导用户以为问答平台在跑分析）。
+# 三道锁都在服务端，前端改错也越不过去。
+_QA_RULES_ZH = """你是「植物病毒分析平台」的**问答助手**，与「AI 工作台」是两个
+完全独立的入口。你只负责答疑，不参与任何分析执行。
+
+职责边界（用户明确定案，违反即错）：
+1. 只回答**平台用法与概念**：某个页面/入口/按钮是干什么的、术语什么意思、
+   操作步骤，执行单/任务/结果目录的机制，常见报错的排查方向，导出/提交的
+   一般流程。
+2. **不读取、不推断任何当前数据**：你不知道用户此刻选了哪个样品、任务跑到
+   第几步、结果里检出了什么、有哪些文件。被问到这类问题时，直接说明「具体
+   样品/任务数据请到 AI 工作台或结果中心查看，我这边只讲平台用法」——
+   绝不猜测、绝不编造数字或文件名。
+3. **不驱动任何任务**：你没有工具，不能起草执行单，不能启动/停止/重跑任何
+   分析。用户让你「帮我跑一下」时，告诉他去 AI 工作台（首页分析台或顶栏
+   「AI 工作台」按钮）起草执行单，由他本人批准。
+4. 文档里没有的就说不确定，不要编造页面名、参数名或命令。
+
+回答风格：中文，简短，分点；提到入口时写清页面名称与位置（例如「设置 →
+数据库构建」「结果中心 → 表 → 列筛选」）；能一句话说清就别写三段。
+
+下面是平台官方使用指南（仓库根的 AGENTS.md），作为你回答用法问题的依据：
+---
+{doc}
+---"""
+
+_QA_RULES_EN = """You are the **Q&A assistant** of VirusPlatform — a separate
+entry point, completely independent of the "AI workbench". You answer
+questions only; you never take part in any analysis.
+
+Boundaries (fixed by the user; violating them is a bug):
+1. Answer **how the platform works / what things mean** only: what a page,
+   entry or button does, terminology, step-by-step usage, how execution
+   orders / tasks / output directories work, where to start when something
+   fails.
+2. **Never read or infer current data**: you do not know which sample the
+   user has selected, how far a task has progressed, what was detected, or
+   which files exist. For such questions say: "concrete sample/task data
+   lives in the AI workbench or the Results center — I only explain usage",
+   and never guess numbers or file names.
+3. **Never drive tasks**: you have no tools, cannot draft execution orders and
+   cannot start/stop/rerun anything. If the user asks you to run something,
+   point them to the AI workbench (home console or the "AI workbench" button
+   in the top bar) where they can draft and approve it themselves.
+4. If the docs do not cover it, say you are not sure. Never invent page
+   names, parameter names or commands.
+
+Style: short, bulleted, no filler. Name the page and its location.
+
+Official usage guide (AGENTS.md at the repository root), your only source of
+truth for usage questions:
+---
+{doc}
+---"""
+
+_QA_DOC_FALLBACK = """VirusPlatform（植物病毒分析平台）三个入口共用同一引擎：
+网页 http://127.0.0.1:8765（首次启动自动开浏览器）、CLI `python main.py`、
+MCP `python mcp_server.py`。
+常用页面：工作台/（总览，含内嵌 AI 分析台）· 样品（/samples，建样品与样品详情）
+· 工具箱（/tools，单步工具）· 任务中心（/tasks）· 结果中心（/results）
+· 下载（/download）· NCBI 提交 · 系统发育 · 引物设计 · 设置（/settings，
+含 AI 助手/数据库构建/环境自检）· 手册（/help）。
+执行单机制：AI 只能起草，用户在对话坞点「批准执行」后才真正运行；
+删除类/全局重置类动作永不进白名单。结果默认落在 run/results/<样品>/0X_*/，
+工具箱单步产物在 run/tool_runs/<tool>_<ts>_<uuid>/；输出目录可在设置里改，
+改后 results/tool_runs 等整体平移到新根下。
+环境：Windows 10+，Python 3.12，外部工具在 3rd/，数据库在 databases/、host-db/。"""
+
+
+def _doc_sections(text):
+    """AGENTS.md → [(标题, 正文)]（按 '## ' 切分；无标题文档返回空表）。"""
+    secs, cur_t, cur = [], '', []
+    for line in str(text or '').splitlines():
+        if line.startswith('## '):
+            if cur_t and cur:
+                secs.append((cur_t, '\n'.join(cur).strip()))
+            cur_t, cur = line[3:].strip(), []
+        elif cur_t:
+            cur.append(line)
+    if cur_t and cur:
+        secs.append((cur_t, '\n'.join(cur).strip()))
+    return secs
+
+
+def _shingles(s):
+    s = re.sub(r'\s+', '', str(s or ''))
+    return {s[i:i + 2] for i in range(len(s) - 1)} if len(s) > 1 else set()
+
+
+def _qa_pick_sections(doc, question, k=2, cap=6000):
+    """两级注入的检索端（借鉴 shim 的 lazy SKILL.md）。
+
+    系统提示只常驻【文档目录】（每节一行），正文按问题相关性取 top-k 节
+    （中文 2-gram 重叠打分，标题+节首 800 字为样本），总量 cap 截断。
+    章节不足 3 节（内置简版 fallback）→ 原样返回全文，行为与旧版一致。
+    """
+    secs = _doc_sections(doc)
+    if len(secs) < 3:
+        return doc
+    qsh = _shingles(question)
+    scored = []
+    for i, (t, body) in enumerate(secs):
+        sample = (t + ' ') * 3 + body[:800]
+        score = len(qsh & _shingles(sample)) if qsh else 0
+        scored.append((score, i, t, body))
+    scored.sort(key=lambda x: (-x[0], x[1]))
+    picked = [x for x in scored[:k] if x[0] > 0]
+    if not picked:
+        # 没有命中的节（问题太泛）：给目录 + 总览两节，模型至少有落脚点
+        picked = scored[:2]
+    out = ['【文档目录】']
+    for t, body in secs:
+        hint = re.sub(r'\s+', ' ', body[:60])
+        out.append(f'- {t}：{hint}…')
+    out.append('')
+    out.append('【与本问题最相关的章节（其余见目录）】')
+    used = 0
+    for _s, _i, t, body in picked:
+        out.append(f'## {t}')
+        out.append(body)
+        used += len(body) + len(t) + 4
+        if used >= cap:
+            break
+    return '\n'.join(out)[:cap + 1200]
+
+
+def _qa_doc():
+    """平台用法文档：优先读仓库根 AGENTS.md，打包后缺失则用内置简版。"""
+    cands = []
+    try:
+        root = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))))
+        cands.append(os.path.join(root, 'AGENTS.md'))
+    except (OSError, ValueError):           # noqa: BLE001
+        pass
+    cands.append(os.path.join(os.getcwd(), 'AGENTS.md'))
+    for p in cands:
+        try:
+            with open(p, 'r', encoding='utf-8') as f:
+                txt = f.read()
+            if txt.strip():
+                return txt[:12000]
+        except OSError:
+            continue
+    return _QA_DOC_FALLBACK
+
+
+def _qa_system_prompt(question=''):
+    from Virus_Platform_Core.config import get_config
+    lang = get_config().lang
+    tpl = _QA_RULES_ZH if lang == 'zh' else _QA_RULES_EN
+    doc = _qa_pick_sections(_qa_doc(), question) if question else _qa_doc()
+    try:
+        return tpl.format(doc=doc)
+    except (KeyError, IndexError):
+        return tpl
+
+
+def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None,
+             mode='', plan_mode=''):
     """跑一轮对话，yield SSE 事件 dict（调用方逐个 `_sse()` 下发）。
 
     事件：delta（正文增量）/ tool（告知前端的工具活动）/ error（可读错误）/
@@ -440,17 +883,58 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
 
     attachments：用户在本轮附加的本地文件绝对路径（2026-10-30）。只注入
     上下文（名字/大小/文本预览），不改变工具权限。
+
+    mode：'' = AI 工作台（原有行为）；'qa' = 问答平台（2026-11-02）——
+    不注入任何当前数据、不发 tools、不产出产物卡片。
+
+    plan_mode（2026-11-03 用户定案「任务分解可选」）：'auto'（默认）=由模型
+    按请求复杂度自判是否拆多步计划；'off' =从工具契约里**物理移除** plan
+    动作（强制单步，不靠提示词自觉）；'always' =多阶段链路优先拆 plan。
     """
-    sys_prompt = _system_prompt(sample, attachments, workspace)
+    """跑一轮对话，yield SSE 事件 dict（调用方逐个 `_sse()` 下发）。
+
+    事件：delta（正文增量）/ tool（告知前端的工具活动）/ error（可读错误）/
+    done（结束标记，附带本次是否降级过工具）。
+
+    attachments：用户在本轮附加的本地文件绝对路径（2026-10-30）。只注入
+    上下文（名字/大小/文本预览），不改变工具权限。
+
+    mode：'' = AI 工作台（原有行为）；'qa' = 问答平台（2026-11-02）——
+    不注入任何当前数据、不发 tools、不产出产物卡片。
+    """
+    qa = str(mode or '').strip().lower() == 'qa'
+    if qa:
+        # 两级注入（2026-11-03）：按本轮提问检索最相关的文档章节，不再
+        # 每轮注入整份 AGENTS.md——固定成本从 O(全文) 降到 O(目录+2节)
+        q = ''
+        for _m in reversed(messages or []):
+            if isinstance(_m, dict) and _m.get('role') == 'user':
+                q = str(_m.get('content') or '')
+                break
+        sys_prompt = _qa_system_prompt(question=q)
+        sample = attachments = workspace = None   # 三道锁之一：不给上下文
+        history_digest = ''
+    else:
+        # 前情摘要（2026-11-04 T2）：被 _clip_history 裁掉的更早消息不再
+        # 静默消失，压缩成 history_digest 注入系统提示（问答平台不注入）。
+        history_digest = _history_digest(messages)
+        sys_prompt = _system_prompt(sample, attachments, workspace,
+                                    plan_mode=plan_mode,
+                                    history_digest=history_digest)
     convo = [{'role': 'system', 'content': sys_prompt}]
     convo += _clip_history(messages)
     # 长对话静默丢记忆是"AI 变傻"的常见抱怨源：坞里存 30 条、服务端只带
-    # 最近 MAX_HISTORY 条，用户以为它还记得开头。这里明说一句。
+    # 最近 MAX_HISTORY 条，用户以为它还记得开头。2026-11-04 起裁掉的更早
+    # 消息会压成前情摘要（history_digest）带入，notice 同步改口径。
     dropped_n = max(0, len(messages or []) - MAX_HISTORY)
     if dropped_n > 0:
-        yield _sse({'type': 'notice', 'level': 'info',
-                    'message': f'更早的 {dropped_n} 条对话未带入本轮上下文'
-                               f'（只带最近 {MAX_HISTORY} 条）'})
+        if history_digest:
+            msg = (f'更早的 {dropped_n} 条已压缩为前情摘要带入'
+                   f'（最近 {MAX_HISTORY} 条保留原文）')
+        else:
+            msg = (f'更早的 {dropped_n} 条对话未带入本轮上下文'
+                   f'（只带最近 {MAX_HISTORY} 条）')
+        yield _sse({'type': 'notice', 'level': 'info', 'message': msg})
     if not convo or convo[-1]['role'] != 'user':
         yield _sse({'type': 'error',
                     'message': '消息为空，请先输入问题'})
@@ -458,13 +942,65 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
         return
 
     degraded = False
-    use_tools = True
+    use_tools = not qa            # 问答平台（qa）物理上拿不到 tools
     call_sigs = []          # 本轮出现过的 (工具, 参数) 签名，用于拦重复轮询
+    # 产物卡片（2026-11-02）：工具返回的 JSON 里出现的 html/图片/表格路径，
+    # 以及正文里写出来的裸路径，都收进来，最后一次性下发给前端渲染成卡片。
+    turn_paths = []
+    # 本轮真正发给用户的正文。产物卡片要从**这一轮**的回答里认路径，
+    # 不能从 convo 里倒着找：流式回复的末帧 message.content 是 None
+    # （provider.py 只回 content=None），convo 里的 assistant 往往是空串，
+    # 倒着找会拿到上一轮的回答。
+    last_text = ''
+
+    def _emit_artifacts():
+        """把本轮真实落盘的产物整理成一个 artifacts 事件。
+
+        必须在**每一条**结束路径上下发，而不是只在"工具轮次用完"那条兜底
+        路径上——正常回答（模型直接给结论）才是最常见的收尾方式，漏掉它
+        用户就永远看不到卡片。这里吞掉一切异常：卡片失败不能影响回答。
+        """
+        nonlocal last_text
+        if qa:
+            return      # 问答平台不产出「结果卡」（它本来就不跑任何东西）
+        # next_actions（2026-11-04 T5）：last_text 已定稿，先把末尾的
+        # ```next_actions``` 块解析并下发，再从正文里删掉它——保证产物
+        # 卡片解析与入库正文都看不到裸 JSON。不合法时静默保留原文。
+        if last_text:
+            _acts, _clean = _parse_next_actions(last_text)
+            if _acts:
+                _old = last_text
+                last_text = _clean
+                # convo 里同一轮的 assistant 正文同步（非流式端点会带全文）
+                for _m in reversed(convo):
+                    if _m.get('role') == 'assistant':
+                        _c = str(_m.get('content') or '')
+                        if _old and _old in _c:
+                            _m['content'] = _c.replace(_old, _clean, 1)
+                        break
+                yield _sse({'type': 'next_actions', 'actions': _acts})
+        try:
+            text = last_text
+            if not text:
+                for _m in reversed(convo):
+                    if (_m.get('role') == 'assistant'
+                            and str(_m.get('content') or '').strip()):
+                        text = str(_m.get('content') or '')
+                        break
+            paths = list(turn_paths)
+            paths.extend(_artifacts.from_text(text))
+            cards = _artifacts.finish(paths)
+        except Exception:                      # noqa: BLE001
+            cards = []
+        if cards:
+            yield _sse({'type': 'artifacts', 'items': cards,
+                        'summary': _artifacts.describe(cards)})
+
     # 生成长度预算：推理型模型（deepseek-reasoner/flash 等）会把预算先花在
     # reasoning_content 上，2048 常常只够"想一想"，正文为空或半截。这里给
-    # 一个可自动加倍的预算游标，并在触顶时明确告知用户。
-    _BUDGET_MAX = 8192
-    budget = int(ai_cfg.get('max_tokens') or 2048)
+    # 一个可自动加倍的预算游标，并在触顶时明确告知用户。上限 _BUDGET_MAX
+    # 已提升到模块级（2026-11-04：16384），便于测试与统一调整。
+    budget = int(ai_cfg.get('max_tokens') or 32768)
     budget_bumped = False
     for _round in range(MAX_TOOL_ROUNDS + 1):
         emit_parts = []
@@ -479,7 +1015,14 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
             try:
                 for ev in chat_stream(
                         ai_cfg, convo,
-                        tools=ai_tools.TOOLS_SPEC if use_tools else None,
+                        # 2026-11-06 P0：qa 模式必须**真的**不发 tools。
+                        # 以前把 use_tools 当作 _plan_tools 的第一个参数
+                        # （allow_plan）：_plan_tools(False) 只删 plan 动作、
+                        # 仍返回 17 个工具（含 propose_action / mcp_call），
+                        # 问答平台物理上仍能驱动任务。allow_plan=False 的
+                        # 语义是"禁止多步计划"，不是"不给工具"，两件事必须分开。
+                        tools=(_plan_tools(plan_mode != 'off')
+                               if use_tools else None),
                         max_tokens=budget):
                     if ev['type'] == 'reasoning':
                         # 思维链单独下发：前端放在可折叠的「思考过程」里，
@@ -522,6 +1065,22 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
                                 # 失败原文回给它，便于修正。
                                 fargs = {}
                                 arg_err = str(_e)
+                            # 2026-11-06 P0：qa 模式（或上游拒绝 tools 后的降级
+                            # 轮）即使模型自己吐出 tool_calls，也绝不进入
+                            # ai_tools.dispatch——否则"不发 tools"只是不提示，
+                            # 模型仍可通过幻觉/注入驱动任务。直接回一条中文
+                            # 工具结果，让它改用文档知识作答。
+                            if not use_tools:
+                                yield _sse({'type': 'tool', 'name': name,
+                                            'args': {}, 'skipped': True})
+                                convo.append({
+                                    'role': 'tool',
+                                    'tool_call_id': tc.get('id') or '',
+                                    'content': ('工具调用已被禁用：当前是问答平台'
+                                                '模式（qa），不提供任何工具。'
+                                                '请直接基于文档知识用中文回答，'
+                                                '不要调用工具、不要起草执行单。')})
+                                continue
                             # 重复调用拦截（2026-10-30）：模型查任务状态时容易
                             # 反复调同一工具同一参数，把轮次预算烧光。第 3 次起
                             # 不再执行，直接把"别再轮询"作为工具结果回给它。
@@ -542,8 +1101,6 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
                                         '（propose_action / mcp_call）后立即结束本轮，'
                                         '由平台后台在完成后播报。' % (seen + 1))})
                                 continue
-                            yield _sse({'type': 'tool', 'name': name,
-                                        'args': fargs})
                             if arg_err:
                                 result = json.dumps({
                                     'error': '工具参数不是合法 JSON：'
@@ -554,6 +1111,18 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
                                     ensure_ascii=False)
                             else:
                                 result = ai_tools.dispatch(name, fargs)
+                            # 工具事件带明细（2026-11-04 T6）：放在执行完成后，
+                            # detail 才能带上真实结果规模（表 N 行 / 文件 N 字
+                            # / JSON N 键），前端「思考过程」里一眼能看出这次
+                            # 调用读了什么、拿到多少，总长 ≤120 字符。
+                            yield _sse({'type': 'tool', 'name': name,
+                                        'args': fargs,
+                                        'detail': _tool_detail(name, fargs,
+                                                               result)})
+                            try:
+                                turn_paths.extend(_artifacts.from_json_blob(result))
+                            except (OSError, ValueError):      # noqa: BLE001 - 卡片是锦上添花
+                                pass
                             convo.append({'role': 'tool',
                                           'tool_call_id': tc.get('id') or '',
                                           'content': result[:8000]})
@@ -567,6 +1136,8 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
                                 yield _sse({'type': 'delta', 'content': text})
                             convo.append({'role': 'assistant',
                                           'content': text or ''})
+                            if text:
+                                last_text = text        # 非流式/末帧带正文
                 if hit_tools:
                     tool_called = True
                     break                    # → 下一轮（带工具结果）
@@ -590,6 +1161,8 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
                 if tail:
                     emit_parts.append(tail)
                     yield _sse({'type': 'delta', 'content': tail})
+                if emit_parts:                 # 卡片从"用户实际看到的那段话"里认路径
+                    last_text = ''.join(emit_parts)
                 if not emit_parts:
                     msg = '模型未返回内容'
                     if finish == 'length':
@@ -610,6 +1183,7 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
                                 '或说「继续」让我接着写。）_'})
                     yield _sse({'type': 'notice', 'level': 'warn',
                                 'message': '本次回答达到长度上限，内容可能不完整'})
+                yield from _emit_artifacts()
                 yield _sse({'type': 'done', 'tools_degraded': degraded,
                             'dsml_stripped': guard.stripped,
                             'truncated': finish == 'length',
@@ -618,6 +1192,7 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
             except AIConfigError as e:
                 yield _sse({'type': 'error',
                             'message': f'{e}（请在 设置 → AI 助手 中配置）'})
+                yield from _emit_artifacts()
                 yield _sse({'type': 'done'})
                 return
             except AIProviderError as e:
@@ -644,11 +1219,13 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
                                     f'{str(e)[:240]}')})
                     continue
                 yield _sse({'type': 'error', 'message': str(e)})
+                yield from _emit_artifacts()
                 yield _sse({'type': 'done', 'tools_degraded': degraded})
                 return
             except Exception as e:           # 兜底：不让生成器半途崩掉
                 yield _sse({'type': 'error',
                             'message': f'{type(e).__name__}: {e}'})
+                yield from _emit_artifacts()
                 yield _sse({'type': 'done', 'tools_degraded': degraded})
                 return
         if not tool_called:                  # 理论不可达，保险丝
@@ -662,6 +1239,7 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
     try:
         emitted = False
         guard = _DsmlStreamGuard()
+        closing = []
         for ev in chat_stream(ai_cfg,
                               convo + [{'role': 'user', 'content': final_note}],
                               tools=None):
@@ -669,17 +1247,24 @@ def run_chat(ai_cfg, messages, sample=None, attachments=None, workspace=None):
                 piece = guard.feed(ev['content'])
                 if piece:
                     emitted = True
+                    closing.append(piece)
                     yield _sse({'type': 'delta', 'content': piece})
         tail = guard.flush()
         if tail:
             emitted = True
+            closing.append(tail)
             yield _sse({'type': 'delta', 'content': tail})
+        if closing:
+            last_text = ''.join(closing)
         if not emitted:
             yield _sse({'type': 'error',
                         'message': '工具调用轮次超限，且未能生成收尾总结；请换个更具体的问法重试'})
     except Exception as e:
         yield _sse({'type': 'error',
                     'message': f'工具调用轮次超限，收尾总结失败: {type(e).__name__}: {e}'})
+    # 产物卡片（2026-11-02）：先收正文里的裸路径（模型最常这么写），再统一去重排序。
+    # 只认真实存在、且在平台目录内的文件，所以卡片点开不会是 404。
+    yield from _emit_artifacts()
     yield _sse({'type': 'done', 'tools_degraded': degraded})
 
 

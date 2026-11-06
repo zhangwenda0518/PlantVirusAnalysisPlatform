@@ -63,6 +63,14 @@ const AI = {
   _persistT: 0,          // 流式落盘定时器（P0-1）
   _persistFn: null,      // 流式落盘取文本的回调（P0-1）
   _convMenu: null,       // 历史会话下拉节点（P1-1）
+  /* ---- 2026-11-04 对话坞增强 ---- */
+  _samplesCache: {t: 0, raw: null, p: null},  // 样品清单缓存（60s，@补全与本地命令共用）
+  _mention: null,        // @ 样品补全下拉节点
+  _mentionItems: [],     // 当前候选样品名
+  _mentionIdx: -1,       // 键盘高亮下标
+  _mentionToken: null,   // 当前 @token 在输入框里的范围 {start, end}
+  _retryMenu: null,      // ↻ 重试菜单节点（F7）
+  _nextBusy: {},         // 下一步建议 key → 1（防重复起草）
 };
 
 try { AI.lastSeenId = parseInt(localStorage.getItem(AI_SEEN_KEY) || '0', 10)
@@ -111,14 +119,26 @@ AI.msgsKey = function () { return 'vp_ai_msgs:' + AI.convId; };
  * 没开坞所以没渲染。记住用户上次的开合，换页后照旧（历史由 boot 里的
  * AI.toggle(true) → ensureCtx → _restoreHistory 接上）。 */
 AI.toggle = function (force) {
-  const want = (force === undefined) ? !AI.open : !!force;
+  /* 2026-11-02：开合意图以「屏幕上看得见什么」为准，而不是 AI.open 这个标志。
+   * 实测踩到过一次：AI.open 与 #aiDock[hidden] 因为初始化时序短暂不一致，
+   * 用户点 🧠 时按标志算出的 want 等于当前状态，点了跟没点一样（坞不弹）。
+   * 从 DOM 反推就永远「点一下翻一次」，状态标志顺手被校正回真实值。 */
+  const dockEl = $('aiDock');
+  const shown = !!(dockEl && !dockEl.hidden);
+  const want = (force === undefined) ? !shown : !!force;
   AI.open = want;
-  $('aiDock').hidden = !want;
-  $('aiFab').hidden = want;
+  if (dockEl) dockEl.hidden = !want;
+  /* 悬浮球 #aiFab 自 2026-11-02 起是独立「问答平台」的入口（app-qa.js），
+     不再跟工作台联动 —— 这里绝不能再去 hidden 它，否则问答入口会凭空消失。 */
   try { localStorage.setItem(AI_OPEN_KEY, want ? '1' : '0'); } catch (e) {}
   if (want) {
+    /* 问答面板与工作台互斥（两个入口各有各的按钮，收起不会丢入口）；
+       首页的内嵌台（.ai-inline）不算浮坞，不去关问答面板。 */
+    const inlineWb = $('aiDock') && $('aiDock').classList.contains('ai-inline');
+    if (!inlineWb && window.QA && QA.open) { try { QA.toggle(false); } catch (e) { /* 忽略 */ } }
     AI.clearUnread();
     AI.ensureCtx();
+    try { AI.renderChips(); } catch (e) { /* 先按上次的上下文画一版，别留空行 */ }
     AI.hydratePending();
     $('aiInput').focus();
     /* 收起时量不到 offsetTop/clientHeight（display:none），开坞后补算一次
@@ -705,6 +725,14 @@ AI.renderEvent = function (ev) {
     n.className = 'ai-event ai-ev-done';
     n.textContent = `✔ ${ev.name || ev.stage} 完成${s}`;
     AI._append(n);
+    /* 这一阶段的产物（图/表/交互页）随手可点：服务端按阶段目录挑好送过来。
+     * 与 run_done 同处理——卡片另起一屏宽气泡，不挤在居中的完成条里。 */
+    if (ev.artifacts && ev.artifacts.length) {
+      const sbox = document.createElement('div');
+      sbox.className = 'ai-msg ai-bot ai-arts-msg';
+      try { AI.renderArts(sbox, ev.artifacts); } catch (e) { /* 忽略 */ }
+      AI._append(sbox);
+    }
     _scroll();
   } else if (ev.type === 'ai_read') {
     AI._bumpUnread(ev);
@@ -714,6 +742,10 @@ AI.renderEvent = function (ev) {
       + ` · ${esc(ev.name || ev.stage || '')}</div>`
       + (ev.failure ? `<div class="ai-read-fail">✘ ${esc(t('ai.ev.failed', '阶段失败诊断'))}</div>` : '')
       + `<div class="ai-read-body">${aiFmt(ev.text || '')}</div>`;
+    /* 播报正文里提到的产物也做成卡片（服务端已解析，越界路径不会来） */
+    if (ev.artifacts && ev.artifacts.length) {
+      try { AI.renderArts(n, ev.artifacts); } catch (e) { /* 忽略 */ }
+    }
     AI._append(n);
     _scroll();
   } else if (ev.type === 'stage_failed') {
@@ -729,13 +761,24 @@ AI.renderEvent = function (ev) {
     n.className = 'ai-event ai-ev-done ai-ev-run';
     n.textContent = `🏁 ${t('ai.ev.runDone', '本轮分析全部完成')}${s}`;
     AI._append(n);
+    /* 跑完就该能直接点开：报告/漏斗图/进化树/基因组图（服务端算好随事件送来）。
+     * 卡片单独一屏宽的气泡，不塞进居中那条绿色完成条里。 */
+    if (ev.artifacts && ev.artifacts.length) {
+      const box = document.createElement('div');
+      box.className = 'ai-msg ai-bot ai-arts-msg';
+      try { AI.renderArts(box, ev.artifacts); } catch (e) { /* 忽略 */ }
+      AI._append(box);
+    }
     _scroll();
   } else if (ev.type === 'ai_gate') {
     AI._bumpUnread(ev);
     // 闸门会阻塞流水线：待决时自动弹出对话坞（唯一自动开坞的事件，
     // 必须有人拍板）。历史回放（backlog）不弹——刷新页面时旧闸门
-    // 已决或已超时，弹坞纯属打扰
-    if (ev.status === 'pending' && !AI.open && !ev.backlog) AI.toggle(true);
+    // 已决或已超时，弹坞纯属打扰。
+    // 子进程回传的闸门（relay）也不弹：决策要在**发起进程**里落，
+    // 网页端点了也传不回去，只能等它自己超时。
+    const relayed = !!ev.relay;
+    if (ev.status === 'pending' && !AI.open && !ev.backlog && !relayed) AI.toggle(true);
     const stTxt = {pending: t('ai.ev.gatePending', '等待你的决定'),
                    continue: t('ai.ev.gateContinue', '已确认继续'),
                    stop: t('ai.ev.gateStop', '已终止任务'),
@@ -756,7 +799,11 @@ AI.renderEvent = function (ev) {
     n.innerHTML = `🚦 <b>${esc(t('ai.ev.gate', 'AI 决策闸门'))} · ${esc(ev.name || ev.stage)}</b>${esc(s)}`
       + `<span class="ai-gate-st ${pending ? 'pending' : 'done'}">${esc(stTxt)}</span>`
       + `<div class="ai-read-body">${aiFmt(ev.text || '')}</div>`
-      + (pending ? `<div class="ai-gate-btns">`
+      + (pending && relayed
+         ? `<div class="ai-gate-note">${esc(t('ai.ev.gateRelayNote',
+              '该任务由对话坞发起、跑在 MCP 子进程里：决策按钮在这里无效，'
+              + '闸门会按超时自动继续；要中止请到任务中心停止该任务。'))}</div>`
+         : pending ? `<div class="ai-gate-btns">`
          + `<button class="btn small primary" data-ai-act="gate"`
          + ` data-sample="${esc(ev.sample || '')}" data-stage="${esc(ev.stage || '')}"`
          + ` data-decision="continue">${esc(t('ai.ev.gateBtnGo', '▶ 继续下一阶段'))}</button>`
@@ -765,7 +812,7 @@ AI.renderEvent = function (ev) {
          + ` data-decision="stop">${esc(t('ai.ev.gateBtnStop', '■ 终止任务'))}</button>`
          + `</div><span class="ai-gate-cd"></span>` : '');
     AI._append(n);
-    if (pending) AI._startCountdown(n, ev.deadline);
+    if (pending && !relayed) AI._startCountdown(n, ev.deadline);
     _scroll();
   } else if (ev.type === 'ai_action') {
     AI._bumpUnread(ev);
@@ -792,11 +839,15 @@ AI.renderEvent = function (ev) {
       if (ev.status === 'done') stTxt = t('ai.act.done', '✓ 完成') + ' · ' + stTxt;
     }
     // 同一执行单已有卡片：原地翻转（不再要求旧卡片仍是 pending ——
-    // 计划执行期间会多次上报 running，旧写法会每步新建一张卡刷屏）
+    // 计划执行期间会多次上报 running，旧写法会每步新建一张卡刷屏）。
+    // 2026-11-04：pending 重复事件也不再新建卡（下一步建议先建卡、事件流
+    // 稍后补发同一条 pending 时，避免出现两张一模一样的执行单）。
     const oldA = [...document.querySelectorAll('.ai-action')]
       .find(n => n.dataset.aid === ev.aid);
-    if (oldA && ev.status !== 'pending') {
-      AI._flipActionCard(oldA, ev.status, ev.error, stTxt, ev);
+    if (oldA) {
+      if (ev.status !== 'pending') {
+        AI._flipActionCard(oldA, ev.status, ev.error, stTxt, ev);
+      }
       return;
     }
     const pendingA = ev.status === 'pending';
@@ -823,8 +874,19 @@ AI.renderEvent = function (ev) {
     n.innerHTML = `🔧 <b>${esc(t('ai.act.title', 'AI 执行单'))} · ${esc(ev.title || ev.action)}</b>${esc(ev.sample ? ' · ' + ev.sample : '')}`
       + `<span class="ai-gate-st ${pendingA ? 'pending' : 'done'}">${esc(stTxt)}</span>`
       + stepLine
+      // 待批卡片的阶段行改成复选框组（默认全选 = AI 当初的选择），批准时可
+      // 取消个别阶段；已拍板的卡片是历史记录，保持只读文本。外层复用
+      // .ai-act-stages（间距/字号）与设置页现成的 .ai-stagegrid/.ai-stagechk
+      // 样式，不为这一处新增 CSS。
       + (ev.stages && ev.stages.length
-         ? `<div class="ai-act-stages">📑 ${esc((ev.stages || []).join(' → '))}</div>` : '')
+         ? (pendingA
+            ? `<div class="ai-act-stages ai-act-stage-pick ai-stagegrid">📑 `
+              + (ev.stages || []).map(s =>
+                  `<label class="ai-stagechk"><input type="checkbox" checked`
+                  + ` value="${esc(s)}">${esc(s)}</label>`).join('')
+              + `</div>`
+            : `<div class="ai-act-stages">📑 ${esc((ev.stages || []).join(' → '))}</div>`)
+         : '')
       + (ev.action === 'download_runs'
          ? `<div class="ai-act-stages">⬇ ${esc((ev.runs || []).slice(0, 4).join(', '))}${((ev.runs || []).length > 4) ? ' …' : ''}（共 ${esc(String((ev.params || {}).runs_n || (ev.runs || []).length))} 条 run → 平台下载队列）</div>`
          : (ev.action === 'plan' ? '' : `<div class="ai-act-params">${paramsHtml}</div>`))
@@ -837,6 +899,9 @@ AI.renderEvent = function (ev) {
          + ` data-aid="${esc(ev.aid)}" data-decision="reject">`
          + `${esc(t('ai.act.reject', '✗ 驳回'))}</button>`
          + `</div>` : '');
+    if (ev.status === 'done' && ev.artifacts && ev.artifacts.length) {
+      try { AI.renderArts(n, ev.artifacts); } catch (e) { /* 忽略 */ }
+    }
     AI._append(n);
     if (!pendingA && ev.tid) AI._bindTask(n, ev.tid);
     AI._seenAction[ev.aid] = ev.status;
@@ -869,8 +934,29 @@ AI._flipActionCard = function (node, status, err, stTxt, ev) {
   }
   const btns = node.querySelector('.ai-gate-btns');
   if (btns) btns.remove();
+  /* 阶段勾选框是「待批」专用的：翻成已决后换回只读文本（留着勾选框会让人
+     以为还能再改）。优先用事件里的实际阶段，拿不到就取卡上当前勾中的值。 */
+  const pick = node.querySelector('.ai-act-stage-pick');
+  if (pick) {
+    const stg = (ev && Array.isArray(ev.stages) && ev.stages.length)
+      ? ev.stages
+      : Array.prototype.map.call(pick.querySelectorAll('input:checked'), i => i.value);
+    if (stg.length) {
+      const ro = document.createElement('div');
+      ro.className = 'ai-act-stages';
+      ro.textContent = '📑 ' + stg.join(' → ');
+      pick.replaceWith(ro);
+    } else {
+      pick.remove();
+    }
+  }
   // 后端只推「已启动」：把 tid 挂上，卡片自己轮询任务进度
   if (ev && ev.tid && status !== 'rejected') AI._bindTask(node, ev.tid);
+  /* 跑完了就把产物挂进来（launched/running → done 的翻转路径） */
+  if (status === 'done' && ev && ev.artifacts && ev.artifacts.length
+      && !node.querySelector('.ai-arts')) {
+    try { AI.renderArts(node, ev.artifacts); } catch (e) { /* 忽略 */ }
+  }
   if (err && !node.querySelector('.ai-err')) {
     const e = document.createElement('div');
     e.className = 'ai-err';
@@ -947,10 +1033,28 @@ AI.action = async function (aid, decision) {
       }
     });
   };
+  // 阶段勾选只对 approve 有意义：取第一张带复选框的卡片（同 aid 可能有多张
+  // 卡片，历史卡没有勾选框）；全部勾着 = 用户没改，请求不带 stages 走老行为，
+  // 后端仍按执行单原始阶段执行。
+  let stages = null;
+  if (decision === 'approve') {
+    const pick = cards().map(n => n.querySelector('.ai-act-stage-pick'))
+      .find(Boolean);
+    if (pick) {
+      const all = pick.querySelectorAll('input[type=checkbox]');
+      const on = pick.querySelectorAll('input[type=checkbox]:checked');
+      const vals = Array.prototype.map.call(on, i => i.value);
+      // 全部取消 = 没有阶段可跑：不发请求，卡内报错（fail 会恢复按钮）
+      if (!vals.length) return fail(t('ai.act.stageMin', '至少保留一个阶段'));
+      if (vals.length !== all.length) stages = vals;
+    }
+  }
   try {
+    const body = {id: aid, decision};
+    if (stages) body.stages = stages;
     const r = await fetch('/api/ai/actions/resolve', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({id: aid, decision})});
+      body: JSON.stringify(body)});
     if (!r.ok) {
       let msg = `HTTP ${r.status}`;
       try { msg = (await r.json()).error || msg; } catch (e) {}
@@ -1008,6 +1112,40 @@ AI.ensureCtx = function () {
   return AI._ctxP;
 };
 
+/* 配置变更后的即时对齐（2026-11-03）
+ * 设置页与对话坞在同一个页面里（_nav.html 的坞 + settings 页），但坞的就绪
+ * 态只在页面加载时取一次：用户保存完 AI 设置，切回坞仍是「尚未配置」，
+ * 发消息直接报「AI 助手未配置完整」，只能手动刷新页面——这就是
+ * 「我明明设置好了还是不行 / 还得刷新」的直接原因。
+ * 设置页保存成功后调用本函数；切回本标签页时也自动对齐一次（别的窗口改了
+ * 配置同样能跟上）。 */
+AI.refreshReady = async function () {
+  try {
+    const q = AI.sample ? `?sample=${encodeURIComponent(AI.sample)}` : '';
+    const d = await (await fetch('/api/ai/context' + q,
+                                {cache: 'no-store'})).json();
+    AI.ready = !!d.ready;
+    const dot = $('aiReadyDot');
+    if (dot) {
+      dot.hidden = false;
+      dot.classList.toggle('ok', AI.ready);
+      dot.classList.toggle('no', !AI.ready);
+    }
+    if (AI.ready) {
+      // 早先压进去的「尚未配置」提示已过期，留着会继续误导用户
+      document.querySelectorAll('#aiMsgs .ai-notice').forEach(n => n.remove());
+    }
+    try { await AI.loadModels(); } catch (e) { /* 下拉刷新失败不影响对话 */ }
+    return AI.ready;
+  } catch (e) {
+    return AI.ready;             // 网络抖动时保持原状态，不误报
+  }
+};
+
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && AI.ctxLoaded && AI.refreshReady) AI.refreshReady();
+});
+
 /* 历史恢复只做一次（2026-11-02）：与网络解耦。
  * 以前恢复写在 /api/ai/context 成功后的分支里，服务端在跑重活（批量分析、
  * 大批量下载）时该请求会排队/超时 → 历史一条都不渲染，用户看到的就是
@@ -1025,6 +1163,7 @@ AI.restoreOnce = function () {
 AI._ensureCtx = async function () {
   // 先恢复，再问上下文（见 restoreOnce 注释）
   try { AI.restoreOnce(); } catch (e) { /* 恢复失败不阻塞上下文 */ }
+  AI._serverTopUp();   // 异步核对服务端留存：换浏览器/清缓存后也能找回会话
   try {
     // 样品跟随顶栏全局胶囊（2026-10-30 起坞里不再有独立样品下拉）
     AI.sample = (window.VP_CTX && VP_CTX.sample) || '';
@@ -1034,6 +1173,15 @@ AI._ensureCtx = async function () {
     $('aiReadyDot').hidden = false;
     $('aiReadyDot').classList.toggle('ok', AI.ready);
     $('aiReadyDot').classList.toggle('no', !AI.ready);
+    /* 快捷提示按上下文重画（2026-11-02）：样品数/在跑/失败数都来自这次 ctx，
+       拿不到（接口失败）就沿用上一次的形状，不阻塞对话。 */
+    const tasks = Array.isArray(d.tasks) ? d.tasks : [];
+    AI._ctx = {
+      samples: (Array.isArray(d.samples) ? d.samples : []).length,
+      running: tasks.filter(x => x && (x.status === 'running' || x.status === 'queued')).length,
+      failed: tasks.filter(x => x && x.status === 'failed').length,
+    };
+    try { AI.renderChips(); } catch (e) { /* 提示词渲染失败不影响对话 */ }
     if (!AI.ctxLoaded) {
       AI.ctxLoaded = true;
       if (!AI.ready) AI.notice(t('ai.dock.notice',
@@ -1046,6 +1194,130 @@ AI._ensureCtx = async function () {
     AI.notice(t('ai.dock.loadFail', '上下文加载失败') + ': ' + e);
     try { AI.restoreOnce(); } catch (e2) { /* 静默 */ }
   }
+};
+
+/* ---------- 任务分解三态开关（2026-11-03 用户定案「任务分解可选」） ----------
+ * auto（默认）= 模型按请求复杂度自判；off = 后端从工具契约物理移除 plan 动作
+ * （强制单步）；always = 多阶段链路优先拆计划。存 localStorage，随每轮上送。 */
+AI.planMode = (function () {
+  try { return localStorage.getItem('vp_plan_mode') || 'auto'; }
+  catch (e) { return 'auto'; }
+})();
+
+AI.cyclePlanMode = function () {
+  const order = ['auto', 'off', 'always'];
+  AI.planMode = order[(order.indexOf(AI.planMode) + 1) % order.length];
+  try { localStorage.setItem('vp_plan_mode', AI.planMode); } catch (e) {}
+  AI.paintPlanMode();
+  const label = {auto: '模型自判', off: '只做单步（已禁用多步计划）',
+                 always: '优先拆多步计划'}[AI.planMode];
+  AI.sysNote('🧩 ' + t('ai.dock.planSet', '任务分解：') + label);
+};
+
+AI.paintPlanMode = function () {
+  const btn = $('aiPlanBtn');
+  if (!btn) return;
+  const mark = {auto: '', off: '🚫', always: '🔁'}[AI.planMode] || '';
+  btn.textContent = '🧩' + (AI.planMode === 'auto' ? '' : mark);
+  btn.style.opacity = AI.planMode === 'auto' ? '' : '1';
+  btn.title = {auto: '任务分解：auto=模型自判 / off=只单步 / always=优先拆计划',
+               off: '任务分解：已关闭（只做单步）——点击切换',
+               always: '任务分解：优先拆多步计划——点击切换'}[AI.planMode]
+    || btn.title;
+};
+
+/* 初始着色（坞在每页注入，DOMContentLoaded 前脚本已就绪） */
+try { AI.paintPlanMode(); } catch (e) { /* DOM 未就绪时坞打开会再画 */ }
+document.addEventListener('DOMContentLoaded', () => {
+  try { AI.paintPlanMode(); } catch (e) {}
+});
+
+/* ---------- 会话导出 / 重试上一问（2026-11-03 AI 工作台扩展） ---------- */
+
+/* 当前会话 → Markdown 下载。产物路径原样保留（点开即卡片同源）。 */
+AI.exportConv = function () {
+  if (!AI.messages.length) {
+    AI.sysNote(t('ai.dock.exportEmpty', '当前会话还没有内容可导出'));
+    return;
+  }
+  const L = [];
+  L.push('# ' + t('ai.dock.exportTitle', 'AI 工作台会话导出'));
+  L.push('');
+  L.push('- ' + t('ai.dock.exportAt', '导出时间') + ': '
+    + new Date().toLocaleString());
+  if (AI.sample) L.push('- ' + t('gx.sample', '样品') + ': ' + AI.sample);
+  if (AI.planMode && AI.planMode !== 'auto') {
+    L.push('- ' + t('ai.dock.planSet', '任务分解') + ': ' + AI.planMode);
+  }
+  L.push('');
+  L.push('---');
+  for (const m of AI.messages) {
+    L.push('');
+    L.push(m.role === 'user' ? '## 🙋 ' + t('ai.dock.user', '用户')
+                             : '## 🤖 ' + t('ai.dock.assistant', 'AI'));
+    L.push('');
+    L.push(String(m.content || ''));
+    if (Array.isArray(m.artifacts) && m.artifacts.length) {
+      L.push('');
+      L.push(t('ai.dock.exportArtifacts', '**产物**：'));
+      for (const a of m.artifacts) {
+        L.push('- ' + (a.path || a.href || JSON.stringify(a)));
+      }
+    }
+  }
+  const blob = new Blob([L.join('\n')], {type: 'text/markdown;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  a.download = 'AI-workbench-' + (AI.sample || 'conv') + '-' + ts + '.md';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  AI.sysNote('⬇ ' + t('ai.dock.exportDone', '已导出 Markdown'));
+};
+
+/* 重试某条提问：把该条 user 消息及其后的回答全部裁掉，重新发送。
+ * 2026-11-06：入口从工具条 ↻ 挪到每条用户提问下方的「重新上一句」
+ * （_addRetryRow）；点旧提问 = 从那一问重来，它之后的轮次一并截掉。
+ * 屏幕上同步移除该轮及其后的所有气泡，像没发生过一样。 */
+AI.retryFrom = function (bubbleEl) {
+  if (AI.busy) return;
+  const users = AI._turnNodes();
+  const k = users.indexOf(bubbleEl);
+  if (k < 0) return;
+  /* 第 k 个 user 气泡 ↔ AI.messages 里第 k 条 user 消息（渲染与内存 1:1） */
+  let idx = -1, seen = 0;
+  for (let i = 0; i < AI.messages.length; i++) {
+    if (AI.messages[i].role !== 'user') continue;
+    if (seen === k) { idx = i; break; }
+    seen++;
+  }
+  if (idx < 0) return;
+  const text = AI.messages[idx].content;
+  AI.messages = AI.messages.slice(0, idx);    // 连该条一起裁，AI.send 会重发
+  AI._saveHistory();
+  /* 同步裁屏幕：从尾部移除气泡，直到把目标 user 气泡也移掉。
+     操作行挂在气泡内部，随气泡一起移除，不参与这里的判定。 */
+  const box = $('aiMsgs');
+  let el = box && box.lastElementChild;
+  while (el) {
+    const prev = el.previousElementSibling;
+    el.remove();
+    if (el === bubbleEl) break;
+    el = prev;
+  }
+  AI.send(text);
+};
+
+/* 兼容包装：无参调用 = 重试最后一条提问 */
+AI.retryLast = function () {
+  const users = AI._turnNodes();
+  if (!users.length) {
+    AI.sysNote(t('ai.dock.noRetry', '没有可重试的提问'));
+    return;
+  }
+  AI.retryFrom(users[users.length - 1]);
 };
 
 /* ---------- 模型切换 ----------
@@ -1118,6 +1390,7 @@ AI.onModelChange = async function (v) {
  * 持久化——它们由服务端环形缓冲在重连时重放。
  * 2026-11-02：以前所有标签页共写一个键，两个标签各聊一段就互相覆盖。 */
 AI._saveHistory = function () {
+  let synced = null;
   try {
     if (!AI.messages.length) return;              // 没有内容就不留空桶
     const msgs = AI._trim(AI.messages);
@@ -1129,7 +1402,87 @@ AI._saveHistory = function () {
       localStorage.setItem(AI_LAST_KEY, JSON.stringify({t, conv: AI.convId, msgs}));
     } catch (e) { /* 体积超限：镜像写不进就只保留会话键 */ }
     AI._pruneHistory();
+    synced = msgs;
   } catch (e) { /* 存储不可用则静默 */ }
+  /* 2026-11-03 服务端留存（借鉴 shim）：localStorage 是即时备份，服务端
+   * run/ai_sessions/<conv>.jsonl 是跨浏览器/清缓存的持久层。发送的是
+   * _saveHistory 存的同一份裁剪结果（保证两端条数口径一致）；失败静默——
+   * 老后端/离线时行为与从前完全一致。 */
+  if (synced) AI._syncServer(synced);
+};
+
+/* 服务端镜像同步（防抖 800ms，fire-and-forget） */
+AI._syncServer = function (msgs) {
+  if (!AI.convId || !Array.isArray(msgs) || !msgs.length) return;
+  if (AI._syncT) clearTimeout(AI._syncT);
+  AI._syncT = setTimeout(function () {
+    try {
+      fetch('/api/ai/sync/' + encodeURIComponent(AI.convId), {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({conv_id: AI.convId, msgs: msgs})
+      }).catch(function () { /* 老后端/网络抖动：静默 */ });
+    } catch (e) { /* 静默 */ }
+  }, 800);
+};
+
+/* 服务端优先补差（2026-11-03）：localStorage 恢复完成后异步核对服务端留存，
+ * 服务端更长（换浏览器/清过缓存的第一印象）就把缺的尾部补渲染出来。
+ * 每段会话每页只补一次；本地已够长 / 正在恢复 / 正在生成时不插手。 */
+AI._topUpConv = '';
+AI._serverTopUp = async function () {
+  if (!AI.convId || AI.convId === AI._topUpConv) return;
+  AI._topUpConv = AI.convId;
+  let arr = [];
+  try {
+    const r = await fetch('/api/ai/sync/' + encodeURIComponent(AI.convId),
+                          {cache: 'no-store'});
+    if (!r.ok) return;
+    const d = await r.json();
+    arr = Array.isArray(d.msgs) ? d.msgs : [];
+  } catch (e) { return; }                        // 老后端/离线：保持现状
+  if (!arr.length || AI._restoring || AI.busy) return;
+  if (arr.length <= AI.messages.length) return;  // 本地不缺
+  const have = AI.messages.length;
+  const box = $('aiMsgs');
+  if (!box) return;
+  const frag = document.createDocumentFragment();
+  for (const m of arr.slice(have)) {
+    if (!m || (m.role !== 'user' && m.role !== 'assistant')) continue;
+    const raw = String(m.content || '');
+    /* 与本地恢复同口径：剔除可能残留的 next_actions 围栏块 */
+    const ctext = m.role === 'assistant' ? _stripNextActionsBlock(raw) : raw;
+    const b = _mkBubble(m.role);
+    if (m.role === 'user') {
+      b.textContent = raw;
+      _addRetryRow(b);
+    } else {
+      const ans = document.createElement('div');
+      ans.className = 'ai-answer';
+      ans.innerHTML = aiFmt(ctext);
+      b.appendChild(ans);
+      /* 反馈下标：AI.messages 在这轮循环末尾才 push，此刻的 length 正好是
+       * 这条 assistant 消息的下标（2026-11-04）。 */
+      _addCopyBar(b, ctext, AI.messages.length);
+      AI._foldAnswer(b);
+      if (m.artifacts && m.artifacts.length) {
+        try { AI.renderArts(b, m.artifacts); } catch (e) { /* 忽略 */ }
+      }
+      if (m.partial) {
+        const tag = document.createElement('div');
+        tag.className = 'ai-sysnote';
+        tag.textContent = t('ai.dock.partial',
+          '（这条回答在生成中被打断，只保存了已完成的部分）');
+        b.appendChild(tag);
+      }
+    }
+    AI.messages.push({role: m.role, content: ctext});
+    frag.appendChild(b);
+  }
+  box.appendChild(frag);
+  try { AI._saveHistory(); } catch (e) { /* 回写本地失败不影响 */ }
+  try { _scroll(); } catch (e) {}
+  AI.sysNote(t('ai.dock.serverRestored',
+    '🕘 已从平台服务端恢复本会话更早的内容（跨浏览器留存）'));
 };
 
 /* 流式中周期性落盘（P0-1，2026-11-02）
@@ -1164,16 +1517,26 @@ AI._persistStop = function () {
 
 /* 正常收尾：撤掉流式期间写下的 partial 草稿，换成最终文本再落盘。
  * 收尾时用户其实已经离开了页面（aborted / 页面切走）则保留草稿，
- * 至少让回来的人看得到「当时生成到哪」。 */
-AI._persistFinish = function (finalText, keepDraft) {
+ * 至少让回来的人看得到「当时生成到哪」。
+ * artifacts（2026-11-06）：产物卡片必须在**这一次**落盘里就挂上。
+ * 以前先 _persistFinish 再补挂 artifacts 二次保存，服务端前缀比较只认
+ * role/content，artifacts 永远进不了镜像文件。 */
+AI._persistFinish = function (finalText, keepDraft, artifacts) {
   AI._persistStop();
+  const arts = (artifacts && artifacts.length) ? artifacts : null;
   const last = AI.messages[AI.messages.length - 1];
   if (last && last.role === 'assistant' && last.partial) {
-    if (keepDraft) { if (finalText) last.content = finalText; return; }
+    if (keepDraft) {
+      if (finalText) last.content = finalText;
+      if (arts) last.artifacts = arts;
+      return;
+    }
     AI.messages.pop();
   }
   if (finalText) {
-    AI.messages.push({role: 'assistant', content: finalText});
+    const msg = {role: 'assistant', content: finalText};
+    if (arts) msg.artifacts = arts;
+    AI.messages.push(msg);
     AI._saveHistory();
   }
 };
@@ -1193,9 +1556,14 @@ AI._trim = function (msgs) {
       total -= String(d2.content || '').length + 32;
     }
   }
-  return arr.map(m => (m.partial
-    ? {role: m.role, content: m.content, partial: 1}
-    : {role: m.role, content: m.content}));
+  return arr.map(m => {
+    const o = {role: m.role, content: m.content};
+    if (m.partial) o.partial = 1;
+    /* 产物卡片（2026-11-02）：回答里提到的文件清单也要落盘，否则重开页面
+     * 只剩一段裸路径，用户又得自己去翻。 */
+    if (m.artifacts && m.artifacts.length) o.artifacts = m.artifacts;
+    return o;
+  });
 };
 
 /* 只保留最近 AI_HIST_MAX 段会话，避免 localStorage 无限增长 */
@@ -1269,16 +1637,34 @@ AI._restoreHistory = function () {
         if (!Array.isArray(arr) || !arr.length) { ok = false; }
         else {
           const frag = document.createDocumentFragment();
+          /* 旧回答（升级前存的）只有裸路径、没有 artifacts：这里记下气泡，
+           * 挂载后一次性问服务端要卡片，免得用户重新提问才看得到「可点开」。 */
+          const needArts = [];
           for (const m of arr.slice(-AI_MSGS_CAP)) {
             if (!m || (m.role !== 'user' && m.role !== 'assistant')) continue;
+            const raw = String(m.content || '');
+            /* 旧草稿里可能还留着 ```next_actions``` 围栏块（流式中断时
+               落盘的中间态）：恢复时一并剔除，不把裸 JSON 摆给用户，
+               内存里的 AI.messages 也与界面同口径。 */
+            const ctext = m.role === 'assistant'
+              ? _stripNextActionsBlock(raw) : raw;
             const b = _mkBubble(m.role);
-            if (m.role === 'user') b.textContent = String(m.content || '');
+            if (m.role === 'user') { b.textContent = raw; _addRetryRow(b); }
             else {
               const ans = document.createElement('div');
               ans.className = 'ai-answer';
-              ans.innerHTML = aiFmt(String(m.content || ''));
+              ans.innerHTML = aiFmt(ctext);
               b.appendChild(ans);
-              _addCopyBar(b, String(m.content || ''));
+              /* AI.messages 在这轮循环后面才 push，此刻的 length 正好是它的下标 */
+              _addCopyBar(b, ctext, AI.messages.length);
+              AI._foldAnswer(b);
+              // 产物卡片随历史一起恢复（2026-11-02）
+              if (m.artifacts && m.artifacts.length) {
+                try { AI.renderArts(b, m.artifacts); } catch (e) { /* 忽略 */ }
+              } else if (ctext.length > 8) {
+                needArts.push({el: b, text: ctext,
+                               idx: AI.messages.length});
+              }
               if (m.partial) {
                 /* 上次是在流式中途被切走的：明确标注「未完」，别让人当成完整版 */
                 const tag = document.createElement('div');
@@ -1288,10 +1674,11 @@ AI._restoreHistory = function () {
                 b.appendChild(tag);
               }
             }
-            AI.messages.push({role: m.role, content: String(m.content || '')});
+            AI.messages.push({role: m.role, content: ctext});
             frag.appendChild(b);
           }
           box.appendChild(frag);        // ← 唯一一次挂载
+          if (needArts.length) AI._backfillArts(needArts);
           ok = AI.messages.length > 0;
         }
       }
@@ -1363,10 +1750,12 @@ AI._turnNodes = function () {
     && n.classList.contains('ai-msg') && n.classList.contains('ai-user'));
 };
 
-/* 预览文案：提问气泡里可能挂着附件芯片（📎 文件名），预览时剔掉 */
+/* 预览文案：提问气泡里可能挂着附件芯片（📎 文件名）与「↻ 重新上一句」
+ * 操作行（2026-11-06），预览时一并剔掉 */
 AI._turnLabel = function (node) {
   const c = node.cloneNode(true);
-  Array.prototype.forEach.call(c.querySelectorAll('.ai-msg-atts'),
+  Array.prototype.forEach.call(
+    c.querySelectorAll('.ai-msg-atts, .ai-msg-actions'),
     x => x.parentNode.removeChild(x));
   return (c.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
 };
@@ -1404,14 +1793,28 @@ AI.rebuildTurnNav = function () {
   });
   nav.hidden = turns.length < 2;
   /* 轮数多时压缩点距：容器高度由 top/bottom 定死，30 轮 ×(12+8)px 会把点
-     顶出消息区。上下内边距 8px 之外全部分给间隙，最少 1px。 */
+     顶出消息区。上下内边距 8px 之外全部分给间隙，最少 1px；间隙压到 1px
+     仍装不下时（矮视口 × 多轮数），等比压缩点高（最低 4px，::before 短横
+     居中不受影响），保证点带始终落在轨道高度内（2026-11-06 纵向 389px 实测）。 */
   if (!nav.hidden) {
     const n = turns.length;
     const avail = nav.clientHeight - 8;
-    nav.style.gap = Math.max(1, Math.min(8,
-      Math.floor((avail - n * 12) / Math.max(1, n - 1)))) + 'px';
+    const TICK = 12;
+    let h = TICK;
+    let gap = Math.floor((avail - n * TICK) / Math.max(1, n - 1));
+    if (gap < 1) {
+      gap = 1;
+      h = Math.max(4, Math.floor((avail - (n - 1) * gap) / n));
+    }
+    nav.style.gap = gap + 'px';
+    for (const it of AI._navTicks) {
+      it.tick.style.height = (h === TICK ? '' : h + 'px');
+    }
   } else {
     nav.style.gap = '';
+    for (const it of AI._navTicks) {
+      it.tick.style.height = '';
+    }
   }
   AI._navIdx = -1;
   AI.syncTurnNav();
@@ -1510,8 +1913,10 @@ AI.initTurnNav = function () {
   AI.rebuildTurnNav();
 };
 
-/* 每条助手回答下方的“复制回答”条（复制用户看到的是纯文本）。 */
-function _addCopyBar(bb, text) {
+/* 每条助手回答下方的“复制回答”条（复制用户看到的是纯文本）。
+ * 2026-11-04：顺带挂 👍/👎 反馈（msgIdx = 该条在 AI.messages 里的下标，
+ * 恢复历史/服务端补差时由调用方在渲染循环里记录；传 -1 表示不挂）。 */
+function _addCopyBar(bb, text, msgIdx) {
   if (!bb || !text || !String(text).trim()) return;
   if (bb.querySelector('.ai-msg-bar')) return;
   const bar = document.createElement('div');
@@ -1538,8 +1943,303 @@ function _addCopyBar(bb, text) {
     else if (navigator.clipboard) navigator.clipboard.writeText(src.innerText).then(() => done(true), () => done(false));
   });
   bar.appendChild(btn);
+  /* 2026-11-06：导出会话挪进消息流 —— 每条 AI 回复的操作条里都有「⬇ 导出」，
+     点任意一条都导出当前完整会话（Markdown），与复制并排。 */
+  const ex = document.createElement('button');
+  ex.type = 'button';
+  ex.className = 'ai-msg-copy ai-msg-export';
+  ex.textContent = '⬇ ' + t('ai.msg.export', '导出');
+  ex.title = t('ai.dock.export', '导出当前会话为 Markdown');
+  ex.addEventListener('click', () => AI.exportConv());
+  bar.appendChild(ex);
+  if (typeof msgIdx === 'number' && msgIdx >= 0) _addFbBtns(bar, bb, msgIdx);
   bb.appendChild(bar);
 }
+
+/* 每条用户提问下方的「↻ 重新上一句」（2026-11-06，从工具条挪入消息流）。
+ * 点旧提问 = 从那一问重来（AI.retryFrom）：该条及其后的轮次一并截掉再重发。
+ * 行挂在气泡内部：不新增 #aiMsgs 直接子节点，避开 retryFrom 尾删循环的
+ * ai-user 判定与 _turnNodes 的直接子节点统计；生成中禁用。 */
+function _addRetryRow(ub) {
+  if (!ub || ub.querySelector('.ai-msg-actions')) return;
+  const row = document.createElement('div');
+  row.className = 'ai-msg-actions';
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'ai-msg-act-retry';
+  b.textContent = '↻ ' + t('ai.msg.retry', '重新上一句');
+  b.title = t('ai.dock.retry', '重试上一问（可选带一句纠正）');
+  b.disabled = !!AI.busy;
+  b.addEventListener('click', () => AI.toggleRetryMenu(b));
+  row.appendChild(b);
+  ub.appendChild(row);
+}
+
+/* ---------- 👍👎 反馈（2026-11-04） ----------
+ * 每条回答只允许反馈一次：提交成功后按钮置灰、去掉输入行；👎 先展开一行
+ * 「哪里不对？」，发送时把 note 一起带给 /api/ai/feedback。 */
+function _addFbBtns(bar, bb, msgIdx) {
+  if (bar.querySelector('.ai-fb')) return;
+  const box = document.createElement('span');
+  box.className = 'ai-fb';
+  const mk = (verdict, ico, label) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ai-fb-btn';
+    b.textContent = ico;
+    b.title = label;
+    b.setAttribute('aria-label', label);
+    b.addEventListener('click', () => {
+      if (bb.dataset.fbDone) return;
+      if (verdict === 'up') { AI._sendFeedback(bb, msgIdx, 'up', ''); return; }
+      _showFbNote(bb, msgIdx);
+    });
+    return b;
+  };
+  box.appendChild(mk('up', '👍', t('ai.fb.up', '回答有帮助')));
+  box.appendChild(mk('down', '👎', t('ai.fb.down', '回答没帮助')));
+  bar.appendChild(box);
+}
+
+function _showFbNote(bb, msgIdx) {
+  if (!bb || bb.dataset.fbDone) return;
+  const old = bb.querySelector('.ai-fb-note');
+  if (old) {
+    const i = old.querySelector('input');
+    if (i) i.focus();
+    return;
+  }
+  const row = document.createElement('div');
+  row.className = 'ai-fb-note';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'ai-fb-input';
+  inp.maxLength = 500;
+  inp.placeholder = t('ai.fb.notePh', '哪里不对？一句话即可，可留空');
+  const send = document.createElement('button');
+  send.type = 'button';
+  send.className = 'btn small primary';
+  send.textContent = t('ai.fb.send', '发送');
+  const skip = document.createElement('button');
+  skip.type = 'button';
+  skip.className = 'btn small';
+  skip.textContent = t('ai.fb.skip', '跳过');
+  const submit = () => {
+    if (send.disabled) return;
+    send.disabled = true;
+    AI._sendFeedback(bb, msgIdx, 'down', inp.value.trim());
+  };
+  send.addEventListener('click', submit);
+  skip.addEventListener('click', () => row.remove());
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  });
+  row.appendChild(inp);
+  row.appendChild(send);
+  row.appendChild(skip);
+  bb.appendChild(row);
+  inp.focus();
+}
+
+/* 反馈端点的 conv_id 白名单是 [A-Za-z0-9_-]{6,64}；老版本迁移会留下
+ * 'main' 这种短 id，这里做一次稳定归一（同一会话始终得到同一个值），
+ * 免得老用户点 👍 直接吃 400。 */
+function _fbConvId() {
+  let cid = String(AI.convId || '');
+  if (/^[A-Za-z0-9_-]{6,64}$/.test(cid)) return cid;
+  cid = cid.replace(/[^A-Za-z0-9_-]/g, '_') || 'conv';
+  while (cid.length < 6) cid += '_';
+  return cid.slice(0, 64);
+}
+
+AI._sendFeedback = function (bb, msgIdx, verdict, note) {
+  if (!bb || bb.dataset.fbDone) return;
+  /* 提交期间先置灰，防止连点造成重复上报；失败时再放开 */
+  const fbox = bb.querySelector('.ai-fb');
+  if (fbox) fbox.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  const body = {conv_id: _fbConvId(), msg_idx: msgIdx, verdict: verdict,
+                note: note || ''};
+  fetch('/api/ai/feedback', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  })
+    .then(r => r.json().catch(() => ({})).then(d => {
+      if (!r.ok) throw new Error((d && (d.error || d.detail)) || ('HTTP ' + r.status));
+      if (d && d.ok === false) throw new Error(d.error || 'feedback failed');
+      return d;
+    }))
+    .then(() => {
+      bb.dataset.fbDone = verdict;
+      const box = bb.querySelector('.ai-fb');
+      if (box) {
+        box.querySelectorAll('button').forEach(b => {
+          b.disabled = true;
+          b.title = t('ai.fb.done', '已反馈');
+        });
+      }
+      const row = bb.querySelector('.ai-fb-note');
+      if (row) row.remove();
+      _aiToast(t('ai.fb.thanks', '已记录，谢谢'), '', '');
+    })
+    .catch(err => {
+      const row = bb.querySelector('.ai-fb-note');
+      if (row) row.querySelectorAll('button').forEach(b => { b.disabled = false; });
+      const box = bb.querySelector('.ai-fb');
+      if (box && !bb.dataset.fbDone) {
+        box.querySelectorAll('button').forEach(b => { b.disabled = false; });
+      }
+      _aiToast(t('ai.fb.fail', '反馈提交失败'),
+               String((err && err.message) || err), 'failed');
+    });
+};
+
+/* 对话坞内的小提示：全局 toast 不可用（老页面/测试环境）时退回 sysNote */
+function _aiToast(title, body, kind) {
+  try {
+    if (typeof window.toast === 'function') {
+      window.toast(title, body || '', {kind: kind || '', ttl: 3000});
+      return;
+    }
+  } catch (e) { /* 忽略，走兜底 */ }
+  try { AI.sysNote(title + (body ? ' · ' + body : '')); } catch (e) { /* 静默 */ }
+}
+
+/* ---------- 长回答折叠（F5，2026-11-04） ----------
+ * 正文超过 3000 字符时先把高度收在 ~460px（底部渐隐），点「展开全文」恢复。 */
+/* 剔除回答末尾的 ```next_actions``` 围栏块（2026-11-04）。
+ * 后端在落库正文里已经删掉它，但流式 delta 是先原样进前端 acc 的；
+ * 收到 next_actions 事件时同步清理，避免界面上露出裸 JSON。只删最后一个
+ * 块（与后端 _parse_next_actions 的口径一致）。 */
+function _stripNextActionsBlock(s) {
+  const text = String(s || '');
+  const re = /```next_actions\b[\s\S]*?```/gi;
+  let last = null;
+  let m;
+  while ((m = re.exec(text))) last = m;
+  if (!last) return text;
+  return (text.slice(0, last.index) + text.slice(last.index + last[0].length))
+    .trim();
+}
+
+AI._foldAnswer = function (bb) {
+  const ans = bb && bb.querySelector('.ai-answer');
+  if (!ans || ans.classList.contains('ai-fold')) return;
+  if (String(ans.textContent || '').length <= 3000) return;
+  ans.classList.add('ai-fold');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ai-fold-btn';
+  btn.textContent = '▾ ' + t('ai.fold.more', '展开全文');
+  btn.addEventListener('click', () => {
+    ans.classList.remove('ai-fold');
+    btn.remove();
+    _scroll(false);
+  });
+  if (ans.parentNode) ans.parentNode.insertBefore(btn, ans.nextSibling);
+};
+
+/* ---------- 下一步建议按钮（F1，2026-11-04） ----------
+ * 回答收尾时把 SSE next_actions 渲染成一排按钮；点击 = 起草执行单
+ * （POST /api/ai/actions/create），成功后复用 propose_action 的卡片渲染
+ * 路径，把「待你批准」的卡片插进对话，**不会**立即执行。 */
+AI._renderNextActions = function (bb, actions) {
+  if (!bb || !Array.isArray(actions) || !actions.length) return null;
+  const row = document.createElement('div');
+  row.className = 'ai-next';
+  row.setAttribute('aria-label', t('ai.next.aria', '下一步建议'));
+  actions.forEach(a => {
+    if (!a) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn small ai-next-btn';
+    b.textContent = String(a.label || a.action || '');
+    b.title = String(a.reason || '');
+    b.addEventListener('click', () => AI._createNextAction(b, a, row));
+    row.appendChild(b);
+  });
+  bb.appendChild(row);
+  _scroll(false);
+  return row;
+};
+
+AI._createNextAction = function (btn, a, row) {
+  if (!a || !a.action) return;
+  const key = [a.action, a.sample || '',
+               (Array.isArray(a.stages) ? a.stages.join(',') : '')].join('|');
+  if (AI._nextBusy[key] || (row && row._busy)) return;
+  AI._nextBusy[key] = 1;
+  if (row) row._busy = 1;
+  const btns = row ? Array.prototype.slice.call(row.querySelectorAll('button')) : [btn];
+  btns.forEach(b => { b.disabled = true; });        // 渲染期间禁用，防重复起草
+  btn.classList.add('busy');
+  fetch('/api/ai/actions/create', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      action: a.action,
+      sample: a.sample || '',
+      stages: Array.isArray(a.stages) ? a.stages : [],
+      params: (a.params && typeof a.params === 'object') ? a.params : {},
+      reason: a.reason || ''
+    })
+  })
+    .then(r => r.json().catch(() => ({})).then(d => {
+      if (!r.ok) throw new Error((d && (d.error || d.detail)) || ('HTTP ' + r.status));
+      return d;
+    }))
+    .then(d => {
+      if (!d || d.created === false) {
+        throw new Error((d && (d.error || d.detail)) || 'create failed');
+      }
+      AI._insertActionCard(d, a);
+      btn.classList.remove('busy');
+      btn.classList.add('ok');
+      btn.textContent = '✓ ' + String(a.label || a.action || '');
+      btn.disabled = true;                            // 已起草：同一条不再重复建单
+      btns.forEach(b => { if (b !== btn) b.disabled = false; });
+      if (row) row._busy = 0;
+      _aiToast(t('ai.next.created', '已起草，待批准'),
+               String(a.label || ''), '');
+    })
+    .catch(err => {
+      delete AI._nextBusy[key];
+      if (row) row._busy = 0;
+      btns.forEach(b => { b.disabled = false; });
+      btn.classList.remove('busy');
+      _aiToast(t('ai.next.fail', '起草失败'),
+               String((err && err.message) || err), 'failed');
+    });
+};
+
+/* 用 /api/ai/actions/create 的响应造一张执行单卡（与 propose_action 同一条
+ * 渲染路径）。同一 aid 已渲染过就不重复插卡 —— 事件流稍后补发 pending 事件
+ * 时也不会出现两张一样的卡。 */
+AI._insertActionCard = function (rec, a) {
+  if (!rec) return null;
+  const aid = rec.id || rec.aid;
+  if (!aid) return null;
+  const sid = String(aid);
+  const old = Array.prototype.slice.call(document.querySelectorAll('.ai-action'))
+    .find(n => n.dataset.aid === sid);
+  if (old) return old;
+  a = a || {};
+  AI.renderEvent({
+    type: 'ai_action', aid: sid, id: -1, backlog: false,
+    status: rec.status || 'pending',
+    title: rec.title || a.label || a.action || '',
+    action: rec.action || a.action || '',
+    sample: rec.sample !== undefined ? rec.sample : (a.sample || ''),
+    stages: Array.isArray(rec.stages) ? rec.stages
+            : (Array.isArray(a.stages) ? a.stages : []),
+    params: (rec.params && typeof rec.params === 'object') ? rec.params
+            : ((a.params && typeof a.params === 'object') ? a.params : {}),
+    reason: rec.reason || a.reason || '',
+    /* 多步计划的回显里带 steps（与 propose_action 卡片同口径），
+       少了它计划卡就只剩标题，看不到会跑哪几步。 */
+    steps: Array.isArray(rec.steps) ? rec.steps : undefined
+  });
+  return Array.prototype.slice.call(document.querySelectorAll('.ai-action'))
+    .find(n => n.dataset.aid === sid) || null;
+};
 
 /* 只造节点、不挂载（恢复历史用；P0-2 起 _bubble 与 _mkBubble 分离） */
 function _mkBubble(role) {
@@ -1744,8 +2444,10 @@ AI.switchConv = function (id) {
   AI.convId = id;
   AI._ss.set(AI_CONV_KEY, id);
   AI.messages = [];
+  AI._topUpConv = '';                       // 换会话后允许服务端补差一次
   $('aiMsgs').innerHTML = '';
   if (!AI._restoreHistory()) AI.greet();
+  AI._serverTopUp();                        // 跨浏览器场景：本地空但服务端有
   if (typeof AI.rebuildTurnNav === 'function') AI.rebuildTurnNav();
 };
 
@@ -1759,6 +2461,7 @@ AI.newConv = function () {
   AI.convId = id;
   AI._ss.set(AI_CONV_KEY, id);
   AI.messages = [];
+  AI._topUpConv = '';
   if (AI._backlog) { AI._backlog.remove(); AI._backlog = null; AI._backlogN = 0; }
   $('aiMsgs').innerHTML = '';
   AI.greet();
@@ -1780,22 +2483,142 @@ AI._dropReplay = async function () {
   } catch (e) { /* 拿不到水位就算了，下次开流再说 */ }
 };
 
-/* ---------- 快捷指令 ---------- */
+/* ---------- 快捷指令（2026-11-02 扩充）----------
+ * 原来的 4 个固定 chip 与处境无关、常常只有孤零零一行。现在按上下文动态给：
+ *   · 没选样品 / 一个样品都没有 → 先给「从哪开始」这类入门提示
+ *   · 有样品 → 解读 / 下一步 / 参数 / 报告
+ *   · 有任务在跑 → 「还要多久」；有失败 → 「为什么失败」
+ * 默认露 6 条，其余收在「更多」里（开合状态记 localStorage）。
+ * 增删一条 = AI._chipDefs() 里加一项 + i18n 里加 ai.dock.chip<X> 与 ai.dock.q<X>。
+ * 悬停显示完整问题（title 直接给 prompt），点了立即发送。 */
+const AI_CHIPS_MORE_KEY = 'vp_ai_chips_more';
+const AI_CHIPS_VISIBLE = 6;
+try { AI._chipsMore = localStorage.getItem(AI_CHIPS_MORE_KEY) === '1'; }
+catch (e) { AI._chipsMore = false; }
 
+AI._chipCtx = function () {
+  const c = AI._ctx || {};
+  return { sample: !!AI.sample, samples: Number(c.samples) || 0,
+           running: Number(c.running) || 0, failed: Number(c.failed) || 0 };
+};
+
+AI._chipDefs = function () {
+  const has = () => !!AI.sample;
+  return [
+    { id: 'start', k: 'ai.dock.chipStart', z: '从哪开始',
+      w: c => (!has() || !c.samples) ? 0 : 95,
+      when: c => !has() || !c.samples,
+      q: () => t('ai.dock.qStart',
+        '我刚接触这个平台，请给我一条最短上手路径：先做什么、再做什么、每一步在哪里点，'
+        + '并说明走到哪一步我能看到第一个结果。') },
+    { id: 'interpret', k: 'ai.dock.chipInterpret', z: '解读这个样品',
+      w: () => has() ? 2 : 92,
+      when: () => has(),
+      q: () => has()
+        ? t('ai.dock.qInterpret', '请解读这个样品的分析结果：检出了什么病毒、各阶段质量如何、有什么需要注意的问题。')
+        : t('ai.dock.qNoSample', '平台目前有哪些样品？各自的分析进行到哪一步了？') },
+    { id: 'next', k: 'ai.dock.chipNext', z: '下一步建议', w: () => 3,
+      q: () => has()
+        ? t('ai.dock.qNext', '基于这个样品目前的结果，下一步建议做什么？请给出可执行的具体步骤和理由。')
+        : t('ai.dock.qNextAny', '我刚接触这个平台，建议从哪里开始分析？') },
+    { id: 'tasks', k: 'ai.dock.chipTasks', z: '任务状态', w: () => 4,
+      q: () => t('ai.dock.qTasks', '现在平台里有哪些分析任务？各自运行到哪一步、状态如何？') },
+    { id: 'eta', k: 'ai.dock.chipEta', z: '还要多久',
+      w: c => c.running > 0 ? 0 : 96,
+      when: c => c.running > 0,
+      q: () => t('ai.dock.qEta',
+        '现在有任务在跑，请根据它们的进度告诉我：每个任务跑到哪一步、'
+        + '大概还要多久、有没有卡住或排队的风险。') },
+    { id: 'fail', k: 'ai.dock.chipFail', z: '为什么失败',
+      w: c => c.failed > 0 ? 1 : (has() ? 40 : 90),
+      when: c => has() || c.failed > 0,
+      q: () => t('ai.dock.qFail',
+        '这个样品（或最近失败的任务）为什么失败 / 卡住了？请给出具体原因、'
+        + '对应的报错位置，以及按顺序该怎么修。') },
+    { id: 'where', k: 'ai.dock.chipWhere', z: '结果在哪看', w: () => 5,
+      q: () => t('ai.dock.qWhere',
+        '分析产物都落在哪些目录和文件里？请按阶段告诉我最该先看的那几个文件'
+        + '（含路径），以及每个文件能回答什么问题。') },
+    { id: 'params', k: 'ai.dock.chipParams', z: '参数建议', w: () => 6,
+      q: () => has()
+        ? t('ai.dock.qParams', '如果要对这个样品用更优参数重新分析，当前哪些参数值得调整？请结合已有结果给出具体建议值和理由。')
+        : t('ai.dock.qParamsAny', '新建样品分析时，哪些参数最值得根据数据特点调整？') },
+    { id: 'report', k: 'ai.dock.chipReport', z: '出结论文档',
+      w: () => has() ? 7 : 97,
+      when: () => has(),
+      q: () => t('ai.dock.qReport',
+        '给这个样品生成一份结论文档（report_v2.html）：包含检出的病毒、定量与组装'
+        + '指标、逐阶段结论、缺口与下一步。先告诉我它会写到哪里、需要什么前置条件。') },
+    { id: 'batch', k: 'ai.dock.chipBatch', z: '批量跑多个', w: () => 20,
+      q: () => t('ai.dock.qBatch',
+        '我有多个数据集要一起跑「已知病毒识别与定量」。请给出批量建样品并排队执行的'
+        + '具体步骤、并发上限，以及怎么在不盯着的情况下知道哪几个跑完了。') },
+    { id: 'toolbox', k: 'ai.dock.chipToolbox', z: '只做单步', w: () => 21,
+      q: () => t('ai.dock.qToolbox',
+        '我不想跑全流程，只想做单步分析（例如组装、鉴定、引物设计）。'
+        + '工具箱里该选哪个工具、参数怎么填、产物落在哪里？') },
+    { id: 'search', k: 'ai.dock.chipSearch', z: '公共检索', w: () => 22,
+      q: () => t('ai.dock.qSearch',
+        '我想先从公共数据库检索某个病毒的参考序列或原始数据再分析。'
+        + '平台里的公共检索/下载怎么用？检索到的数据会落到哪里？') },
+    { id: 'submit', k: 'ai.dock.chipSubmit', z: 'NCBI 提交', w: () => 23,
+      q: () => t('ai.dock.qSubmit',
+        '要把这条病毒的基因组提交到 NCBI，现有结果够不够？还缺什么、'
+        + '按什么顺序准备（清单/注释/表格），提交前要核对哪些字段？') },
+    { id: 'archive', k: 'ai.dock.chipArchive', z: '清理与归档', w: () => 24,
+      q: () => t('ai.dock.qArchive',
+        '任务中心里已完成的任务怎么归档或清理？归档之后还能恢复吗？'
+        + '哪些操作不可逆、做之前要确认什么？') },
+  ];
+};
+
+/* 点一条提示词 = 把对应问题发出去 */
 AI.chip = function (kind) {
-  const q = {
-    interpret: () => AI.sample
-      ? t('ai.dock.qInterpret', '请解读这个样品的分析结果：检出了什么、各阶段质量如何、有什么要注意的。')
-      : t('ai.dock.qNoSample', '平台目前有哪些样品，各自分析进行到哪一步？'),
-    tasks: () => t('ai.dock.qTasks', '现在平台里有哪些分析任务？运行状态如何？'),
-    next: () => AI.sample
-      ? t('ai.dock.qNext', '基于这个样品目前的结果，下一步建议做什么？请给出可执行的具体步骤。')
-      : t('ai.dock.qNextAny', '我刚接触这个平台，建议从哪里开始？'),
-    params: () => AI.sample
-      ? t('ai.dock.qParams', '如果要对这个样品重新分析（换更优参数），当前参数有哪些可以调整？请结合结果给出具体建议值。')
-      : t('ai.dock.qParamsAny', '新建样品分析时，哪些参数最值得根据数据特点调整？'),
-  }[kind];
-  AI.send(q ? q() : '');
+  const def = AI._chipDefs().filter(d => d.id === kind)[0];
+  if (!def) return;
+  AI.send(def.q());
+};
+
+/* 按当前上下文重画提示词行；容器不存在（老页面/非坞）就安静返回 */
+AI.renderChips = function () {
+  const box = $('aiChips');
+  if (!box) return;
+  const c = AI._chipCtx();
+  /* 先按 w(c) 排序：正有任务在跑 →「还要多久」排第一；有失败 →「为什么失败」紧跟；
+     选了样品 →「解读这个样品」提前。默认露出的 6 条始终是当下最有用的那批。 */
+  const rank = d => (typeof d.w === 'function' ? d.w(c) : 50);
+  const defs = AI._chipDefs()
+    .filter(d => !d.when || d.when(c))
+    .map((d, i) => ({ d: d, i: i, r: rank(d) }))
+    .sort((a, b) => (a.r - b.r) || (a.i - b.i))
+    .map(x => x.d);
+  const shown = AI._chipsMore ? defs : defs.slice(0, AI_CHIPS_VISIBLE);
+  const frag = document.createDocumentFragment();
+  shown.forEach(d => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ai-chip';
+    b.textContent = t(d.k, d.z);
+    b.title = d.q();
+    b.onclick = () => AI.chip(d.id);
+    frag.appendChild(b);
+  });
+  if (defs.length > AI_CHIPS_VISIBLE) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ai-chip ai-chip-more';
+    b.textContent = AI._chipsMore
+      ? t('ai.dock.chipLess', '收起 ▴')
+      : t('ai.dock.chipMore', '更多 ▾');
+    b.onclick = () => {
+      AI._chipsMore = !AI._chipsMore;
+      try { localStorage.setItem(AI_CHIPS_MORE_KEY, AI._chipsMore ? '1' : '0'); } catch (e) {}
+      AI.renderChips();
+    };
+    frag.appendChild(b);
+  }
+  box.innerHTML = '';
+  box.appendChild(frag);
 };
 
 /* ---------- 发送与流式接收（可中断） ---------- */
@@ -1869,6 +2692,9 @@ AI.setWorkspace = function (path) {
   try { localStorage.setItem(AI.WS_KEY, p); } catch (e) {}
   AI._renderWorkspace();
   if (window.VPFiles && VPFiles.setRoot) VPFiles.setRoot(p);
+  /* 上次已经把「工作空间 = 输出目录」定下来过，这次选完直接沿用，
+     不再每次追问；没定过就只在栏里留一个「📥 输出到此」按钮。 */
+  if (AI.wsOutWanted()) AI.applyOutputToWorkspace(true);
 };
 
 AI.clearWorkspace = function () {
@@ -1880,6 +2706,110 @@ AI.clearWorkspace = function () {
 AI.workspacePath = function () {
   try { return localStorage.getItem(AI.WS_KEY) || ''; } catch (e) { return ''; }
 };
+
+/* 把工作空间当作输出根目录（2026-11-02）。
+ * 用户诉求：「任务的输出目录默认在我们选择的工作空间，方便找结果」。
+ * 平台的「输出目录」设置本来就是全局的（设置中心 → 输出目录），这里只是
+ * 给它一个贴着工作空间的入口：一键把 output_root 设成工作空间，
+ * 之后新任务的结果落在 <工作空间>\results\<样品>。
+ * 记住选择（vp_ai_ws_out）：下次选同一类工作空间不再问。 */
+AI.WS_OUT_KEY = 'vp_ai_ws_out';
+
+AI.wsOutWanted = function () {
+  try { return localStorage.getItem(AI.WS_OUT_KEY) === '1'; } catch (e) { return false; }
+};
+
+/* 归一化路径：Windows 大小写不敏感、允许末尾分隔符不同 */
+function _samePath(a, b) {
+  const n = (s) => String(s || '').replace(/[\\/]+/g, '\\')
+    .replace(/\\+$/, '').toLowerCase();
+  const x = n(a), y = n(b);
+  return !!x && x === y;
+}
+
+/* POST /api/settings 的统一封装：失败时把 Flask 的 HTML 错误页压成一行文字，
+   否则用户只会看到「HTTP false」这种没法排查的东西。 */
+function _postSettings(body) {
+  return fetch('/api/settings', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body || {})
+  })
+    .then(r => r.text().then(txt => {
+      let d = null;
+      try { d = JSON.parse(txt); } catch (e) {}
+      if (!r.ok) {
+        let msg = (d && (d.error || d.message)) || txt || ('HTTP ' + r.status);
+        msg = String(msg).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        return {ok: false, error: msg.slice(0, 200) || ('HTTP ' + r.status)};
+      }
+      if (d && d.ok === false) {
+        return {ok: false, error: String(d.error || d.message || '保存失败')};
+      }
+      return {ok: true, data: d || {}};
+    }))
+    .catch(e => ({ok: false, error: String((e && e.message) || e)}));
+}
+
+/* 以服务端的 output_root 为准（localStorage 只是"想不想"的偏好）。
+   设置中心里改过输出目录也能同步过来，不会出现按钮状态和实际不一致。 */
+AI._outRoot = '';
+AI.syncOutputState = function (done) {
+  fetch('/api/settings').then(r => r.json())
+    .then(d => {
+      AI._outRoot = String((d && d.output_root) || '');
+      AI._renderWsOut();
+      if (typeof done === 'function') done(AI._outRoot);
+    })
+    .catch(() => { AI._renderWsOut(); });
+};
+
+AI._renderWsOut = function () {
+  const p = AI.workspacePath();
+  const btn = $('aiWsOutBtn');
+  const clr = $('aiWsOutClear');
+  const st = $('aiWsOutState');
+  const on = !!(p && _samePath(p, AI._outRoot));
+  if (btn) btn.hidden = !p || on;
+  if (clr) clr.hidden = !on;
+  if (st) {
+    st.hidden = !on;
+    if (on) st.textContent = t('ai.ws.outOn', '输出目录 = 工作空间');
+  }
+};
+
+AI.applyOutputToWorkspace = function (silent) {
+  const p = AI.workspacePath();
+  if (!p) return;
+  const st = $('aiWsOutState');
+  const say = (s) => { if (st) { st.hidden = false; st.textContent = s; } };
+  if (!silent) say(t('ai.ws.outSetting', '正在切换输出目录…'));
+  _postSettings({output_root: p})
+    .then(res => {
+      if (!res.ok) { say('⚠ ' + res.error); return; }
+      try { localStorage.setItem(AI.WS_OUT_KEY, '1'); } catch (e) {}
+      AI._outRoot = p;
+      AI._renderWsOut();
+      if (!silent) {
+        say('✔ ' + t('ai.ws.outDone', '新任务的结果会写到') + ' ' + p + '\\results');
+      }
+    });
+};
+
+AI.clearOutputWorkspace = function () {
+  const p = AI.workspacePath();
+  const st = $('aiWsOutState');
+  const say = (s) => { if (st) { st.hidden = false; st.textContent = s; } };
+  _postSettings({output_root: ''})
+    .then(res => {
+      if (!res.ok) { say('⚠ ' + res.error); return; }
+      try { localStorage.removeItem(AI.WS_OUT_KEY); } catch (e) {}
+      AI._outRoot = '';
+      AI._renderWsOut();
+      say('✔ ' + t('ai.ws.outOff', '已恢复平台默认输出目录'));
+      if (p) { /* 保持工作空间，只是不再当输出根 */ }
+    });
+};
+
 
 AI._renderWorkspace = function () {
   const p = AI.workspacePath();
@@ -1897,6 +2827,7 @@ AI._renderWorkspace = function () {
     name.hidden = true;
     if (clear) clear.hidden = true;
   }
+  AI._renderWsOut();
 };
 
 /* 输入框粘贴路径即视为附件：Windows「复制为路径」带引号，也接受裸盘符路径。
@@ -1947,6 +2878,17 @@ AI._uploadFiles = function (files) {
 };
 
 AI.send = async function (preset) {
+  const inp = $('aiInput');
+  const text = (preset !== undefined ? preset : (inp ? inp.value : '')).trim();
+  if (!text) return;
+  AI._mentionHide();
+  /* 本地斜杠命令（2026-11-04）：/tasks /env /samples /digest /help。
+   * 完全不经过模型、不进 AI.messages、不落历史；未知 /xxx 也只在本地
+   * 提示命令清单，不发给模型。 */
+  if (String(text).charAt(0) === '/' && AI._slashCmd(text)) {
+    if (preset === undefined && inp) inp.value = '';
+    return;
+  }
   if (AI.busy) {
     // 静默 return 会让人觉得「按了没反应」，反复敲回车
     if (!AI._busyWarn) {
@@ -1957,13 +2899,10 @@ AI.send = async function (preset) {
     }
     return;
   }
-  const inp = $('aiInput');
-  const text = (preset !== undefined ? preset : inp.value).trim();
-  if (!text) return;
   /* 开坞后立刻回车：_restoreHistory 可能还没跑完，先发新提问会让旧历史
      push 到它后面，下一轮上下文顺序错乱。发送前等一次上下文就位。 */
   if (!AI.ctxLoaded) { try { await AI.ensureCtx(); } catch (e) {} }
-  if (preset === undefined) inp.value = '';
+  if (preset === undefined && inp) inp.value = '';
   const atts = AI.attachments.slice();
   AI.messages.push({role: 'user', content: text});
   AI._saveHistory();
@@ -1975,6 +2914,8 @@ AI.send = async function (preset) {
     at.textContent = atts.map(a => '📎 ' + a.name).join('  ');
     ub.appendChild(at);
   }
+  /* 2026-11-06：每条提问下方挂「↻ 重新上一句」（气泡内部，随截断一起移除） */
+  _addRetryRow(ub);
   AI.attachments = [];
   AI._renderAttach();
 
@@ -2031,6 +2972,8 @@ AI.send = async function (preset) {
 
   let acc = '';
   let aborted = false;
+  let artsItems = null;      // 本轮产物卡片（2026-11-02），收尾时随回答落盘
+  let nextActions = null;    // 本轮下一步建议（2026-11-04，done 前到达，收尾时渲染）
   /* 流式渲染节流：模型每个 token 都重排整段 HTML 会卡顿；60ms 合帧一次，
    * 且只在用户贴底时自动滚动（用户往上翻历史时不抢位置）。 */
   let paintTimer = 0;
@@ -2050,6 +2993,8 @@ AI.send = async function (preset) {
     paintTimer = setTimeout(paint, wait);
   };
   AI.busy = true;
+  AI._syncRetryRows();                 // 生成中所有「重新上一句」不可点（F7）
+  AI._mentionHide();                  // 发送时收起 @ 补全下拉（F3）
   AI._ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   const btn = $('aiSendBtn');
   btn.textContent = '■';
@@ -2061,6 +3006,7 @@ AI.send = async function (preset) {
   try {
     await AI._stream({messages: AI.messages, sample: AI.sample,
                       workspace: AI.workspacePath(),
+                      plan_mode: AI.planMode || 'auto',
                       attachments: atts.map(a => a.path)}, ev => {
       if (ev.type === 'reasoning') {
         ensureThink();
@@ -2080,8 +3026,35 @@ AI.send = async function (preset) {
         chip.textContent = `🔧 ${ev.name}(${ev.skipped ? '重复，已跳过'
           : Object.keys(ev.args || {}).length ? JSON.stringify(ev.args) : ''})`;
         think.tools.appendChild(chip);
+        /* 工具透明化（2026-11-04）：后端给的人读摘要（如
+           "read_result_table(sample=…) · 30 行"）贴在芯片旁，小号灰字、
+           单行省略；完整内容进 title，悬停可看。steps 计数口径不变。 */
+        if (ev.detail) {
+          const det = String(ev.detail);
+          const ds = document.createElement('span');
+          ds.className = 'ai-toolchip-detail';
+          ds.textContent = det;
+          ds.title = det;
+          think.tools.appendChild(ds);
+          chip.title = det;
+        }
         updateThinkSum(false);
         if (stick) _scroll();
+      } else if (ev.type === 'next_actions') {
+        /* 下一步建议（2026-11-04）：done 之前到达，先暂存在本轮局部状态里，
+           收尾时统一渲染成一排按钮。只取前 3 条，防止模型刷屏。
+           同时把流式 delta 里已经显示的 ```next_actions``` 围栏块清掉：
+           后端只从落库正文删，不会补发修正后的 delta。 */
+        const arr = Array.isArray(ev.actions) ? ev.actions : [];
+        nextActions = arr.filter(a => a && (a.label || a.action)).slice(0, 3);
+        const cleaned = _stripNextActionsBlock(acc);
+        if (cleaned !== acc) {
+          acc = cleaned;
+          const stick = _atBottom();
+          if (paintTimer) { clearTimeout(paintTimer); paintTimer = 0; }
+          ans.innerHTML = aiFmt(acc);
+          if (stick) _scroll();
+        }
       } else if (ev.type === 'tick') {
         /* 服务端心跳（每 5s 一帧）：让「思考中…」变成「已等待 N 秒」，
            长推理/长工具轮期间用户能确认它还活着，而不是判定卡死去刷新。 */
@@ -2098,6 +3071,17 @@ AI.send = async function (preset) {
           + String(ev.message || '');
         bb.appendChild(s);
         if (stick) _scroll();
+      } else if (ev.type === 'artifacts') {
+        /* 产物卡片（2026-11-02）：后端把「这一轮的工具结果 + 回答正文」里
+           真实存在、且在平台目录内的文件整理成清单发下来。以前只给裸路径，
+           用户只能自己去资源管理器里找。 */
+        const stick = _atBottom();
+        const items = Array.isArray(ev.items) ? ev.items : [];
+        if (items.length) {
+          artsItems = items;
+          try { AI.renderArts(bb, items); } catch (e) { /* 卡片失败不影响正文 */ }
+          if (stick) _scroll();
+        }
       } else if (ev.type === 'error') {
         // 报错了就别再挂着「思考中…」——以前两个同时显示，用户一直空等
         ans.innerHTML = '';
@@ -2125,21 +3109,43 @@ AI.send = async function (preset) {
   } finally {
     AI.busy = false;
     AI._ctrl = null;
+    AI._syncRetryRows();               // 忙闲变化时同步「重新上一句」可点状态
     btn.textContent = '➤';
     btn.title = t('ai.dock.send', '发送');
     collapseThink();
     if (paintTimer) { clearTimeout(paintTimer); paintTimer = 0; }
-    if (!bb.querySelector('.ai-err') && !aborted && !acc) {
+    if (!bb.querySelector('.ai-err') && !aborted && !acc
+        && !(nextActions && nextActions.length)) {
       ans.innerHTML =
         `<span class="ai-hint">${t('ai.dock.empty2', '（无返回内容）')}</span>`;
     } else if (acc) {
       ans.innerHTML = aiFmt(acc);   // 收尾补一次完整渲染（表格/围栏闭合）
-      _addCopyBar(bb, acc);
     }
     /* P0-1 收尾：撤掉流式期间的 partial 草稿，换成最终文本。
      * 用户点「停止」留下的半截回答仍按旧口径处理——界面上留给人看，
-     * 但不写进对话历史（否则下一轮模型会接着残句往下写）。 */
-    AI._persistFinish((acc && !aborted) ? acc : '', false);
+     * 但不写进对话历史（否则下一轮模型会接着残句往下写）。
+     * 产物卡片随这次落盘一起写入（2026-11-06）：服务端镜像比较包含
+     * artifacts，二次保存不再被当作"前缀相同"忽略。 */
+    AI._persistFinish((acc && !aborted) ? acc : '', false,
+                      (artsItems && artsItems.length && !aborted)
+                        ? artsItems : null);
+    /* 反馈（2026-11-04）：落盘完成后再取下标，保证 msg_idx 与 AI.messages
+     * 完全对齐（_persistFinish 会先 pop partial 再 push 最终文本）。 */
+    let msgIdx = -1;
+    if (!aborted && acc) {
+      const last = AI.messages[AI.messages.length - 1];
+      if (last && last.role === 'assistant') msgIdx = AI.messages.length - 1;
+    }
+    if (acc) {
+      AI._foldAnswer(bb);               // F5：超长回答折叠
+      _addCopyBar(bb, acc, msgIdx);     // F6：复制条 + 👍👎
+    }
+    /* F1：下一步建议按钮（错误/中断的回答不挂建议；正文为空但带建议
+       时同样要渲染，否则按钮会被空回答吞掉）。 */
+    if (nextActions && nextActions.length && !aborted
+        && !bb.querySelector('.ai-err')) {
+      AI._renderNextActions(bb, nextActions);
+    }
     // 用户点「停止」留下的半截回答：只留在界面上给人看，不进对话历史
     // （否则下一轮模型会接着残句往下写，用户以为那就是完整版）。
     _scroll(false);
@@ -2180,6 +3186,802 @@ AI._stream = async function (body, onEvent, signal) {
   if (buf.trim()) { buf += '\n\n'; drain(); }
 };
 
+/* ---------- 产物卡片（2026-11-02） ----------
+ * 用户抱怨「回答只给一段裸路径，点不开也看不出是什么」。后端把这一轮真实
+ * 落盘的文件整理成 artifacts 事件发下来，这里渲染成卡片：
+ *   图片 → 缩略图（点开看大图）；HTML → 内嵌预览 / 新标签打开；
+ *   表格 → 前几十行；其他 → 直接打开。
+ * 一律走 /api/fs/raw（同源、只读平台目录），前端不再自己拼路径。 */
+const ART_ICON = {html: '📄', image: '🖼', table: '📊', text: '📝',
+                  pdf: '📕', file: '📎'};
+
+function _fmtSize(n) {
+  const v = Number(n) || 0;
+  if (v >= 1048576) return (v / 1048576).toFixed(1) + ' MB';
+  if (v >= 1024) return Math.round(v / 1024) + ' KB';
+  return v + ' B';
+}
+
+function _artCard(it, idx) {
+  const card = document.createElement('div');
+  card.className = 'ai-art ai-art-' + (it.kind || 'file');
+  const top = document.createElement('div');
+  top.className = 'ai-art-top';
+  if (it.kind === 'image') {
+    const im = document.createElement('img');
+    im.className = 'ai-art-thumb';
+    im.loading = 'lazy';
+    im.alt = it.name || '';
+    im.src = it.url;
+    im.title = it.path || '';
+    im.setAttribute('data-art-act', 'preview');
+    im.setAttribute('data-art-i', String(idx));
+    card.appendChild(im);
+  }
+  const ico = document.createElement('span');
+  ico.className = 'ai-art-ico';
+  ico.textContent = ART_ICON[it.kind] || '📎';
+  const nm = document.createElement('span');
+  nm.className = 'ai-art-name';
+  nm.textContent = it.name || '(未命名)';
+  nm.title = it.path || '';
+  top.appendChild(ico);
+  top.appendChild(nm);
+  card.appendChild(top);
+  const meta = document.createElement('div');
+  meta.className = 'ai-art-meta';
+  meta.textContent = _fmtSize(it.size) + (it.dir ? ' · ' + it.dir : '');
+  meta.title = it.path || '';
+  card.appendChild(meta);
+  const ops = document.createElement('div');
+  ops.className = 'ai-art-ops';
+  const previewable = (it.kind === 'html' || it.kind === 'image'
+                       || it.kind === 'table' || it.kind === 'text');
+  if (previewable) {
+    const b = document.createElement('button');
+    b.className = 'btn small';
+    b.type = 'button';
+    b.textContent = t('ai.art.preview', '预览');
+    b.setAttribute('data-art-act', 'preview');
+    b.setAttribute('data-art-i', String(idx));
+    ops.appendChild(b);
+  }
+  const a = document.createElement('a');
+  a.className = 'btn small';
+  a.href = it.url;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.textContent = t('ai.art.open', '打开');
+  a.setAttribute('data-art-act', 'open');
+  a.setAttribute('data-art-i', String(idx));
+  ops.appendChild(a);
+  const cp = document.createElement('button');
+  cp.className = 'btn small';
+  cp.type = 'button';
+  cp.textContent = t('ai.art.copy', '复制路径');
+  cp.setAttribute('data-art-act', 'copy');
+  cp.setAttribute('data-art-i', String(idx));
+  ops.appendChild(cp);
+  card.appendChild(ops);
+  return card;
+}
+
+AI.renderArts = function (host, items) {
+  if (!host || !items || !items.length) return null;
+  const wrap = document.createElement('div');
+  wrap.className = 'ai-arts';
+  wrap._items = items;
+  const head = document.createElement('div');
+  head.className = 'ai-arts-head';
+  head.textContent = t('ai.art.title', '产物') + '（' + items.length + '）';
+  wrap.appendChild(head);
+  const grid = document.createElement('div');
+  grid.className = 'ai-arts-grid';
+  items.forEach((it, i) => grid.appendChild(_artCard(it, i)));
+  wrap.appendChild(grid);
+  wrap.addEventListener('click', (e) => {
+    const el = e.target && e.target.closest
+      ? e.target.closest('[data-art-act]') : null;
+    if (!el) return;
+    const act = el.getAttribute('data-art-act');
+    const idx = parseInt(el.getAttribute('data-art-i'), 10) || 0;
+    const item = wrap._items[idx];
+    if (!item) return;
+    if (act === 'open') return;              // <a target=_blank> 自己会跳
+    e.preventDefault();
+    if (act === 'copy') {
+      const p = item.path || '';
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(p);
+        }
+      } catch (err) { /* 剪贴板不可用则静默 */ }
+      el.textContent = t('ai.art.copied', '已复制');
+      setTimeout(() => { el.textContent = t('ai.art.copy', '复制路径'); }, 1200);
+      return;
+    }
+    AI.openArt(item);
+  });
+  host.appendChild(wrap);
+  return wrap;
+};
+
+/* 旧历史没有 artifacts 字段（升级前的回答）：把正文交给服务端解析一次，
+ * 拿回卡片补渲染，并写回 AI.messages 免得每次刷新都重问。
+ * 失败就静默——卡片是锦上添花，不能因为网络抖动把历史渲染搞挂。 */
+AI._backfillArts = function (list) {
+  if (!list || !list.length) return;
+  const texts = list.map(x => String(x.text || '').slice(0, 20000));
+  fetch('/api/ai/artifacts', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({texts})
+  }).then(r => r.ok ? r.json() : null).then(d => {
+    if (!d || !Array.isArray(d.results)) return;
+    let dirty = false;
+    d.results.forEach((items, i) => {
+      const rec = list[i];
+      if (!rec || !items || !items.length) return;
+      try { AI.renderArts(rec.el, items); } catch (e) { return; }
+      const msg = AI.messages[rec.idx];
+      if (msg && msg.role === 'assistant') { msg.artifacts = items; dirty = true; }
+    });
+    if (dirty) { try { AI._saveHistory(); } catch (e) { /* 静默 */ } }
+  }).catch(() => { /* 静默 */ });
+};
+
+function _artModal() {
+  let m = document.getElementById('aiArtModal');
+  if (m) return m;
+  m = document.createElement('div');
+  m.id = 'aiArtModal';
+  m.className = 'ai-art-modal';
+  m.hidden = true;
+  m.innerHTML = '<div class="ai-art-dlg" role="dialog" aria-modal="true">'
+    + '<div class="ai-art-dlg-head"><span class="ai-art-dlg-name"></span>'
+    + '<span class="ai-art-dlg-ops">'
+    + '<a class="btn small ai-art-dlg-open" target="_blank" rel="noopener">'
+    + '<span data-art-openlabel></span></a>'
+    + '<button class="btn small" type="button" data-art-close>'
+    + '<span data-art-closelabel></span></button></span></div>'
+    + '<div class="ai-art-dlg-body"></div></div>';
+  m.addEventListener('click', (e) => {
+    if (e.target === m || (e.target.closest && e.target.closest('[data-art-close]'))) {
+      AI.closeArt();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') AI.closeArt();
+  });
+  document.body.appendChild(m);
+  return m;
+}
+
+AI.closeArt = function () {
+  const m = document.getElementById('aiArtModal');
+  if (!m) return;
+  m.hidden = true;
+  const body = m.querySelector('.ai-art-dlg-body');
+  if (body) body.innerHTML = '';      // 停掉 iframe 里的脚本/播放
+};
+
+AI.openArt = function (item) {
+  if (!item || !item.url) return;
+  const m = _artModal();
+  const nm = m.querySelector('.ai-art-dlg-name');
+  const body = m.querySelector('.ai-art-dlg-body');
+  const openA = m.querySelector('.ai-art-dlg-open');
+  const openLb = m.querySelector('[data-art-openlabel]');
+  const closeLb = m.querySelector('[data-art-closelabel]');
+  if (nm) { nm.textContent = item.name || ''; nm.title = item.path || ''; }
+  if (openA) openA.href = item.url;
+  if (openLb) openLb.textContent = t('ai.art.openNew', '在新标签打开');
+  if (closeLb) closeLb.textContent = t('ai.art.close', '关闭');
+  if (!body) return;
+  body.innerHTML = '';
+  if (item.kind === 'image') {
+    const im = document.createElement('img');
+    im.className = 'ai-art-full';
+    im.src = item.url;
+    im.alt = item.name || '';
+    body.appendChild(im);
+  } else if (item.kind === 'html') {
+    const fr = document.createElement('iframe');
+    fr.className = 'ai-art-frame';
+    /* 2026-11-06：预览的是平台目录里的任意 HTML，可能来自分析产物之外
+     * （用户附加文件、工具输出）。必须给沙箱：不保留 allow-same-origin
+     * （否则脚本能读平台同源 API/LocalStorage），也不给脚本/表单/弹窗
+     * 之外的权限；需要交互时点右上「在新标签打开」。 */
+    fr.setAttribute('sandbox', '');
+    fr.src = item.url;
+    body.appendChild(fr);
+    const hint = document.createElement('div');
+    hint.className = 'ai-art-hint';
+    hint.textContent = t('ai.art.htmlHint',
+      '内嵌预览在沙箱中加载（脚本不执行）；可点「在新标签打开」查看原文件。');
+    body.appendChild(hint);
+  } else {
+    const pre = document.createElement('pre');
+    pre.className = 'ai-art-text';
+    pre.textContent = t('ai.art.loading', '读取中…');
+    body.appendChild(pre);
+    fetch('/api/fs/read?path=' + encodeURIComponent(item.path || '')
+          + '&max_bytes=60000')
+      .then(r => r.json().then(d => ({ok: r.ok, d})).catch(() => ({ok: false, d: {}})))
+      .then(({ok, d}) => {
+        if (!ok || d.error) {
+          pre.textContent = t('ai.art.readFail', '读取失败') + '：'
+            + ((d && d.error) || '') + '\n' + (item.path || '');
+          return;
+        }
+        const lines = String(d.text || '').split(/\r?\n/).slice(0, 40);
+        pre.textContent = lines.join('\n')
+          + (d.truncated ? '\n' + t('ai.art.truncated', '…（已截断，打开文件看全部）') : '');
+      })
+      .catch(e => { pre.textContent = String(e); });
+  }
+  m.hidden = false;
+};
+
+/* ==================================================================
+   本地斜杠命令（F4，2026-11-04）
+   /tasks /env /samples /digest /help 全在本地渲染：不调模型、不进
+   AI.messages、不写 localStorage。信息气泡带「本地」徽标，明确它不是
+   AI 回答；未知 /xxx 也只在本地提示命令清单，绝不发给模型。
+   ================================================================== */
+function _aiFetchJson(url) {
+  return fetch(url, {cache: 'no-store'}).then(r =>
+    r.json().catch(() => ({})).then(d => {
+      if (!r.ok) {
+        throw new Error((d && (d.error || d.detail)) || ('HTTP ' + r.status));
+      }
+      return d;
+    }));
+}
+
+function _briefVal(v, max) {
+  if (v == null) return '';
+  let s;
+  if (Array.isArray(v)) {
+    s = v.slice(0, 4).map(x => (x && typeof x === 'object')
+      ? JSON.stringify(x) : String(x)).join(', ');
+    if (v.length > 4) s += ' …';
+  } else if (typeof v === 'object') {
+    const ks = Object.keys(v);
+    s = ks.slice(0, 6).map(k => {
+      const x = v[k];
+      const val = Array.isArray(x) ? '[' + x.length + ']'
+        : (x && typeof x === 'object') ? '{…}' : String(x);
+      return k + '=' + val;
+    }).join(' · ');
+    if (ks.length > 6) s += ' …';
+  } else {
+    s = String(v);
+  }
+  s = s.replace(/\s+/g, ' ').trim();
+  return s.length > max ? s.slice(0, max) + '…' : s;
+}
+
+/* 本地信息气泡：.ai-info 带「本地」徽标；不参与对话历史 */
+AI._infoBubble = function (html) {
+  const n = document.createElement('div');
+  n.className = 'ai-msg ai-bot ai-info';
+  n.innerHTML = `<div class="ai-info-head">`
+    + `<span class="ai-info-badge">${esc(t('ai.slash.local', '本地'))}</span>`
+    + `<span class="ai-info-note">${esc(t('ai.slash.localHint',
+        '这是本地渲染，不是 AI 回答'))}</span></div>`
+    + `<div class="ai-info-body">${html || ''}</div>`;
+  const box = $('aiMsgs');
+  if (box) box.appendChild(n);
+  _scroll();
+  return n;
+};
+
+AI._slashHelpHtml = function () {
+  const rows = [
+    ['/tasks', t('ai.slash.helpTasks', '任务概览：运行中 / 排队 / 最近完成')],
+    ['/env', t('ai.slash.helpEnv', '环境概览：数据库 / 磁盘 / 输出根')],
+    ['/samples', t('ai.slash.helpSamples', '样品清单与阶段进度')],
+    ['/digest', t('ai.slash.helpDigest', '样品摘要（/digest 样品名）')],
+    ['/help', t('ai.slash.helpHelp', '显示这份命令清单')],
+  ];
+  return `<div class="ai-info-title">⌨ ${esc(t('ai.slash.helpTitle', '本地命令'))}</div>`
+    + `<ul class="ai-info-list">`
+    + rows.map(r => `<li><code>${esc(r[0])}</code> ${esc(r[1])}</li>`).join('')
+    + `</ul>`;
+};
+
+AI._slashCmd = function (text) {
+  const m = /^\/([A-Za-z][A-Za-z0-9_-]*)(?:\s+([\s\S]*))?$/
+    .exec(String(text || '').trim());
+  if (!m) return false;
+  const cmd = m[1].toLowerCase();
+  const arg = String(m[2] || '').trim();
+  if (['tasks', 'env', 'samples', 'digest', 'help'].indexOf(cmd) < 0) {
+    AI._infoBubble(`<div class="ai-info-line">${esc(
+      t('ai.slash.unknown', '未知命令：{c}').replace('{c}', '/' + cmd))}</div>`
+      + AI._slashHelpHtml());
+    return true;
+  }
+  if (cmd === 'tasks') AI._cmdTasks();
+  else if (cmd === 'env') AI._cmdEnv();
+  else if (cmd === 'samples') AI._cmdSamples();
+  else if (cmd === 'digest') AI._cmdDigest(arg);
+  else AI._infoBubble(AI._slashHelpHtml());
+  return true;
+};
+
+/* 任务状态 → 本地化文案（/tasks /samples 共用；未知状态原样显示） */
+function _taskStTxt(st) {
+  const s = String(st || '');
+  const map = {
+    running: t('ai.slash.running', '运行中'),
+    queued: t('ai.slash.queued', '排队'),
+    paused: t('ai.slash.paused', '已暂停'),
+    done: t('ai.task.done', '✓ 已完成'),
+    failed: t('ai.task.failed', '✘ 失败'),
+    cancelled: t('ai.task.cancelled', '已停止'),
+    interrupted: t('ai.task.cancelled', '已停止'),
+  };
+  return map[s] || s;
+}
+
+AI._cmdTasks = function () {
+  _aiFetchJson('/api/tasks?logs=0').then(d => {
+    const rows = Array.isArray(d) ? d
+      : (Array.isArray(d && d.active) ? d.active : []);
+    const title = `<div class="ai-info-title">📋 ${esc(
+      t('ai.slash.tasksTitle', '任务概览'))}</div>`;
+    if (!rows.length) {
+      AI._infoBubble(title + `<div class="ai-info-empty">${esc(
+        t('ai.slash.noTasks', '当前没有任务'))}</div>`);
+      return;
+    }
+    const running = rows.filter(x => x && (x.status === 'running'
+      || x.status === 'queued'));
+    const queued = running.filter(x => /排队|queue/i.test(
+      String(x.msg || '') + ' ' + String(x.stage || '')));
+    const recent = rows.filter(x => x && ['done', 'failed', 'cancelled',
+      'interrupted'].indexOf(String(x.status)) >= 0).slice(0, 5);
+    const rowHtml = (x, forceSt) => {
+      const raw = forceSt || String(x.status || '');
+      const label = _taskStTxt(raw);
+      const pct = (typeof x.pct === 'number' && isFinite(x.pct))
+        ? Math.round(x.pct * 100) + '%' : '';
+      return `<li><span class="ai-info-name">${esc(
+          String(x.name || x.id || ''))}</span>`
+        + `<span class="ai-info-st ${esc(raw)}">${esc(label)}</span>`
+        + (pct ? `<span class="ai-info-pct">${esc(pct)}</span>` : '')
+        + `</li>`;
+    };
+    let html = title
+      + `<div class="ai-info-stats">`
+      + `<span>${esc(t('ai.slash.running', '运行中'))} <b>`
+      + esc(String(running.length - queued.length)) + `</b></span>`
+      + `<span>${esc(t('ai.slash.queued', '排队'))} <b>`
+      + esc(String(queued.length)) + `</b></span>`
+      + `<span>${esc(t('ai.slash.recent', '最近完成'))} <b>`
+      + esc(String(recent.length)) + `</b></span></div>`;
+    if (running.length) {
+      html += `<ul class="ai-info-list">`
+        + running.slice(0, 6).map(x => rowHtml(x,
+            queued.indexOf(x) >= 0 ? 'queued'
+                                   : String(x.status || ''))).join('')
+        + `</ul>`;
+    }
+    if (recent.length) {
+      html += `<div class="ai-info-sub">${esc(
+        t('ai.slash.recent', '最近完成'))}</div>`
+        + `<ul class="ai-info-list">` + recent.map(x => rowHtml(x)).join('')
+        + `</ul>`;
+    }
+    AI._infoBubble(html);
+  }).catch(err => AI._infoBubble(
+    `<div class="ai-info-line">⚠ ${esc(t('ai.slash.loadFail', '读取失败'))} · `
+    + esc(String((err && err.message) || err)) + `</div>`));
+};
+
+AI._cmdEnv = function () {
+  Promise.all([
+    _aiFetchJson('/api/settings').catch(() => ({})),
+    _aiFetchJson('/api/dbs').catch(() => ({})),
+    _aiFetchJson('/api/env_status').catch(() => ({})),
+  ]).then(([s, dbs, env]) => {
+    const db = key => (dbs && dbs[key]) || {};
+    const badge = (label, it) => {
+      const ok = !!(it && it.ready);
+      return `<span class="ai-info-db ${ok ? 'ok' : 'no'}">${esc(label)} · `
+        + `${esc(ok ? t('ai.slash.ready', '就绪')
+                    : t('ai.slash.notReady', '未就绪'))}</span>`;
+    };
+    let disk = '—';
+    try {
+      const bits = (env && env.bits) || [];
+      const b = bits.filter(x => x && x.id === 'disk')[0];
+      if (b && b.summary) disk = String(b.summary);
+    } catch (e) { /* 保持 — */ }
+    const out = (s && s.output_root) ? String(s.output_root)
+      : t('ai.slash.defaultRoot', '平台默认（run/）');
+    AI._infoBubble(`<div class="ai-info-title">⚙ ${esc(
+        t('ai.slash.envTitle', '环境概览'))}</div>`
+      + `<div class="ai-info-dbs">`
+      + badge(t('ai.slash.dbTaxonomy', '分类库'), db('taxonomy'))
+      + badge(t('ai.slash.dbHost', '宿主库'), db('host'))
+      + badge(t('ai.slash.dbVirus', '病毒库'), db('virus'))
+      + `</div><ul class="ai-info-list">`
+      + `<li>${esc(t('ai.slash.diskFree', '磁盘剩余'))}: <b>${esc(disk)}</b></li>`
+      + `<li>${esc(t('ai.slash.outRoot', '输出根'))}: <code>${esc(out)}</code></li>`
+      + `</ul>`);
+  });
+};
+
+AI._cmdSamples = function () {
+  _aiFetchJson('/api/samples').then(d => {
+    const arr = Array.isArray(d) ? d
+      : (Array.isArray(d && d.samples) ? d.samples : []);
+    const title = `<div class="ai-info-title">🧪 ${esc(
+      t('ai.slash.samplesTitle', '样品'))}</div>`;
+    if (!arr.length) {
+      AI._infoBubble(title + `<div class="ai-info-empty">${esc(
+        t('ai.slash.noSamples', '还没有样品'))}</div>`);
+      return;
+    }
+    const list = arr.slice(0, 40).map(x => {
+      const name = typeof x === 'string' ? x
+        : String((x && x.name) || '');
+      const done = Number(x && x.done) || 0;
+      const total = Number(x && x.total) || 0;
+      const st = String((x && x.last_status) || '');
+      return `<li><span class="ai-info-name">${esc(name)}</span>`
+        + `<span class="ai-info-pct">${esc(t('ai.slash.stagesTpl',
+            '阶段 {done}/{total}')
+            .replace('{done}', String(done))
+            .replace('{total}', String(total)))}</span>`
+        + (st ? `<span class="ai-info-st ${esc(st)}">${esc(
+            _taskStTxt(st))}</span>` : '')
+        + `</li>`;
+    }).join('');
+    AI._infoBubble(title + `<ul class="ai-info-list">${list}</ul>`
+      + (arr.length > 40 ? `<div class="ai-info-line">…</div>` : ''));
+  }).catch(err => AI._infoBubble(
+    `<div class="ai-info-line">⚠ ${esc(t('ai.slash.loadFail', '读取失败'))} · `
+    + esc(String((err && err.message) || err)) + `</div>`));
+};
+
+AI._cmdDigest = function (name) {
+  name = String(name || '').trim();
+  if (!name) {
+    AI._getSamples().then(raw => {
+      const names = AI._sampleNames(raw).slice(0, 20);
+      AI._infoBubble(`<div class="ai-info-line">${esc(
+          t('ai.slash.digestUsage', '用法：/digest 样品名'))}</div>`
+        + (names.length
+           ? `<div class="ai-info-sub">${esc(
+                t('ai.slash.samplesTitle', '样品'))}</div>`
+             + `<ul class="ai-info-list">`
+             + names.map(n => `<li><code>${esc(n)}</code></li>`).join('')
+             + `</ul>`
+           : ''));
+    });
+    return;
+  }
+  _aiFetchJson('/api/ai/context?sample=' + encodeURIComponent(name))
+    .then(d => {
+      const s = d && d.sample;
+      if (!s) {
+        AI._infoBubble(`<div class="ai-info-line">⚠ ${esc(
+          t('ai.slash.digestMissing', '样品不存在：{s}')
+            .replace('{s}', name))}</div>`);
+        return;
+      }
+      const stages = Array.isArray(s.stages_done) ? s.stages_done : [];
+      let html = `<div class="ai-info-title">🔎 ${esc(
+        t('ai.slash.digestTitle', '样品摘要'))} · ${esc(
+        String(s.sample || name))}</div>`;
+      html += `<ul class="ai-info-list"><li>${esc(
+        t('ai.slash.digestStages', '已完成阶段'))}: <b>`
+        + esc(String(stages.length)) + `</b>`
+        + (stages.length ? ` · <code>${esc(stages.join(' → '))}</code>` : '')
+        + `</li>`;
+      const fp = s.fastp;
+      if (fp && typeof fp === 'object') {
+        const bits = Object.keys(fp)
+          .map(k => k + '=' + _briefVal(fp[k], 60)).join(' · ');
+        if (bits) {
+          html += `<li>${esc(t('ai.slash.digestFastp', '质控（fastp）'))}: `
+            + `<b>${esc(bits)}</b></li>`;
+        }
+      }
+      html += `</ul>`;
+      const det = s.detail;
+      if (det && typeof det === 'object') {
+        const keys = Object.keys(det);
+        if (keys.length) {
+          html += `<div class="ai-info-sub">${esc(
+            t('ai.slash.digestDetail', '阶段摘要'))}</div>`
+            + `<ul class="ai-info-list">`
+            + keys.map(k => `<li><b>${esc(k)}</b>: ${esc(
+                _briefVal(det[k], 180))}</li>`).join('')
+            + `</ul>`;
+        }
+      }
+      if (!stages.length && !(det && Object.keys(det).length)) {
+        html += `<div class="ai-info-empty">${esc(
+          t('ai.slash.digestEmpty', '（该样品暂无可展示的摘要）'))}</div>`;
+      }
+      AI._infoBubble(html);
+    }).catch(err => AI._infoBubble(
+      `<div class="ai-info-line">⚠ ${esc(t('ai.slash.loadFail', '读取失败'))} · `
+      + esc(String((err && err.message) || err)) + `</div>`));
+};
+
+/* ==================================================================
+   @ 样品补全（F3，2026-11-04）
+   光标前最近的 @token（@ 后连续非空白）触发下拉；数据源 /api/samples
+   缓存 60s；↑↓ 选择、Enter 确认、Esc 关闭、点击确认。
+   ================================================================== */
+AI._getSamples = function () {
+  const now = Date.now();
+  const c = AI._samplesCache || (AI._samplesCache = {t: 0, raw: null, p: null});
+  if (c.raw && (now - c.t) < 60000) return Promise.resolve(c.raw);
+  if (c.p) return c.p;
+  c.p = fetch('/api/samples', {cache: 'no-store'})
+    .then(r => r.ok ? r.json() : [])
+    .then(d => {
+      const arr = Array.isArray(d) ? d
+        : (Array.isArray(d && d.samples) ? d.samples : []);
+      AI._samplesCache = {t: Date.now(), raw: arr, p: null};
+      return arr;
+    })
+    .catch(() => { c.p = null; return c.raw || []; });
+  return c.p;
+};
+
+AI._sampleNames = function (raw) {
+  return (raw || []).map(x => typeof x === 'string' ? x
+    : String((x && x.name) || '')).filter(Boolean);
+};
+
+AI._mentionHide = function () {
+  if (AI._mention && AI._mention.parentNode) {
+    AI._mention.parentNode.removeChild(AI._mention);
+  }
+  AI._mention = null;
+  AI._mentionItems = [];
+  AI._mentionIdx = -1;
+  AI._mentionToken = null;
+};
+
+AI._mentionShow = function (names, start, end) {
+  AI._mentionHide();
+  const host = document.querySelector('.ai-inputrow');
+  if (!host) return;
+  const m = document.createElement('div');
+  m.className = 'ai-mention';
+  m.setAttribute('role', 'listbox');
+  AI._mentionItems = names;
+  AI._mentionIdx = 0;
+  AI._mentionToken = {start, end};
+  names.forEach((name, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ai-mention-item' + (i === 0 ? ' on' : '');
+    b.setAttribute('role', 'option');
+    b.textContent = name;                 // 样品名可含中文/符号，纯文本
+    b.addEventListener('mousedown', e => e.preventDefault()); // 保持输入焦点
+    b.addEventListener('click', () => AI._mentionPick(i));
+    m.appendChild(b);
+  });
+  const hint = document.createElement('div');
+  hint.className = 'ai-mention-hint';
+  hint.textContent = t('ai.mention.hint', '↑↓ 选择 · Enter 确认 · Esc 关闭');
+  m.appendChild(hint);
+  host.appendChild(m);
+  AI._mention = m;
+};
+
+AI._mentionHighlight = function (i) {
+  if (!AI._mention) return;
+  const items = AI._mention.querySelectorAll('.ai-mention-item');
+  if (!items.length) return;
+  const n = items.length;
+  AI._mentionIdx = ((i % n) + n) % n;
+  Array.prototype.forEach.call(items, (el, k) => {
+    el.classList.toggle('on', k === AI._mentionIdx);
+  });
+  const cur = items[AI._mentionIdx];
+  if (cur && cur.scrollIntoView) {
+    try { cur.scrollIntoView({block: 'nearest'}); } catch (e) {}
+  }
+};
+
+AI._mentionPick = function (i) {
+  const name = AI._mentionItems[i];
+  const tok = AI._mentionToken;
+  const inp = $('aiInput');
+  if (!name || !tok || !inp) return;
+  const v = String(inp.value || '');
+  /* 以「当前光标前的 @token」为准（下拉渲染后用户可能又敲了一个字符，
+   * 用旧的 end 会把那个字符留在样品名后面）。取不到才退回展示时的范围。 */
+  const caret0 = typeof inp.selectionStart === 'number'
+    ? inp.selectionStart : v.length;
+  const b0 = v.slice(0, caret0);
+  const m0 = /(^|[\s(（])@([^\s@]*)$/.exec(b0);
+  const start = m0 ? caret0 - (m0[2] || '').length - 1 : tok.start;
+  const end = m0 ? caret0 : tok.end;
+  const rep = '@' + name + ' ';
+  inp.value = v.slice(0, start) + rep + v.slice(end);
+  const caret = start + rep.length;
+  try { inp.setSelectionRange(caret, caret); } catch (e) {}
+  AI._mentionHide();
+  inp.focus();
+  try { inp.dispatchEvent(new Event('input', {bubbles: true})); } catch (e) {}
+};
+
+AI._mentionUpdate = function () {
+  const inp = $('aiInput');
+  if (!inp) return;
+  const caret = typeof inp.selectionStart === 'number'
+    ? inp.selectionStart : String(inp.value || '').length;
+  const before = String(inp.value || '').slice(0, caret);
+  const m = /(^|[\s(（])@([^\s@]*)$/.exec(before);
+  if (!m) { AI._mentionHide(); return; }
+  const q = m[2] || '';
+  AI._getSamples().then(raw => {
+    const inp2 = $('aiInput');
+    if (!inp2 || !inp2.isConnected) return;
+    const c2 = typeof inp2.selectionStart === 'number'
+      ? inp2.selectionStart : 0;
+    const b2 = String(inp2.value || '').slice(0, c2);
+    const m2 = /(^|[\s(（])@([^\s@]*)$/.exec(b2);
+    if (!m2 || (m2[2] || '') !== q) return;   // 输入已变：放弃这次渲染
+    const names = AI._sampleNames(raw)
+      .filter(n => !q || n.toLowerCase().indexOf(q.toLowerCase()) >= 0)
+      .slice(0, 8);
+    if (!names.length) { AI._mentionHide(); return; }
+    AI._mentionShow(names, c2 - q.length - 1, c2);
+  });
+};
+
+AI._mentionKey = function (e) {
+  if (!AI._mention) return false;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    AI._mentionHide();
+    return true;
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    AI._mentionHighlight(AI._mentionIdx + 1);
+    return true;
+  }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    AI._mentionHighlight(AI._mentionIdx - 1);
+    return true;
+  }
+  if ((e.key === 'Enter' || e.key === 'Tab') && AI._mentionIdx >= 0) {
+    e.preventDefault();
+    AI._mentionPick(AI._mentionIdx);
+    return true;
+  }
+  return false;
+};
+
+/* ==================================================================
+   ↻ 重试菜单（F7，2026-11-04）
+   原样重试 = AI.retryLast()；带一句纠正 = 把纠正作为新 user 消息
+   走 AI.send(note)，不删除上一轮。定位沿用历史会话下拉的做法（挂 body、
+   fixed、向上弹），点击外部关闭；生成中按钮禁用。
+   ================================================================== */
+AI.toggleRetryMenu = function (anchorBtn) {
+  if (AI._retryMenu) { AI._closeRetryMenu(); return; }
+  if (AI.busy) {
+    AI.sysNote(t('ai.retry.busy', '⏳ 正在生成中，请先停止再重试'));
+    return;
+  }
+  /* 2026-11-06：锚点从工具条 #aiRetryBtn 改为消息内的重试按钮本身；
+     记住锚点与所属气泡，原样重试按该气泡截断（AI.retryFrom）。 */
+  const anchor = anchorBtn;
+  if (!anchor) return;
+  AI._retryAnchor = anchor;
+  AI._retryBubble = anchorBtn.closest('.ai-msg.ai-user');
+  const m = document.createElement('div');
+  m.className = 'ai-retry-menu';
+  const head = document.createElement('div');
+  head.className = 'ai-retry-head';
+  head.textContent = t('ai.retry.menuTitle', '重试上一问');
+  m.appendChild(head);
+  const mkItem = (label, tip, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ai-retry-item';
+    b.textContent = label;
+    b.title = tip || '';
+    b.addEventListener('click', fn);
+    m.appendChild(b);
+    return b;
+  };
+  mkItem(t('ai.retry.same', '原样重试'),
+    t('ai.retry.sameTip', '丢弃上一轮回答，用同样的提问重新生成'),
+    () => { AI._closeRetryMenu(); AI.retryFrom(AI._retryBubble); });
+  const row = document.createElement('div');
+  row.className = 'ai-retry-note';
+  row.hidden = true;
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'ai-retry-input';
+  inp.maxLength = 500;
+  inp.placeholder = t('ai.retry.notePh', '这次要改什么？');
+  const go = document.createElement('button');
+  go.type = 'button';
+  go.className = 'btn small primary';
+  go.textContent = t('ai.retry.send', '重试');
+  const submit = () => {
+    const note = String(inp.value || '').trim();
+    if (!note) { inp.focus(); return; }
+    AI._closeRetryMenu();
+    AI.send(note);
+  };
+  go.addEventListener('click', submit);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  });
+  row.appendChild(inp);
+  row.appendChild(go);
+  const withNote = mkItem(t('ai.retry.withNote', '带一句纠正重试'),
+    t('ai.retry.withNoteTip', '把纠正作为新消息发送，保留上一轮'),
+    () => {
+      row.hidden = !row.hidden;
+      if (!row.hidden) {
+        /* 输入行展开后菜单变高：重算 top，保持底边仍贴着按钮上方 */
+        const r1 = anchor.getBoundingClientRect();
+        m.style.top = Math.max(8, r1.top - m.offsetHeight - 6) + 'px';
+        inp.focus();
+      }
+    });
+  m.insertBefore(row, withNote.nextSibling);
+
+  document.body.appendChild(m);
+  const r0 = anchor.getBoundingClientRect();
+  const mw = m.offsetWidth || 260;
+  m.style.left = Math.max(8,
+    Math.min(r0.left + r0.width - mw, window.innerWidth - mw - 8)) + 'px';
+  m.style.top = Math.max(8, r0.top - m.offsetHeight - 6) + 'px';
+  AI._retryMenu = m;
+  setTimeout(() => {
+    document.addEventListener('mousedown', AI._retryOutside, true);
+  }, 0);
+  window.addEventListener('resize', AI._closeRetryMenu, {once: true});
+};
+
+AI._retryOutside = function (ev) {
+  const m = AI._retryMenu;
+  if (!m) return;
+  const a = AI._retryAnchor;
+  if (m.contains(ev.target)
+    || (a && (ev.target === a || a.contains(ev.target)))) return;
+  AI._closeRetryMenu();
+};
+
+AI._closeRetryMenu = function () {
+  if (AI._retryMenu) { try { AI._retryMenu.remove(); } catch (e) {} }
+  AI._retryMenu = null;
+  document.removeEventListener('mousedown', AI._retryOutside, true);
+};
+
+AI._syncRetryRows = function () {
+  if (AI.busy) AI._closeRetryMenu();
+  const box = $('aiMsgs');
+  if (!box) return;
+  box.querySelectorAll('.ai-msg-act-retry').forEach(b => {
+    b.disabled = !!AI.busy;
+    b.title = AI.busy
+      ? t('ai.retry.busy', '⏳ 正在生成中，请先停止再重试')
+      : t('ai.dock.retry', '重试上一问（可选带一句纠正）');
+  });
+};
+
 /* ---------- 启动（延迟到 load） ----------
  * 本脚本随 _nav.html 在页面顶部执行，而 $/esc/t 来自页面底部的
  * app.js / i18n.js —— 必须等 load 再绑定输入框与启动事件流，
@@ -2189,12 +3991,28 @@ AI._stream = async function (body, onEvent, signal) {
     const inp = $('aiInput');
     if (!inp) return;                    // 本页无导航坞（理论不会发生）
     inp.addEventListener('keydown', e => {
+      /* @ 补全打开时先吃掉方向键/Enter/Esc（2026-11-04，F3） */
+      if (AI._mentionKey(e)) return;
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); AI.send(); }
     });
     inp.addEventListener('input', () => {
       inp.style.height = 'auto';
       inp.style.height = Math.min(inp.scrollHeight, 120) + 'px';
+      AI._mentionUpdate();               // 边打字边算 @token
     });
+    /* 光标移动（方向键/Home/End）或点击也要重算：@token 是否还在光标前 */
+    inp.addEventListener('keyup', e => {
+      if (e.key === 'Enter' || e.key === 'Escape') return;
+      AI._mentionUpdate();
+    });
+    inp.addEventListener('click', () => AI._mentionUpdate());
+    /* 点下拉以外的区域关掉 @ 补全（点输入框本身不关，方便继续输入） */
+    document.addEventListener('mousedown', e => {
+      if (!AI._mention) return;
+      if (AI._mention.contains && AI._mention.contains(e.target)) return;
+      if (e.target === inp) return;
+      AI._mentionHide();
+    }, true);
     // 附件：文件对话框选中后由 app-browse.js 派发 vp:filepicked
     const ap = $('aiAttachPath');
     if (ap) {
@@ -2230,9 +4048,12 @@ AI._stream = async function (body, onEvent, signal) {
        必须在 _restoreHistory 之前就位，刷新后的历史同样能打点。 */
     AI.initTurnNav();
     AI._renderWorkspace();
+    /* 输出目录状态要和服务端对齐（设置中心可能改过），只在有工作空间条时问一次 */
+    if ($('aiWsOutBtn')) AI.syncOutputState();
     // 样品跟随顶栏全局胶囊：用户在顶栏换样品后，下一轮对话自动带上新样品
     const syncSample = () => {
       AI.sample = (window.VP_CTX && VP_CTX.sample) || '';
+      try { AI.renderChips(); } catch (e) { /* 顶栏换样品后提示词跟着换 */ }
     };
     syncSample();
     document.addEventListener('vp-ctx', syncSample);
@@ -2274,3 +4095,4 @@ AI.fmt = aiFmt;
 window.AI = AI;
 
 }  // end 防重复包含
+

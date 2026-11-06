@@ -24,6 +24,19 @@ function rhPick(files, sub, excl) {
   return ((files || []).filter(f => (f.path || '').includes(sub)
                             && !(excl && (f.path || '').includes(excl)))[0] || {}).path;
 }
+/* 共识序列 → 下游分析衔接（2026-11-05 接通第一批）：.consensus.fasta 是
+   kvsuite / consensus / virchain / kvchain 的稳定产物名（kv_consensus.py:
+   {L2}.consensus.fasta）。产物存在才显示按钮，没有该产物就不出链。 */
+const RH_CONSENSUS_CHAINS = files => {
+  const con = rhPick(files, '.consensus.fasta');
+  if (!con) return [];
+  return [
+    { label: '→ 比对', page: RH_PAGES.al_fa, fills: { al_fa: con } },
+    { label: '→ 建树', page: RH_PAGES.qt_fa, fills: { qt_fa: con } },
+    { label: '→ SDT',  page: RH_PAGES.sd_fa, fills: { sd_fa: con } },
+    { label: '→ ORF',  page: RH_PAGES.of_fa, fills: { of_fa: con } }
+  ];
+};
 function rhFqPair(files) {
   const fqs = (files || []).map(f => f.path).filter(p => /\.fastq\.gz$/.test(p));
   if (!fqs.length) return null;
@@ -149,11 +162,13 @@ const RH_DEFS = [
                  fills: { oa_run: realRun } });
       return out;
     } },
-  { box: 'rh-verify', prefixes: ['verify_'],
+  { box: 'rh-verify', prefixes: ['verify_', 'hom_'],
     chains: files => {
       // 验证通过/候选的序列 → 下游注释分析（历史运行此前没登记，这个盒子一直是空的）
+      // 2026-11-03：hom_（单条深查）运行同盒列出，input.fasta 一样可直送下游
       const fa = rhPick(files, 'virus_input.fasta')
-        || rhPick(files, 'viroid_input.fasta');
+        || rhPick(files, 'viroid_input.fasta')
+        || rhPick(files, 'input.fasta');
       if (!fa) return [];
       return [
         { label: '→ ORF', page: RH_PAGES.of_fa, fills: { of_fa: fa } },
@@ -192,30 +207,97 @@ const RH_DEFS = [
       const csv = rhPick(files, 'sdt_matrix.csv');
       if (csv) out.push({ label: '⬇ 矩阵 CSV', page: '', fills: {}, dl: csv });
       return out;
-    } }
+    } },
+  /* —— 2026-11-05 补登记：此前这批模块的历史区整块缺失（用户报告
+     「每个模块的历史任务，有的有，有的缺少」）。两类缺口：
+     ① 容器已在模板里（rh-kvsuite / rh-consensus / rh-annochain /
+        rh-prepchain / rh-cdsexport / rh-loganfetch）但没有 RH_DEFS 条目，
+        rhInitContainers 找不到登记直接跳过，容器永远是空壳；
+     ② 连容器都没有（crispr / conan / cricon / mirna / phylogeo / rdp /
+        rtt / phylodyn / pdprep / dsrna / virchain / kvchain / gbimport）。
+     新条目用 after 指到各卡输出区（toolrun-<key>），页面没预留容器时由
+     rhInitContainers 自动注入，模板不再需要挨个加 <div class="rh">。
+     chains 留空（历史区照常有文件/复用展开/归档/删除/打开目录，
+     下游衔接链后续按需补）。 —— */
+  { box: 'rh-prepchain',  prefixes: ['prepchain_'],  after: 'toolrun-prepchain' },
+  { box: 'rh-kvsuite',    prefixes: ['kvsuite_'],    after: 'toolrun-kvsuite',
+    chains: RH_CONSENSUS_CHAINS },
+  { box: 'rh-consensus',  prefixes: ['consensus_'],  after: 'toolrun-consensus',
+    chains: RH_CONSENSUS_CHAINS },
+  { box: 'rh-annochain',  prefixes: ['annochain_'],  after: 'toolrun-annochain' },
+  { box: 'rh-cdsexport',  prefixes: ['cdsexport_'],  after: 'toolrun-cdsexport' },
+  { box: 'rh-loganfetch', prefixes: ['loganfetch_'], after: 'toolrun-loganfetch' },
+  { box: 'rh-virchain',   prefixes: ['virchain_'],   after: 'toolrun-virchain',
+    chains: files => {
+      const out = RH_CONSENSUS_CHAINS(files);
+      const vc = rhPick(files, 'viral_contigs.fasta');
+      if (vc) out.push({ label: '→ contigs 深度分析',
+                         page: RH_PAGES.c_fa, fills: { c_fa: vc } });
+      return out;
+    } },
+  { box: 'rh-kvchain',    prefixes: ['kvchain_'],    after: 'toolrun-kvchain',
+    chains: RH_CONSENSUS_CHAINS },
+  { box: 'rh-gbimport',   prefixes: ['gbimport_'],   after: 'toolrun-gbimport' },
+  { box: 'rh-rdp',        prefixes: ['rdp_'],        after: 'toolrun-rdp' },
+  { box: 'rh-rtt',        prefixes: ['rtt_'],        after: 'toolrun-rtt' },
+  { box: 'rh-phylogeo',   prefixes: ['phylogeo_'],   after: 'toolrun-phylogeo' },
+  { box: 'rh-pdprep',     prefixes: ['pdprep_'],     after: 'toolrun-pdprep' },
+  { box: 'rh-phylodyn',   prefixes: ['phylodyn_'],   after: 'toolrun-phylodyn' },
+  { box: 'rh-dsrna',      prefixes: ['dsrna_'],      after: 'toolrun-dsrna' },
+  // 检测设计三件套：CLI 直跑的是另一套前缀（与 CARD_RUN_PREFIX 同口径）
+  { box: 'rh-crispr', prefixes: ['crispr_', 'crispr_cli_'], after: 'toolrun-crispr' },
+  { box: 'rh-cricon', prefixes: ['cricon_', 'cricon_cli_'], after: 'toolrun-cricon' },
+  { box: 'rh-conan',  prefixes: ['conan_'],                 after: 'toolrun-conan' },
+  { box: 'rh-mirna',      prefixes: ['mirna_'],      after: 'toolrun-mirna' },
+  { box: 'rh-lamp',       prefixes: ['lamp_', 'lamp_cli_'], after: 'toolrun-lamp' },
+  { box: 'rh-cmpchain',   prefixes: ['cmpchain_'],       after: 'cmpResult' },
+  { box: 'rh-beastexport', prefixes: ['beastexport_'],   after: 'toolrun-beastexport' },
+  { box: 'rh-gbdown',      prefixes: ['gbdown_'],        after: 'toolrun-gbdown' },
+  { box: 'rh-ictv',        prefixes: ['ictv_'],          after: 'toolrun-ictv' }
 ];
 
 let RH_DATA = null;
+let RH_TOTALS = {};       // 前缀 → 全盘真实条数（/api/tool/runs?with_totals=1）
 const RH_OPEN = new Set();
+/* 用户亲手动过的卡（手动 ↺ 还原 / 手动收起富面板）：自动恢复
+   （restoreLastResults，页面加载/切模块时跑）对这些卡不再自动补「最近
+   一次运行」，还原/收起状态保持稳定，直到新任务产出自然替换。
+   标记入口：rhRestoreRun（还原成功后）；清除入口：任务认领（新任务渲染
+   覆盖画面时，app-jobs.js injectStageLogs）。 */
+const RH_USER_TOUCHED = new Set();
 
 async function rhRefresh() {
   try {
     // per=8：每个模块各取最近 8 次。用默认的「全局 30 条」时，老模块
     // （align / hostremoval / rdp …）的历史会被新模块挤空，展开是空的。
-    const r = await fetch('/api/tool/runs?per=8');
-    RH_DATA = await r.json();
-  } catch (e) { RH_DATA = []; }
+    // with_totals=1：顺带取全盘按前缀的真实条数 —— per=8 只列最近 8 条，
+    // 计数器此前封顶显示 8（2026-11-05 用户报告），改显真数。
+    const r = await fetch('/api/tool/runs?per=8&with_totals=1');
+    const data = await r.json();
+    RH_DATA = Array.isArray(data) ? data : (data.runs || []);
+    RH_TOTALS = Array.isArray(data) ? {} : (data.totals || {});
+  } catch (e) { RH_DATA = []; RH_TOTALS = {}; }
   for (const def of RH_DEFS) {
     const box = $(def.box);
     if (!box) continue;
     const runs = RH_DATA.filter(x => def.prefixes.some(p => x.name.startsWith(p)));
     const n = runs.length;
+    // 真实计数：totals 键不带结尾下划线（与 rhClean 送参口径一致）。
+    // 接口旧形态（纯数组、无 totals）时回落为列表条数，不比旧版差。
+    const prefKeys = def.prefixes.map(p => p.replace(/_+$/, ''));
+    const real = prefKeys.reduce((s, p) => s + (RH_TOTALS[p] || 0), 0);
+    const shown = real > n ? real : n;
     const head = box.querySelector('.rh-head');
-    if (head) head.querySelector('.rh-count').textContent = n;
+    if (head) head.querySelector('.rh-count').textContent = shown;
     const body = box.querySelector('.rh-body');
     if (!body) continue;
     if (!n) { body.innerHTML = '<p class="hint">（暂无历史运行）</p>'; continue; }
-    body.innerHTML = runs.map(run => {
+    const moreHint = shown > n
+      ? `<div class="hint" style="margin:2px 0 4px">${
+          t('ui.rh.totalHint', '共 {total} 条 · 仅显示最近 {shown} 条')
+            .replace('{total}', shown).replace('{shown}', n)}</div>`
+      : '';
+    body.innerHTML = moreHint + runs.map(run => {
       const chains = (def.chains || (() => []))(run.files || [], run) || [];
       const chainBtns = chains.map((c, i) => c.dl
         ? `<a class="btn small" href="/tool_runs/${encodeURIComponent(run.name)}/${c.dl}" download>${esc(c.label)}</a> `
@@ -241,8 +323,7 @@ async function rhRefresh() {
         return `<a class="${cls.trim()}" href="/tool_runs/${encodeURIComponent(run.name)}/${encodeURIComponent(String(x.f.path).replace(/\\/g, '/'))}" title="${esc(x.f.path)}【${esc(x.f.size)}】">⬇ ${esc(x.label)}</a>`;
       }).join('') : '<p class="hint">（暂无关键产物）</p>';
       const restHtml = rest.length ? `<details class="rpt-sec" style="margin:8px 0 0"><summary>全部文件（${rest.length}）</summary><div class="rpt-sec-body" style="display:flex;flex-wrap:wrap;gap:4px">${rest.map(x => {
-        const cls = x.color ? ` dlbtn ${x.color}` : ' dlbtn';
-        return `<a class="${cls.trim()}" href="/tool_runs/${encodeURIComponent(run.name)}/${esc(x.f.path)}" title="${esc(x.f.path)}【${esc(x.f.size)}】">⬇ ${esc(x.label)}</a>`;
+        return `<a class="dlbtn" href="/tool_runs/${encodeURIComponent(run.name)}/${esc(x.f.path)}" title="${esc(x.f.path)}【${esc(x.f.size)}】">⬇ ${esc(x.label)}</a>`;
       }).join('')}</div></details>` : '';
       const fileHtml = open ? `<div class="dlbtn-row">${keyHtml}</div>${restHtml}` : '';
       const rptBtn = (run.name.startsWith('identify_') || run.name.startsWith('contigs_'))
@@ -254,6 +335,11 @@ async function rhRefresh() {
           <span class="hint">${(run.files || []).length} 文件</span>
           ${chainBtns}
           ${rptBtn}
+          <button class="btn small" data-mp-url="/api/module_report?run=${encodeURIComponent(run.name)}"
+                  data-mp-title="${esc(run.name)} · ${esc(t('c.modulePage', '模块结果页'))}"
+                  onclick="previewModulePageFrom(this)"
+                  title="${esc(t('c.modulePageTip', '打开该运行的模块结果页（图/表/文件）'))}">🧩 ${esc(t('c.modulePage', '模块结果页'))}</button>
+          <button class="btn small primary" onclick="rhRestoreRun('${esc(def.box)}', '${esc(run.name)}')" title="${esc(t('ui.rh.restoreTip', '把这次运行的完整结果（图/表/文件）重新展示到上方输出区，同跑完时一样'))}">${t('ui.rh.restore', '↺ 还原')}</button>
           <button class="btn small" onclick="rhFiles('${esc(run.name)}')">📁 文件</button>
           <button class="btn small" data-dir="${esc(run.out_dir || '')}" onclick="rhOpenDir(this.dataset.dir)" title="在资源管理器中打开该运行目录（窗口置顶）">📂 打开</button>
           <button class="btn small" onclick="rhArchive(this, '${esc(run.name)}')" title="${esc(t('ui.rh.archiveTip', '移入归档区（不删数据，可恢复）'))}">${t('ui.rh.archive', '📦 归档')}</button>
@@ -289,6 +375,77 @@ function rhFiles(name) {
   if (RH_OPEN.has(name)) RH_OPEN.delete(name); else RH_OPEN.add(name);
   rhRefresh();
   if (RH_OPEN.has(name) && name.startsWith('contigs_')) rhLoadContigDetail(name);
+}
+
+/* 历史条目「↺ 还原」（2026-11-05）：把该次运行的**完整结果**重新展示到
+   上方输出区，同任务刚跑完时一样 —— 富结果卡（SDT / kvsuite / 共识基因组
+   …）重放交互表格与图（复用自动恢复同一套 TOOL_RESTORE 通道），通用卡
+   渲染「上次运行」横幅 + 产物下载区。与自动恢复的两点差别：不限「最近
+   一次」（用户点名哪次就还原哪次），且无视「已有结果不覆盖」保护
+   （还原就是要覆盖眼前的内容）。 */
+async function rhRestoreRun(boxId, runName) {
+  const nm = String(runName || '');
+  // 之前可能被「📥 放入历史运行」收起过：还原时解除收起，别让下一轮轮询把它擦掉
+  if (typeof outUnhideRun === 'function') outUnhideRun(nm);
+  // 链 run 还原 → 级联解除（CHAIN_CASCADE，app-jobs.js）：链上各阶段卡
+  // （verify / kvsuite / orfa / sdt）的 '#<前缀>' 收起标记一并清掉，
+  // 并把阶段卡的 RH_USER_TOUCHED 解除 —— 否则还原了链主面板，那张
+  // 分类表/定量表还压在历史收起集合里，刷新后阶段面板回不来。
+  try {
+    const _m = nm.match(/^(.+?)_\d{8}_\d{6}/);
+    const _cas = (_m && typeof CHAIN_CASCADE !== 'undefined')
+      ? CHAIN_CASCADE[_m[1]] : null;
+    if (_cas && typeof CARD_RUN_PREFIX !== 'undefined') {
+      (_cas.keys || []).forEach(k => {
+        const pfx = CARD_RUN_PREFIX[k];
+        const p = Array.isArray(pfx) ? pfx[0] : pfx;
+        if (!p) return;
+        const s = outHiddenSet();
+        s.delete('#' + p);
+        outSaveHidden(s);
+        if (typeof RH_USER_TOUCHED !== 'undefined') RH_USER_TOUCHED.delete(k);
+      });
+    }
+  } catch (e) {}
+  // run 详情（files 清单）：RH_DATA（最近 8 条）没有就按前缀再拉全量
+  let run = (RH_DATA || []).find(x => x.name === nm);
+  if (!run) {
+    const m = nm.match(/^(.+?)_\d{8}_\d{6}/);
+    const pfx = m ? m[1] : nm;
+    try {
+      const list = await (await fetch(
+        `/api/tool/runs?limit=100&prefix=${encodeURIComponent(pfx)}`)).json();
+      run = (list || []).find(x => x.name === nm);
+    } catch (e) { /* 拉不到就按最小 run 兜底 */ }
+  }
+  if (!run) run = { name: nm, out_dir: '', files: [] };
+  // 输出卡 key：CARD_RUN_PREFIX（app-jobs.js 全局表）前缀匹配；
+  // 数组前缀（crispr / crispr_cli）任一命中即可。
+  let key = '';
+  const table = (typeof CARD_RUN_PREFIX !== 'undefined') ? CARD_RUN_PREFIX : {};
+  for (const k in table) {
+    const prefs = Array.isArray(table[k]) ? table[k] : [table[k]];
+    if (prefs.some(p => nm.startsWith(p))) { key = k; break; }
+  }
+  const box = key ? $('toolrun-' + key) : null;
+  const rich = !!(key && typeof TOOL_RESTORE !== 'undefined' && TOOL_RESTORE[key]);
+  // 钉住：还原的内容不被轮询里其他任务（更早的/失败的）覆盖，
+  // 直到这张卡出现新任务（app-jobs injectStageLogs 检测新 id 自动解除）。
+  try { if (key && typeof RH_PINNED !== 'undefined') RH_PINNED[key] = nm; } catch (e) {}
+  if (rich) {
+    try { await TOOL_RESTORE[key](nm); }
+    catch (e) { /* 富重放失败走通用兜底 */ }
+  }
+  // 富卡输出区已被专用加载函数填过就不重复铺；通用卡/空箱铺横幅+下载区
+  if (box && (!rich || !box.innerHTML.trim())) {
+    box.innerHTML = runRestoreHtml(run);
+  }
+  const richEl = (rich && typeof RICH_BOX !== 'undefined' && RICH_BOX[key])
+    ? document.getElementById(RICH_BOX[key]) : null;
+  const anchor = box || richEl || document.getElementById(boxId);
+  if (anchor) { try { anchor.scrollIntoView({ block: 'start' }); } catch (e) {} }
+  if (key) RH_USER_TOUCHED.add(key);      // 自动恢复不再覆盖这张卡的画面
+  toast(t('ui.rh.restored', '已还原到输出区'), nm, { ttl: 4000 });
 }
 
 /* 历史运行点开 → 展示该 run 的病毒序列分类（contig 明细）关键信息。
@@ -465,7 +622,7 @@ function rhGo(btn, runName, boxId, idx) {
       return;
     }
     try { sessionStorage.setItem('vp_runfill', JSON.stringify(fills)); } catch (e) {}
-    location.href = chain.page;
+    gotoModule(chain.page);
   } else {
     rhApplyFills(fills);
   }
@@ -495,18 +652,65 @@ function rhApplyStashed() {
     toast(t('ui.rh.backfill'), applied.join(', '), { ttl: 4000 });
   }
 }
+/* 富面板 ✕ 统一打标：✕ 的语义是「收起来」，自动恢复（页面加载/切模块时
+   的 restoreLastResults）不得把用户收起的面板再拉回来。各面板 ✕ 都是
+   内联 onclick（$id.style.display='none'），逐个改模板不划算——这里在
+   **捕获阶段**统一监听：点击发生在 RICH_BOX 容器内、按钮文本是关闭符
+   → 记入 RH_USER_TOUCHED，restoreLastResults 见标记就跳过该卡。 */
+document.addEventListener('click', ev => {
+  const btn = ev.target.closest && ev.target.closest('button');
+  if (!btn) return;
+  const tt = (btn.textContent || '').trim();
+  if (tt !== '✕' && tt !== '×' && tt !== '✖') return;
+  const holder = btn.closest('[id]');
+  if (!holder) return;
+  for (const k in RICH_BOX) {
+    if (RICH_BOX[k] === holder.id) {
+      RH_USER_TOUCHED.add(k);          // 自动恢复跳过这张卡
+      break;
+    }
+  }
+}, true);                              // capture：先于面板的内联 onclick
+
+/* 任务完成钩子：任务从非终态跨进终态（running/queued/paused →
+   done/failed/cancelled）时刷新历史区。2026-11-05 二次修复：原实现只记
+   任务 id 集合，任务 running 时 id 已进「已见」集合，翻成 done 时判不出
+   「新见终态」——页面开着等一个任务跑完，历史区永远不自动刷新（计数与
+   条目停在旧值，API 列表明明是新的），只有归档/恢复/删除或手动刷新页面
+   才更新；首见即终态的快任务（整个生命周期落在两次轮询之间）也漏。
+   改为记 id→状态：终态且「此前非终态或首见」即算刚结束；页面加载后的
+   第一次调用只播种（列表里全是早已完成的历史任务，不能全算刚结束）。 */
+const RH_TERM = new Set(['done', 'failed', 'cancelled']);
+const RH_STATUS = new Map();
+let RH_SEEDED = false;
 window.__rhOnTasks = tasks => {
-  // 任何任务刚结束（running → 终态）时刷新历史区
-  const done = new Set(tasks.filter(t => ['done', 'failed', 'cancelled'].includes(t.status))
-                            .map(t => t.id));
-  const newly = [...done].filter(id => !RH_SEEN.has(id));
-  if (RH_SEEN.size && newly.length) rhRefresh();
-  RH_SEEN.clear(); tasks.forEach(t => RH_SEEN.add(t.id));
+  let justFinished = false;
+  const next = new Map();
+  for (const t of (tasks || [])) {
+    const prev = RH_STATUS.get(t.id);
+    if (RH_SEEDED && RH_TERM.has(t.status)
+        && (prev === undefined || !RH_TERM.has(prev))) justFinished = true;
+    next.set(t.id, t.status);
+  }
+  RH_STATUS.clear();
+  for (const [k, v] of next) RH_STATUS.set(k, v);
+  RH_SEEDED = true;
+  if (justFinished) rhRefresh();
 };
-const RH_SEEN = new Set();
 function rhInitContainers() {
   for (const def of RH_DEFS) {
-    const box = $(def.box);
+    let box = $(def.box);
+    // 自动注入：页面没预留 <div class="rh"> 容器时，把历史区插到各卡
+    // 输出区（def.after = 'toolrun-<key>'）后面 —— 补登记的 19 个模块
+    // 靠这一处覆盖全部页面，模板不再需要挨个加容器。
+    if (!box && def.after) {
+      const anchor = $(def.after);
+      if (anchor) {
+        anchor.insertAdjacentHTML('afterend',
+          `<div class="rh" id="${def.box}"></div>`);
+        box = $(def.box);
+      }
+    }
     if (!box || box.dataset.init) continue;
     box.dataset.init = '1';
     box.innerHTML = `<div class="rh-head" style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
@@ -519,9 +723,35 @@ function rhInitContainers() {
       <div class="rh-arch" style="display:none;margin-top:6px"></div>`;
   }
 }
+/* ?run=<名称> 深链接（2026-11-02）：历史归档 / 任务卡「在页面中打开」跳到工具箱页时，
+   直接把这套运行的最近结果展开、滚到眼前；找不到就说清楚，而不是停在页面顶部。 */
+async function rhDeepLink() {
+  const want = new URLSearchParams(location.search).get('run');
+  if (!want) return false;
+  // 只有真正带历史运行盒的页面才处理（结果中心也引了本文件，但那边用 rsFocusRun）
+  if (!document.querySelector('.rh')) return false;
+  if (!RH_DATA) await rhRefresh();
+  const hit = (RH_DATA || []).find(x => x.name === want);
+  const def = RH_DEFS.find(d => d.prefixes.some(p => want.startsWith(p)));
+  const box = def ? $(def.box) : null;
+  if (!hit || !box) {
+    toast(t('ui.rh.deepMiss', '这次运行不在本页的历史里'), want, { kind: 'failed', ttl: 8000 });
+    return false;
+  }
+  RH_OPEN.add(want);
+  const body = box.querySelector('.rh-body');
+  if (body) body.style.display = '';
+  rhRefresh();
+  if (want.startsWith('contigs_')) rhLoadContigDetail(want);
+  try { box.scrollIntoView({ block: 'center' }); } catch (e) {}
+  toast(t('ui.rh.deepHit', '已跳到这次运行'), want, { ttl: 4000 });
+  return true;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   rhInitContainers();
   rhRefresh();
   setTimeout(rhApplyStashed, 350);   // 等各页自身 init（下拉等）先就绪
+  setTimeout(() => { try { rhDeepLink(); } catch (e) {} }, 450);
 });
 
