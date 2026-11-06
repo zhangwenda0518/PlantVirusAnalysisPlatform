@@ -1,0 +1,29 @@
+{
+  "version": "1.3.0",
+  "released_at": "2026-11-05",
+  "notes_zh": "1.3.0 全面修复版（2026-11-06）\n\n安全\n- 自动更新链加固：换装脚本补齐 build_info.json 安装与还原（修复\"每次启动重装重启\"循环）；\n  更新包 sha256 必填（缺失拒绝安装）；默认清单源收紧为仅 https，自建/内网 http 源改由\n  platform.json update_manifest_url 显式配置；新增 Ed25519 签名校验与 dev_tools/sign_update.py 签名工具。\n- 问答模式不再向模型下发工具表；激活无 Key 档案不再跨供应商泄露旧 Key；\n  ${环境变量} 占位符保存/测试即时展开，且不再被明文回写配置文件；\n  日志/FASTA 读取等接口收紧路径边界（realpath + 平台根白名单 + 敏感文件排除）。\n\n稳定性\n- 修复 A1 成功后 A3 天际线阶段必崩；迁移双引擎失败不再误报\"0 次迁移\"；\n  修复\"排队取消\"时 on_finish 回调丢失（任务日志落盘改为 best-effort，不再带死任务线程）；\n  暂停/取消在下载与宿主基因组链路真正生效；取消状态不再被覆盖成完成/失败。\n\n分析口径\n- LOGAN contigs 宿主过滤按识别 id 匹配（修复\"移除 0 条\"静默漏滤）；\n  ORF 注释层 --libs 语义修正（归档层明确报错，不再静默扩成全层）；\n  PVDB/CDD/BFVD 翻译搜索覆盖度归一到 0..1 并保留链方向；HMM E 值按库实际规模取 Z；\n  同位点收敛坐标统一 1-based；检测编排器 detect_kit 标记归档。\n\n报告与界面\n- 结论文档 PNG/SVG 孪生图去重（漏斗-保持率图恢复显示）；consensus 补充表修复转义与列名；\n  断点分布刻度条恢复渲染；批量结果页单列布局；CSV/TSV 预览引号感知；\n  PDF 导出临时文件与占用占用处理；环境条新增\"Python 依赖\"位，组页口径统一；\n  历史提问导航点在矮视口自动压缩点高；对话坞产物卡片排除敏感文件。\n\n其他\n- LAMP/CRISPR 工具报告参数与实现同源（实验交付口径修正）；\n  模块结果页 O(阶段²) 重建优化 + 输入未变跳过；路由基线 285 条；\n  vendor_suvtk（GPLv3）补登记第三方声明；README_EN 同步；测试隔离与播种基建加固。\n",
+  "notes_en": "1.3.0 Maintenance release (2026-11-06)\n\nSecurity\n- Auto-update hardening: swap script now installs/restores build_info.json (fixes the\n  reinstall-restart loop); package sha256 is mandatory (fail-closed); built-in manifest\n  sources tightened to https-only, self-hosted http sources go through\n  platform.json update_manifest_url; Ed25519 signature verification plus\n  dev_tools/sign_update.py signing tool.\n- Q&A mode no longer exposes the tool table to the model; activating a keyless provider\n  profile no longer leaks the previous provider's key; ${ENV_VAR} placeholders are\n  expanded at save/test time and never written back as plaintext; log/FASTA readers\n  tighten path boundaries (realpath + platform-root whitelist + sensitive-file exclusion).\n\nStability\n- Fixed the A3 skyline stage crash after a successful A1; migration no longer reports\n  \"0 events\" when both engines failed; queued-cancel now reliably fires on_finish\n  (log persistence is best-effort and can no longer kill the task thread); pause/cancel\n  take effect on download and host-genome pipelines; cancelled tasks are no longer\n  overwritten as completed/failed.\n\nAnalysis semantics\n- LOGAN contigs host filtering matches identified read ids (fixes silent zero-removal);\n  ORF annotation --libs archived layers now error clearly instead of silently expanding\n  to all layers; PVDB/CDD/BFVD translated-search coverage normalized to 0..1 with strand;\n  per-library HMM Z; convergence coordinates unified to 1-based; detect_kit marked archived.\n\nReports & UI\n- Conclusion report deduplicates PNG/SVG twin figures (funnel-retention figure restored);\n  consensus supplementary table escaping/column fix; breakpoint-distribution scale bar\n  renders again; batch result pages single-column layout; quote-aware CSV/TSV previews;\n  robust PDF export; env bar adds a Python-deps bit with unified group semantics;\n  turn navigation compresses dot heights in short viewports; artifact cards exclude\n  sensitive files.\n\nOther\n- LAMP/CRISPR assay reports now state parameters identical to implementation;\n  module pages rebuilt only when inputs change (O(stages²) removed); route baseline 285;\n  vendor_suvtk (GPLv3) registered in third-party notices; README_EN synced;\n  test-isolation and seeding infrastructure hardened.\n",
+  "min_version": "1.2.0",
+  "paused": false,
+  "rollout_percent": 100,
+  "packages": {
+    "PlantVirusPlatform": {
+      "version": "1.3.0",
+      "size": 205940245,
+      "sha256": "7b5ae59d72804ee453ec02d5f76739651e76689f73945b04a08cf08e22a597db",
+      "urls": [
+        "http://39.106.101.94/updates/vp-core-1.3.0-PlantVirusPlatform.zip",
+        "https://github.com/zhangwenda0518/PlantVirusPlatform/releases/download/v1.3.0/vp-core-1.3.0-PlantVirusPlatform.zip"
+      ]
+    },
+    "PlantVirusPlatform_with_Plugin": {
+      "version": "1.3.0",
+      "size": 205940213,
+      "sha256": "1c913da4ec17154756bcaeb6ca14e83e301130bbdc45bcc629e6cd27a1b2744d",
+      "urls": [
+        "http://39.106.101.94/updates/vp-core-1.3.0-PlantVirusPlatform_with_Plugin.zip",
+        "https://github.com/zhangwenda0518/PlantVirusPlatform/releases/download/v1.3.0/vp-core-1.3.0-PlantVirusPlatform_with_Plugin.zip"
+      ]
+    }
+  }
+}

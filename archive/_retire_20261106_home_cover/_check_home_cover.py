@@ -31,7 +31,8 @@ def main() -> int:
     from playwright.sync_api import sync_playwright
     bad = []
     with sync_playwright() as pw:
-        b = pw.chromium.launch(headless=True)
+        b = pw.chromium.launch(headless=True,
+                           args=['--no-proxy-server'])
         for theme in ('light', 'dark'):
             ctx = b.new_context(viewport={'width': 1440, 'height': 1000},
                                 device_scale_factor=2)

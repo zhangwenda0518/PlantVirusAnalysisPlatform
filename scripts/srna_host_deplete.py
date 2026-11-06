@@ -34,7 +34,9 @@ def log(m):
 
 def run(cmd):
     r = subprocess.run(cmd, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace")
+                       encoding="utf-8", errors="replace",
+                       creationflags=getattr(
+                           subprocess, 'CREATE_NO_WINDOW', 0))
     if r.returncode != 0:
         raise RuntimeError(f"命令失败 rc={r.returncode}: {' '.join(cmd)}\n"
                            f"{(r.stderr or '')[-500:]}")

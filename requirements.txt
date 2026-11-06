@@ -35,6 +35,14 @@ pyrodigal-rv>=0.1.0; platform_system == "Windows"
 primer3-py>=2.0
 # LOGAN 溯源「一键批量提交」依赖（方式二；未安装时该功能灰显，手动方式不受影响）
 selenium>=4.15
+# ── LOGAN 数据下载（logan_contigs.py，2026-11-06 显式声明）──
+# 此前两个都只在维护者系统 Python 里手动装过，requirements 未声明：
+# 干净部署 / 内置 3rd/python 全缺 → 卡上一跑就
+#   ModuleNotFoundError: No module named 'zstandard'
+# 且旧错误处理链自己再崩一个 AttributeError（NoneType.get），把真错误顶掉。
+boto3>=1.34            # Logan 公共 S3 桶（logan-pub）匿名访问（UNSIGNED）
+botocore>=1.34         # boto3 传递依赖；logan_contigs / web 直接 import UNSIGNED/Config，显式声明更稳
+zstandard>=0.22        # Logan contigs .fa.zst 流式解压
 # 跨样本 SNP 分型图（known_virus_suite/kv_variant_plot.py 变异段可视化；
 # GPL-3.0，纯 Python，仅依赖 biopython+matplotlib——平台既有版本即满足）。
 # 未安装时变异绘图静默跳过该图型，其余图件不受影响。
@@ -85,6 +93,20 @@ tkinterdnd2
 # 注意包名是 **phylo-treetime**（import 名才是 treetime）；裸 `pip install
 # treetime` 装到的是同名但更老的包，会缺 graphviz 等依赖。
 phylo-treetime>=0.11
+
+# ── 分发包自更新验签（updater.py Ed25519 验签，2026-11-06 显式声明）──
+# updater.py 只在配置了 update_sign_pubkey 时才走验签；但配置了公钥而它
+# 缺失 → 更新 fail-closed（清单拒收），源码部署 pip install -r 后会缺、
+# 只有维护者机器与内置 3rd/python 自带。PyNaCl 是 cryptography 缺失时的
+# 兜底后端（两者实现独立，装其一即可），登记为可选（audit_deps OPTIONAL）：
+# python -m pip install pynacl
+cryptography>=42
+
+# SVG→PNG 增强（utils.svg_to_png，2026-11-06 登记为可选）：外部引擎与手写
+# SVG 由此补 PNG；缺失时保持 SVG-only（浏览器预览不受影响，日志 WARN）。
+# 注意 Windows 下它还要 libcairo-2.dll 原生库——光 pip 装包 import 仍会失败
+# （维护者系统 Python 实测如此）；内置 3rd/python 已带 cairo DLL，可直接用。
+# python -m pip install cairosvg
 
 # ── MCP 服务器/控制台（2026-10-24 显式声明；此前仅靠传递依赖，干净克隆
 #    pip install -r 后 MCP 控制台/mcp_server 全部 ImportError）──

@@ -349,7 +349,8 @@ def wait_and_download(session_url_or_id, out_dir: Path, acc: str, log,
             r = subprocess.run(
                 [_CURL or "curl.exe", "-s", "-o", os.devnull,
                  "-w", "%{http_code}", "-I", "-L", url],
-                capture_output=True, text=True, timeout=60)
+                capture_output=True, text=True, timeout=60,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             code = r.stdout.strip()
         except Exception as e:
             log.debug("HEAD 探测异常: %s", e)
@@ -360,7 +361,9 @@ def wait_and_download(session_url_or_id, out_dir: Path, acc: str, log,
             try:
                 r = subprocess.run([_CURL or "curl.exe", "-L", "--fail",
                                     "-o", dl_p, url],
-                                   capture_output=True, timeout=600)
+                                   capture_output=True, timeout=600,
+                                   creationflags=getattr(
+                                       subprocess, 'CREATE_NO_WINDOW', 0))
                 if r.returncode != 0:
                     _err = (r.stderr or b'').decode('utf-8', 'replace').strip()
                     log.warning("%s 下载失败 rc=%d：%s",

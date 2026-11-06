@@ -1,0 +1,9 @@
+{
+ "name": "crabz",
+ "version": "1.x",
+ "kind": "tool",
+ "description": "并行 gzip/pigz 压缩解压",
+ "provides": {
+  "crabz": "crabz.exe"
+ }
+}

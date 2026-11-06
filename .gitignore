@@ -198,3 +198,7 @@ tests/_isolation_report.txt
 3rd/tools/rdp5/NF[0-9]*
 3rd/tools/rdp5/RDP5*[0-9]*
 tests/_ui_review_shots/
+
+# ---------- 更新包分发产物（2026-11-06） ----------
+# zip 超过 GitHub 100MB 红线；manifest 随库走，zip 走自有服务器 + Releases
+updates-dist/

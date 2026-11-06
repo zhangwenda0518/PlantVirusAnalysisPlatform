@@ -80,6 +80,8 @@ def _local_submodules():
 
 LOCAL_SUBMODULES = None  # 延迟到 ROOT 定义之后初始化
 
+_FILE_INDEX = None       # file_import_index() 的进程内缓存（见下）
+
 # 导入名 → pip 包名（不一致的才需要列）
 PIP_NAME = {
     'flask': 'Flask', 'werkzeug': 'Werkzeug', 'jinja2': 'Jinja2',
@@ -97,6 +99,9 @@ PIP_NAME = {
     'webview': 'pywebview',
     # ViennaRNA 的 Python 绑定顶层模块名是 RNA（requirements.txt 已声明 viennarna）
     'RNA': 'viennarna',
+    # PyNaCl 的 import 名是 nacl（updater.py 验签兜底后端；pip install nacl
+    # 在 PyPI 上装不到，提示语必须给 PyNaCl）
+    'nacl': 'PyNaCl',
 }
 
 # 已知可选依赖：缺失时功能降级，不阻断运行。
@@ -116,7 +121,19 @@ OPTIONAL = {'selenium', 'gbdraw', 'dna_features_viewer', 'pyhmmer',
             # 导入（HAS_SEABORN），缺时回退 matplotlib 原生的箱线/色板实现
             # ——2026-10-03 该文件并入后未登记，导致自检 ⑥ 恒报
             # "requirements.txt 未声明 1 个: seaborn"（假警报）。
-            'seaborn'}
+            'seaborn',
+            # cairosvg：utils.svg_to_png() 的可选增强（外部引擎 SVG 补 PNG）。
+            # 缺失时保持 SVG-only（日志 WARN），不阻断；且 Windows 下还要
+            # libcairo-2.dll 原生库，光 pip 装包 import 仍会失败（2026-11-06
+            # 维护者系统 Python 实测如此，内置 3rd/python 已带 cairo DLL）。
+            # requirements.txt 只以注释给出安装命令，不进必装清单。
+            'cairosvg',
+            # nacl（PyNaCl）：updater.py Ed25519 验签的兜底后端——首选
+            # cryptography（requirements.txt 已声明为必装），nacl 仅当
+            # cryptography 缺失时才会被 import；双缺才是真故障（更新
+            # fail-closed 拒收清单）。故登记可选，requirements.txt 注释行给
+            # 安装命令。
+            'nacl'}
 
 
 def iter_py_files():
@@ -184,6 +201,129 @@ def collect_imports():
                     top = node.module.split('.')[0]
                     found.setdefault(top, []).append(rel)
     return found
+
+
+def file_import_index():
+    """平台源码文件级 import 索引：{相对路径: {'local': set, 'third': set}}。
+
+    local = 平台内 import 目标（点路径，已把相对导入解析为绝对；
+    Virus_Platform_Core 前缀已剥掉），third = 第三方顶层导入名。
+    供 selfcheck 的作用域「Python 依赖」位（2026-11-06）：作用域 → 引擎
+    模块 → 平台内 import 闭包 → 第三方依赖名单。与 collect_imports() 同
+    一趟 AST 扫描（同一 skip 规则），进程内缓存。
+    """
+    global _FILE_INDEX
+    if _FILE_INDEX is not None:
+        return _FILE_INDEX
+    local_subs = _local_submodules()
+    local_tops = set(LOCAL) | local_subs
+    idx = {}
+    for path in iter_py_files():
+        rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
+        try:
+            with open(path, encoding='utf-8', errors='replace') as f:
+                tree = ast.parse(f.read(), filename=path)
+        except (SyntaxError, UnicodeDecodeError, ValueError):
+            continue
+        # 当前文件的包路径：Virus_Platform_Core/foo/bar.py → ('Virus_Platform_Core','foo')；
+        # 包 __init__.py 与普通模块同处理（相对导入解析按所在目录回退）
+        parts = rel.split('/')
+        pkg = tuple(parts[:-1])
+        entry = {'local': set(), 'third': set()}
+        for node in ast.walk(tree):
+            targets = []            # (点路径, level)
+            if isinstance(node, ast.Import):
+                targets = [(a.name, 0) for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module or ''
+                if node.names and any(a.name == '*' for a in node.names):
+                    continue
+                targets = [(mod, node.level)]
+            for dotted, level in targets:
+                if not dotted:
+                    continue
+                if level > 0:
+                    # 相对导入：按当前包路径回退 level-1 层
+                    base = pkg[:len(pkg) - (level - 1)] if level > 1 else pkg
+                    dotted = '.'.join(base + tuple(dotted.split('.')))
+                top = dotted.split('.')[0]
+                if top == 'Virus_Platform_Core':
+                    rest = dotted[len('Virus_Platform_Core.'):] if len(dotted) > len('Virus_Platform_Core') else ''
+                    if rest:
+                        entry['local'].add(rest)
+                    else:
+                        entry['local'].add('Virus_Platform_Core')
+                    continue
+                if top in local_tops:
+                    entry['local'].add(dotted)
+                    continue
+                if top in STDLIB:
+                    continue
+                entry['third'].add(top)
+        idx[rel] = entry
+    _FILE_INDEX = idx
+    return _FILE_INDEX
+
+
+def files_for(dotted, idx):
+    """点路径 → 候选源码文件（含包目录展开：导入包 = 包内全部文件）。"""
+    if dotted.startswith('Virus_Platform_Core.'):
+        dotted = dotted[len('Virus_Platform_Core.'):]
+    parts = dotted.split('.')
+    top = parts[0]
+    if top in ('app', 'main', 'mcp_server'):
+        cands = [top + '.py']
+    elif top in ('dev_tools', 'tests'):
+        cands = ['/'.join([top] + parts[1:]) + '.py']
+    else:
+        cands = ['Virus_Platform_Core/' + dotted.replace('.', '/') + '.py']
+    pkg_dir = 'Virus_Platform_Core/' + dotted.replace('.', '/')
+    init = pkg_dir + '/__init__.py'
+    if init in idx:
+        cands.extend(f for f in idx if f.startswith(pkg_dir + '/')
+                     and f != init)
+    return [c for c in cands if c in idx]
+
+
+# 作用域闭包的「共享底座」剪枝名单（2026-11-06）：这些模块是全平台编排层
+# （web 界面层 / ai_agent / pipeline 全流程编排 / selfcheck 自检），引擎
+# 模块都会 import 它们，顺着爬会把整个平台拖进每个作用域，作用域差异就
+# 没了。爬到它们的**边**就停（它们的第三方依赖算平台公共核心，不计入
+# 单个作用域；种子不受限——SCOPE_MODULES 的种子从不含这些名字）。
+SCOPE_STOP = {'web', 'ai_agent', 'selfcheck', 'pipeline',
+              'app', 'main', 'mcp_server'}
+
+
+def scope_third_party(seeds):
+    """引擎模块名列表 → (第三方依赖名集合, 涉及源码文件数)。
+
+    平台内 import 闭包：从种子模块的文件出发，沿 local 目标 BFS，到
+    SCOPE_STOP 共享底座为止。导入子包时整包计入（import known_virus_suite
+    即执行包内导入）。dev_tools/tests 的文件也照算（引擎很少引，真引了
+    如实计入）。
+    """
+    idx = file_import_index()
+    from collections import deque
+    seen, queue, third = set(), deque(), set()
+    for s in seeds:
+        for f in files_for(s, idx):
+            if f not in seen:
+                seen.add(f)
+                queue.append(f)
+    while queue:
+        f = queue.popleft()
+        e = idx.get(f)
+        if not e:
+            continue
+        third |= e['third']
+        for tgt in e['local']:
+            if tgt.split('.')[0] in SCOPE_STOP:
+                continue
+            for cf in files_for(tgt, idx):
+                if cf not in seen:
+                    seen.add(cf)
+                    queue.append(cf)
+    return third, len(seen)
 
 
 def _read_req(path):

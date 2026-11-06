@@ -221,10 +221,34 @@ def make_segments(seqlen, n_seg):
     return uniq
 
 
+def make_full_windows(seqlen, max_len=SEG_MAX_BP):
+    """≤max_len 的均衡全覆盖切分（与网页版溯源查询的 planWindows 同口径）。
+
+    与 make_segments（n_seg 采样窗）不同：本函数把序列**全部**切成 ≤max_len
+    的片段（均分，无零头尾巴），供网页一键批量提交使用。"""
+    L = int(seqlen)
+    M = max(100, int(max_len or SEG_MAX_BP))
+    if L <= M:
+        return [(0, L)]
+    n = -(-(L) // M)                      # ceil
+    size = min(M, -(-L // n))
+    step = size
+    out = []
+    s = 0
+    while True:
+        e = min(s + size, L)
+        out.append((s, e))
+        if e >= L:
+            break
+        s += step
+    return out
+
+
 # ------------------------------------------------------------------
 # 任务生命周期
 # ------------------------------------------------------------------
-def create_job(name, sample=None, contig_ids=None, pasted=None, n_seg=2):
+def create_job(name, sample=None, contig_ids=None, pasted=None,
+                 n_seg=2, max_len=None):
     """创建溯源查询任务：切片 → 写 query fasta → meta/segments。"""
     jdir = _job_dir(name, must_exist=False)
     if os.path.isdir(jdir) and any(os.scandir(jdir)):
@@ -240,7 +264,8 @@ def create_job(name, sample=None, contig_ids=None, pasted=None, n_seg=2):
 
     segments, contig_infos = [], []
     for cid, seq in recs:
-        wins = make_segments(len(seq), n_seg)
+        wins = (make_full_windows(len(seq), max_len) if max_len
+                else make_segments(len(seq), n_seg))
         info = {'contig': cid, 'length': len(seq)}
         if cid in contig_rows:
             info.update({'species': contig_rows[cid].get('species', ''),

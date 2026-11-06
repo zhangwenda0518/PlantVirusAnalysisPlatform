@@ -2,6 +2,9 @@
   "threads": 19,
   "plugin_index_url": "",
   "plugin_source_pref": "auto",
+  "update_manifest_url": "",
+  "update_auto_check": true,
+  "update_auto_apply": true,
   "tools": {
     "kunpeng": "3rd\\bin\\kun_peng-v0.7.12-x86_64-pc-windows-msvc.exe",
     "spades": "3rd\\tools\\SPAdes-Windows\\bin\\spades.bat",
@@ -35,7 +38,12 @@
     "lsd2": "3rd\\tools\\lsd2\\lsd2.exe",
     "RDP5CL": "3rd\\tools\\rdp5\\RDP5CL.exe",
     "dsRNAmax": "3rd\\tools\\dsrnamax\\dsRNAmax_det.exe",
-    "srna-target": "3rd\\tools\\srna-target\\miranda\\miranda.exe"
+    "srna-target": "3rd\\tools\\srna-target\\miranda\\miranda.exe",
+    "snpeff": "3rd\\tools\\snpeff\\snpEff\\snpEff.jar",
+    "snpgenie": "3rd\\tools\\snpgenie\\snpgenie.pl",
+    "strawberry-perl": "3rd\\tools\\strawberry-perl\\perl\\bin\\perl.exe",
+    "jre-snpeff": "3rd\\tools\\jre-snpeff\\bin\\java.exe",
+    "datasets": "3rd\\tools\\datasets\\datasets.exe"
   },
   "databases": {
     "host": "host-db\\112863_genomes_host_db",

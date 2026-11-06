@@ -31,8 +31,10 @@ from Virus_Platform_Core.web.tool_jobs import (
     _tool_job_identify,
     _tool_job_assemble,
     _tool_job_contigs,
+    _tool_job_loganfetch,
     _tool_job_structcmp,
     _tool_job_verify,
+    _tool_job_hom,
     _tool_job_consensus,
     _tool_job_kvsuite,
     _tool_job_quicktree,
@@ -43,18 +45,20 @@ from Virus_Platform_Core.web.tool_jobs import (
     _tool_job_phylogeo,
     _tool_job_dsrna,
     _tool_job_crispr,
-    _tool_job_conan,
+    _tool_job_lamp,
     _tool_job_rtt,
     _tool_job_pdprep,
     _tool_job_phylodyn,
     _tool_job_mirna,
     _tool_job_beastexport,
+    _tool_job_cmpchain,
 )
 from Virus_Platform_Core.web.chains import (
     _tool_job_virchain,
     _tool_job_kvchain,
     _tool_job_prepchain,
     _tool_job_annochain,
+    _scan_prep_inputs,
 )
 from Virus_Platform_Core.web.tasks import tm
 
@@ -75,7 +79,7 @@ TOOL_REGISTRY = {
                  'need_db': False, 'job': _tool_job_convert},
     'fastp':    {'title': '质控预处理', 'title_en': 'QC preprocess',
                  'need_db': False, 'job': _tool_job_fastp},
-    'hostremoval': {'title': '宿主去除与序列提取', 'title_en': 'Host removal',
+    'hostremoval': {'title': '非宿主序列提取（宿主去除）', 'title_en': 'Non-host extraction (host removal)',
                     'need_db': False, 'job': _tool_job_hostremoval},
     # hostpredict（独立宿主预测工具）已于 2026-09-27 撤出注册表：孤儿页删除，
     # 功能保留为 contigs 分类后的自动运行（/api/tool/hostpredict_run，见
@@ -88,12 +92,15 @@ TOOL_REGISTRY = {
                     'need_db': False, 'job': _tool_job_genoplot},
     'primer':      {'title': '引物设计', 'title_en': 'Primer design',
                     'need_db': False, 'job': _tool_job_primer},
-    'identify': {'title': '病毒鉴定', 'title_en': 'Virus identify',
+    'identify': {'title': '病毒序列提取（样本分析）', 'title_en': 'Viral extraction (sample analysis)',
                  'need_db': True, 'job': _tool_job_identify},
     'assemble': {'title': '病毒组装', 'title_en': 'Virus assembly',
                  'need_db': False, 'job': _tool_job_assemble},
     'contigs':  {'title': 'contig分类', 'title_en': 'Contig classify',
                  'need_db': True, 'job': _tool_job_contigs},
+    'loganfetch': {'title': 'LOGAN 数据下载',
+                   'title_en': 'LOGAN data download',
+                   'need_db': False, 'job': _tool_job_loganfetch},
     'sdt':      {'title': 'SDT 精确分析', 'title_en': 'SDT exact',
                  'need_db': False, 'job': _tool_job_sdt},
     'identity': {'title': 'NT+AA 同一性表', 'title_en': 'NT+AA identity',
@@ -102,6 +109,11 @@ TOOL_REGISTRY = {
                   'need_db': False, 'job': _tool_job_structcmp},
     'verify':   {'title': '候选序列验证', 'title_en': 'Candidate verify',
                  'need_db': False, 'job': _tool_job_verify},
+    # 2026-11-03：t-hom「同源比对」卡并入 t-verify 卡（单条深查模式），
+    # 升级为正式工具：走 /api/tool/run 正式运行目录，不再写 _seq_input 伪运行。
+    'hom':      {'title': '同源比对（BLASTN · BLASTX）',
+                 'title_en': 'Homology BLASTN · BLASTX',
+                 'need_db': False, 'job': _tool_job_hom},
     'consensus': {'title': '共识序列与变异', 'title_en': 'Consensus & variants',
                   'need_db': False, 'job': _tool_job_consensus},
     'kvsuite':  {'title': '已知病毒识别与定量', 'title_en': 'Known virus suite',
@@ -110,13 +122,19 @@ TOOL_REGISTRY = {
                  'need_db': False, 'job': _tool_job_align},
     'quicktree': {'title': '快速建树', 'title_en': 'Quick tree',
                   'need_db': False, 'job': _tool_job_quicktree},
-    'virchain': {'title': '病毒识别分类·一键', 'title_en': 'Virus chain',
+    'cmpchain': {'title': '⚡ 一键分析',
+                 'title_en': '⚡ One-click analysis',
+                 'need_db': False, 'job': _tool_job_cmpchain},
+    'virchain': {'title': '组装验证·一键', 'title_en': 'Assemble & verify chain',
                  'need_db': True, 'job': _tool_job_virchain},
     'kvchain':  {'title': '病毒定量与共识·一键', 'title_en': 'KV chain',
                  'need_db': False, 'job': _tool_job_kvchain},
     'prepchain': {'title': '一键前处理', 'title_en': 'Prep chain',
                   'need_db': False, 'job': _tool_job_prepchain},
-    'annochain': {'title': '注释三连·一键', 'title_en': 'Annotation chain',
+    # 2026-11-04：annochain 回归导航卡（t-annochain）并扩为 4 步——
+    # ① ORF 预测 → ② 功能注释 → ③ 基因组图谱 → ④ NCBI 提交准备（建档）。
+    'annochain': {'title': '注释→图谱→提交·一键',
+                  'title_en': 'Annotation→plots→submission chain',
                   'need_db': False, 'job': _tool_job_annochain},
     'rdp':      {'title': 'RDP 重组分析', 'title_en': 'RDP recombination',
                  'need_db': False, 'job': _tool_job_rdp},
@@ -127,18 +145,21 @@ TOOL_REGISTRY = {
     'crispr':   {'title': 'CRISPR 检测试剂设计',
                  'title_en': 'CRISPR assay design',
                  'need_db': False, 'job': _tool_job_crispr},
-    # 2026-10-20：CONAN-SWIFT（Cas3 / I-E）crRNA 设计（t-conan 卡）。
-    # 引擎 Virus_Platform_Core/conan_design.py（净室实现，规则来源见模块头）。
-    # 与 crispr（Cas12a/Cas13a）的区别：负组同源位点双重失配评分 +
-    # 纯 crRNA 输出（无引物协同），详见模块头「为什么独立成模块」。
-    'conan':    {'title': 'CONAN-SWIFT 检测设计（Cas3）',
-                 'title_en': 'CONAN-SWIFT assay design (Cas3)',
-                 'need_db': False, 'job': _tool_job_conan},
+    # 2026-11-05：conan（CONAN-SWIFT Cas3）与 cricon（联合编排）归档摘除——
+    # 两者与 crispr 同属 CRISPR 检测但效应蛋白体系不同（Cas3/Cascade 无商品化
+    # 试剂），实际落地路线以 crispr（Cas12a/Cas13a）为准；引擎
+    # conan_design.py / detect_kit.py 保留可随时恢复，历史产物目录照常展示。
+    # 2026-11-05：LAMP 引物组设计（独立工具卡，引擎 lamp_design.py）——
+    # F3/F2/F1/B1/B2/B3 六引物 + 可选 LF/LB 环引物；多分离物 MSA 保守区
+    # 逐窗设计；与 t-crispr 的 --amp LAMP 档共享内核。
+    'lamp':     {'title': 'LAMP 引物组设计',
+                 'title_en': 'LAMP primer design',
+                 'need_db': False, 'job': _tool_job_lamp},
     'rtt':      {'title': '时间信号检验', 'title_en': 'Root-to-tip',
                  'need_db': False, 'job': _tool_job_rtt},
     # ---- 进化动力学（保留 5 张数据准备类卡）----
-    'phylodyn': {'title': '⚡ 一键分析（定年 → 地理迁移 → 汇总溯源）',
-                 'title_en': 'One-click analysis: dating + geographic migration',
+    'phylodyn': {'title': '⚡ 一键分析',
+                 'title_en': '⚡ One-click analysis',
                  'need_db': False, 'job': _tool_job_phylodyn},
     # 2026-09-18 归档 8 张卡（rand/rrt/tempmig/bsp/rspp/treetime/ltt/mjrm）：
     # 进化平台已用「时间与地理推断·本地全链」统一覆盖，保留 5 张数据准备类卡。
@@ -263,6 +284,10 @@ def api_tool_runs():
                   全局 30 条的上限会把老模块（align / hostremoval / genoplot
                   …）的最近一次运行挤出列表，页面一刷新就「什么都没了」。
       prefix=a,b  只看这些前缀（前缀不带结尾下划线）
+      with_totals=1  响应改为 {runs, totals, total}：runs 同旧形态（纯数组），
+                  totals 是「全盘按前缀的真实条数」（per=8 只列最近 8 条，
+                  历史区计数封顶的显示层限制 2026-11-05 增此口径解掉）；
+                  total 为全盘总数。缺省仍是纯数组，旧调用方零感知。
 
     结果按「(参数 + 目录签名) + 短 TTL」缓存：整棵 os.walk 是本接口的
     主要开销，而它会被工具页反复轮询。
@@ -274,11 +299,12 @@ def api_tool_runs():
     limit = max(1, min(limit, 500))
     per = max(0, min(per, 50))
     want = tuple(p for p in (request.args.get('prefix') or '').split(',') if p)
+    with_totals = request.args.get('with_totals') in ('1', 'true', 'yes')
 
     root = _tool_runs_root()
     sig, names = _runs_signature(root)
     if sig is None:
-        return jsonify([])
+        return jsonify({'runs': [], 'totals': {}} if with_totals else [])
 
     if per:
         picked, seen = [], {}
@@ -295,7 +321,7 @@ def api_tool_runs():
     else:
         picked = [n for n in names if not want or _run_prefix(n) in want][:limit]
 
-    key = (sig, limit, per, want)
+    key = (sig, limit, per, want, with_totals)
     now = time.time()
     hit = _RUNS_CACHE.get('runs')
     if hit and hit[0] == key and now - hit[1] < _RUNS_TTL:
@@ -325,8 +351,18 @@ def api_tool_runs():
                     'out_dir': d,
                     'files': files[:40]})
     _RUNS_CACHE.clear()                     # 只保留最新一份，防内存增长
-    _RUNS_CACHE['runs'] = (key, now, out)
-    return jsonify(out)
+    if with_totals:
+        # 全盘按前缀的真实条数：names 是签名里的完整目录清单（只排掉
+        # _archive 等下划线开头目录），数一遍即可，不用再 os.walk。
+        totals = {}
+        for n_ in names:
+            p_ = _run_prefix(n_)
+            totals[p_] = totals.get(p_, 0) + 1
+        payload = {'runs': out, 'totals': totals, 'total': sum(totals.values())}
+    else:
+        payload = out
+    _RUNS_CACHE['runs'] = (key, now, payload)
+    return jsonify(payload)
 
 
 @bp.route('/api/tool/runs/<run>/delete', methods=['POST'])
@@ -643,6 +679,35 @@ def api_tool_genoplot_preview():
         _sh.rmtree(tmp, ignore_errors=True)
 
 
+@bp.route('/api/genome/track', methods=['POST'])
+def api_genome_track():
+    """交互式基因组轨道的数据源（与 genoplot_preview 同一套输入口径）。
+
+    只解析、不出图：记录名 / 长度 / 特征 / 下采样 GC 交给前端 d3 画成
+    可缩放轨道（/static/genome-track.js）。静态 SVG 与它对同一份输入
+    各自渲染，互不改写。
+    """
+    from Virus_Platform_Core.genome_track import read_track
+
+    body = request.get_json(force=True) or {}
+    fasta = (body.get('fasta') or '').strip()
+    ann = (body.get('ann') or '').strip()
+    if not fasta and not ann:
+        abort(400, '请提供 FASTA 或 GenBank 输入')
+
+    def _pabs(v):
+        return check_path(v if os.path.isabs(v)
+                          else os.path.join(PLATFORM_ROOT, v),
+                          must_exist=True)
+
+    try:
+        out = read_track(fasta=_pabs(fasta) if fasta else None,
+                         ann=_pabs(ann) if ann else None)
+    except ValueError as e:
+        abort(400, str(e))
+    return jsonify(out)
+
+
 @bp.route('/api/tool/run', methods=['POST'])
 def api_tool_run():
     """运行独立工具。body: {tool, threads, params{...}}；返回 {task, run}。"""
@@ -651,6 +716,10 @@ def api_tool_run():
     tool = body.get('tool')
     threads = body.get('threads') or None
     p = body.get('params') or {}
+    # 目录批量：前端逐样本提交时带上样本名与批次号，任务名/任务卡据此
+    # 区分（否则同一批 N 个任务同名，卡片只认第一个，看起来像“只跑了一个”）。
+    sample_label = str(body.get('sample') or '').strip()[:80]
+    batch = str(body.get('batch') or '').strip()[:40]
 
     spec = TOOL_REGISTRY.get(tool)
     if not spec:
@@ -684,6 +753,13 @@ def api_tool_run():
     # 秒级时间戳会撞车：同一秒两次同工具运行（双击/多标签页）会复用同一
     # 目录并互相覆盖产物。追加 6 位随机后缀。
     run_name = f'{tool}_{ts}_{uuid.uuid4().hex[:6]}'
+    if sample_label:
+        # 目录批量：每个样本一个独立运行文件夹，目录名带样本名，
+        # 事后一眼能认出哪个文件夹是哪件样本（UUID 仍保唯一）。
+        _slug = re.sub(r'[^\w\-]+', '_', sample_label,
+                       flags=re.UNICODE).strip('_')[:24]
+        if _slug:
+            run_name = f'{tool}_{ts}_{_slug}_{uuid.uuid4().hex[:6]}'
     # 自定义输出位置（可选）：指定目录即产物父目录，产物写 <out_dir>/<run_name>/
     # （结构与默认 tool_runs/<run_name> 一致，只换父目录，多次运行不互混）。
     # 校验同下载页：平台内或设置页已挂载输出根内，越界 400。
@@ -742,7 +818,15 @@ def api_tool_run():
             _sh.rmtree(base_dir, ignore_errors=True)
         raise
 
-    name = cfg.tr(f"工具·{spec['title']} {ts}", f"Tool·{spec['title_en']} {ts}")
+    # 任务名默认取工具标题；变异分析复用 kvsuite 工具、只跑 variant 段，
+    # 若沿用「已知病毒识别与定量」会让前端把日志挂进识别卡（变异卡恒空），
+    # 任务中心里也不符实。这里按 stage 给一个如实的标题。
+    title, title_en = spec['title'], spec['title_en']
+    if tool == 'kvsuite' and str(p.get('stage') or '').strip().lower() == 'variant':
+        title, title_en = '病毒变异分析', 'Variant analysis'
+    _suffix = f' · {sample_label}' if sample_label else ''
+    name = cfg.tr(f"工具·{title}{_suffix} {ts}",
+                  f"Tool·{title_en}{_suffix} {ts}")
 
     def _job_with_run(log, prog, cancel):
         """包一层：结果 dict 注入 run 名与输出目录，供结果面板列出产物、
@@ -778,6 +862,22 @@ def api_tool_run():
                 log(f"图 -> {_fp}")
         except Exception:
             pass
+        # 模块结果页：run 目录一份 results.html（输入/图表/表格/交互页全整理；
+        # 放在补图之后生成才能把它们收进去）。失败只跳过，不影响工具任务。
+        try:
+            from Virus_Platform_Core.web.state import run_real_dir
+            from Virus_Platform_Core.report_kit import module_page
+
+            class _Lg:                       # 适配：log 是函数，模块页要 .log
+                @staticmethod
+                def log(m, *a):
+                    log(str(m))
+
+            _real = run_real_dir(base_dir)
+            module_page.build_tool_run_page(_real, logger=_Lg())
+            log(f"模块结果页 -> {os.path.join(str(_real), module_page.OUT_NAME)}")
+        except Exception as _mp_e:
+            log(f"模块结果页生成失败（跳过）: {type(_mp_e).__name__}: {_mp_e}")
         # 外移运行结束时 touch 指针目录：历史列表签名基于 tool_runs/<run>
         # 的 mtime，产物写在外部目录时没有这一下，列表里的文件清单
         # 会停在创建时刻（只剩 out_link.json）。
@@ -787,10 +887,31 @@ def api_tool_run():
             pass
         return res
 
+    # 输入来源落盘：目录批量的运行目录里原先只有临时副本路径，事后
+    # 无法分辨这次组装的是哪个样本；写 run_meta.json 供任务卡/模块结果
+    # 页显示样本名与原始 R1/R2（只记输入，不记 email/密码等参数）。
+    try:
+        _meta = {'tool': tool}
+        if sample_label:
+            _meta['sample'] = sample_label
+        if batch:
+            _meta['batch'] = batch
+        for _k in ('r1', 'r2', 'input', 'input2', 'contigs', 'fasta',
+                   'ann', 'input_dir'):
+            _v = str(p.get(_k) or '').strip()
+            if _v:
+                _meta[_k] = _v
+        if len(_meta) > 1:
+            with safe_open(os.path.join(run_dir, 'run_meta.json'),
+                           'wt') as _f:
+                json.dump(_meta, _f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
     tid = tm.start(name, _job_with_run,
                    log_file=os.path.join(run_dir, 'run.log'),
                    weight=('light' if tool in LIGHT_TOOLS else 'heavy'),
-                   out_dir=str(run_dir))
+                   out_dir=str(run_dir), sample=sample_label or None,
+                   batch=batch or None)
     return jsonify({'task': tid, 'run': run_name, 'out_dir': str(run_dir)})
 
 
@@ -798,10 +919,10 @@ def api_tool_run():
 def api_tool_chain_result():
     """一键流程汇总目录：返回 _chain.json 内容 + 链接清单。
 
-    chain = virchain / kvchain；run 为汇总目录名（留空取最新一次）。
+    chain = virchain / kvchain / prepchain；run 为汇总目录名（留空取最新一次）。
     """
     chain = (request.args.get('chain') or '').strip()
-    if chain not in ('virchain', 'kvchain'):
+    if chain not in ('virchain', 'kvchain', 'prepchain', 'annochain'):
         abort(400, '无效的链式运行类型')
     run = (request.args.get('run') or '').strip()
     root = _tool_runs_root()
@@ -821,8 +942,10 @@ def api_tool_chain_result():
             return jsonify({'run': None, 'out_dir': None, 'meta': None,
                             'entries': []})
         run = sorted(cands)[-1]
-    cdir = check_path(os.path.join(root, run), must_exist=False,
-                      in_platform=True)
+    # 运行目录可能被 out_dir 外移（out_link.json 指针）；解指针后再读清单，
+    # 否则外移运行在这里永远 meta=None。注意外移目录在平台根之外是允许的
+    # （用户在「输出目录」里自己选的），因此不再按 in_platform 校验。
+    cdir = os.path.abspath(_run_real_dir(run))
     meta = None
     cj = os.path.join(cdir, '_chain.json')
     if os.path.isfile(cj):
@@ -844,7 +967,85 @@ def api_tool_chain_result():
                                      else fmt_size(os.path.getsize(full))
                                      if os.path.exists(full) else None)})
     return jsonify({'run': run, 'out_dir': cdir, 'meta': meta,
+                    'report_exists': os.path.isfile(
+                        os.path.join(cdir, 'chain_report.html')),
                     'entries': entries})
+
+
+@bp.route('/api/tool/chain_report')
+def api_tool_chain_report():
+    """一键流程「规范报告」：材料 / 方法 / 结果 单文件 HTML。
+
+    按运行名（tool_runs 下的汇总目录）生成或复用 `chain_report.html`，
+    直接以 text/html 返回；`?download=1` 改附件下载，`?force=1` 强制重建。
+    """
+    run = (request.args.get('run') or '').strip()
+    if not run or not re.fullmatch(r'[A-Za-z0-9_\-]+', run):
+        abort(400, '无效的运行名')
+    cdir = os.path.abspath(_run_real_dir(run))
+    if not os.path.isfile(os.path.join(cdir, '_chain.json')):
+        abort(404, '该运行不是一键流程目录（缺 _chain.json）：%s' % run)
+    from Virus_Platform_Core.chain_report import build_chain_report
+    out = build_chain_report(cdir, force=(request.args.get('force') == '1'))
+    return send_file(out['html'], mimetype='text/html',
+                     as_attachment=(request.args.get('download') == '1'),
+                     download_name='%s_chain_report.html' % run)
+
+
+def _prep_scan_payload():
+    """解析输入目录并组装前端预览所需的 payload（各一键卡共用）。
+
+    `kind` 为 virchain 时把 FASTA 也算作样本（2026-11-03 起一键链只收
+    去宿主 FASTA；FASTQ 请先到样本处理组提取/转换）。
+    """
+    body = request.get_json(silent=True) or {}
+    folder = (body.get('folder') or body.get('input_dir') or '').strip()
+    kind = (body.get('kind') or '').strip().lower()
+    if not folder:
+        abort(400, '请选择输入目录')
+    if len(folder) > 4096:
+        abort(400, '目录路径过长')
+    scan = _scan_prep_inputs(folder, with_fasta=(kind in ('virchain', 'fasta')))
+    samples = scan['samples']
+    if kind == 'fasta':
+        # 病毒鉴定（t-contigs）目录批量：只列 contigs FASTA；FASTQ/.sra
+        # 在这张卡不适用，不占样本表（此前 kind 缺省导致连 FASTA 都不扫）。
+        samples = [s for s in samples if s.get('kind') == 'fasta']
+        scan['samples'] = samples
+        scan['files'] = len(samples)
+        scan['orphan_r2'] = []
+        scan['total_bytes'] = sum(s.get('size') or 0 for s in samples)
+    return {
+        'folder': scan['folder'],
+        'n_samples': len(samples),
+        'n_paired': sum(1 for s in samples
+                        if s['kind'] == 'fastq' and s['r2']),
+        'n_single': sum(1 for s in samples
+                        if s['kind'] == 'fastq' and not s['r2']),
+        'n_sra': sum(1 for s in samples if s['kind'] == 'sra'),
+        'n_fasta': sum(1 for s in samples if s['kind'] == 'fasta'),
+        'n_files': scan['files'],
+        'subdirs': scan['scanned_dirs'],
+        'orphan_r2': scan['orphan_r2'],
+        'total_bytes': scan.get('total_bytes', 0),
+        'samples': samples,
+    }
+
+
+@bp.route('/api/tool/prepchain_scan', methods=['POST'])
+def api_tool_prepchain_scan():
+    """一键前处理 · 解析输入目录：body {folder} → 样本预览（只读，不建任务）。
+
+    返回单/双端配对结果、孤儿 R2 与各类计数；前端预览表勾选后，把样本名
+    放进 /api/tool/run 的 params.samples 提交（不传 = 全部）。
+    """
+    return jsonify(_prep_scan_payload())
+
+
+@bp.route('/api/tool/chain_scan', methods=['POST'])
+def api_tool_chain_scan():
+    """一键类工具通用 · 解析输入目录（prepchain / kvchain 共用同一套规则）。"""
+    return jsonify(_prep_scan_payload())
 
 
 def _resolve_virus_db(v=None):

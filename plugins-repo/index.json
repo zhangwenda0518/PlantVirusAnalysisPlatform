@@ -682,11 +682,10 @@
   "tree": {
    "title": "⑧ 建树",
    "title_en": "Tree building",
-   "desc": "RAxML-NG 最大似然 / FastTree 快速 / IQ-TREE 3",
+   "desc": "RAxML-NG 最大似然 / FastTree 快速",
    "plugins": [
     "raxml-ng",
     "fasttree",
-    "iqtree",
     "trimal"
    ]
   },
@@ -726,7 +725,7 @@
    "title_en": "SDT identity",
    "desc": "BLAST 两两比对计算同一性",
    "plugins": [
-    "blast"
+    "mafft"
    ]
   },
   "verify": {
