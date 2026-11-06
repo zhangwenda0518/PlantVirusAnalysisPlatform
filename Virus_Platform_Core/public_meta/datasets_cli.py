@@ -37,7 +37,10 @@ import os
 import sys
 import re
 import json
+import queue
 import shutil
+import threading
+import time
 import zipfile
 import argparse
 import subprocess
@@ -144,7 +147,9 @@ def setup(dest_dir: str = '', log=None) -> str:
     http.download(DATASETS_EXE_URL, exe)
     E.ok(f"完成: {exe} ({os.path.getsize(exe) / (1024*1024):.1f} MB)")
     r = subprocess.run([exe, '--version'], capture_output=True, text=True,
-                       timeout=30)
+                       timeout=30,
+                       creationflags=getattr(
+                           subprocess, 'CREATE_NO_WINDOW', 0))
     ver = (r.stdout or r.stderr).strip().splitlines()[-1] if (
         r.stdout or r.stderr).strip() else '?'
     E.ok(f"自检: {ver}")
@@ -155,26 +160,114 @@ def setup(dest_dir: str = '', log=None) -> str:
 # 底层执行
 # ==========================================
 def _run_and_stream(cmd, log=None, timeout=7200):
-    """执行子进程，stdout/stderr 逐行转发到 log（CLI 模式则直接透传）。"""
+    """执行子进程，stdout/stderr 逐行转发到 log（CLI 模式则直接透传）。
+
+    2026-11-02：原来是 `for line in proc.stdout` 阻塞式迭代 —— datasets.exe 下载
+    大文件时既不注册进程也不看取消事件，用户在卡上点「取消」后只能等到它自己
+    下载完（现象：提示「已请求取消」但日志还在刷 `Downloading … 4MB 123kB/s`）。
+    现在改成「读线程 + 队列」：主循环每 0.25s 检查一次取消/暂停，
+    取消 → 杀进程树并抛取消；暂停 → 杀进程树并抛 TaskPaused（恢复时重跑本任务，
+    datasets 包是断点/幂等的）。
+    """
     if log is None:
-        return subprocess.run(cmd, timeout=timeout).returncode
+        return subprocess.run(cmd, timeout=timeout,
+                              creationflags=getattr(
+                                  subprocess, 'CREATE_NO_WINDOW', 0)).returncode
+    from Virus_Platform_Core.utils import (
+        TaskPaused, task_cancel_event, task_pause_event, task_register_proc,
+        _kill_proc_tree)
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True,
-                            encoding='utf-8', errors='replace')
+                            encoding='utf-8', errors='replace',
+                            creationflags=getattr(
+                                subprocess, 'CREATE_NO_WINDOW', 0))
+    task_register_proc(proc)      # 让「取消」能直接杀掉它
+    q = queue.Queue()
+
+    def _reader():
+        try:
+            for line in proc.stdout or []:
+                q.put(line)
+        except Exception:
+            pass
+        finally:
+            q.put(None)           # 收尾哨兵
+
+    threading.Thread(target=_reader, daemon=True).start()
+    ev_cancel = task_cancel_event()
+    ev_pause = task_pause_event()
+    t0 = time.time()
+
+    def _pause_or_cancel(_where):
+        """按当前事件抛暂停/取消；没有事件则返回 None。
+
+        `_where` 只用于排障定位（loop / eof / wait 三个复检点）。
+        """
+        if ev_cancel is not None and ev_cancel.is_set():
+            raise RuntimeError('任务已停止（用户取消）')
+        if ev_pause is not None and ev_pause.is_set():
+            raise TaskPaused('任务已暂停')
+
     try:
-        for line in proc.stdout or []:
+        while True:
+            # 绝对 deadline 每轮无条件检查：旧实现只在 queue.Empty 分支里查，
+            # 只要子进程还在吐行（或无输出的长下载间隙恰好有日志），超时
+            # 就永远不会触发。
+            if time.time() - t0 > timeout:
+                _kill_proc_tree(proc)
+                raise RuntimeError(f'datasets 超时（{timeout}s）')
+            _pause_or_cancel('loop')
+            try:
+                line = q.get(timeout=0.25)
+            except queue.Empty:
+                continue
+            if line is None:
+                # EOF 不等于「正常结束」：暂停/取消会先杀掉子进程，读线程
+                # 随之收到 EOF。这里必须复检事件，否则 rc≠0 会被上层
+                # 当成「datasets 下载失败」，暂停任务落成 failed。
+                if proc.poll() is None:
+                    _kill_proc_tree(proc)
+                    try:
+                        proc.wait(timeout=10)
+                    except Exception:
+                        pass
+                _pause_or_cancel('eof')
+                break
             line = line.rstrip()
             if line:
                 log('  ' + line)
-        return proc.wait(timeout=timeout)
+        rc = proc.wait(timeout=120)
+        # wait 后再复检一次：事件置位与 EOF 存在竞态（暂停线程先 set 再 kill，
+        # 读线程可能先拿到 EOF）。命中就按暂停/取消上报，不返回 rc。
+        _pause_or_cancel('wait')
+        return rc
     except Exception:
-        proc.kill()
+        if proc.poll() is None:
+            _kill_proc_tree(proc)
         raise
 
 
+_PKG_SIZE_RE = re.compile(
+    r'([\d.]+)\s*(B|KB|MB|GB|TB)\s+valid data package', re.I)
+_SIZE_UNITS = {'B': 1, 'KB': 1024, 'MB': 1024 ** 2, 'GB': 1024 ** 3,
+               'TB': 1024 ** 4}
+
+
+def _pkg_bytes(num, unit):
+    try:
+        return int(float(num) * _SIZE_UNITS[unit.upper()])
+    except (KeyError, TypeError, ValueError):
+        return 0
+
+
 def _download_package(args: list, out_dir: str, tag: str,
-                      log=None) -> str:
+                      log=None, prog=None, total_hint: int = 0) -> str:
     """执行 datasets download … --filename <out_dir>/<tag>.zip 并解包。
+
+    prog：可选 `prog(stage, pct, msg, eta)`，把下载进度（速度/已下载/剩余）
+    实时推给任务卡；总量取自 datasets 自己打印的「NN MB valid data package」，
+    下载期间按 zip 落盘大小增长估算——datasets 只在 TTY 画进度条，重定向日志
+    里只剩控制序列，不能指望它报数。
 
     返回解包后的 ncbi_dataset/data 目录。"""
     E = _emitters(log)
@@ -186,14 +279,77 @@ def _download_package(args: list, out_dir: str, tag: str,
             '或自行安装后确保 datasets 在 PATH')
     os.makedirs(out_dir, exist_ok=True)
     zip_path = os.path.join(out_dir, f'{tag}.zip')
+    # 上次中断留下的同名包：不删的话进度监视器一上来就按旧文件报「已下载
+    # 7.2 MB / 7.2 MB」，随后 datasets 重建文件又掉回 0，看起来像进度倒退。
+    try:
+        for nm in os.listdir(out_dir):
+            if nm.startswith(tag) and '.zip' in nm and \
+                    os.path.join(out_dir, nm) != zip_path:
+                try:
+                    os.remove(os.path.join(out_dir, nm))
+                except OSError:
+                    pass
+        if os.path.isfile(zip_path):
+            os.remove(zip_path)
+            E.info(f'清理上次未完成的下载包: {os.path.basename(zip_path)}')
+    except OSError:
+        pass
     cmd = [exe] + args + ['--filename', zip_path]
     E.info(f"执行: {' '.join(args) or '(空)'}")
-    rc = _run_and_stream(cmd, log=log)
+
+    watcher = None
+    if prog is not None:
+        from Virus_Platform_Core.utils import DownloadWatcher
+
+        def _zip_size():
+            best = 0
+            try:
+                if os.path.isfile(zip_path):
+                    best = os.path.getsize(zip_path)
+            except OSError:
+                pass
+            try:
+                for nm in os.listdir(out_dir):
+                    if nm.startswith(tag) and '.zip' in nm:
+                        try:
+                            best = max(best, os.path.getsize(
+                                os.path.join(out_dir, nm)))
+                        except OSError:
+                            pass
+            except OSError:
+                pass
+            return best
+
+        # total_hint 是下载前按组装长度估的 zip 总量（见 _zip_size_hint）：
+        # datasets 自报的「NN MB valid data package」多在收尾才出现，没有预估
+        # 时整段下载都没有百分比、也没有剩余时间。
+        watcher = DownloadWatcher(
+            _zip_size, on_tick=lambda d: prog(d['stage'], d['pct'], d['msg'],
+                                              d['eta']),
+            total=int(total_hint or 0), log=E.info)
+        watcher.start()
+
+    def _log(line):
+        if watcher is not None and not watcher.total:
+            m = _PKG_SIZE_RE.search(line)
+            if m:
+                watcher.set_total(_pkg_bytes(m.group(1), m.group(2)))
+        log(line)
+
+    try:
+        rc = _run_and_stream(cmd, log=_log)
+    finally:
+        if watcher is not None:
+            watcher.stop()
     if rc != 0 or not os.path.isfile(zip_path):
         raise RuntimeError(f'datasets 下载失败（exit={rc}）: '
                            f"{' '.join(cmd)}")
+    if prog is not None:
+        prog('download', 0.97,
+             f"数据包 {os.path.basename(zip_path)} "
+             f"({os.path.getsize(zip_path) / (1024 * 1024):.1f} MB)，解包中…")
     E.ok(f"数据包: {os.path.basename(zip_path)} "
-         f"({os.path.getsize(zip_path) / (1024*1024):.1f} MB)")
+         f"({os.path.getsize(zip_path) / (1024 * 1024):.1f} MB)")
     data_dir = os.path.join(out_dir, 'ncbi_dataset', 'data')
     if os.path.isdir(data_dir) and os.listdir(data_dir):
         E.ok("已解包，跳过")
@@ -394,8 +550,30 @@ def _write_manifest(out_dir, mode, args, reports, fasta_files):
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
 
+# datasets 打的 zip 大小与组装序列总长几乎成正比：实测水稻 295,389,770 bp →
+# 90.6 MB、酵母 12,157,105 bp → 3.83 MB，都在 0.31×bp 左右。下载前查一次
+# 组装长度即可先给一个总量，下载中拿到 datasets 自报的真实总量会被覆盖。
+_ZIP_RATIO_BP = 0.32
+
+
+def _zip_size_hint(accession) -> int:
+    """按组装长度估算 zip 字节数（查不到就返回 0，前端退回不定进度）。"""
+    acc = str(accession or '').strip()
+    if not acc:
+        return 0
+    try:
+        got = query_records('genome', accession=acc,
+                            log=lambda _m: None)
+        rows = (got or {}).get('rows') or []
+        length = int(float((rows[0] or {}).get('length') or 0))
+    except Exception:                             # noqa: BLE001
+        return 0
+    return int(length * _ZIP_RATIO_BP) if length > 0 else 0
+
+
 def download_genome(taxon=None, accession=None, chromosomes=None,
-                    include=None, exclude=(), out_dir=None, log=None) -> dict:
+                    include=None, exclude=(), out_dir=None, log=None,
+                    prog=None) -> dict:
     """基因组包下载（taxon / accession 双入口）。
 
     返回 dict：out_dir / data_dir / fasta / reports / taxid / n_seqs。"""
@@ -408,7 +586,9 @@ def download_genome(taxon=None, accession=None, chromosomes=None,
     args = build_genome_args(taxon=taxon, accession=accession,
                              chromosomes=chromosomes, include=include,
                              exclude=exclude)
-    data_dir = _download_package(args, out_dir, 'genome', log=log)
+    data_dir = _download_package(args, out_dir, 'genome', log=log,
+                                 prog=prog,
+                                 total_hint=_zip_size_hint(accession))
     reports = collect_reports(data_dir)
     fasta = collect_fasta(data_dir)
     n_seqs = count_fasta_seqs(fasta)
@@ -425,7 +605,7 @@ def download_genome(taxon=None, accession=None, chromosomes=None,
 
 
 def download_gene(gene_id=None, symbol=None, taxon=None, accession=None,
-                  out_dir=None, log=None) -> dict:
+                  out_dir=None, log=None, prog=None) -> dict:
     """基因包下载（gene-id / symbol+taxon / protein accession）。
 
     默认包内含 rna.fna + protein.faa + data_report.jsonl。"""
@@ -440,7 +620,7 @@ def download_gene(gene_id=None, symbol=None, taxon=None, accession=None,
     os.makedirs(out_dir, exist_ok=True)
     args = build_gene_args(gene_id=gene_id, symbol=symbol, taxon=taxon,
                            accession=accession)
-    data_dir = _download_package(args, out_dir, 'gene', log=log)
+    data_dir = _download_package(args, out_dir, 'gene', log=log, prog=prog)
     fasta = collect_fasta(data_dir)
     reports = collect_reports(data_dir)
     for p in fasta:
@@ -450,7 +630,7 @@ def download_gene(gene_id=None, symbol=None, taxon=None, accession=None,
             'reports': reports, 'mode': 'gene'}
 
 
-def download_taxonomy(taxons, out_dir=None, log=None) -> dict:
+def download_taxonomy(taxons, out_dir=None, log=None, prog=None) -> dict:
     """分类报告包下载（taxonomy_report.jsonl + taxonomy_summary.tsv）。"""
     E = _emitters(log)
     E.header(f"datasets taxonomy: {taxons}")
@@ -459,7 +639,8 @@ def download_taxonomy(taxons, out_dir=None, log=None) -> dict:
             str(taxons).split(',')[0]))
     os.makedirs(out_dir, exist_ok=True)
     args = build_taxonomy_args(taxons)
-    data_dir = _download_package(args, out_dir, 'taxonomy', log=log)
+    data_dir = _download_package(args, out_dir, 'taxonomy', log=log,
+                                 prog=prog)
     reports = collect_reports(data_dir)
     E.ok(f"分类记录 {len(reports)} 条")
     _write_manifest(out_dir, 'taxonomy', args, reports, [])
@@ -469,7 +650,8 @@ def download_taxonomy(taxons, out_dir=None, log=None) -> dict:
 
 def download_virus(taxon=None, protein=None, host=None,
                    include=('genome',), name=None, out_dir=None,
-                   as_dataset=True, accession=None, log=None) -> dict:
+                   as_dataset=True, accession=None, log=None,
+                   prog=None) -> dict:
     """病毒包下载（genome / protein；--host 宿主过滤；accession 单条精确）。
 
     as_dataset=True（默认）时按平台鉴定库数据集布局落位：
@@ -489,7 +671,7 @@ def download_virus(taxon=None, protein=None, host=None,
     os.makedirs(out_dir, exist_ok=True)
     args = build_virus_args(taxon=taxon, protein=protein, host=host,
                             include=include, accession=accession)
-    data_dir = _download_package(args, out_dir, 'virus', log=log)
+    data_dir = _download_package(args, out_dir, 'virus', log=log, prog=prog)
     reports = collect_reports(data_dir)
     fasta = collect_fasta(data_dir)
     n_seqs = 0
@@ -528,13 +710,13 @@ def download_virus(taxon=None, protein=None, host=None,
             'name': name or os.path.basename(out_dir)}
 
 
-def download(mode: str, log=None, **kw) -> dict:
+def download(mode: str, log=None, prog=None, **kw) -> dict:
     """统一分发：mode ∈ genome / gene / taxonomy / virus。"""
     table = {'genome': download_genome, 'gene': download_gene,
              'taxonomy': download_taxonomy, 'virus': download_virus}
     if mode not in table:
         raise ValueError(f'未知 datasets 模式: {mode}')
-    return table[mode](log=log, **kw)
+    return table[mode](log=log, prog=prog, **kw)
 
 
 # ==========================================
@@ -700,7 +882,9 @@ def query_records(kind, taxon=None, accession=None, host=None,
     try:
         r = subprocess.run([exe] + args, capture_output=True, text=True,
                            encoding='utf-8', errors='replace',
-                           timeout=_SUMMARY_TIMEOUT)
+                           timeout=_SUMMARY_TIMEOUT,
+                           creationflags=getattr(
+                               subprocess, 'CREATE_NO_WINDOW', 0))
     except subprocess.TimeoutExpired:
         raise RuntimeError(f'datasets summary 查询超时（{_SUMMARY_TIMEOUT}s）：'
                            '换个更具体的 taxon 再试')

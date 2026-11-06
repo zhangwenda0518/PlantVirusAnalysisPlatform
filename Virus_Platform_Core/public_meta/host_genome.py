@@ -58,6 +58,45 @@ ENSEMBL_HOSTS = ('ftp.ensembl.org', 'ftp.ensemblgenomes.org')
 GGET_INSTALL_HINT = 'pip install "gget==0.30.5"'
 
 
+def _task_paused():
+    """当前任务是否处于暂停态（CLI / 未绑定任务时恒 False）。"""
+    try:
+        from ..utils import task_pause_event
+    except ImportError:              # 直接跑本文件时没有包上下文
+        try:
+            from Virus_Platform_Core.utils import task_pause_event
+        except Exception:
+            return False
+    ev = task_pause_event()
+    return bool(ev is not None and ev.is_set())
+
+
+def _task_cancelled():
+    """当前任务是否已请求取消（CLI / 未绑定任务时恒 False）。"""
+    try:
+        from ..utils import task_cancel_event
+    except ImportError:
+        try:
+            from Virus_Platform_Core.utils import task_cancel_event
+        except Exception:
+            return False
+    ev = task_cancel_event()
+    return bool(ev is not None and ev.is_set())
+
+
+def _task_paused_cls():
+    """TaskPaused 类（直接跑本文件时也能拿到）；导入失败返回 None。"""
+    try:
+        from ..utils import TaskPaused
+        return TaskPaused
+    except ImportError:
+        try:
+            from Virus_Platform_Core.utils import TaskPaused
+            return TaskPaused
+        except Exception:
+            return None
+
+
 def _http(domains=('eutils.ncbi.nlm.nih.gov', 'ftp.ncbi.nlm.nih.gov')):
     """统一 HTTP 入口（仅允许指定官方域名，防 SSRF）。"""
     import requests
@@ -82,14 +121,29 @@ def _http(domains=('eutils.ncbi.nlm.nih.gov', 'ftp.ncbi.nlm.nih.gov')):
             return self._s.get(self._check(url), **kw)
 
         def download(self, url, dest, chunk=1 << 20, timeout=600,
-                     exist_ok=True):
+                     exist_ok=True, resume=False):
             """流式下载到 dest；已存在且非空则跳过；3xx 逐跳复核白名单后跟随。
 
+            resume=True：dest 已有半截文件时用 `Range: bytes=N-` 接着下（暂停/
+            取消后重新执行任务就能"接着下"，而不是从 0 开始）；服务器不认 Range
+            时自动退回整份重下。取消/暂停是协作式的：每写一块检查一次事件，
+            取消 → 抛取消（半截文件保留，供下次续传）；暂停 → 抛 TaskPaused。
+
             返回 True=实际下载，False=已存在跳过。"""
-            if exist_ok and os.path.isfile(dest) and os.path.getsize(dest) > 1000:
+            if exist_ok and not resume and os.path.isfile(dest) \
+                    and os.path.getsize(dest) > 1000:
                 return False
+            start = 0
+            if resume and os.path.isfile(dest):
+                start = os.path.getsize(dest)
+            try:
+                from ..utils import TaskPaused, task_cancel_event
+            except ImportError:      # 直接跑本文件时没有包上下文
+                from Virus_Platform_Core.utils import (
+                    TaskPaused, task_cancel_event)
             for _ in range(4):
-                resp = self.get(url, stream=True, timeout=timeout)
+                hdr = {'Range': f'bytes={start}-'} if start else None
+                resp = self.get(url, stream=True, timeout=timeout, headers=hdr)
                 if resp.is_redirect or resp.is_permanent_redirect:
                     nxt = resp.headers.get('Location') or ''
                     resp.close()
@@ -99,7 +153,14 @@ def _http(domains=('eutils.ncbi.nlm.nih.gov', 'ftp.ncbi.nlm.nih.gov')):
                     # 再走白名单校验，否则 _check 把相对路径当主机名直接拒掉
                     url = urllib.parse.urljoin(url, nxt)
                     continue
+                if start and resp.status_code == 416:
+                    # dest 已经是完整文件（Range 越过 EOF）：当作已完成
+                    resp.close()
+                    return False
                 resp.raise_for_status()
+                if start and resp.status_code != 206:
+                    # 服务器忽略了 Range（返回 200 整份）：只能从头写
+                    start = 0
                 expected = resp.headers.get('Content-Length')
                 got = 0
                 # 下载是字节流搬运，必须原样落盘（用 plain open 而非
@@ -109,8 +170,21 @@ def _http(domains=('eutils.ncbi.nlm.nih.gov', 'ftp.ncbi.nlm.nih.gov')):
                 # 2026-10-13 Panax notoginseng 实测踩中；Ensembl 文件
                 # "双层 gz"的旧观察其实是同一根因（gunzip_full 注释在案））
                 os.makedirs(os.path.dirname(dest) or '.', exist_ok=True)
-                with open(dest, 'wb') as f:
+                # 分块循环里每块都过一遍取消/暂停检查：requests 的
+                # iter_content 是阻塞读，不看事件的话「取消」要等整份文件下完
+                # （2026-11-02 用户实测：点了取消日志还在刷 Downloading）。
+                ev = task_cancel_event()
+                with open(dest, 'ab' if start else 'wb') as f:
                     for piece in resp.iter_content(chunk_size=chunk):
+                        if ev is not None and ev.is_set():
+                            resp.close()
+                            # 半截文件**保留**：下次 resume 从断点接着下
+                            raise RuntimeError('任务已停止（用户取消）')
+                        if f.tell() and _task_paused():
+                            # 暂停：直接停手并保留已下字节（阻塞等待会把
+                            # NCBI 连接晾到超时，恢复时反而从头来）
+                            resp.close()
+                            raise TaskPaused('任务已暂停')
                         f.write(piece)
                         got += len(piece)
                 # 截断校验（2026-10-06 实测事故：778MB 基因组 zip 下载中
@@ -187,7 +261,8 @@ def check_datasets_cli() -> bool:
         try:
             result = subprocess.run(
                 [exe, '--version'],
-                capture_output=True, text=True, timeout=10
+                capture_output=True, text=True, timeout=10,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0)
             )
             if result.returncode == 0:
                 version = result.stdout.strip() or result.stderr.strip()
@@ -526,7 +601,8 @@ def gget_ref_lookup(species: str, release=None) -> dict:
 
 
 def download_genome_gget(species: str, out_dir: str, release=None,
-                         taxid=None, log=None, min_length: int = 0) -> dict:
+                         taxid=None, log=None, min_length: int = 0,
+                         prog=None) -> dict:
     """gget/Ensembl 宿主基因组下载（与 NCBI 流程同目录约定）。
 
     产物：extracted/（原始文件）、all.genome.uniq.fasta（合并去重）、
@@ -555,8 +631,29 @@ def download_genome_gget(species: str, out_dir: str, release=None,
         expected_bytes = int(str(meta.get('bytes') or '').replace(',', ''))
     except (TypeError, ValueError):
         expected_bytes = 0
-    http.download(meta['dna_url'], dest)
+    _watch = None
+    if prog is not None:
+        from Virus_Platform_Core.utils import DownloadWatcher
+
+        def _dest_size():
+            try:
+                return os.path.getsize(dest)
+            except OSError:
+                return 0
+
+        _watch = DownloadWatcher(
+            _dest_size,
+            on_tick=lambda d: prog(d['stage'], d['pct'], d['msg'], d['eta']),
+            total=expected_bytes, log=E.info)
+        _watch.start()
+    try:
+        http.download(meta['dna_url'], dest, resume=True)
+    finally:
+        if _watch is not None:
+            _watch.stop()
     actual_bytes = os.path.getsize(dest)
+    if prog is not None:
+        prog('download', 0.4, f"已下载 {fname}（{actual_bytes / (1024*1024):.1f} MB），合并中…")
     if expected_bytes and actual_bytes != expected_bytes:
         E.warn(f'字节数不符: 元数据 {expected_bytes} vs 实际 {actual_bytes}'
                f'（Ensembl 文件可能已更新或下载不完整，请核对）')
@@ -609,7 +706,8 @@ def download_genome_gget(species: str, out_dir: str, release=None,
 
 def download_genome_accession(accession: str, out_dir: str,
                               chromosomes: str = '', taxid=None,
-                              log=None, min_length: int = 0) -> dict:
+                              log=None, min_length: int = 0,
+                              prog=None) -> dict:
     """datasets/accession 模式宿主基因组下载（精确到组装号 + 染色体过滤）。
 
     例：--accession GCF_000001405.40 --chromosomes X,Y。目录约定与
@@ -630,7 +728,8 @@ def download_genome_accession(accession: str, out_dir: str,
     os.makedirs(out_dir, exist_ok=True)
 
     res = dsc.download_genome(accession=accession, chromosomes=chromosomes,
-                              include='genome,gff3', out_dir=out_dir, log=log)
+                              include='genome,gff3', out_dir=out_dir, log=log,
+                              prog=prog)
     fasta_files = res['fasta'] or collect_fasta_files(
         os.path.join(out_dir, 'ncbi_dataset'))
     if not fasta_files:
@@ -653,9 +752,19 @@ def download_genome_accession(accession: str, out_dir: str,
                                    f'{taxid}_{base[len("genome_"):]}')
             if os.path.normcase(new_dir) != os.path.normcase(out_dir) \
                     and not os.path.exists(new_dir):
+                old_dir = out_dir
                 os.rename(out_dir, new_dir)
                 out_dir = new_dir
                 genome_fa = os.path.join(out_dir, 'genome.fa')
+                # 目录改名后旧路径全部失效：merged_fasta / fasta_files 还指着
+                # genome_<slug>/…；不重定基则下面 count_sequences/getsize 直接
+                # FileNotFoundError，把一次成功的下载记成失败
+                # （2026-11-02 GCA_001648745.1 实测踩中）。
+                merged_fasta = os.path.join(out_dir,
+                                            'all.genome.uniq.fasta')
+                fasta_files = [os.path.join(
+                    out_dir, os.path.relpath(p, old_dir))
+                    for p in fasta_files]
                 E.ok(f"目录按 TaxID 重命名: {base} → {os.path.basename(new_dir)}")
 
     with safe_open(os.path.join(out_dir, 'datasets_host_meta.json'),
@@ -799,7 +908,7 @@ def list_reference_assemblies(species: str, api_key=None,
 
 
 def download_genome_https(species: str, out_dir: str, api_key=None,
-                          max_assemblies: int = 5, log=None):
+                          max_assemblies: int = 5, log=None, prog=None):
     """datasets CLI 不可用时的纯 Python 回退：E-utilities 搜 assembly →
     esummary 取 FTP 路径 → HTTPS 下载 RefSeq *_genomic.fna.gz 到 extracted/。
 
@@ -836,6 +945,25 @@ def download_genome_https(species: str, out_dir: str, api_key=None,
     os.makedirs(extracted_dir, exist_ok=True)
     n_downloaded = 0
     assembly_meta = []            # 合并清单：本次实际取用的组装 accession
+    _watch = None
+    if prog is not None:
+        from Virus_Platform_Core.utils import DownloadWatcher
+
+        def _extracted_size():
+            total = 0
+            for root, _dirs, files in os.walk(extracted_dir):
+                for fn in files:
+                    try:
+                        total += os.path.getsize(os.path.join(root, fn))
+                    except OSError:
+                        pass
+            return total
+
+        _watch = DownloadWatcher(
+            _extracted_size,
+            on_tick=lambda d: prog(d['stage'], d['pct'], d['msg'], d['eta']),
+            log=E.info)
+        _watch.start()
     for uid in ids:
         d = docs.get(uid) or {}
         ftp = d.get("ftppath_refseq") or d.get("ftppath_genbank") or ""
@@ -863,7 +991,7 @@ def download_genome_https(species: str, out_dir: str, api_key=None,
             furl = dir_url + fname
             dest = os.path.join(extracted_dir, fname)
             E.info(f"下载: {furl}")
-            if http.download(furl, dest):
+            if http.download(furl, dest, resume=True):
                 E.ok(f"完成: {fname}")
             else:
                 E.ok(f"已存在: {fname}")
@@ -877,7 +1005,21 @@ def download_genome_https(species: str, out_dir: str, api_key=None,
                 'file': fname,
             })
         except Exception as e:
+            # 暂停/取消是用户主动收手，不是「这条组装下载失败」：宽 except
+            # 会把它吞成一行 E.err 然后继续下一条，任务卡最终落成 failed。
+            # 必须原样透传给 TaskManager（暂停要保留继续按钮）。
+            _TP = _task_paused_cls()
+            if _TP is not None and isinstance(e, _TP):
+                raise
+            if _task_paused():
+                if _TP is not None:
+                    raise _TP('任务已暂停') from e
+                raise RuntimeError('任务已暂停') from e
+            if _task_cancelled():
+                raise RuntimeError('任务已停止（用户取消）') from e
             E.err(f"{dir_url} 下载失败: {e}")
+    if _watch is not None:
+        _watch.stop()
     if not n_downloaded:
         E.warn("未下载到任何基因组 FASTA")
         return None
@@ -1072,7 +1214,10 @@ def main():
                     cmd.extend(['--api-key', args.ncbi_api])
 
                 UI.info(f"执行: {' '.join(cmd)}")
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
+                result = subprocess.run(cmd, capture_output=True, text=True,
+                                        timeout=3600,
+                                        creationflags=getattr(
+                                            subprocess, 'CREATE_NO_WINDOW', 0))
 
                 if result.returncode != 0:
                     UI.err(f"datasets 下载失败: {result.stderr[:500]}")
@@ -1109,7 +1254,9 @@ def main():
                 try:
                     result = subprocess.run(
                         ['unzip', '-o', genome_zip, '-d', extracted_dir],
-                        capture_output=True, text=True
+                        capture_output=True, text=True,
+                        creationflags=getattr(
+                            subprocess, 'CREATE_NO_WINDOW', 0)
                     )
                     if result.returncode == 0:
                         UI.ok("解压完成 (unzip)")

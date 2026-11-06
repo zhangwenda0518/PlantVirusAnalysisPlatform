@@ -92,6 +92,15 @@ def _ensure():
     _kill()
     env = dict(os.environ)
     env.setdefault('PYTHONIOENCODING', 'utf-8')
+    # 事件回传（2026-11-02）：坞里发起的跑批在子进程里，阶段事件要写回
+    # spool 目录，网页进程的 relay 线程才 tail 得到（见 ai_agent/spool_relay.py）。
+    try:
+        from Virus_Platform_Core.config import DIRS as _DIRS
+        _spool = os.path.join(_DIRS['ai_audit'], 'spool')
+        os.makedirs(_spool, exist_ok=True)
+        env['VP_EVENT_SPOOL'] = _spool
+    except Exception:
+        pass
     if getattr(sys, 'frozen', False):
         # 冻结分发没有独立 python，不能 `exe mcp_server.py`（exe 会把参数
         # 当网页参数）——用 app.py 顶部的 --mcp-stdio 入口在本 exe 进程内
@@ -112,7 +121,8 @@ def _ensure():
         cmd, cwd=PLATFORM_ROOT,
         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
         stderr=_stderr, text=True, encoding='utf-8',
-        errors='replace', bufsize=1, env=env)
+        errors='replace', bufsize=1, env=env,
+        creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     deadline = time.monotonic() + _BOOT_TIMEOUT
     _REQ_ID += 1
     rid = _REQ_ID

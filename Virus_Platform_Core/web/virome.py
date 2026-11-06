@@ -21,7 +21,11 @@ bp = Blueprint('virome', __name__)
 _VIROME_DIST = os.path.join(_WWW, 'static', 'virome')
 _FRONTEND_BUILD = os.path.join(PLATFORM_ROOT, '3rd', 'open-virome',
                                'frontend', 'build')
-if os.path.isdir(os.path.join(_FRONTEND_BUILD, 'static')):
+# build 优先的前提是「完整」：static/ 与 vendor/ 都在（index.html 一律引用
+# /virome/vendor/*，缺 vendor/ 时 4 个核心库全 404、SPA 白屏——2026-11-03
+# 实测）。build 缺件时回退 webapp 同步副本（构建脚本负责保持其完整）。
+if (os.path.isdir(os.path.join(_FRONTEND_BUILD, 'static'))
+        and os.path.isdir(os.path.join(_FRONTEND_BUILD, 'vendor'))):
     _VIROME_DIST = _FRONTEND_BUILD
 
 

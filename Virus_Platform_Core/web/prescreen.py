@@ -21,6 +21,7 @@ import csv
 import json
 import os
 import re
+import time
 
 from flask import Blueprint, abort, jsonify, render_template, request, send_file
 
@@ -58,6 +59,24 @@ def _out_dir(name):
 
 def _valid_name(name):
     return bool(name) and bool(_NAME_RE.fullmatch(name))
+
+
+def _auto_name():
+    """留空项目名时自动生成：prescreen_YYYYMMDD_HHMM；同分钟撞名顺延秒位，再撞加序号。
+
+    生成的名字必须过 _NAME_RE（字母/数字/下划线/连字符），否则结果接口按
+    项目名寻址时（api_prescreen_result 等）会 400。
+    """
+    base = 'prescreen_' + time.strftime('%Y%m%d_%H%M')
+    if not os.path.exists(_proj_dir(base)):
+        return base
+    cand = base + '_' + time.strftime('%S')
+    if not os.path.exists(_proj_dir(cand)):
+        return cand
+    n = 2
+    while os.path.exists(_proj_dir('%s_%d' % (cand, n))):
+        n += 1
+    return '%s_%d' % (cand, n)
 
 
 # ------------------------------------------------------------------
@@ -143,6 +162,39 @@ def api_prescreen_projects():
     return jsonify({'projects': out})
 
 
+@bp.route('/api/prescreen/history')
+def api_prescreen_history():
+    """历史预筛清单（run/meta_search/*/prescreen/ 下有汇总产物者），按时间倒序。
+
+    供「读取已有结果」下拉选择：项目名不再是回看结果的唯一入口，用户不必
+    记名字。runs 取汇总 TSV 的数据行数（-1 去表头）；写了一半的目录（有
+    目录无汇总）不算历史，不进下拉。
+    """
+    root = DIRS['meta_search']
+    out = []
+    if os.path.isdir(root):
+        for n in os.listdir(root):
+            if not _valid_name(n):
+                continue
+            sum_p = os.path.join(root, n, 'prescreen', 'stat_run_summary.tsv')
+            if not os.path.isfile(sum_p):
+                continue
+            try:
+                with open(sum_p, 'r', encoding='utf-8-sig') as f:
+                    runs = sum(1 for line in f if line.strip()) - 1
+            except OSError:
+                runs = 0
+            if runs <= 0:
+                continue
+            try:
+                mt = os.path.getmtime(sum_p)
+            except OSError:
+                mt = 0
+            out.append({'name': n, 'runs': runs, 'mtime': mt})
+    out.sort(key=lambda x: x['mtime'], reverse=True)
+    return jsonify({'items': out})
+
+
 def _detect_run_col(csv_path):
     """从表头探测 Run 列名（平台检索产出的表列名大小写不一）。"""
     try:
@@ -167,7 +219,9 @@ def _detect_run_col(csv_path):
 def api_prescreen_run():
     body = request.get_json(force=True) or {}
     name = str(body.get('name') or '').strip()
-    if not _valid_name(name):
+    if not name:
+        name = _auto_name()            # 留空自动生成；任务标题/恢复机制照旧嵌这个名字
+    elif not _valid_name(name):
         abort(400, '项目名只能含字母/数字/下划线/连字符')
 
     source = str(body.get('source') or 'paste').strip().lower()

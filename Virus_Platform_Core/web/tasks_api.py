@@ -120,6 +120,23 @@ def api_task_cancel(tid):
     return jsonify({'ok': tm.cancel(tid)})
 
 
+@bp.route('/api/task/<tid>/pause', methods=['POST'])
+def api_task_pause(tid):
+    """暂停（可继续）：杀当前子进程、任务置 paused，恢复时重跑同一 job。"""
+    ok = tm.pause(tid)
+    snap = tm.snapshot(tid, log_lines=0) or {}
+    return jsonify({'ok': ok, 'status': snap.get('status'),
+                    'msg': snap.get('msg')})
+
+
+@bp.route('/api/task/<tid>/resume', methods=['POST'])
+def api_task_resume(tid):
+    ok = tm.resume(tid)
+    snap = tm.snapshot(tid, log_lines=0) or {}
+    return jsonify({'ok': ok, 'status': snap.get('status'),
+                    'msg': snap.get('msg')})
+
+
 @bp.route('/api/task/<tid>/delete', methods=['POST'])
 def api_task_delete(tid):
     ok, msg = tm.delete(tid)

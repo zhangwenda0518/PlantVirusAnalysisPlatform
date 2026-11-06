@@ -19,7 +19,7 @@ pathogen-phylo-genomics-pipeline / MiniMev）提炼出的六个共同模式里�
 | 阶段 | 输入 | 输出 |
 |---|---|---|
 | **A0 prep** | 比对 FASTA（必需）+ 元数据（可选）+ 树（可选，缺则 FastTree 现场建） | `prep/dates.csv`、`prep/states.csv`、`prep/prep.fasta`、`prep/prep.nwk`、`prep/prep_report.json` |
-| **A1 clock** | A0 全部 | **`clock/timetree.nwk`**、`clock/clock_stats.tsv`（**带方法列**）、`clock/rtt_scatter.tsv`、`clock/clock_qc/drt.json`、`clock/divergence_tree.nwk` |
+| **A1 clock** | A0 全部 | **`clock/timetree.nwk`**、`clock/clock_stats.tsv`（**带方法列**）、`clock/rtt_scatter.tsv`、`clock/clock_qc/drt.json`、`clock/divergence_tree.nwk`、`clock/ltt_curve.tsv`（LTT 谱系-时间曲线） |
 | **A2 phylogeo** | `clock/timetree.nwk` + `prep/states.csv` | `phylogeo/GTR.txt`、`confidence.csv`、`annotated_tree.nexus`、**`corridors.tsv`**（ML 与 Fitch 并列）、**`events_year.tsv`**、`phylogeo_report.json` |
 | **A3 coalescent** | `clock/timetree.nwk` + `prep/prep.fasta` | `coalescent/skyline.tsv`、`coalescent_report.json` |
 | **A4 ancestral** | `prep/prep.fasta` + `clock/divergence_tree.nwk` | `ancestral/ancestral_sequences.fasta`、`branch_mutations.txt`、`auspice_tree.json` |
@@ -1134,7 +1134,7 @@ def stage_clock(prep, out_dir, methods=('treetime',), aln=None, tree=None,
                 dates=None, seq_len=None, relax=None, reroot='least-squares',
                 keep_root=False, confidence=True, time_marginal='only-final',
                 clock_filter=None, clock_rate=None,
-                drt_perm=20, drt_seed=42, do_drt=True,
+                drt_perm=20, drt_seed=42, do_drt=True, ltt=True,
                 rng_seed=0, timeout=3600, log=None, progress=None):
     """A1 时间推断：用 **TreeTime** 定年，产出接口产物 `clock/timetree.nwk`。
 
@@ -1147,6 +1147,12 @@ def stage_clock(prep, out_dir, methods=('treetime',), aln=None, tree=None,
     给了就**关掉速率估计**，`clock_stats.tsv` 的 `model` 列会写成
     「严格钟（速率固定，用户指定）」——**不许**让它看起来像 ML 估出来的。
     这是慢演化病原（自动估不出钟）时的官方兜底。
+
+    `ltt`: **LTT 谱系-时间曲线**（默认开，免 MCMC、零子进程）。对齐 VirPhyKit
+    「TreeDater-LTT」模块的口径：曲线由接口产物 `clock/timetree.nwk`
+    （枝长＝年）+ `prep/dates.csv` 直接算出（`phylodyn_trees.ltt_from_tree`），
+    横轴＝日历年；斜率 log N~t ≈ 净多样化率。R treedater 的 parboot 置信带
+    不在本口径内（R+treedater 已随定年通路收敛下线）。
 
     接口产物固定为 `clock/timetree.nwk`，由 TreeTime 产出。它同时给时间树 +
     节点年代 + 地理/天际线/祖先序列，是**唯一**的通路，因此不再有"退用别家
@@ -1164,7 +1170,8 @@ def stage_clock(prep, out_dir, methods=('treetime',), aln=None, tree=None,
     res = {'stage': 'clock', 'ok': False, 'error': None, 'out_dir': out_dir,
            'methods': list(methods), 'warnings': [], 'notes': [],
            'outputs': {}, 'stats': [], 'timetree_source': None,
-           'tt_env': None, 'r2': None, 'drt': None, 'timetree': None}
+           'tt_env': None, 'r2': None, 'drt': None, 'timetree': None,
+           'ltt': None}
     if dropped:
         # 不静默：老配置/老脚本传 'lsd2'/'treedater' 时要看得见它被忽略了
         res['warnings'].append(
@@ -1413,6 +1420,45 @@ def stage_clock(prep, out_dir, methods=('treetime',), aln=None, tree=None,
     except Exception as e:      # 附加产物，失败不该拖垮已经算好的定年结果
         res['warnings'].append(f'时间树坐标未产出：{type(e).__name__}: {e}')
         say(f'[WARN] 时间树坐标未产出：{e}')
+
+    # ---------- LTT 谱系-时间曲线（对齐 VirPhyKit「TreeDater-LTT」模块）----------
+    # VirPhyKit 的 Dating 菜单里 TreeTime-RTT 与 TreeDater-LTT 是一对时间诊断；
+    # 本链 A1 的 RTT 散点（上方）+ 本块的 LTT 与之一一对应。
+    # 口径三条，写死：
+    #   ① 曲线来自 A1 接口产物 `clock/timetree.nwk`（枝长＝年）+ `prep/dates.csv`，
+    #      横轴＝日历年；有效日期 <3 条时退化为横轴＝遗传距离（dated_note 写明）。
+    #   ② log N 对时间回归斜率 ≈ 净多样化率（birth−death 近似）—— 是**近似**，
+    #      不是贝叶斯后验，也不是种群规模（那是 A3 天际线的事）。
+    #   ③ VirPhyKit 的 TreeDater-LTT 用 R treedater 的 parboot 置信带；R+treedater
+    #      分支已随定年通路收敛一并下线（2026-09-17），本口径**没有置信带**，
+    #      曲线与斜率只作趋势参考 —— 这一条必须在报告里写明，不许静默。
+    res['ltt'] = None
+    if ltt:
+        prog('clock', 0.95, 'LTT 谱系-时间曲线')
+        try:
+            from Virus_Platform_Core import phylodyn_trees as ptree
+            dmap_ltt = _load_dates_map(dates)
+            if len(dmap_ltt) >= 3:
+                lt = ptree.ltt_from_tree(out.get('timetree_nwk'),
+                                         meta_path=dates, out_dir=out_dir)
+            else:
+                lt = ptree.ltt_from_tree(out.get('timetree_nwk'),
+                                         out_dir=out_dir)
+                lt['dated_note'] = ('元数据有效日期不足 3 条 → '
+                                    'LTT 横轴＝遗传距离，无日历年轴')
+            lt['ok'] = True
+            lt['curve_file_abs'] = os.path.join(out_dir,
+                                                lt.get('curve_file') or '')
+            res['ltt'] = lt
+            out['ltt_curve'] = lt['curve_file_abs']
+            say('LTT（谱系-时间）：%d 叶，横轴=%s'
+                % (lt.get('n_tips') or 0,
+                   '日历年' if lt.get('axis') == 'calendar_year' else '遗传距离'))
+        except Exception as e:      # 附加产物，失败不该拖垮已经算好的定年结果
+            res['ltt'] = {'ok': False,
+                          'error': '%s: %s' % (type(e).__name__, e)}
+            res['warnings'].append('LTT 曲线未产出：' + res['ltt']['error'])
+            say(f'[WARN] LTT 未产出：{e}')
 
     # ---------- clock_stats.tsv（带方法列，红线 1）----------
     p = os.path.join(out_dir, 'clock_stats.tsv')
@@ -1677,9 +1723,15 @@ def stage_phylogeo(clock, prep, out_dir, trait='region',
 
     env = tt.check_tt_env()
     argv = [env['exe']] if env['ok'] else None
+    # 两个引擎各自的真实执行结果。不能用「计数为空」倒推成功：两个引擎
+    # 都异常时计数同样是空，旧实现会把它当成「0 次迁移是正常结果」并
+    # 置 ok=True（A2 假成功）。只有至少一个引擎真的跑完、计数为 0 才算正常。
+    ml_ran, ml_failed = False, False
+    fitch_ran, fitch_failed = False, False
 
     # ---------- TreeTime mugration ----------
     if not argv:
+        ml_failed = True
         res['warnings'].append('TreeTime 不可用 → 只有 Fitch 一条口径')
     else:
         prog('phylogeo', 0.2, 'TreeTime mugration（ML 地理重构）')
@@ -1696,8 +1748,10 @@ def stage_phylogeo(clock, prep, out_dir, trait='region',
                                            'stdout_tail')}
         res['warnings'] += m.get('warnings') or []
         if not m['ok']:
+            ml_failed = True
             res['warnings'].append('mugration 失败：' + str(m.get('error')))
         else:
+            ml_ran = True
             for tag, fn in (('gtr', 'GTR.txt'), ('confidence_csv', 'confidence.csv'),
                             ('annotated_nexus', 'annotated_tree.nexus')):
                 p = os.path.join(out_dir, 'ml', fn)
@@ -1762,6 +1816,7 @@ def stage_phylogeo(clock, prep, out_dir, trait='region',
         res['fitch_n_changes'] = nf
         res['fitch_counts'] = {'%s->%s' % k: v for k, v in fc.items()}
         res['fitch_events'] = frows
+        fitch_ran = True
         say(f'Fitch（同树）迁移 {nf} 次')
         # 可选 RSPP bootstrap（复用平台实现，很贵，默认关）
         if rssp_bs:
@@ -1787,11 +1842,39 @@ def stage_phylogeo(clock, prep, out_dir, trait='region',
             except Exception as e:
                 res['warnings'].append(f'RSPP 未完成：{type(e).__name__}: {e}')
     except Exception as e:
+        fitch_failed = True
         res['warnings'].append(f'Fitch 通路异常：{type(e).__name__}: {e}')
         say(f'[WARN] Fitch 异常：{e}')
 
     if not (res.get('ml_counts') or res.get('fitch_counts')):
-        res['error'] = '两条口径都没算出走廊 —— 见 warnings'
+        if ml_ran or fitch_ran:
+            # 「0 条区间迁移」是**正常结果**（单地区数据 / 独立谱系），不是失败
+            # ——2026-11-03 诚实化：单地区对照组实测会被整阶段判失败（审计 P1-5
+            # 运行时实锤）。改为 ok=True + 计数 0 + 告警说明。
+            res['ok'] = True
+            res['ml_n_changes'] = res.get('ml_n_changes') or 0
+            res['fitch_n_changes'] = res.get('fitch_n_changes') or 0
+            res['n_corridors'] = 0
+            res['zero_migration'] = True
+            res['warnings'].append(
+                '未检出区间迁移（0 次）—— 可能是单地区数据、谱系未跨区，'
+                '或区划列没匹配上（检查 A0 的 states.csv）。这不是错误。')
+            say('[WARN] 未检出区间迁移（0 次）—— 单地区数据属正常结果，非错误')
+        else:
+            # 两个引擎都没跑成：保留 ok=False，并给出各引擎的真实失败原因
+            # （旧实现无条件 ok=True，A2 会在双引擎异常时假报「0 次迁移」）。
+            why = []
+            if ml_failed:
+                why.append('ML: ' + str((res.get('ml') or {}).get('error')
+                                        or 'TreeTime 不可用'))
+            if fitch_failed:
+                ferr = next((w for w in reversed(res.get('warnings') or [])
+                             if str(w).startswith('Fitch 通路异常')), '异常')
+                why.append('Fitch: ' + str(ferr))
+            res['ok'] = False
+            res['error'] = ('地理重构全部失败（没有任何引擎成功执行）：'
+                            + '；'.join(why))
+            say('[ERROR] ' + res['error'])
         _dump(res, os.path.join(out_dir, 'phylogeo_report.json'))
         return res
 
@@ -1847,6 +1930,14 @@ def stage_phylogeo(clock, prep, out_dir, trait='region',
                 '未校正时迁移方向的置信度会系统性虚高；本次'
                 + ('已按系数 %.4g 校正' % res['sampling_bias']['factor']
                    if res['sampling_bias']['corrected'] else '**未校正**'))
+    # 每样本一区划 = 区划列没匹配上的典型症状（FASTA 头 `acc|整条描述` 会被
+    # A0 回退拆成逐条独立区划）——对齐独立 analyze 的同款告警（审计 P2-15）。
+    _n_seq_states = sum(counts.values()) if counts else 0
+    if counts and _n_seq_states >= 5 and len(counts) == _n_seq_states:
+        res['warnings'].append(
+            f'{len(counts)} 条样本有 {len(counts)} 个各不相同的区划 —— '
+            '大概率是区划列没匹配上（回退成 FASTA 头描述），'
+            '迁移结果无意义；请检查元数据区划列。')
 
     # ---------- 区域坐标（迁移弧线地图的落点；不影响任何统计量） ----------
     # 口径：用户坐标表优先 → 内置质心表兜底 → 都没有就进 coord_missing 并显式报出。
@@ -1953,6 +2044,18 @@ def stage_coalescent(clock, prep, out_dir, n_skyline=None, gen_per_year=50.0,
            'gen_per_year': gen_per_year, 'n_skyline': n_skyline,
            'warnings': [], 'outputs': {}, 'skyline': [], 'skyline_meta': {}}
     say('A3 群体动态（TreeTime skyline，免 MCMC 预览）')
+    # DRT 闸门（2026-11-03，红线 5）：A1 的 DRT 不通过 = 时间信号弱，
+    # 天际线（依赖速率）只能作参考，不能当人口动态结论引用。
+    # 注意：stage_clock 的 res['stats'] 是**列表**（每通道 append 一条统计），
+    # 不是 dict；旧实现对它调 .get('drt')，A1 一成功（stats 非空）A3 就
+    # AttributeError。DRT 是 res 顶层键，直接读即可。
+    _drt = clock.get('drt') if isinstance(clock.get('drt'), dict) else None
+    if _drt and _drt.get('passed') is False:
+        res['warnings'].append(
+            'A1 的 DRT 未通过 —— 时间信号弱：本阶段天际线仅作参考输出，'
+            '不得作为群体动态结论引用（速率估计同样不可信）。')
+        say('[WARN] DRT 未通过：天际线仅作参考输出，不得作为结论引用')
+        res['drt_failed'] = True
     env = tt.check_tt_env()
     if not env['ok']:
         res['error'] = 'TreeTime 不可用：' + '；'.join(env['problems'])
@@ -2199,6 +2302,23 @@ def _render_report(stages, params, files, warns, errs):
                 L.append('> ⚠️ **DRT 未通过 → 上面的速率与 tMRCA 只是记录，'
                          '不得作为定年结论引用**（红线 5）。')
                 L.append('')
+        lt = ck.get('ltt')
+        if lt and lt.get('ok'):
+            _ax = {'calendar_year': '日历年',
+                   'subst_distance': '遗传距离（无有效日期）'}.get(
+                       lt.get('axis'), str(lt.get('axis')))
+            L.append(f"- 谱系-时间曲线（**LTT**，对齐 VirPhyKit「TreeDater-LTT」"
+                     f"的免 MCMC 口径）：{lt.get('n_tips')} 叶，横轴＝{_ax}"
+                     + (f"，log N~t 回归斜率 ≈ 净多样化率 "
+                        f"{lt.get('log_linear_slope'):g} 每年"
+                        if lt.get('log_linear_slope') is not None else '')
+                     + f"；曲线数据 `clock/ltt_curve.tsv`")
+            L.append('')
+            L.append('> ⚠️ LTT 斜率是 **birth−death 近似**（趋势参考），'
+                     '不是贝叶斯后验，也不是种群规模；'
+                     'VirPhyKit TreeDater-LTT 的 parboot 置信带需 R+treedater，'
+                     '本口径不含（定年通路已收敛到 TreeTime）。')
+            L.append('')
 
     pg_ = (stages or {}).get('phylogeo') or {}
     if pg_.get('ml_counts') or pg_.get('fitch_counts'):
@@ -2394,7 +2514,7 @@ def run_pipeline(aln, out_dir, meta=None, tree=None, stages=None, **kw):
             clock_filter=kw.get('clock_filter'),
             clock_rate=kw.get('clock_rate'),
             drt_perm=kw.get('drt_perm', 20), drt_seed=kw.get('drt_seed', 42),
-            do_drt=kw.get('do_drt', True),
+            do_drt=kw.get('do_drt', True), ltt=kw.get('ltt', True),
             rng_seed=kw.get('rng_seed', 0),
             timeout=kw.get('timeout', 3600), log=say, progress=prog)
         res['stages']['clock'] = clock
@@ -2425,9 +2545,14 @@ def run_pipeline(aln, out_dir, meta=None, tree=None, stages=None, **kw):
     if 'phylogeo' in stages:
         _abort_if_cancelled()
         prog('phylogeo', 0.1, 'A2 地理推断')
+        # trait 接线（2026-11-03 修复 A2 断裂）：A0 会自动识别区划列并写进
+        # prep['trait']（states.csv 的列名=该识别结果）；A2 旧实现却拿
+        # 「卡上传入值 or 'region'」去调 treetime mugration 的 --attribute，
+        # 标准数据集（列名 location）必炸 `attribute not found` → ML 迁移
+        # 恒为失败（模拟实测实锤）。现在以 A0 检测值为准，卡上显式传入仍优先。
         pg_res = stage_phylogeo(
             clock or {}, prep, os.path.join(out_dir, 'phylogeo'),
-            trait=kw.get('trait') or 'region',
+            trait=kw.get('trait') or ((prep or {}).get('trait') or 'region'),
             sampling_bias_correction=kw.get('sampling_bias_correction', 'auto'),
             pc=kw.get('pc'), cross_check=kw.get('cross_check', True),
             rssp_bs=kw.get('rssp_bs', 0), seed=kw.get('seed', 0),

@@ -63,6 +63,139 @@ def api_logan_contigs(sample):
     return jsonify(list_virus_contigs(_safe_sample(sample)))
 
 
+@bp.route('/api/logan/contigs_seq', methods=['POST'])
+def api_logan_contigs_seq():
+    """按 样品+contig 名 批量返回序列正文（只读；溯源页已改为粘贴/文件来源，
+    本端点保留给 MCP/agent 使用）。"""
+    from Virus_Platform_Core.logan_trace import _load_source_fasta
+    body = request.get_json(force=True) or {}
+    sample = (body.get('sample') or '').strip()
+    contigs = body.get('contigs') or []
+    if not sample or not contigs:
+        abort(400, '缺少 sample 或 contigs')
+    try:
+        recs = _load_source_fasta(sample=_safe_sample(sample), contig_ids=list(contigs))
+    except (ValueError, OSError) as e:
+        abort(400, str(e))
+    return jsonify([{'contig': cid, 'seq': seq} for cid, seq in recs])
+
+
+@bp.route('/api/logan/read_fasta', methods=['POST'])
+def api_logan_read_fasta():
+    """读入用户选择的 FASTA / 纯序列文本文件（溯源页「从文件选择」用，只读）。
+
+    请求体 {"path": "..."} → {"name": 文件名, "text": 全文}。
+    路径口径（2026-11-06 加固）：相对路径按平台根解析；绝对路径必须落在
+    平台根 / 输出根 / 示例目录内（realpath 解析 junction/符号链接后再判，
+    复用 check_path 的越界语义）。此前任意绝对路径都能读（≤32MB），
+    包括 run/ai_local.json 里的 API Key。
+    上限 32MB；前 4KB 含 NUL 判为二进制拒绝。"""
+    import os as _os
+    from Virus_Platform_Core.config import (
+        DIRS, PLATFORM_ROOT, RUN_ROOT, _ai_local_path, _detect_examples_root)
+    body = request.get_json(force=True) or {}
+    raw = (body.get('path') or '').strip()
+    if not raw:
+        abort(400, '缺少文件路径')
+    p0 = raw if _os.path.isabs(raw) else _os.path.join(PLATFORM_ROOT, raw)
+    try:
+        # check_path：拒绝含 .. 段 + 必须位于平台写入根内（平台根/自定义
+        # 输出根/运行根等）；realpath 再解析软链接，防"根内链接指向根外"。
+        p = _os.path.realpath(
+            check_path(p0, must_exist=True, in_platform=True))
+    except (ValueError, OSError) as e:
+        abort(400, f'路径不合法: {e}')
+    # 显式白名单：平台根 / 输出根 / 示例目录。check_path 的 in_platform
+    # 还会放行输入根与数据库根，这里按溯源读文件的最小需要再收一层。
+    roots = [PLATFORM_ROOT, DIRS.get('results'), DIRS.get('tool_runs'),
+             DIRS.get('downloads'), DIRS.get('examples')]
+    try:
+        if _detect_examples_root():
+            roots.append(_detect_examples_root())
+    except Exception:                       # noqa: BLE001 - 探测失败不影响主判
+        pass
+    np = _os.path.normcase(p)
+    ok = False
+    for r in roots:
+        if not r:
+            continue
+        try:
+            nr = _os.path.normcase(_os.path.realpath(r))
+        except OSError:
+            continue
+        if np == nr or np.startswith(nr + _os.sep):
+            ok = True
+            break
+    if not ok:
+        abort(400, '路径越界（只允许平台目录、输出目录与示例目录内的文件）')
+    # 敏感路径：AI Key 真身与会话镜像永远不允许从「读 FASTA」通道外泄。
+    sensitive = [_os.path.realpath(_ai_local_path()),
+                 _os.path.realpath(_os.path.join(RUN_ROOT, 'ai_sessions'))]
+    for sp in sensitive:
+        nsp = _os.path.normcase(sp)
+        if np == nsp or np.startswith(nsp + _os.sep):
+            abort(400, '该路径属于平台敏感文件，不允许读取')
+    if not _os.path.isfile(p):
+        abort(400, f'文件不存在: {p}')
+    if _os.path.getsize(p) > 32 * 1024 * 1024:
+        abort(400, '文件超过 32MB 上限（请先截取需要的序列）')
+    try:
+        with open(p, 'rb') as f:
+            head = f.read(4096)
+            if b'\x00' in head:
+                abort(400, '不是文本文件（含二进制字节），请选择 FASTA / 纯文本')
+            rest = f.read()
+    except OSError as e:
+        abort(400, f'读取失败: {e}')
+    return jsonify({'name': _os.path.basename(p),
+                    'text': (head + rest).decode('utf-8', errors='replace')})
+
+
+@bp.route('/api/logan/has_assembly', methods=['POST'])
+def api_logan_has_assembly():
+    """批量探测 accession 在 Logan 数据集有无组装（检索/预筛/Open-Virome
+    行级「LOGAN 数据下载」按钮的存在性检查，只读）。
+
+    请求体 {"accessions": ["SRR...", ...]}（≤50 个）→
+    {"SRR...": true/false, ...}；S3 HEAD 匿名查询，非 SRA 系（如 GSA/CRR）
+    必然 false。"""
+    from Virus_Platform_Core.logan_contigs import (_check_host, ACC_MAX,
+                                                   _acc_clean)
+    body = request.get_json(force=True) or {}
+    raw = body.get('accessions') or []
+    if not isinstance(raw, list):
+        abort(400, 'accessions 应为数组')
+    try:
+        accs = [_acc_clean(a) for a in raw][:ACC_MAX]
+    except ValueError as e:
+        abort(400, str(e))
+    if not accs:
+        abort(400, '缺少 accessions')
+    _check_host()
+    try:
+        import boto3
+        from botocore import UNSIGNED
+        from botocore.config import Config
+    except ModuleNotFoundError:
+        abort(400, '缺少 Python 依赖 boto3（Logan S3 匿名访问用）——'
+                   '请在平台 Python 里执行: python -m pip install boto3'
+                   '（requirements.txt 已声明，可 pip install -r requirements.txt）')
+    s3 = boto3.client('s3', endpoint_url='https://s3.amazonaws.com',
+                      config=Config(signature_version=UNSIGNED,
+                                    retries={'max_attempts': 1}))
+    out = {}
+    from Virus_Platform_Core.logan_contigs import BUCKET
+    for a in accs:
+        if a in out:
+            continue
+        try:
+            s3.head_object(Bucket=BUCKET, Key=f'c/{a}/{a}.contigs.fa.zst')
+            out[a] = True
+        except Exception:
+            out[a] = False
+    return jsonify(out)
+
+
 @bp.route('/api/logan/jobs')
 def api_logan_jobs():
     from Virus_Platform_Core.logan_trace import list_jobs
@@ -110,10 +243,15 @@ def api_logan_create():
         # ⚠️ sample 为空时必须给 None：_safe_sample('') 会回退成默认名
         # 'sample'（truthy），`or None` 兜不住，粘贴模式也会被拽去读
         # results/sample/03_assembly/virus_contigs.tsv → 必 400。
+        # max_len：网页版一键批量用——服务端按 ≤max_len 全量均分切片
+        # （与页面片段生成同口径）；不给则维持旧 n_seg 采样窗口径。
+        max_len = body.get('max_len')
+        max_len = min(100000, max(100, int(max_len))) if max_len else None
         return jsonify(create_job(name, sample=_safe_sample(sample) if sample else None,
                                   contig_ids=contigs or None,
                                   pasted=pasted or None,
-                                  n_seg=int(body.get('n_seg') or 2)))
+                                  n_seg=int(body.get('n_seg') or 2),
+                                  max_len=max_len))
     except ValueError as e:
         abort(400, str(e))
 

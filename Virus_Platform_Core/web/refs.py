@@ -217,7 +217,7 @@ def api_ictv_download():
                 'levels': levels, 'n_records': n_fa, 'n_fasta': n_fa}
 
     tid = tm.start(cfg.tr(f'ICTV下载 {coll}', f'ICTV download {coll}'), job,
-                   weight='light')
+                   weight='light', pausable=True)
     return jsonify({'task': tid})
 
 
@@ -257,7 +257,7 @@ def api_ncbi_download():
         return res
 
     tid = tm.start(cfg.tr(f'NCBI下载 {name}', f'NCBI download {name}'), job,
-                   weight='light')
+                   weight='light', pausable=True)
     return jsonify({'task': tid})
 
 
@@ -400,7 +400,7 @@ def api_gb_download():
         return res
 
     tid = tm.start(cfg.tr(f'GenBank下载 {name}', f'GenBank download {name}'), job,
-                   weight='light')
+                   weight='light', pausable=True)
     return jsonify({'task': tid})
 
 

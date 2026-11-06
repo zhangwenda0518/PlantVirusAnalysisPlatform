@@ -169,7 +169,7 @@ def _tool_job_fastp(ctx):
 
 
 def _tool_job_hostremoval(ctx):
-    """宿主去除与序列提取（kunpeng 宿主库分类，独立模块，不依赖样品管道）。
+    """非宿主序列提取（宿主去除）：kunpeng 宿主库分类，独立模块，不依赖样品管道。
 
     C 行 = 宿主 read 对，剔除后保留非宿主 reads（kept_R1/R2.fastq.gz）。
     classify_r1/classify_r2（可选）：预转换 FASTA，分类步骤直接用（省去
@@ -271,11 +271,13 @@ def _tool_job_orfa(ctx):
     orf_model = (ctx.p.get('model') or '').strip()
     if orf_model not in ('pyrodigal_rv', 'pyrodigal'):
         orf_model = ''
-    # 注释层选择：prot（层1 序列同源）/ pfam（层2 HMM）
+    # 注释层选择：pvdb / hmm / cdd / bfvd（全部来自本地 PVDB）
     orf_libs = ctx.p.get('libs')
-    # 层1 命中门槛（百分数；空/0 = 不过滤，保持历史结果）
+    # PVDB 序列命中门槛（百分数；空 = 默认 40/60）
     min_pident = _opt_num_param(ctx, 'min_pident')
     min_qcov = _opt_num_param(ctx, 'min_qcov')
+    # 分段投影档位：strict / balanced / recall
+    orf_profile = (ctx.p.get('profile') or '').strip().lower() or None
     if run:
         if not re.fullmatch(r'[A-Za-z0-9_]+', run) or not run.startswith('orf_'):
             abort(400, f'无效的 ORF 运行名: {run}')
@@ -291,6 +293,7 @@ def _tool_job_orfa(ctx):
                                      db=orf_db or None,
                                      model=orf_model or None, libs=orf_libs,
                                      min_pident=min_pident, min_qcov=min_qcov,
+                                     profile=orf_profile,
                                      progress=lambda p, m: prog(
                                          'orfa', 0.15 + p * 0.8, m))
             res = dict(res)
@@ -398,7 +401,7 @@ def _tool_job_primer(ctx):
 
 
 def _tool_job_identify(ctx):
-    """② 病毒鉴定与提取（fastq 双端/单端 或 fasta contigs）。"""
+    """病毒序列提取（样本分析）：FASTQ 双端/单端 或 FASTA contigs → kunpeng 病毒库分类 + 病毒候选序列提取；含病毒样本快速筛选，产物为组装备选输入。"""
     inp = ctx.req('input', '输入文件')
     itype = ctx.p.get('input_type') or 'pe'
     if itype not in ('pe', 'single', 'fasta'):
@@ -548,11 +551,24 @@ def _tool_job_assemble(ctx):
             asm_out,
             os.path.join(ctx.run_dir, 'contigs.filtered.fasta'),
             min_len=min_len, logger=logger)
-        prog('filter', 1.0, '完成')
+        # 组装结果基本统计（seqkit stats 同列：num_seqs/sum_len/min/avg/max/
+        # Q1-Q3/N50/L50/GC/sum_n；FASTA 的 Q20/Q30/AvgQual 记 0）：单样本与
+        # 目录批量逐样本都走这里，每份 contigs 各自落 contigs_stats.tsv/.json。
+        prog('stats', 0.98, '统计组装结果')
+        st = {}
+        try:
+            from Virus_Platform_Core import seq_stats
+            st = seq_stats.write_stats(filtered, ctx.run_dir,
+                                       stem='contigs', logger=logger)
+        except Exception as _se:
+            logger.log(f'组装统计失败（跳过）: {type(_se).__name__}: {_se}')
+        prog('stats', 1.0, '完成')
         logger.close()
-        return {'n_contigs': n_c, 'total_bp': total_bp,
-                'assembler': asm_info.get('engine', 'spades'),
-                'contigs': filtered}
+        res = {'n_contigs': n_c, 'total_bp': total_bp,
+               'assembler': asm_info.get('engine', 'spades'),
+               'contigs': filtered}
+        res.update(st.get('chips') or {})
+        return res
     return job
 
 
@@ -605,7 +621,7 @@ def _tool_job_contigs(ctx):
             for r in rows:
                 f.write('\t'.join(str(r.get(k, '')) for k in header) + '\n')
 
-        prog('extract', 0.88, '提取病毒 contigs（带谱系 header）')
+        prog('extract', 0.85, '提取病毒 contigs（带谱系 header）')
         n_viral = 0
         viral_fa = None
         if ids:
@@ -627,12 +643,140 @@ def _tool_job_contigs(ctx):
                     for i in range(0, len(seq), 70):
                         f.write(seq[i:i + 70] + '\n')
 
-        prog('extract', 1.0, '完成')
+        # ---- 宿主预测并入分类任务（一条龙，2026-11-04 用户要求「直接预测
+        # 分类，宿主预测，不要再弹出来」）：分类完成即跑 ICTV 级联，不再由
+        # 前端 autoHostIfMissing 弹独立任务「宿主预测·…」——toast、独立卡、
+        # 合并状态行全部不再出现，宿主列与 08_host_analysis/ 产物直接随
+        # 分类任务落盘、随分类卡展示。
+        hp = {}
+        if n_viral:
+            try:
+                from Virus_Platform_Core.kunpeng import db_ready
+                from Virus_Platform_Core.host_analysis import (
+                    normalize_contig_table, predict_hosts)
+                if db_ready(cfg.databases['host']):
+                    prog('host', 0.9, 'ICTV 宿主预测（并入分类任务）')
+                    a_dir = check_path(os.path.join(ctx.run_dir, '03_assembly'),
+                                       must_exist=False, in_platform=True)
+                    os.makedirs(a_dir, exist_ok=True)
+                    normalize_contig_table(tsv_path, a_dir,
+                                           fasta=viral_fa,
+                                           threads=ctx.threads, logger=logger)
+                    hp = predict_hosts(ctx.run_dir, logger=logger,
+                                       force=True) or {}
+            except Exception as e:      # 宿主库缺失等：只告警不拖垮分类
+                if logger:
+                    logger.log(f"宿主预测跳过（不影响分类结果）"
+                               f" [{type(e).__name__}]: {e}", "WARN")
+        elif logger:
+            logger.log("无病毒 contigs，跳过宿主预测")
+
+        prog('done', 1.0, '完成')
         logger.close()
-        return {'n_contigs': n_c, 'n_viral': n_viral,
-                'kreport': res['kreport'],
-                'classification': tsv_path, 'viral_fasta': viral_fa}
+        out = {'n_contigs': n_c, 'n_viral': n_viral,
+               'kreport': res['kreport'],
+               'classification': tsv_path, 'viral_fasta': viral_fa}
+        if hp:
+            # 宿主侧只给状态行用的两个数字（前端渲染「🧲 宿主预测 · 已完成 ·
+            # N 条」）；不再并 categories/class_source/decision_methods——
+            # 展平成 chips 后全是裸键名噪音行（2026-11-04 用户圈红反馈）
+            out['n_host_pred'] = hp.get('n_contigs')
+            out['host_warn'] = hp.get('n_host_warn', 0)
+        # 产物精选清单（相对路径）：build_result_preview 优先用 job 自带清单，
+        # 不再按 mtime 扫盘——宿主预测并入分类后，宿主侧文件 mtime 最新，
+        # 12 个名额会被 08_host_analysis + 中间件占满，分类主产物被挤出
+        files = []
+        if viral_fa and os.path.isfile(viral_fa):
+            files.append('viral_contigs.fasta')
+        if os.path.isfile(tsv_path):
+            files.append('virus_classification.tsv')
+        if os.path.isfile(os.path.join(ctx.run_dir, 'contigs.filtered.fasta')):
+            files.append('contigs.filtered.fasta')
+        kr = res.get('kreport')
+        if kr and os.path.isfile(str(kr)):
+            files.append(os.path.relpath(str(kr),
+                                         ctx.run_dir).replace(os.sep, '/'))
+        if os.path.isfile(os.path.join(ctx.run_dir, 'run.log')):
+            files.append('run.log')
+        hp_dir = os.path.join(ctx.run_dir, '08_host_analysis')
+        if os.path.isdir(hp_dir):
+            for name in ('host_prediction.tsv', 'host_summary.tsv',
+                         'sankey_host.html', 'sunburst_host.html'):
+                if os.path.isfile(os.path.join(hp_dir, name)):
+                    files.append('08_host_analysis/' + name)
+            import glob as _g
+            for fa in sorted(_g.glob(os.path.join(hp_dir, '*.classified.fasta'))):
+                files.append('08_host_analysis/'
+                             + os.path.basename(fa))
+        out['files'] = files
+        return out
     return job
+
+
+def _tool_job_loganfetch(ctx):
+    """LOGAN 数据下载：按 SRA accession 从 Logan 公共 S3 桶拉取预组装 contigs。
+
+    与 Logan-Search 溯源同一数据集（AWS Open Data）；匿名访问，域名白名单
+    硬编码在 logan_contigs.py。产物 <acc>.logan_contigs.fasta（多 accession
+    另出 all.logan_contigs.fasta），可直接送「病毒序列提取（FASTA）」「ORF
+    预测」「溯源查询」等下游。"""
+    accessions = (ctx.p.get('accessions') or '').strip()
+    if not accessions:
+        abort(400, '请填写 SRA accession（如 SRR24759446）')
+    min_len = int(ctx.p.get('min_len') or 0)
+    circles_only = _truthy(ctx.p.get('circles_only'))
+    fix_circles = _truthy(ctx.p.get('fix_circles'))
+    host_filter = _truthy(ctx.p.get('host_filter'))
+
+    def job(log, prog, cancel):
+        logger = TaskLogger(callback=log)
+        from Virus_Platform_Core.logan_contigs import fetch_logan_contigs
+        prog('download', 0.02, '连接 Logan S3 桶（logan-pub，匿名）')
+        res = fetch_logan_contigs(
+            accessions, ctx.run_dir, min_len=min_len,
+            circles_only=circles_only, fix_circles=fix_circles,
+            host_filter=host_filter,
+            db_host=ctx.opt('db_host') or None,
+            threads=ctx.threads, logger=logger,
+            progress=lambda frac, m: prog('download', 0.02 + frac * 0.93, m),
+            cancel=cancel)
+        prog('done', 1.0, '完成')
+        logger.close()
+        return {'n_accessions': len(res['results']),
+                'n_kept_total': res['n_kept_total'],
+                'results': res['results'],
+                'all_fasta': res['all_file']}
+    return job
+
+
+def _truthy(v):
+    """bool 型参数的字符串解析（2026-11-03）。
+
+    bool('0') 在 Python 里是 True —— MCP/HTTP 的 params 原样透传，
+    agent 传 `"aligned": "0"` / `"false"` 时旧实现会当成 True（审计 P0）。
+    quicktree 已在用这套口径，抽出来统一。
+    """
+    if isinstance(v, str):
+        return v.strip().lower() in ('1', 'true', 'yes', 'on')
+    return bool(v)
+
+
+def _dedup_name(name, seen):
+    """防碰撞序列重命名：候选名必须**确实未被占用**。
+
+    旧实现 `seen[name] += 1; name = f'{name}_{n}'` 不查新名是否已被占用，
+    `['A','A','A_1']` 会产出 ['A','A_1','A_1']（审计 P0-4，sdt_exact 的
+    2026-10-03 修法抽成公共函数）。seen 就地更新并返回新名。
+    """
+    if name not in seen:
+        seen[name] = 0
+        return name
+    while True:
+        seen[name] += 1
+        cand = f'{name}_{seen[name]}'
+        if cand not in seen:
+            seen[cand] = 0
+            return cand
 
 
 def _tool_job_structcmp(ctx):
@@ -650,15 +794,10 @@ def _tool_job_structcmp(ctx):
         from Virus_Platform_Core.phylo import _run_mafft
         from Virus_Platform_Core.utils import iter_fasta
 
-        prog('read', 0.05, '读取与筛选序列')
+        prog('read', 0.05, '与 SDT/quicktree 同一套防碰撞去重')
         recs, seen = [], {}
         for h, s in iter_fasta(seqs_fa):
-            name = _short(h, len(recs) + 1)
-            if name in seen:
-                seen[name] += 1
-                name = f'{name}_{seen[name]}'
-            else:
-                seen[name] = 0
+            name = _dedup_name(_short(h, len(recs) + 1), seen)
             recs.append((name, s.upper()))
         if len(recs) < 2:
             raise RuntimeError('FASTA 中少于 2 条序列，无法做结构比较')
@@ -691,17 +830,17 @@ def _tool_job_structcmp(ctx):
                 f'比对结果长度不一致（{names[0]}: {len(cols[0])} vs '
                 f'{names[_bad]}: {len(cols[_bad])}），无法计算 identity 矩阵；'
                 '请检查 MAFFT 是否正常完成')
+        # 计数委托 seq_identity.count_matches（全平台唯一 gap/分母实现）
+        from Virus_Platform_Core.seq_identity import count_matches
         matrix = [[100.0] * n for _ in range(n)]
         for i in range(n):
             for j in range(i + 1, n):
-                same = comp = 0
-                for a, b in zip(cols[i], cols[j]):
-                    if a == '-' and b == '-':
-                        continue
-                    comp += 1
-                    if a == b:
-                        same += 1
-                pid = round(same / comp * 100, 2) if comp else 0.0
+                # SDT 口径（2026-11-03 修复，此前与 SDT/phylo 两套口径）：
+                # 任意一侧是 gap（`-` 或 `.`）→ 该位点从分母排除；
+                # 无可比位点 → null（JSON），与 sdt_exact 的 NaN→null 一致，
+                # 不再伪装成 0.0（"真的 0% 同一性"必须只能是真值）。
+                same, comp = count_matches(cols[i], cols[j])
+                pid = round(same / comp * 100, 2) if comp else None
                 matrix[i][j] = matrix[j][i] = pid
 
         tsv = os.path.join(ctx.run_dir, 'identity_matrix.tsv')
@@ -709,7 +848,9 @@ def _tool_job_structcmp(ctx):
             f.write('\t'.join([''] + names) + '\n')
             for i in range(n):
                 f.write('\t'.join([names[i]] +
-                                  [f'{matrix[i][j]:.2f}' for j in range(n)]) + '\n')
+                                  [('' if matrix[i][j] is None
+                                    else f'{matrix[i][j]:.2f}')
+                                   for j in range(n)]) + '\n')
         data = {'names': names, 'matrix': matrix, 'n': n,
                 'aln_cols': len(cols[0]) if cols else 0}
         js = os.path.join(ctx.run_dir, 'identity_matrix.json')
@@ -724,20 +865,22 @@ def _tool_job_structcmp(ctx):
 
 
 def _tool_job_verify(ctx):
-    """候选序列验证（对齐 02b/09b）：宿主筛选 → 长度分流 → 双路过滤。
+    """候选序列验证（对齐 02b/09b）：宿主筛选 → 长度分流 → 三路证据。
 
     输入可选已有 contigs 运行（run）或独立 FASTA（fasta）。
-    参数：host（默认 all）、methods（blastx/bfvd 组合）、combine（union/intersection）。
-    （B 路证据源 2026-09-29 由 CDD 换为 BFVD：病毒专属库、免白名单。）
+    参数：host（默认 all）、methods（blastx/bfvd/cdd 组合）、
+    combine（union/intersection）。
+    （B 路证据源 2026-09-29 由全量 CDD 换为 BFVD；2026-11-06 又以 PVDB
+    CDD 子集接入 C 路——三路都是本地病毒专属库，免白名单。）
     """
     run_ref = (ctx.p.get('run') or '').strip()
     fasta = ctx.opt('fasta') if ctx.p.get('fasta') else None
     host = (ctx.p.get('host') or 'all').strip() or 'all'
     combine = (ctx.p.get('combine') or 'union').strip()
-    methods = ctx.p.get('methods') or ['blastx', 'bfvd']
+    methods = ctx.p.get('methods') or ['blastx', 'bfvd', 'cdd']
     if isinstance(methods, str):
         methods = [m.strip() for m in methods.split(',') if m.strip()]
-    methods = [m for m in methods if m in ('blastx', 'bfvd')]
+    methods = [m for m in methods if m in ('blastx', 'bfvd', 'cdd')]
 
     if run_ref and not re.fullmatch(r'[A-Za-z0-9_\-]+', run_ref):
         abort(400, '无效的运行名')
@@ -780,6 +923,151 @@ def _tool_job_verify(ctx):
                          progress=lambda st, fr, msg: prog(st, fr, msg))
         logger.close()
         return summary
+    return job
+
+
+def _tool_job_hom(ctx):
+    """候选序列验证 · 单条深查（原「同源比对」卡，2026-11-03 并入 t-verify）。
+
+    输入：seq_text（FASTA 文本）或 fasta（文件路径）二选一，多记录逐条处理；
+    引擎 local / online（NCBI URL API，nt/nr 限病毒）。
+    本地证据源 = 批量验证同一库组（四库一组）：
+      - 核酸：blastn vs 病毒参考核酸库（virusref blast，预置 v4）
+      - 蛋白：DIAMOND blastx vs PVDB 蛋白库
+      - 域：mmseqs vs BFVD（库/工具缺失自动跳过，不算失败）
+      - 元数据：ref_info.tsv 补全 物种/科/属/宿主/标题
+    产物：input.fasta + blastn_local.m8 / blastx_local.m8 / bfvd.tsv +
+    hom_hits.json / hom_hits.tsv —— 正式运行目录 tool_runs/hom_*；
+    不再写 _seq_input 伪运行缓存（旧缓存保留可读，/api/tool/analysis 兼容）。
+    """
+    seq_text = (ctx.p.get('seq_text') or '').strip()
+    fasta = ctx.opt('fasta') if ctx.p.get('fasta') else None
+    engine = (ctx.p.get('engine') or 'local').strip().lower()
+    if engine not in ('local', 'online'):
+        abort(400, '无效的引擎（local|online）')
+    actions = [a.strip() for a in
+               str(ctx.p.get('actions') or 'blastn,blastx').split(',')
+               if a.strip() in ('blastn', 'blastx')]
+    if not actions:
+        abort(400, '至少选择一个比对方向（blastn|blastx）')
+    if not seq_text and not fasta:
+        abort(400, '请粘贴序列或选择 FASTA 文件')
+
+    def job(log, prog, cancel):
+        logger = TaskLogger(callback=log)
+        from Virus_Platform_Core.local_search import blastn_local, blastx_local, ref_info
+
+        run_dir = ctx.run_dir
+        prog('prep', 0.05, '整理输入序列')
+        if fasta:
+            import shutil
+            dst = os.path.join(run_dir, 'input.fasta')
+            shutil.copyfile(fasta, dst)
+            fa = dst
+        else:
+            fa = os.path.join(run_dir, 'input.fasta')
+            with safe_open(fa, 'wt') as f:
+                f.write(seq_text if seq_text.endswith('\n') else seq_text + '\n')
+
+        # 解析记录：在线模式逐条提交与摘要计数都要用
+        recs = []
+        _name, _buf = None, []
+        with safe_open(fa) as f:
+            for line in f:
+                line = line.rstrip('\n')
+                if line.startswith('>'):
+                    if _name is not None:
+                        recs.append((_name, ''.join(_buf).upper()))
+                    _hdr = line[1:].split()
+                    _name = _hdr[0] if _hdr else 'seq'
+                    _buf = []
+                elif _name is not None and line.strip():
+                    _buf.append(line.strip())
+        if _name is not None:
+            recs.append((_name, ''.join(_buf).upper()))
+        if not recs:
+            raise RuntimeError('输入 FASTA 为空或无有效记录')
+        # 在线逐条提交（分钟级），条数封顶防误粘贴整个基因组集合
+        if engine == 'online' and len(recs) > 5:
+            log(f'在线模式最多处理 5 条，已截断（共 {len(recs)} 条）')
+            recs = recs[:5]
+
+        queries = [{'name': n, 'len': len(s)} for n, s in recs]
+        result = {'action': '+'.join(actions), 'engine': engine,
+                  'queries': queries, 'hits': {}, 'bfvd': None}
+        n_hits = {}
+
+        if engine == 'local':
+            if 'blastn' in actions:
+                prog('blastn', 0.2, '本地 blastn vs 病毒参考核酸库（离线）')
+                hits = blastn_local(fa, run_dir, threads=ctx.threads, logger=logger)
+                result['hits']['blastn'] = hits
+                n_hits['blastn'] = 0 if hits is None else len(hits)
+            if 'blastx' in actions:
+                prog('blastx', 0.55, '本地 DIAMOND blastx vs PVDB 蛋白库（离线）')
+                hits = blastx_local(fa, run_dir, threads=ctx.threads, logger=logger)
+                result['hits']['blastx'] = hits
+                n_hits['blastx'] = len(hits)
+            # BFVD 域证据（可选降级：mmseqs 或库缺失只提示，不失败）
+            try:
+                from Virus_Platform_Core.bfvd_search import bfvd_db, search_contigs
+                if bfvd_db():
+                    prog('bfvd', 0.8, 'mmseqs vs BFVD 病毒域库（可选证据）')
+                    btsv = os.path.join(run_dir, 'bfvd.tsv')
+                    bd = search_contigs(fa, btsv, threads=ctx.threads, logger=logger)
+                    result['bfvd'] = {'tsv': 'bfvd.tsv',
+                                      'n_hit': sum(len(v) for v in bd.values())}
+                else:
+                    log('未找到 BFVD 库，跳过域证据（不影响命中表）')
+            except Exception as e:
+                log(f'BFVD 分支跳过：{e}')
+        else:  # online：NCBI URL API，nt / nr（限病毒），逐条提交
+            from Virus_Platform_Core import contig_annot as ca
+            for i, (qname, qseq) in enumerate(recs):
+                if cancel():
+                    logger.close()
+                    return {'n_query': len(queries), 'engine': engine,
+                            'n_hits': n_hits, 'cancelled': True}
+                prog('submit', 0.2 + 0.6 * i / max(len(recs), 1),
+                     f'提交 NCBI {i + 1}/{len(recs)}：{qname}')
+                rid, _rtoe = ca.submit_blast(
+                    actions[0], 'nt' if actions[0] == 'blastn' else 'nr',
+                    f'>{qname}\n{qseq}\n', entrez_query='viruses[Organism]')
+                prog('poll', 0.3 + 0.6 * i / max(len(recs), 1),
+                     f'NCBI 任务 {rid} 运行中')
+                hits = ca.poll_blast(rid, cancel=cancel)
+                if hits:
+                    result['hits'].setdefault(actions[0], []).extend(hits)
+                    n_hits[actions[0]] = n_hits.get(actions[0], 0) + len(hits)
+
+        # 元数据补全（ref_info：物种/科/属/宿主/标题）——本地命中在
+        # local_search 里已带，这里主要补在线命中的空缺字段
+        try:
+            _ri = ref_info() or {}
+        except Exception:
+            _ri = {}
+        for _hs in result['hits'].values():
+            for _h in _hs:
+                _meta = _ri.get(_h.get('accession') or '')
+                if _meta:
+                    for _k in ('title', 'sciname', 'family', 'genus', 'host'):
+                        if not _h.get(_k) and _meta.get(_k):
+                            _h[_k] = _meta[_k]
+
+        # 产物：hom_hits.json（主产物）+ hom_hits.tsv（速览表，列同命中结构）
+        with safe_open(os.path.join(run_dir, 'hom_hits.json'), 'wt') as f:
+            json.dump(result, f, ensure_ascii=False, indent=1)
+        with safe_open(os.path.join(run_dir, 'hom_hits.tsv'), 'wt') as f:
+            f.write('query\taccession\tidentity\talign_len\tevalue\tsciname\ttitle\n')
+            for _hs in result['hits'].values():
+                for _h in _hs:
+                    f.write('\t'.join(str(_h.get(k, '')) for k in (
+                        'query', 'accession', 'identity', 'align_len',
+                        'evalue', 'sciname', 'title')) + '\n')
+        prog('done', 1.0, '完成')
+        logger.close()
+        return {'n_query': len(queries), 'engine': engine,
+                'n_hits': n_hits, 'out': run_dir}
     return job
 
 
@@ -1230,7 +1518,9 @@ def _tool_job_kvsuite(ctx):
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
                                 text=True, encoding='utf-8',
-                                errors='replace', bufsize=1, env=env)
+                                errors='replace', bufsize=1, env=env,
+                                creationflags=getattr(
+                                    subprocess, 'CREATE_NO_WINDOW', 0))
         # 全平台唯一一处裸 Popen（不经 run_cmd）：必须手工登记，否则取消时
         # TaskManager 的硬停止看不到它，引擎挂死也会永久占住 heavy 名额。
         task_register_proc(proc)
@@ -1248,7 +1538,9 @@ def _tool_job_kvsuite(ctx):
                     try:
                         subprocess.run(
                             ['taskkill', '/F', '/T', '/PID', str(proc.pid)],
-                            capture_output=True)
+                            capture_output=True,
+                            creationflags=getattr(
+                                subprocess, 'CREATE_NO_WINDOW', 0))
                     except Exception:
                         try:
                             proc.kill()
@@ -1271,7 +1563,9 @@ def _tool_job_kvsuite(ctx):
                     # taskkill /T 杀整棵进程树：只 kill 引擎本身会留下
                     # salmon/samtools 孤儿继续吃 CPU/磁盘
                     subprocess.run(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
-                                   capture_output=True)
+                                   capture_output=True,
+                                   creationflags=getattr(
+                                       subprocess, 'CREATE_NO_WINDOW', 0))
                     proc.wait()
                     raise RuntimeError('用户取消')
         finally:
@@ -1316,16 +1610,19 @@ def _tool_job_kvsuite(ctx):
 
 
 def _tool_job_quicktree(ctx):
-    """快速建树：多条序列 MAFFT 全长比对 → NJ（纯 Python）/ FastTree。
+    """快速建树：多条序列 MAFFT 全长比对 → NJ（纯 Python）/ FastTree / RAxML-NG。
 
     aligned=True 时输入已是比对好的 FASTA（如序列比对模块的
     aln.fasta / aln.trim.fasta），跳过 MAFFT 直接建树——对已比对序列
     重复比对会破坏列对应关系。
+
+    RAxML-NG 自举要求 ≥4 条序列：不足或建树失败时降级 FastTree（日志
+    WARN）；返回值 method 为请求值、method_used 为实际使用的引擎。
     """
     seqs_fa = ctx.req('seqs', '序列 FASTA')
     method = (ctx.p.get('method') or 'nj').strip().lower()
-    if method not in ('nj', 'fasttree'):
-        abort(400, '建树方法仅支持 nj / fasttree')
+    if method not in ('nj', 'fasttree', 'raxml-ng'):
+        abort(400, '建树方法仅支持 nj / fasttree / raxml-ng')
     aligned = str(ctx.p.get('aligned') or '').strip().lower() in (
         '1', 'true', 'yes', 'on')
     max_n = max(3, min(int(ctx.p.get('max_n') or 100), 500))
@@ -1337,18 +1634,15 @@ def _tool_job_quicktree(ctx):
 
     def job(log, prog, cancel):
         logger = TaskLogger(callback=log)
-        from Virus_Platform_Core.phylo import _run_mafft, _run_nj, _run_fasttree
+        from Virus_Platform_Core.phylo import (
+            _run_mafft, _run_nj, _run_fasttree, _run_raxml_ng,
+            _parse_raxml_log)
         from Virus_Platform_Core.utils import iter_fasta
 
         prog('read', 0.05, '读取与筛选序列')
         recs, seen = [], {}
         for h, s in iter_fasta(seqs_fa):
-            name = _short(h, len(recs) + 1)
-            if name in seen:
-                seen[name] += 1
-                name = f'{name}_{seen[name]}'
-            else:
-                seen[name] = 0
+            name = _dedup_name(_short(h, len(recs) + 1), seen)
             recs.append((name, s.upper()))
         if len(recs) < 2:
             raise RuntimeError('FASTA 中少于 2 条序列，无法建树')
@@ -1372,18 +1666,46 @@ def _tool_job_quicktree(ctx):
             logger.log('aligned=True：输入视为已完成的多序列比对，'
                        '直接建树（不重复 MAFFT）')
 
-        prog('tree', 0.75, 'NJ 建树' if method == 'nj' else 'FastTree 建树')
-        tree_name = 'nj.nwk' if method == 'nj' else 'tree.nwk'
-        if method == 'nj':
+        method_used = method
+        tree_name = 'nj.nwk' if method_used == 'nj' else 'tree.nwk'
+        if method_used == 'raxml-ng' and len(recs) < 4:
+            method_used = 'fasttree'
+            logger.log('仅 %d 条序列（RAxML-NG 自举要求 ≥4 条），'
+                       '自动降级 FastTree' % len(recs), 'WARN')
+        prog('tree', 0.75, {'nj': 'NJ 建树',
+                            'fasttree': 'FastTree 建树',
+                            'raxml-ng': 'RAxML-NG 建树（较慢）'}.get(
+                                method_used, '建树'))
+        tree_extra = {}
+        if method_used == 'raxml-ng':
+            try:
+                _run_raxml_ng(aln, os.path.join(ctx.run_dir, 'raxml'),
+                              threads=ctx.threads, logger=logger,
+                              model='GTR+G')
+                tree_name = os.path.join('raxml', 'raxml.raxml.support')
+                tree_extra = _parse_raxml_log(
+                    os.path.join(ctx.run_dir, 'raxml'))
+            except Exception as e:
+                method_used = 'fasttree'
+                tree_name = 'tree.nwk'
+                logger.log('RAxML-NG 建树失败(%s)，降级为 FastTree 建树' % e,
+                           'WARN')
+        if method_used == 'nj':
             _run_nj(aln, os.path.join(ctx.run_dir, tree_name), logger=logger)
-        else:
+        elif method_used == 'fasttree':
+            # raxml-ng 成功时上面已出树，不能再落到 FastTree 覆盖
             _run_fasttree(aln, os.path.join(ctx.run_dir, tree_name),
                           logger=logger)
 
         prog('done', 1.0, '完成')
         logger.close()
-        return {'n_seqs': len(recs), 'method': method, 'tree': tree_name,
-                'aligned': aligned}
+        result = {'n_seqs': len(recs), 'method': method,
+                  'method_used': method_used, 'tree': tree_name,
+                  'aligned': aligned}
+        if method_used != method:
+            result['downgrade'] = '%s→%s' % (method, method_used)
+        result.update(tree_extra)
+        return result
     return job
 
 
@@ -1391,9 +1713,10 @@ def _tool_job_align(ctx):
     """序列比对（独立模块）：MAFFT（auto/L-INS-i/fast）→ trimAl 清剪。
 
     输入 FASTA（核酸或蛋白，自动判别；≥2 条）。可选 seqs_extra：
-    第二个 FASTA 文件，与 seqs 合并后一起参与比对（同名序列自动加 _2 后缀）。
-    产物：input.fasta / aln.fasta / aln.trim.fasta（trimAl 关闭时无）/
-    summary.json，可在「比对查看器」彩色浏览与编辑。
+    第二个 FASTA 文件，与 seqs 合并后一起参与比对（同名序列防碰撞重命名，
+    `A`→`A_1`，且保证候选名未被占用）。
+    产物：input.fasta / aln.fasta / aln.trim.fasta（trimAl 关闭时无），
+    可在「比对查看器」彩色浏览与编辑（此前文档误写会产 summary.json，实际无）。
     """
     from Virus_Platform_Core.utils import iter_fasta, write_fasta_record
     seqs_fa = ctx.req('seqs', '序列 FASTA')
@@ -1418,11 +1741,7 @@ def _tool_job_align(ctx):
                 name = re.split(r'[\s|]', (h or '').strip())[0][:60] or \
                     f'seq{len(recs) + 1}'
                 name = re.sub(r'[^A-Za-z0-9_\-.]', '_', name)
-                if name in seen:
-                    seen[name] += 1
-                    name = f'{name}_{seen[name]}'
-                else:
-                    seen[name] = 0
+                name = _dedup_name(name, seen)
                 recs.append((name, s.upper()))
         if seqs_extra:
             logger.log(f'额外序列文件已合并: {os.path.basename(seqs_extra)}'
@@ -1444,9 +1763,11 @@ def _tool_job_align(ctx):
         aln_used = aln
         if trimal != 'none':
             prog('trim', 0.7, f'trimAl 清剪（{trimal}）')
+            # method 透传（2026-11-03）：此前 gappyout/strict 选项被静默
+            # 忽略、一律跑 automated1（审计发现：schema/UI 宣传未实现能力）。
             aln_used, trim_info = _run_trimal(
                 aln, os.path.join(ctx.run_dir, 'aln.trim.fasta'),
-                logger=logger)
+                logger=logger, method=trimal)
         prog('done', 1.0, '完成')
         logger.close()
         return {'n_seqs': len(recs), 'seqtype': seqtype, 'strategy': strategy,
@@ -1463,7 +1784,6 @@ def _tool_job_sdt(ctx):
     seqtype='auto' 自动判别核酸/蛋白（MMPV 双轨口径），蛋白按 AA 同一性。"""
     seqs_fa = ctx.req('seqs', '序列 FASTA')
     max_n = max(3, min(int(ctx.p.get('max_n') or 30), 200))
-    orient = bool(ctx.p.get('orient', True))
     seqtype = (ctx.p.get('seqtype') or 'auto').strip().lower()
     if seqtype not in ('auto', 'nt', 'aa'):
         seqtype = 'auto'
@@ -1471,7 +1791,10 @@ def _tool_job_sdt(ctx):
     if palette not in ('sdt', 'cividis', 'viridis', 'RdYlBu', 'Spectral',
                        'YlGnBu', 'coolwarm', 'magma'):
         palette = 'sdt'
-    aligned = bool(ctx.p.get('aligned'))
+    # bool 字符串解析（2026-11-03）：bool('0') 是 True，MCP 透传的
+    # "aligned":"0"/"false" 会被旧 bool() 当成 True（审计 P0）。
+    aligned = _truthy(ctx.p.get('aligned'))
+    orient = _truthy(ctx.p.get('orient', True))
 
     def job(log, prog, cancel):
         logger = TaskLogger(callback=log)
@@ -1500,7 +1823,7 @@ def _tool_job_identity(ctx):
     if palette not in ('sdt', 'cividis', 'viridis', 'RdYlBu', 'Spectral',
                        'YlGnBu', 'coolwarm', 'magma'):
         palette = 'sdt'
-    aligned = bool(ctx.p.get('aligned'))
+    aligned = _truthy(ctx.p.get('aligned'))
 
     def job(log, prog, cancel):
         logger = TaskLogger(callback=log)
@@ -1708,6 +2031,9 @@ def _tool_job_rdp(ctx):
                 'major': e['major_parent'], 'minor': e['minor_parent'],
                 'start': e['bp_start'], 'end': e['bp_end'],
                 'methods': sig, 'n_methods': e['n_methods'],
+                # 逐方法 p 值一并落表（2026-11-03）：卡描述写「逐方法 p 值」
+                # 但结果表此前只有方法名 + 最小 p（审计 P2-13）。
+                'method_p': dict(e['methods']),
                 'pvalue': (min(e['methods'].values())
                            if e['methods'] else None),
                 'support': None,
@@ -1724,15 +2050,10 @@ def _tool_job_rdp(ctx):
                     ','.join(e['methods']),
                     '' if e['pvalue'] is None else f"{e['pvalue']:.3g}",
                 ]) + '\n')
-        # events.json 是前端结果表的数据源，须带齐摘要字段
-        # （前端读 d.n_seqs / d.aln_len / d.variable / d.events / d.qc）
-        with open(os.path.join(out_dir, 'events.json'), 'w',
-                  encoding='utf-8') as f:
-            json.dump({'engine': 'rdp5', 'n_seqs': n_seqs,
-                       'aln_len': aln_len, 'variable': n_var,
-                       'n_events': len(evs), 'events': evs,
-                       'qc': _qc_brief(qc)},
-                      f, ensure_ascii=False, indent=1)
+        # events.json（前端结果表的数据源）改为在 gene_map/note 就绪后统一
+        # 写出（2026-11-03）：前端 loadRdpResult 读 d.note 与 d.gene_map，
+        # 旧实现只把它们写进 summary.json → 基因轨道永远不显示、重建说明
+        # 不展示（审计 P1-3 运行时影响面）。
         # summary.json 的 input 是 /api/tool/rdp_masked 回读原比对的依据：
         # 必须记 **RDP5 实际吃到的那份比对**（预筛后的 clean.fasta），
         # 否则掩蔽坐标与事件坐标对不上。原始输入另存 source_input 备查。
@@ -1746,14 +2067,19 @@ def _tool_job_rdp(ctx):
             rdp_note = ('断点分布由平台按检出事件的断点重建（RDP5 对含'
                         '未鉴定亲本 Unknown 的事件不产出断点分布）')
         # 基因图谱（2026-10-12 增，可选）：RDP5CL 命令行不产出 ORFCoords，
-        # 由用户给 Rgrapher 风格 CSV（Gene.symbol,Start,Stop，参考序列
-        # nt 坐标），经比对参考行的 gap 轮廓映射到比对坐标，前端画条带。
+        # 由用户给参考序列注释——Rgrapher 风格 CSV（Gene.symbol,Start,Stop）
+        # 或 GenBank 文件（直接取 CDS 特征，免手工整理）；经比对参考行的
+        # gap 轮廓映射到比对坐标，供前端条带与断点分布图的基因轨道。
         gene_map = None
         orf_in = (ctx.p.get('orf_csv') or '').strip()
         if orf_in:
             try:
-                gene_map = _r5.orf_csv_to_aln_map(
-                    orf_in, aln_used, qc_ref or None)
+                if orf_in.lower().endswith(('.gbk', '.gb', '.genbank', '.gbff')):
+                    gene_map = _r5.gbk_cds_to_aln_map(
+                        orf_in, aln_used, qc_ref or None)
+                else:
+                    gene_map = _r5.orf_csv_to_aln_map(
+                        orf_in, aln_used, qc_ref or None)
                 with open(os.path.join(out_dir, 'gene_map.json'), 'w',
                           encoding='utf-8') as f:
                     json.dump(gene_map, f, ensure_ascii=False, indent=1)
@@ -1776,6 +2102,18 @@ def _tool_job_rdp(ctx):
             summary['gene_map'] = gene_map
         if rdp_note:
             summary['note'] = rdp_note
+        # events.json 是前端结果表的数据源，须带齐摘要字段；2026-11-03 起
+        # 还带 note / gene_map（此前只进 summary.json → 前端基因轨道与
+        # 重建说明永远不显示，审计 P1-3 运行时实锤）。
+        with open(os.path.join(out_dir, 'events.json'), 'w',
+                  encoding='utf-8') as f:
+            json.dump({'engine': 'rdp5', 'n_seqs': n_seqs,
+                       'aln_len': aln_len, 'variable': n_var,
+                       'n_events': len(evs), 'events': evs,
+                       'qc': _qc_brief(qc),
+                       'note': rdp_note,
+                       'gene_map': gene_map},
+                      f, ensure_ascii=False, indent=1)
         with open(os.path.join(out_dir, 'summary.json'), 'w',
                   encoding='utf-8') as f:
             json.dump(summary, f, ensure_ascii=False, indent=1)
@@ -2250,7 +2588,7 @@ def _tool_job_crispr(ctx):
             'near_fasta': (ctx.p.get('near_fasta') or '').strip(),
             'threads': ctx.threads or 0,
         }
-        if params['amp_mode'] not in ('RPA', 'PCR'):
+        if params['amp_mode'] not in ('RPA', 'PCR', 'LAMP'):
             params['amp_mode'] = 'RPA'
         if params['profile'] not in ('strict', 'relaxed'):
             params['profile'] = 'strict'
@@ -2264,17 +2602,12 @@ def _tool_job_crispr(ctx):
     return job
 
 
-def _tool_job_conan(ctx):
-    """CONAN-SWIFT（Cas3 / I 型 I-E）crRNA 设计（引擎 conan_design.py）：
+def _tool_job_lamp(ctx):
+    """LAMP 引物组设计（引擎 Virus_Platform_Core/lamp_design.py）：
 
-    多分离物目标 FASTA（可多分体，header 含 RNA1/S2 等标签自动分组）
-    + 可选负组 FASTA → 目标+负组合并 MAFFT → AAG（3nt PAM）+ 32nt
-    spacer 双链扫描 → 逐候选同源位点核查：目标规则（PAM 保留 + 种子
-    有效匹配 + 非种子错配 ≤ max）/ 负组规则（PAM 已变 且 种子有效错配
-    = 背景干净，双双保留 = leak）→ 过滤（末端 margin / GC 区间 / 种子
-    同碱基 run）→ 评分排序。产物落 run_dir/conan/。与 t-crispr
-    （Cas12a/Cas13a）互不覆盖：评分模型与输出形态不同，规则来源与
-    许可口径见 conan_design 模块头注释。
+    多分离物目标 FASTA（可多分体）→ MAFFT 共识 → 分段顶部候选枚举下
+    F3/F2/F1/B1/B2/B3 六引物组装（间距/Tm/GC 约束)+ 可选 LF/LB 环引物
+    → all-pairs 二聚体快筛 + 发夹复核 → 评分排序。产物落 run_dir/lamp/。
     """
     targets = ctx.req('input', '目标 FASTA')
 
@@ -2293,33 +2626,53 @@ def _tool_job_conan(ctx):
         return v
 
     def job(log, prog, cancel):
-        from Virus_Platform_Core import conan_design as cnd
+        from Virus_Platform_Core import lamp_design as ld
         params = {
-            'negative': (ctx.p.get('negative') or '').strip(),
-            'pam': (ctx.p.get('pam') or '').strip().upper() or None,
-            # 以下默认与引擎常量一致（32/8/'6'/4/150/3），表单缺省同值
-            'spacer_len': _int_param('spacer_len', 32, 24, 36),
-            'seed_len': _int_param('seed_len', 8, 4, 12),
-            'ignored': (ctx.p.get('ignored') or '6').strip(),
-            'max_nonseed_mm': _int_param('max_nonseed_mm', 4, 0, 36),
-            'terminal_margin': _int_param('terminal_margin', 150, 0, 2000),
-            'exclude_terminal': ctx.p.get('exclude_terminal', '1'),
-            'select_gc': ctx.p.get('select_gc', '1'),
-            'gc_min': _int_param('gc_min', 35, 0, 100),
-            'gc_max': _int_param('gc_max', 65, 0, 100),
-            'exclude_homopolymer': ctx.p.get('exclude_homopolymer', '1'),
-            'homopolymer': _int_param('homopolymer', 3, 2, 12),
+            'product_min': _int_param('product_min', 120, 80, 250),
+            'product_max': _int_param('product_max', 180, 100, 300),
+            'use_loop': '0' if str(ctx.p.get('use_loop', '1')).lower()
+            in ('0', 'false', 'no') else '1',
+            'cons_min': float(ctx.p.get('cons_min') or 0.85),
+            'gc_min': ctx.p.get('gc_min'),
+            'gc_max': ctx.p.get('gc_max'),
+            'tm_offset': ctx.p.get('tm_offset') or '',
             'group_by_segment': ctx.p.get('group_by_segment', '1'),
             'top_n': _int_param('top_n', 20, 1, 200),
             'threads': ctx.threads or 0,
         }
         try:
-            summary, _report = cnd.run_chain(targets, params, ctx.run_dir,
-                                             log, prog, cancel)
-        except cnd.CrisprDesignError as e:
+            summary, _report = ld.run_chain(targets, params, ctx.run_dir,
+                                            log, prog, cancel)
+        except ld.CrisprDesignError as e:
             raise RuntimeError(str(e))
         return summary
     return job
+
+
+_RTT_DATE_LIKE = re.compile(
+    r'^(date|collection_date|collection date|collectiondate|'
+    r'sampling_date|sampling date|collect_date|decimal_date|'
+    r'release_date|release date|year|decimal_year|采样日期|'
+    r'采集日期|日期|年份)$', re.I)
+# 按优先级分组：date 类 > year 类 > 其余日期形列名。不能按表头顺序取第一个
+# 命中——`year` 排在 `date` 前面时会把真正的采样日期丢掉。
+_RTT_DATE_PRIORITY = (
+    ('date', 'collection_date', 'collection date', 'collectiondate',
+     'sampling_date', 'sampling date', 'collect_date', 'decimal_date',
+     'release_date', 'release date', '采样日期', '采集日期', '日期'),
+    ('year', 'decimal_year', '年份'),
+)
+
+
+def _pick_rtt_date_trait(header):
+    """从元数据表头挑 RTT 的日期列（按优先级，不看列序）。"""
+    by_lower = {(h or '').strip().lower(): h for h in (header or [])}
+    for group in _RTT_DATE_PRIORITY:
+        for name in group:
+            if name in by_lower:
+                return by_lower[name]
+    return next((h for h in (header or [])
+                 if _RTT_DATE_LIKE.match((h or '').strip())), 'year')
 
 
 def _tool_job_rtt(ctx):
@@ -2331,7 +2684,19 @@ def _tool_job_rtt(ctx):
     """
     inp = ctx.req('input', '比对 FASTA')
     meta = ctx.req('meta', '元数据 CSV')
-    trait = (ctx.p.get('date_trait') or 'year').strip() or 'year'
+    # 日期列默认值（2026-11-03）：旧实现写死 'year'，而 pdprep 标准数据集
+    # 的列名是 `date` —— 标准数据直喂必失败（模拟实测实锤）。现在提交时
+    # 扫一眼表头：显式 date_trait > date > year > 第一个日期形列名。
+    trait = (ctx.p.get('date_trait') or '').strip()
+    if not trait:
+        import csv as _csv
+        try:
+            with open(meta, encoding='utf-8-sig', errors='replace',
+                      newline='') as _f:
+                _hdr = next(_csv.reader(_f), [])
+        except Exception:
+            _hdr = []
+        trait = _pick_rtt_date_trait(_hdr)
     method = (ctx.p.get('method') or 'nj').strip().lower()
     if method not in ('nj', 'fasttree'):
         method = 'nj'
@@ -2390,6 +2755,10 @@ def _tool_job_rtt(ctx):
         # 原实现直接丢弃：前端只看到一个斜率数字，方法学风险无迹可寻。
         # 合并进 summary 并逐条写任务日志。
         warns = list(res.get('warnings') or [])
+        # RTT 是把**日期列**当 trait 传给 analyze（共用一次建树），analyze
+        # 的区划类告警在这里全是噪音（日期值不是区划），滤掉（2026-11-03，
+        # 此前每跑一次必产「N 个各不相同的区划」假告警——模拟实测实锤）。
+        warns = [w for w in warns if '区划' not in w]
         for w in warns:
             log(f'[WARN] {w}')
         summary = {'tool': 'rtt', 'slope': rtt['slope'],
@@ -3368,6 +3737,29 @@ def _phylodyn_resume(from_run, seq_len=None):
               'treetime', 'timetree'):
         if cr.get(k) is not None:
             clock[k] = cr[k]
+    # LTT 谱系-时间曲线（2026-11-06 随 ⚡ 一键分析接入）：同样从上一轮报告带
+    # 过来；老运行目录（升级前跑的）没有该键但 ltt_curve.tsv 在时现场补算，
+    # 口径与 stage_clock 的 LTT 块一致（有效日期 ≥3 → 日历年轴）。
+    if cr.get('ltt') is not None:
+        clock['ltt'] = cr['ltt']
+    elif clock['outputs'].get('timetree_nwk'):
+        try:
+            from Virus_Platform_Core import phylodyn_trees as _pt
+            _dates = prep['outputs'].get('dates')
+            _lt = _pt.ltt_from_tree(
+                clock['outputs']['timetree_nwk'],
+                meta_path=_dates if _dates else None,
+                out_dir=os.path.join(root, 'clock'))
+            _lt['ok'] = True
+            _lt['curve_file_abs'] = os.path.join(
+                root, 'clock', _lt.get('curve_file') or '')
+            clock['ltt'] = _lt
+            clock.setdefault('warnings', []).append(
+                'LTT 由上一轮时间树现场补算（升级前老运行目录）')
+        except Exception as _e:         # 补算失败要说出来，不许静默留空
+            clock.setdefault('warnings', []).append(
+                'LTT 未能从上一轮产物重建：%s: %s'
+                % (type(_e).__name__, _e))
     # 时间树坐标对象：老运行目录的 clock_report.json 里没有这个键（本轮才加），
     # 但接口产物 `clock/timetree.nwk` + `prep/dates.csv` 都在 —— 现场补算一份，
     # 免得续跑出来的面板"上一轮明明定过年却画不出时间树"。
@@ -3480,7 +3872,14 @@ def _tool_job_phylodyn(ctx):
                                '它可能没跑到 A0，或不是时间与地理推断的运行目录'
                                % (from_run, _rel))
 
-    inp = ctx.req('input', '比对 FASTA')
+    # input 校验（2026-11-03 放宽）：旧实现无条件必填，但 stage 模式接续
+    # 上一轮（from_run）时多数阶段不需要比对 FASTA（审计 P2-10）。
+    # pipeline 模式仍必填（A0 必须吃比对）。
+    _from_run_pd = (ctx.p.get('from_run') or '').strip()
+    if (ctx.p.get('mode') or 'pipeline').strip() == 'stage' and _from_run_pd:
+        inp = (ctx.p.get('input') or '').strip() or None
+    else:
+        inp = ctx.req('input', '比对 FASTA')
     meta = ctx.opt('meta')
     tree = ctx.opt('tree')
     rename_map = (ctx.opt('rename_map') or ctx.p.get('rename_map') or '').strip()
@@ -3489,7 +3888,11 @@ def _tool_job_phylodyn(ctx):
     # 不给时引擎用内置近似质心兜底，缺坐标的区划由引擎显式列进 coord_missing。
     coord_table = ctx.opt('coord_table')
 
-    trait = (ctx.p.get('trait') or 'region').strip() or 'region'
+    # trait 透传（2026-11-03）：不在这里预填 'region' —— 留空时 A0 自动识别
+    # 区划列，A2 消费 A0 的识别结果（states.csv 列名与 --attribute 才会一致）。
+    # 旧实现在这层预填 'region'，A2 接线修复（消费 prep['trait']）在 kw 恒有值
+    # 时永远走不到——12seq 重放抓到后补的这刀。
+    trait = (ctx.p.get('trait') or '').strip() or None
     date_col = (ctx.p.get('date_col') or '').strip() or None
     date_trait = (ctx.p.get('date_trait') or '').strip() or None
     seq_len = _phylodyn_int(ctx.p.get('seq_len'), 1, 20000000, None)
@@ -3513,6 +3916,10 @@ def _tool_job_phylodyn(ctx):
 
     do_drt = _phylodyn_bool(ctx.p.get('drt'), True)
     drt_perm = _phylodyn_int(ctx.p.get('drt_perm'), 20, 2000, 200)
+
+    # LTT 谱系-时间曲线（对齐 VirPhyKit「TreeDater-LTT」模块，默认开；
+    # 免 MCMC、零子进程——由 A1 时间树 + 日期直接算，失败不拖垮主链）
+    do_ltt = _phylodyn_bool(ctx.p.get('ltt'), True)
 
     # 固定分子钟速率（慢演化病原兜底，对齐 phymap-workflow 的 treetime_clock_rate）。
     # ⚠️ **刻意不用 `_phylodyn_float`**：它对解析失败是**静默回退默认值** ——
@@ -3588,6 +3995,7 @@ def _tool_job_phylodyn(ctx):
         'seq_len': seq_len, 'methods': list(methods), 'reroot': reroot,
         'keep_root': keep_root, 'relax': list(relax) if relax else None,
         'drt': do_drt, 'drt_perm': drt_perm,
+        'ltt': do_ltt,
         'clock_rate': clock_rate,
         'prune': do_prune, 'prune_method': prune_method,
         'prune_date_resolution': prune_res, 'prune_max_reps': prune_max_reps,
@@ -3603,6 +4011,7 @@ def _tool_job_phylodyn(ctx):
         trait=trait, date_col=date_col, date_trait=date_trait,
         methods=methods, relax=relax, reroot=reroot or 'least-squares',
         keep_root=keep_root, do_drt=do_drt, drt_perm=drt_perm, drt_seed=42,
+        ltt=do_ltt,
         clock_rate=clock_rate,
         prune=do_prune, prune_method=prune_method,
         prune_date_resolution=prune_res, prune_max_reps=prune_max_reps,
@@ -3621,6 +4030,12 @@ def _tool_job_phylodyn(ctx):
         logger = TaskLogger(callback=log)
         out_dir = ctx.run_dir
         started = time.time()
+        # divergence_tree 只在「stage 模式且不含 clock」时被消费
+        # （phylodyn_local.pipeline 的口径）；pipeline 模式给了也用不上，
+        # 必须明说而不是静默忽略（审计 P2-11）。
+        if div_tree and 'clock' in stages:
+            log('[WARN] divergence_tree 只对「stage 模式且不含 clock 阶段」'
+                '生效 —— pipeline 模式自带 A1 定年，本轮忽略该参数')
         # 进度折算用的阶段清单：续跑时会被换成"本次真正要跑的"那几个
         prog_stages = list(stages)
         # 进度**只增不减**：extras（homoplasy）与 summary 跑在 A5 之后，
@@ -3815,6 +4230,9 @@ def _tool_job_phylodyn(ctx):
                 'rtt_fit': cl.get('rtt_fit'),
                 'rtt_points': cl.get('rtt_points') or [],
                 'drt': cl.get('drt'),
+                # LTT 谱系-时间曲线（对齐 VirPhyKit TreeDater-LTT，免 MCMC 口径）：
+                # 曲线点/斜率/横轴口径随 summary 走，前端 pdRenderClock 画图
+                'ltt': cl.get('ltt'),
                 'tt_env': cl.get('tt_env'),
             },
             'phylogeo': {
@@ -3882,6 +4300,14 @@ def _tool_job_phylodyn(ctx):
             log('时间信号 DRT：p=%s → %s'
                 % (drt.get('p_value'),
                    '通过' if drt.get('passed') else '**不通过（不得作定年结论引用）**'))
+        _ltt = cl.get('ltt') or {}
+        if _ltt.get('ok'):
+            _sl = _ltt.get('log_linear_slope')
+            log('LTT 谱系-时间曲线：%d 叶，横轴=%s%s（对齐 VirPhyKit '
+                'TreeDater-LTT 免 MCMC 口径；斜率≈净多样化率，非贝叶斯）'
+                % (_ltt.get('n_tips') or 0,
+                   '日历年' if _ltt.get('axis') == 'calendar_year' else '遗传距离',
+                   ('，log N~t 斜率 ≈ %.4g /年' % _sl) if _sl is not None else ''))
         for s in clock_stats:
             if s.get('suspect'):
                 log('[WARN] %s 的速率/tMRCA 被闸门标为可疑：%s'
@@ -3895,9 +4321,16 @@ def _tool_job_phylodyn(ctx):
                     '%s %.1f%%' % (k, 100 * v)
                     for k, v in sorted(sb['shares'].items(),
                                        key=lambda x: -x[1])))
-                log('  采样偏倚校正：%s'
-                    % ('已按系数 %.4g 校正' % sb['factor'] if sb.get('corrected')
-                       else '**未校正**（方向置信度会虚高）'))
+                # factor 兜底浮点化（2026-11-03）：上游给过字符串时
+                # `'%.4g' % '1.0'` 会 TypeError —— 全链阶段全 ✓ 后任务仍
+                # 失败（模拟实测实锤）。转不动就按未校正处理并如实展示原值。
+                try:
+                    _fac = float(sb['factor'])
+                    _fac_txt = '已按系数 %.4g 校正' % _fac
+                except (TypeError, ValueError):
+                    _fac_txt = ('**未校正**（校正系数格式异常：%r）'
+                                % (sb.get('factor'),))
+                log('  采样偏倚校正：%s' % _fac_txt)
         if co.get('ok'):
             log('天际线：%d 个网格点；上下界是 ±2 SD 近似区间，'
                 '**不是**贝叶斯 95%% HPD（正式带请走轨道 B 的 BEAST BSP）'
@@ -3919,4 +4352,118 @@ def _tool_job_phylodyn(ctx):
         logger.close()
         return summ
 
+    return job
+
+
+def _tool_job_cmpchain(ctx):
+    """⚡ 一键分析（cmpchain）：参考集获取 → CDS/PEP+保守基因提取 → MAFFT+trimAl
+    比对 → 建树（基因组树 + 保守基因树）→ SDT 同一性矩阵。
+
+    输入三选一：coll（已有 GenBank 集合名）/ ranks（ICTV 分类过滤 dict，
+    MCP 端可传 JSON 字符串）/ accessions（列表）。引擎契约见
+    compare_suite.run_pipeline（阶段间只认文件、取消只在阶段之间检查）；
+    产物 00_refs..04_sdt + run_summary.json / config.resolved.json 由引擎落盘，
+    本工厂只做参数收口与透传。
+    """
+    mode = (ctx.p.get('mode') or '').strip().lower() or None
+    if mode not in (None, 'collection', 'ictv', 'accessions'):
+        abort(400, '无效的输入模式（只认 collection / ictv / accessions，'
+                   '留空 = 自动推断）')
+    coll = (ctx.p.get('coll') or '').strip() or None
+    ranks = ctx.p.get('ranks') or None
+    if isinstance(ranks, str) and ranks.strip():
+        try:                                   # MCP 端可能传 JSON 字符串
+            ranks = json.loads(ranks)
+        except ValueError:
+            abort(400, 'ranks 需为 ICTV 分类过滤对象（如 {"Genus": "Potyvirus"}）'
+                       '或其 JSON 字符串')
+    if ranks is not None and not isinstance(ranks, dict):
+        abort(400, 'ranks 需为 ICTV 分类过滤对象（如 {"Genus": "Potyvirus"}）')
+    if ranks is not None and not ranks:
+        ranks = None
+    accessions = (ctx.p.get('accessions') or '').strip() or None
+    if not (coll or ranks or accessions):
+        abort(400, '比较基因组一键链需要输入（三选一）：GenBank 集合名（coll）/ '
+                   'ICTV 科属选择（ranks）/ accession 列表（accessions）')
+
+    db = (ctx.p.get('db') or 'plant').strip()
+    if db not in ('plant', 'ictv'):
+        abort(400, 'db 只认 plant / ictv')
+    genome = (ctx.p.get('genome') or 'complete').strip()
+    if genome not in ('complete', 'any'):
+        abort(400, 'genome 只认 complete / any')
+
+    def _int(v, lo, hi, default):
+        try:
+            n = int(v)
+        except (TypeError, ValueError):
+            return default
+        return max(lo, min(hi, n))
+
+    def _bool(v, default):
+        if v is None or v == '':
+            return default
+        if isinstance(v, bool):
+            return v
+        return str(v).strip().lower() in ('1', 'true', 'yes', 'on', '是')
+
+    limit = _int(ctx.p.get('limit'), 1, 10000, 200)
+    per_genus = _int(ctx.p.get('per_genus'), 0, 10000, 0)
+    per_species = _int(ctx.p.get('per_species'), 0, 10000, 0)
+    sdt_max_n = _int(ctx.p.get('sdt_max_n'), 3, 200, 30)
+
+    tree_tool = (ctx.p.get('tree_tool') or 'fasttree').strip().lower()
+    if tree_tool not in ('nj', 'fasttree', 'raxml-ng'):
+        abort(400, 'tree_tool 只认 nj / fasttree / raxml-ng')
+    mafft_strategy = (ctx.p.get('mafft_strategy') or 'auto').strip().lower()
+    if mafft_strategy not in ('auto', 'linsi', 'fast'):
+        abort(400, 'mafft_strategy 只认 auto / linsi / fast')
+    trimal = (ctx.p.get('trimal') or 'automated1').strip()
+    if trimal not in ('automated1', 'gappyout', 'strict', 'none'):
+        abort(400, 'trimal 只认 automated1 / gappyout / strict / none')
+
+    do_cds = _bool(ctx.p.get('do_cds'), True)
+    do_gene_cds = _bool(ctx.p.get('do_gene_cds'), True)
+    do_gene_pep = _bool(ctx.p.get('do_gene_pep'), True)
+    do_sdt = _bool(ctx.p.get('do_sdt'), True)
+
+    def job(log, prog, cancel):
+        logger = TaskLogger(callback=log)
+        from Virus_Platform_Core import module_deps
+        pre = module_deps.ensure_tools(cfg, 'cmpchain')
+        if pre['still_missing']:
+            logger.log('外部工具缺失: ' + '、'.join(pre['still_missing']),
+                       'WARN')
+            logger.close()
+            raise RuntimeError('外部工具缺失: '
+                               + '、'.join(pre['still_missing']))
+        from Virus_Platform_Core import compare_suite as cs
+        prog('refs', 0.02, '比较基因组一键链：启动（引擎 compare_suite.run_pipeline）')
+        res = cs.run_pipeline(
+            ctx.run_dir, mode=mode, coll=coll, ranks=ranks,
+            accessions=accessions, db=db, genome=genome, limit=limit,
+            per_genus=per_genus, per_species=per_species,
+            tree_tool=tree_tool, mafft_strategy=mafft_strategy,
+            trimal=trimal, sdt_max_n=sdt_max_n,
+            do_cds=do_cds, do_gene_cds=do_gene_cds, do_gene_pep=do_gene_pep,
+            do_sdt=do_sdt, threads=ctx.threads,
+            log=logger.log, progress=lambda st, f_, m: prog(st, f_, m),
+            cancel=cancel)
+        ok = bool(res.get('ok'))
+        if ok:
+            for k in cs.STAGE_ORDER:
+                st = (res.get('stages') or {}).get(k) or {}
+                for w in (st.get('warnings') or []):
+                    log('[WARN] %s: %s' % (k, w))
+            log('比较基因组一键链完成：%s' % (res.get('out_dir') or ctx.run_dir))
+        else:
+            log('[ERROR] 比较基因组一键链失败：%s' % (res.get('error') or '未知原因'))
+        logger.close()
+        return {'tool': 'cmpchain', 'ok': ok,
+                'error': None if ok else (res.get('error') or '未知原因'),
+                'out_dir': res.get('out_dir') or ctx.run_dir,
+                'stages': {k: {kk: vv for kk, vv in
+                               ((res.get('stages') or {}).get(k) or {}).items()
+                               if not isinstance(vv, (list, dict))}
+                           for k in cs.STAGE_ORDER}}
     return job

@@ -36,7 +36,12 @@ MODULE_TOOLS = {
     'fastp': ['fastp'],
     'hostremoval': ['seqkit', 'minibwa', 'kunpeng'],
     'orf': ['orfipy'],
-    'orfa': ['blastn', 'makeblastdb'],
+    # 2026-11-05 核对：功能注释默认 DIAMOND → MMseqs2 → BLASTp 自动降级
+    # （见 orf_annot.py 文件头）。嵌套列表 = 「任一组」：组内**任一**工具
+    # 可用即满足（旧声明 ['diamond'] 会把只有 MMseqs2/BLASTp 的机器硬拦在
+    # 预检外，与引擎降级链矛盾）。blastp 分支建库用的 makeblastdb 仍是
+    # 可选工具（只在选中 blastp 时需要，见 OPTIONAL_TOOLS）。
+    'orfa': [['diamond', 'mmseqs', 'blastp']],
     'genoplot': ['gbdraw'],
     'primer': ['blastn', 'makeblastdb'],
     'identify': ['kunpeng', 'seqkit'],
@@ -46,13 +51,20 @@ MODULE_TOOLS = {
     'identity': ['mafft'],
     'structcmp': ['mafft', 'trimal', 'fasttree'],
     'verify': ['blastn', 'diamond', 'mmseqs'],
+    # hom（单条深查，2026-11-03 自 t-hom 卡升级为正式工具）：引擎键与 verify
+    # 同源——blastn 走病毒参考核酸库，diamond 走 PVDB 蛋白库；mmseqs 只喂
+    # BFVD 可选域证据（库缺失 job 内自动降级，不失败）。
+    'hom': ['blastn', 'diamond', 'mmseqs'],
     # consensus（共识序列页）只有 minibwa 一个硬依赖：回贴由 minibwa 承担，
     # 共识调用是 Python 重写的 ViralConsensus 算法，既不用 samtools 也不用
     # viral_consensus（见 consensus.py 文件头）。
     'consensus': ['minibwa'],
-    # kvsuite / kvchain 的回贴与计数引擎同样是 minibwa（salmon 是可选定量
+    # kvsuite / kvchain 的回贴与计数引擎是 minibwa（salmon 是可选定量
     # 引擎，见 OPTIONAL_TOOLS）。这里曾写 minimap2 —— 2026-09-08 换引擎后
     # 忘了改，导致 preflight 会去要一个全平台都没有调用点的工具。
+    # 注意：变异段（bcftools/SnpEff）不在本键里 —— t-variant 与 t-kvsuite
+    # 共用 'kvsuite' 注册键，但本卡/管道阶段只跑 identify+filter；变异段的
+    # 工具走 CARD_TOOLS（展示口径）与 kvchain（一键全流程，真的会跑变异）。
     'kvsuite': ['minibwa', 'samtools', 'seqkit'],
     'align': ['mafft', 'trimal'],
     'quicktree': ['mafft', 'trimal', 'fasttree', 'raxml-ng'],
@@ -60,23 +72,32 @@ MODULE_TOOLS = {
     'phylogeo': ['lsd2'],
     'dsrna': ['dsRNAmax'],
     'crispr': ['blastn', 'makeblastdb'],
+    'lamp': [],   # 纯 Python 枚举 + ViennaRNA 可选
     'mirna': ['srna-target'],
     'phylodyn': ['lsd2'],          # rscript 是 TreeDater 可选分支，见 OPTIONAL_TOOLS
     'beastexport': [],
-    'conan': [],
     'rtt': [],
+    'loganfetch': [],   # 2026-11-05 代并行开发补声明（test_module_preflight 契约）
     'pdprep': [],
     # pdrename / pdgroup 已于 2026-09-21 归档（注册表已摘），不再登记
     # ── 一键链式（web/chains.py）：各自是上面若干工具页的组合 ─────
-    # virchain = ②提取序列组装 + ③组装后鉴定 + ④候选验证
+    # virchain = ①病毒组装 + ②病毒鉴定 + ③候选验证
+    # （2026-11-03 起 ① 识别提取已移出本链、归样本处理组；kunpeng/seqkit
+    #   仍保留 —— ② 病毒鉴定（contigs）用）
     'virchain': ['kunpeng', 'seqkit', 'spades', 'makeblastdb',
                  'blastn', 'diamond', 'mmseqs'],
-    # kvchain = kvsuite 全流程（鉴定→过滤→共识→绘图→变异）
-    'kvchain': ['minibwa', 'samtools', 'seqkit'],
-    # prepchain = 转换 → 质控 → 转 FASTA → 宿主去除
+    # kvchain = kvsuite 全流程（鉴定→过滤→共识→绘图→变异，固定 stage=all）
+    # 变异段工具与 kvsuite 同源，必须一并声明（2026-11-05 核对）。
+    'kvchain': ['minibwa', 'samtools', 'seqkit', 'bcftools', 'snpeff'],
+    # prepchain = 转换 → 质控 → 转 FASTA → 宿主去除 → 病毒序列提取（2026-11-03 并入第⑤步；kunpeng/seqkit 已在依赖里）
     'prepchain': ['seqkit', 'fastp', 'minibwa', 'kunpeng'],
-    # annochain = ORF 预测 → 功能注释 → 基因组图谱
-    'annochain': ['orfipy', 'blastn', 'makeblastdb', 'gbdraw'],
+    # annochain = ORF 预测（pyrodigal 默认；orfipy 历史兜底）→ 功能注释
+    # （orf_annot 默认 DIAMOND）→ 基因组图谱（gbdraw）。2026-11-05 核对：
+    # 旧声明的 blastn/makeblastdb 与注释实现不符，改为 diamond。
+    'annochain': ['orfipy', 'diamond', 'gbdraw'],
+    # cmpchain = 比较基因组一键链（参考获取→CDS/PEP+保守基因提取→
+    # MAFFT+trimAl→建树→SDT），引擎在 compare_suite.py
+    'cmpchain': ['mafft', 'trimal', 'fasttree', 'raxml-ng'],
     # ── 管道阶段（pipeline.STAGE_NAMES 的键）─────────────────────
     'subsample': ['seqkit'],
     'fq2fa': ['seqkit'],
@@ -88,6 +109,75 @@ MODULE_TOOLS = {
     'gbdraw': ['gbdraw'],
     'report': [],
 }
+
+# ----------------------------------------------------------------------
+# 独立页面（不在 TOOL_REGISTRY / STAGE_REGISTRY 里的导航页）→ 工具键
+# 只用于顶栏「本模块环境」的展示口径（selfcheck.scoped_status），
+# 不参与运行前 preflight（这些页面的入口各自做显式检查）。
+# 2026-11-05 核对：数据资源组的下载/查询/建库页此前完全没有声明，
+# 顶栏一直显示「外部工具 —」，与实际依赖不符。
+# ----------------------------------------------------------------------
+PAGE_TOOLS = {
+    # 公共数据下载：SRA .sra → FASTQ 用随包 sracha（缺了才回退 fasterq-dump，
+    # 后者不在探测表）；aria2c 见 OPTIONAL_TOOLS。
+    'download': ['sracha'],
+    # 基因组查询下载：NCBI datasets CLI（不可用时自动走 E-utilities 回退）
+    'refdata': ['datasets'],
+    # 数据库构建：宿主库 / 病毒库都走 kunpeng build_db
+    'build': ['kunpeng'],
+    # 数据提交：.sqn 生成硬依赖 table2asn（suvtk_submit 预检会点名）
+    'submit': ['table2asn'],
+}
+
+
+def _iter_groups(spec):
+    """把模块的工具声明拆成「组」：每一项要么是单键，要么是任一组。
+
+    MODULE_TOOLS 里嵌套的 list/tuple 表示「组内任一可用即可」（如 orfa 的
+    DIAMOND/MMseqs2/BLASTp 降级链）。所有消费方都走这里，避免各自猜结构。
+    """
+    for item in spec or ():
+        if isinstance(item, (list, tuple, set)):
+            group = [str(k) for k in item if k]
+            if group:
+                yield group
+        elif item:
+            yield [str(item)]
+
+
+def _flat_keys(spec):
+    """声明里的全部工具键（去重、保序）——供需要「逐键」的展示/守卫使用。"""
+    out = []
+    for group in _iter_groups(spec):
+        for k in group:
+            if k not in out:
+                out.append(k)
+    return out
+
+
+def tools_for(module):
+    """模块/页面的工具依赖（顶栏环境条口径：工具页 + 独立页面）。
+
+    「任一组」只返回组内首选引擎：顶栏按逐键探活展示，若把三个备选全列出来，
+    只有 MMseqs2 的机器会被误报成「缺 diamond、blastp」。预检是否放行由
+    missing_tools 按组判定，不受这里影响。
+    """
+    spec = MODULE_TOOLS.get(module) if module in MODULE_TOOLS \
+        else PAGE_TOOLS.get(module)
+    return [g[0] for g in _iter_groups(spec)]
+
+
+# 卡片专属工具（展示口径）：同一个注册键按 stage 分流时，注册键级的
+# MODULE_TOOLS 只能声明公共部分，卡片额外的依赖走这里。
+#   t-variant / t-kvsuite 共用 'kvsuite' 注册键，但只有变异卡需要
+#   bcftools（mpileup+call）与 SnpEff（缺任一变异段直接空结果）；
+#   放进 MODULE_TOOLS 会让 kvsuite 阶段（identify+filter）的 preflight
+#   错误地要求这两个工具。kvchain（一键全流程）真的会跑变异，已在
+#   MODULE_TOOLS['kvchain'] 里声明。
+CARD_TOOLS = {
+    't-variant': ['bcftools', 'snpeff'],
+}
+
 
 # 可选工具：缺了只降级对应子功能，不该阻断整个模块。
 # 与 MODULE_TOOLS 分开：那里是「没有就跑不了」，这里是「没有就少一个分支」。
@@ -102,8 +192,33 @@ OPTIONAL_TOOLS = {
         'gbdraw': 'gbdraw 引擎不可用，自动回退纯 Python 引擎 dna_features_viewer'
                   '（出图样式略简，功能不受影响）',
     },
+    'orfa': {
+        # mmseqs/blastp 已进 MODULE_TOOLS 的「任一组」，不再是可选降级项；
+        # 只剩 blastp 分支建库要用的 makeblastdb 仍按可选处理。
+        'makeblastdb': 'BLASTp 兜底分支无法建库（只影响选中 blastp 引擎时）',
+    },
+    'download': {
+        'aria2c': '多线程分段下载不可用，回退内置 HTTP 单线程（大文件慢一些）',
+    },
+    'assemble': {
+        'megahit': 'MEGAHIT 组装引擎不可用，只能用 SPAdes',
+    },
+    'virchain': {
+        'megahit': 'MEGAHIT 组装引擎不可用，一键分析只能用 SPAdes',
+    },
     'kvsuite': {
         'salmon': 'salmon 定量引擎不可用，需改用 minibwa 比对引擎',
+        'pandepth': '覆盖度/深度后端不可用：不产出比对 BAM 与深度表',
+        'strawberry-perl': 'SNPGenie 群体遗传学分支不可用（需 Perl 运行时）',
+        'snpgenie': 'SNPGenie 群体遗传学分支不可用',
+        'jre-snpeff': 'SnpEff 需要 Java 21+；随包 jre 缺失时回退系统 JDK/PATH',
+    },
+    'kvchain': {
+        'salmon': 'salmon 定量引擎不可用，需改用 minibwa 比对引擎',
+        'pandepth': '覆盖度/深度后端不可用：不产出比对 BAM 与深度表',
+        'strawberry-perl': 'SNPGenie 群体遗传学分支不可用（需 Perl 运行时）',
+        'snpgenie': 'SNPGenie 群体遗传学分支不可用',
+        'jre-snpeff': 'SnpEff 需要 Java 21+；随包 jre 缺失时回退系统 JDK/PATH',
     },
 }
 
@@ -163,10 +278,17 @@ def read_autofix_log():
 
 
 def missing_tools(cfg, module):
-    """模块当前缺哪些**必需**工具键（可选工具不计入，见 OPTIONAL_TOOLS）。"""
-    keys = MODULE_TOOLS.get(module, [])
+    """模块当前缺哪些**必需**工具键（可选工具不计入，见 OPTIONAL_TOOLS）。
+
+    「任一组」按组判定：组内任一可用即不报缺；整组都缺时把组内键全部
+    报出（错误文案才能点名 DIAMOND / MMseqs2 / BLASTp 三个备选）。
+    """
     st = cfg.tool_status()
-    return [k for k in keys if not st.get(k)]
+    missing = []
+    for group in _iter_groups(MODULE_TOOLS.get(module, [])):
+        if not any(st.get(k) for k in group):
+            missing.extend(k for k in group if k not in missing)
+    return missing
 
 
 def missing_optional(cfg, module):
@@ -258,6 +380,11 @@ def format_error(module, result):
     """
     lines = [f'模块「{module}」缺少必要外部工具：'
              + '、'.join(result['still_missing'])]
+    groups = [g for g in _iter_groups(MODULE_TOOLS.get(module, []))
+              if len(g) > 1]
+    if groups:
+        lines.append('  以下任一组内任一工具可用即可（引擎会自动降级）：'
+                     + '；'.join(' / '.join(g) for g in groups))
     for k, hint in result['hints'].items():
         lines.append(f'  · {k}：{hint}')
     if result['installed']:

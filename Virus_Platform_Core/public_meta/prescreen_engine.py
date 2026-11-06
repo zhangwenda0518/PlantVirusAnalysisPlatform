@@ -379,7 +379,9 @@ class GsaFetcher:
             cands = [self.cra_map[acc]]
         else:
             html = self._get(GSA_SEARCH.format(acc=acc))
-            cands = [c for c in sorted(set(re.findall(r"CRA\d{6}", html)))
+            # 2026-11-02：CRA 号不定长（历史 6 位，新号已出现 7 位），
+            # 按 5~8 位抓，具体候选仍由 GSA_CRA_NOISE 与下游校验收敛
+            cands = [c for c in sorted(set(re.findall(r"CRA\d{5,8}", html)))
                      if c not in GSA_CRA_NOISE]
         self._cra_cache[acc] = cands
         return cands

@@ -106,12 +106,19 @@ DEFAULT_STAGE_EST = {
     'report': ('plain', 30),
 }
 _GB_STAGES = {s for s, (k, _v) in DEFAULT_STAGE_EST.items() if k == 'gb'}
-PERF_FILE = os.path.join(DIRS['logs'], 'stage_perf.json')
+def _perf_file():
+    # 每次动态求值：apply_output_root 在运行时切换输出目录会原地重写
+    # DIRS['logs']（config.apply_output_root 文档即言「所有功能在运行时读取
+    # DIRS」），模块级常量会固化 import 时的旧值 —— 切换输出根后写
+    # stage_perf.json 就被越界守卫拦成「路径越界：E:\谷歌下载\logs\...」
+    # （2026-11-03 GQMIX 样品 fastp 阶段实测）。virus_ref / universal_ref
+    # 同类 DIRS 派生量均已动态重算，此处对齐。
+    return os.path.join(DIRS['logs'], 'stage_perf.json')
 
 
 def _load_stage_perf():
     try:
-        with safe_open(PERF_FILE) as f:
+        with safe_open(_perf_file()) as f:
             return json.load(f)
     except (OSError, ValueError):
         return {}
@@ -130,7 +137,7 @@ def _update_stage_perf(perf, stage, seconds, input_bytes):
         val = seconds if old is None else old * 0.6 + seconds * 0.4
         perf.setdefault(stage, {})['plain'] = round(val, 1)
     try:
-        with safe_open(PERF_FILE, 'wt') as f:
+        with safe_open(_perf_file(), 'wt') as f:
             json.dump(perf, f, ensure_ascii=False, indent=1)
     except OSError:
         pass
@@ -646,8 +653,8 @@ def _stage_verify(C):
     """③b 候选序列验证：kunpeng 初筛结果的证据判定。
 
     输入 03_assembly/viral_contigs.fasta + virus_classification.tsv，
-    双路证据（blastx 病毒蛋白库 + BFVD 病毒域）→ 四档判定。
-    unclassified 保留为新病毒候选池（不删除），但不进下游注释。
+    三路证据（blastx PVDB 蛋白库 + BFVD 病毒域 + PVDB CDD 结构域）→ 四档
+    判定。unclassified 保留为新病毒候选池（不删除），但不进下游注释。
     """
     st, logger = C.st, C.logger
     st.begin('verify')
@@ -657,9 +664,9 @@ def _stage_verify(C):
         raise RuntimeError('03_assembly 无 viral_contigs.fasta，请先完成 ③组装阶段')
     log_res_plan(logger, '③b 候选序列验证', threads=C.threads, mem_gb=2.0,
                  disk_gb=0.5,
-                 note="DIAMOND blastx vs 病毒蛋白库 + mmseqs2 vs BFVD；"
+                 note="DIAMOND blastx vs PVDB 蛋白库 + mmseqs2 vs BFVD/CDD；"
                       "耗时随候选数线性增长")
-    st.prog('verify', 0.05, '宿主筛选 → 长度分流 → 双路证据')
+    st.prog('verify', 0.05, '宿主筛选 → 长度分流 → 三路证据（blastx/BFVD/CDD）')
     from .verify import verify as run_verify
     vs = run_verify(C.sample_dir, vfa, host=C.verify_host,
                     methods=C.verify_methods, combine=C.verify_combine,
@@ -669,7 +676,7 @@ def _stage_verify(C):
     C.verify = vs
     # 未分类候选池的独立验证（审查 P1-3）：kunpeng 非 C / taxid≤0 的组装
     # contig 此前在 viral_contigs.fasta 生成时就被排除，根本到不了
-    # blastx/BFVD——"unclassified 候选池"只覆盖分类器已判定的候选，对参考
+    # blastx/BFVD/CDD——"unclassified 候选池"只覆盖分类器已判定的候选，对参考
     # 分类库差异大的新病毒会系统性漏检。这里对长度合格的未分类 contig 补
     # 一条**同证据**的独立验证通道（03b_verify_unclassified/），进入/排除
     # 数量与原因全部落摘要；产物不进下游注释，仅供新病毒候选复核。
@@ -687,7 +694,7 @@ def _stage_verify(C):
                 'calls': uvs.get('calls') or {},
                 'dir': '03b_verify_unclassified',
                 'note': 'kunpeng 未分类 contig（≥min_contig_len）的独立'
-                        '双路验证；不进下游注释，供新病毒候选复核',
+                        '同证据验证；不进下游注释，供新病毒候选复核',
             }
             if logger:
                 uc = uvs.get('calls') or {}
@@ -897,10 +904,17 @@ def _stage_report(C):
     try:
         from .report_kit import build_enhanced_report
         v2 = build_enhanced_report(C.sample_dir, logger=C.logger, force=True)
-        st.prog('report', 0.95, f"结论文档: {v2['html']}")
+        st.prog('report', 0.85, f"结论文档: {v2['html']}")
     except Exception as e:                       # noqa: BLE001 边界：不让 v2 拖垮 ⑩
         C.logger.log(f"[WARN] 增强报告(report_v2)生成失败，已跳过: "
                      f"{type(e).__name__}: {e}")
+    try:
+        # 模块结果页：每个阶段目录一份 results.html（失败不拖垮 ⑩）
+        from .report_kit import module_page
+        module_page.build_all_for_sample(C.sample_dir, logger=C.logger)
+        st.prog('report', 0.95, '模块结果页: 全阶段 results.html 已刷新')
+    except Exception as e:
+        C.logger.log(f"[WARN] 模块结果页生成失败，已跳过: {type(e).__name__}: {e}")
     st.prog('report', 1.0, f"报告: {rpt}")
     st.end('report')
 
@@ -1054,7 +1068,7 @@ def run_analysis(sample, r1, r2, stages, db_host=None, db_virus=None,
                  chunk_dir=None, fastp_dedup=False, do_fq2fa=True,
                  gbdraw_max=12, gbdraw_fasta=None, gbdraw_ann=None,
                  plot_engine='auto',
-                 verify_host='all', verify_methods=('blastx', 'bfvd'),
+                 verify_host='all', verify_methods=('blastx', 'bfvd', 'cdd'),
                  verify_combine='union',
                  logger=None, progress=None):
     """全流程编排。progress(stage, pct 0~1, msg[, eta_seconds]) 供 GUI 更新。
@@ -1281,8 +1295,9 @@ def run_analysis(sample, r1, r2, stages, db_host=None, db_virus=None,
     C.gbdraw_ann, C.plot_engine = gbdraw_ann, plot_engine
     # ③b 候选序列验证参数（宿主类群 / 证据方法 / 并集-交集）
     C.verify_host = verify_host
-    C.verify_methods = tuple(m for m in (verify_methods or ('blastx', 'bfvd'))
-                             if m in ('blastx', 'bfvd')) or ('blastx', 'bfvd')
+    C.verify_methods = tuple(
+        m for m in (verify_methods or ('blastx', 'bfvd', 'cdd'))
+        if m in ('blastx', 'bfvd', 'cdd')) or ('blastx', 'bfvd', 'cdd')
     C.verify_combine = verify_combine
     # 跨阶段产物
     C.cur_r1 = check_path(r1, must_exist=True)
@@ -1421,6 +1436,17 @@ def run_analysis(sample, r1, r2, stages, db_host=None, db_virus=None,
                     _anchor.stage_done(sample, key, time.time() - _st_t0)
             except Exception:
                 pass
+            # 模块结果页：阶段一完成就出该模块的 results.html（best-effort，
+            # 失败只记 WARN 不阻断流水线；指定 stage 只写目标页，兄弟页由
+            # 整轮结束时的全量补齐路径统一刷新）
+            try:
+                from .report_kit import module_page
+                module_page.build_stage_page(C.sample_dir, stage=key,
+                                             logger=logger)
+            except Exception as _me:
+                if logger:
+                    logger.log(f"[WARN] 模块结果页生成失败({key}): "
+                               f"{type(_me).__name__}: {_me}")
             _manifest_sync(_finished, 'running')
             if _bc:
                 try:
@@ -1542,7 +1568,11 @@ def _fresh_converted(sample_dir, cur_r1, cur_r2):
 
 
 def run_report_only(sample, logger=None, force=False):
-    """只重跑 ⑩：图表报告 + 结论文档（report_v2）一起刷新。"""
+    """只重跑 ⑩：图表报告 + 结论文档 + 模块结果页一起刷新。
+
+    force=False 时 report_v2 走输入未变更即复用的判断；图表报告与模块
+    结果页始终重建（成本低）。
+    """
     sample = _resolve_sample(sample)
     sample_dir = check_path(os.path.join(DIRS['results'], sample),
                             must_exist=True, in_platform=True)
@@ -1550,10 +1580,17 @@ def run_report_only(sample, logger=None, force=False):
     rpt = build_report(sample_dir, logger=logger)
     try:
         from .report_kit import build_enhanced_report
-        build_enhanced_report(sample_dir, logger=logger, force=True)
+        build_enhanced_report(sample_dir, logger=logger, force=bool(force))
     except Exception as e:                       # noqa: BLE001 边界：v2 失败不阻断
         if logger:
             logger.log(f"[WARN] 增强报告(report_v2)生成失败，已跳过: "
+                       f"{type(e).__name__}: {e}")
+    try:
+        from .report_kit import module_page
+        module_page.build_all_for_sample(sample_dir, logger=logger)
+    except Exception as e:
+        if logger:
+            logger.log(f"[WARN] 模块结果页生成失败，已跳过: "
                        f"{type(e).__name__}: {e}")
     return rpt
 
@@ -1610,8 +1647,8 @@ _MISSING_TOOL_MSG = {
                'dna_features_viewer)'),
     'orfa': ('未检测到 DIAMOND / MMseqs2 / blastp（任一即可）',
              'No DIAMOND / MMseqs2 / blastp found (any one suffices)'),
-    'verify': ('未检测到 DIAMOND / MMseqs2（验证需 blastx 与 BFVD）',
-               'No DIAMOND / MMseqs2 found (verify needs blastx + BFVD)'),
+    'verify': ('未检测到 DIAMOND / MMseqs2（验证需 blastx 与 BFVD/CDD）',
+               'No DIAMOND / MMseqs2 found (verify needs blastx + BFVD/CDD)'),
     'consensus': ('未检测到 minibwa（3rd/bin/），无法回贴 reads 生成共识序列',
                   'minibwa not found (3rd/bin/) — cannot align reads for '
                   'consensus calling'),
@@ -1831,7 +1868,8 @@ STAGE_OUTPUTS = {
     'host': ['kept_R1.fastq.gz', 'kept_R2.fastq.gz', 'stats.json'],
     'kvsuite': ['summary.json', 'filter/filtered.tsv',
                 'identify/all_viruses.summary.tsv'],
-    'assembly': ['contigs.filtered.fasta', 'virus_contigs.tsv',
+    'assembly': ['contigs.filtered.fasta', 'viral_contigs.fasta',
+                 'unclassified_contigs.fasta', 'virus_contigs.tsv',
                  'virus_classification.tsv', 'summary.json'],
     'verify': ['calls.tsv', 'summary.json'],
     'consensus': ['consensus.fa', 'coverage.tsv', 'variants.tsv', 'summary.json'],
@@ -1988,9 +2026,14 @@ def pipeline_overview(sample_dir, lang=None):
         else:
             status = 'ready' if deps_ok else 'blocked'
             summary_txt = ''
-        view = STAGE_VIEW.get(key)
-        view_ok = bool(view) and os.path.isfile(
-            os.path.join(sample_dir, dirname, view))
+        # 阶段卡「查看」优先指向模块结果页 results.html（整目录整理视图）；
+        # 老样品还没生成页面时回落到原来的单文件入口（STAGE_VIEW）。
+        view = 'results.html'
+        view_ok = os.path.isfile(os.path.join(sample_dir, dirname, view))
+        if not view_ok:
+            view = STAGE_VIEW.get(key)
+            view_ok = bool(view) and os.path.isfile(
+                os.path.join(sample_dir, dirname, view))
         card = {'stage': key, 'name': disp_name, 'dir': dirname,
                 'status': status, 'summary': summary_txt,
                 'view': (f'/api/samples/{os.path.basename(sample_dir)}'

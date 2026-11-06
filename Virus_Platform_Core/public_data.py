@@ -300,6 +300,11 @@ def _resolve_ddbj(acc):
       dra/fastq/<DRA前6>/<DRA>/<DRX>/<acc>.fastq.bz2        （单端）
       dra/fastq/<DRA前6>/<DRA>/<DRX>/<acc>_1/_2.fastq.bz2   （双端）
     DRA/DRX 号经 NCBI eutils 元数据解析（INSDC 三库元数据互通）。
+
+    2026-11-02 修：原来用 `DRA\\d{6}` / `DRX\\d{6}` 抓编号，新号是 7 位
+    （DRX1144321、DRR1175147 都已是 7 位），抓到 DRX114432 后目录必然 404，
+    用户看到的是「DDBJ 目录不可达: HTTP 404」。改成不定长 `\\d{5,9}`，并优先
+    取 <RUN> 自己的 <EXPERIMENT_REF> 号；列出目录失败时抛出的原因要能认出来。
     """
     import urllib.parse as _up
     term = _up.quote(acc)
@@ -310,16 +315,29 @@ def _resolve_ddbj(acc):
         raise ValueError(f'NCBI 元数据中未找到 {acc}（可能未公开）')
     xml = _http_get('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/'
                     f'efetch.fcgi?db=sra&id={m.group(1)}&rettype=xml')
-    dra = re.search(r'(DRA\d{6})', xml)
-    drx = re.search(r'(DRX\d{6})', xml)
-    if not (dra and drx):
-        raise ValueError(f'NCBI 元数据缺少 {acc} 的 DRA/DRX 号')
+    # 先在 <RUN> 自己那一段里找 EXPERIMENT_REF，拿不到再全文兜底
+    drx = ''
+    mrun = re.search(r'<RUN [^>]*accession="%s"' % re.escape(acc), xml)
+    if mrun:
+        mref = re.search(r'<EXPERIMENT_REF[^>]*accession="(DRX\d{5,9})"',
+                         xml[mrun.start():])
+        if mref:
+            drx = mref.group(1)
+    if not drx:
+        m = re.search(r'DRX\d{5,9}', xml)
+        if not m:
+            raise ValueError(f'NCBI 元数据缺少 {acc} 的 DRX 号')
+        drx = m.group(0)
+    m = re.search(r'DRA\d{5,9}', xml)
+    if not m:
+        raise ValueError(f'NCBI 元数据缺少 {acc} 的 DRA 号')
+    dra = m.group(0)
     base = ('https://ddbj.nig.ac.jp/public/ddbj_database/dra/fastq/'
-            f'{dra.group(1)[:6]}/{dra.group(1)}/{drx.group(1)}/')
+            f'{dra[:6]}/{dra}/{drx}/')
     try:
         idx = _http_get(base)
     except Exception as e:
-        raise ValueError(f'DDBJ 目录不可达: {e}') from e
+        raise ValueError(f'DDBJ 目录不可达（{dra}/{drx}）: {e}') from e
     names = sorted(set(re.findall(
         r'href="(' + re.escape(acc) + r'[^"/]*\.fastq\.bz2)"', idx)))
     if not names:
@@ -398,18 +416,37 @@ _ACC_RE_ENA = re.compile(r'[SED]RR\d+')
 _ACC_RE_CRR = re.compile(r'CRR\d+')
 
 
+def _sracha_fallback(acc, why):
+    """三库都解析不出来时的兜底：让 sracha 从 NCBI SRA 直接取。
+
+    INSDC 元数据互通，NCBI 有 run 记录就说明数据在 SRA 里（DRR/CRR 常见：
+    ENA 不镜像 DDBJ/NGDC 的原始文件，DDBJ 目录又可能还在生成）。原来这里
+    直接抛错，用户看到的是一句「run 可能不存在或未公开」，其实数据是有的。
+    不做静默替换：返回值里带 reason，调用方会把原因写进批次日志。
+    """
+    if not re.fullmatch(r'[SED]RR\d+', acc) or not sracha_path():
+        return None
+    return {'db': 'SRA(sracha)', 'organism': '', 'bio_sample': '',
+            'note': why,
+            'files': [{'url': '', 'sracha': True}]}
+
+
 def resolve_accession(acc):
     """单条 accession → {db, organism, files:[{url,bytes}]}；
     不支持的编号抛 ValueError（CRA 项目请先取得 CRR 运行号列表）。"""
     acc = str(acc).strip().upper()
     if _ACC_RE_ENA.fullmatch(acc):
-        if acc.startswith('DRR'):
-            # DRR 归 DDBJ 管理，ENA 通常无数据；先走 DDBJ，失败回退 ENA
+        errs = []
+        order = (_resolve_ddbj, _resolve_ena) if acc.startswith('DRR') else (_resolve_ena,)
+        for fn in order:
             try:
-                return _resolve_ddbj(acc)
-            except Exception:
-                return _resolve_ena(acc)
-        return _resolve_ena(acc)
+                return fn(acc)
+            except Exception as e:  # 逐级记录，报错时一次说清
+                errs.append(f'{fn.__name__.replace("_resolve_", "").upper()}: {e}')
+        fb = _sracha_fallback(acc, '；'.join(errs))
+        if fb:
+            return fb
+        raise ValueError(f'无法解析 {acc}（' + '；'.join(errs) + '）')
     if _ACC_RE_CRR.fullmatch(acc):
         return _resolve_ngdc(acc)
     raise ValueError(f'不支持的编号格式: {acc}（支持 SRR/ERR/DRR/CRR）')
@@ -567,8 +604,32 @@ def _retryable(fe):
 _TERMINAL_BATCH_STATES = ('completed', 'cancelled', 'failed', 'interrupted')
 
 
+class _BatchPaused(Exception):
+    """批次被暂停（内部信号）。
+
+    内置 HTTP 读循环用它中止当前文件：`.aria_part` 必须保留，恢复时按
+    Range 续传；worker 捕获后把该条目退回 pending（不算失败）。
+    """
+
+
+# 每个下载监听器只警告一次（进度回调高频，重复告警会刷屏；见 _call_listener）
+_LISTENER_WARNED = set()
+
+
+def _call_listener(fn, *args):
+    """调用下载监听器：异常记一次警告后放行，不再纯静默吞掉。"""
+    try:
+        fn(*args)
+    except Exception as e:
+        if id(fn) not in _LISTENER_WARNED:
+            _LISTENER_WARNED.add(id(fn))
+            logging.getLogger(__name__).warning(
+                '下载监听器 %s 异常（同源后续异常不再重复记录）: %s: %s',
+                getattr(fn, '__name__', fn), type(e).__name__, e)
+
+
 class DownloadManager:
-    """批量下载：文件队列 + N 并发 aria2c（内置 HTTP 回退）+ 进度状态。
+    """批量下载：文件队列 + 单 worker aria2c（内置 HTTP 回退）+ 进度状态。
 
     batch = {id, name, status, created, dir(已校验), n_files, done, failed,
              overall, files: [{acc, url, out, size, done_bytes, progress,
@@ -576,6 +637,12 @@ class DownloadManager:
     状态: resolving → downloading → (converting) → completed / failed /
           cancelled / interrupted
     """
+
+    # 2026-11-03 起批次间全局串行闸门：同一时间只允许一个批次在下载/转换
+    # （预筛分片等多批次提交也逐批排队；本机不支持并行批量）。放在类级——
+    # 单例语义 + 测试里 __new__ 裸对象也能拿到；RLock 让 _worker_loop 持闸
+    # 期间同线程内 _finalize→_convert_sras 复入不死锁。
+    dl_gate = threading.RLock()
 
     def __init__(self):
         self.lock = threading.RLock()
@@ -596,19 +663,13 @@ class DownloadManager:
                 self._listeners.append(fn)
             ids = list(self.batches.keys())
         for bid in ids:
-            try:
-                fn(bid)
-            except Exception:
-                pass
+            _call_listener(fn, bid)
 
     def _notify(self, bid):
         with self.lock:
             fns = list(self._listeners)
         for fn in fns:
-            try:
-                fn(bid)
-            except Exception:
-                pass
+            _call_listener(fn, bid)
 
     # ---- 下载速率（字节/秒，EMA 平滑）----
     # 设计要点：不依赖 aria2c 的输出格式。任何一路下载只要周期性更新
@@ -776,7 +837,9 @@ class DownloadManager:
         b = {'id': bid, 'name': _sanitize(name), 'status': 'resolving',
              'created': time.strftime('%Y-%m-%d %H:%M'),
              'started': time.time(), 'finished': None,
-             'concurrency': max(1, min(int(concurrency or 2), 4)),
+             # 2026-11-03 起固定 1：本机不支持并行批量，下载文件逐一进行
+             # （请求里的 concurrency 参数仅兼容保留，不再生效）
+             'concurrency': 1,
              'convert_sra': bool(convert_sra), 'dir': bdir,
              'files': [], 'runs': {}, 'error': '',
              'converting': False, 'convert_msg': ''}
@@ -897,16 +960,34 @@ class DownloadManager:
                          daemon=True, name=f'dl-{bid}').start()
 
     def _worker_loop(self, bid):
+        # 2026-11-03 起固定单 worker + 批次间全局串行：文件逐个下载，
+        # 多批次提交（预筛分片等）也逐批排队（本机不支持并行批量）。
+        # 排队不静默：进闸门先打 waiting 标记，snapshot 按先后算出
+        # 「第 N 批」给前端/任务中心显示「等待中」。
+        self._wait_mark(bid, True)
+        with self.dl_gate:
+            self._wait_mark(bid, False)
+            th = threading.Thread(target=self._worker, args=(bid,), daemon=True)
+            th.start()
+            th.join()
+            self._finalize(bid)
+
+    def _wait_mark(self, bid, on):
+        """打/清批次排队标记（进闸门前置 True，拿到闸门清 False）。
+
+        排队位次由 snapshot() 按 wait_since 现算，不在这里维护队列——
+        少一份要同步的状态，取消/暂停/删除时也不会留下僵尸排队条目。
+        """
         with self.lock:
             b = self.batches.get(bid)
-            conc = max(1, min(int((b or {}).get('concurrency', 2)), 4))
-        threads = [threading.Thread(target=self._worker, args=(bid,),
-                                    daemon=True) for _ in range(conc)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-        self._finalize(bid)
+            if not b:
+                return
+            if on:
+                b['waiting'] = True
+                b['wait_since'] = time.time()
+            else:
+                b.pop('waiting', None)
+                b.pop('wait_since', None)
 
     def _next_pending(self, b):
         with self.lock:
@@ -930,11 +1011,40 @@ class DownloadManager:
             self._blog(b, f'开始下载 {fe["acc"]} ({fe["url"]})')
             try:
                 self._download_file(b, fe)
+            except _BatchPaused:
+                # 纯 Python 回退路径的暂停信号：条目退回 pending（不算失败），
+                # 已下字节留在 .aria_part，继续时 Range 续传。
+                with self.lock:
+                    fe['status'] = 'pending'
+                    fe['error'] = ''
+                    fe.pop('speed', None)
+                    fe.pop('eta', None)
             except Exception as e:                  # 单文件失败不拖垮批次
                 with self.lock:
-                    fe['status'] = 'failed'
-                    fe['error'] = str(e)
-                self._blog(b, f'失败 {fe["acc"]}: {e}')
+                    if b.get('status') == 'paused':
+                        # 暂停时子进程被我们自己 terminate，异常不算失败
+                        fe['status'] = 'pending'
+                        fe['error'] = ''
+                    elif (b.get('status') == 'cancelled'
+                          or fe.get('status') == 'cancelled'):
+                        # 取消时同理：cancel() 已把条目置 cancelled，宽 except
+                        # 不能把它改回 failed（任务卡会从「已取消」变「失败」）
+                        fe['status'] = 'cancelled'
+                        fe['error'] = ''
+                    else:
+                        fe['status'] = 'failed'
+                        fe['error'] = str(e)
+                if b.get('status') not in ('paused', 'cancelled'):
+                    self._blog(b, f'失败 {fe["acc"]}: {e}')
+            with self.lock:
+                # 兜底：_download_file 内部把状态写成 failed/cancelled 后正常
+                # 返回的路径也走这里 —— 批次是暂停的话一律退回 pending，
+                # 否则「继续」时这个文件就永久停在 failed 了。
+                if b.get('status') == 'paused' and fe['status'] != 'done':
+                    fe['status'] = 'pending'
+                    fe['error'] = ''
+                    fe.pop('speed', None)
+                    fe.pop('eta', None)
 
     def _download_file(self, b, fe):
         try:
@@ -971,7 +1081,7 @@ class DownloadManager:
             return
         os.makedirs(b['dir'], exist_ok=True)
         a2 = aria2c_path()
-        ok_dl = self._dl_aria2(a2, b, fe) if a2 else self._dl_python(fe)
+        ok_dl = self._dl_aria2(a2, b, fe) if a2 else self._dl_python(b, fe)
         if not ok_dl:
             # 三级回退：INSDC run 编号（SRR/ERR/DRR）可用 sracha fetch
             # （--prefer-ena 优先 ENA FASTQ.GZ，失败自动回落 NCBI .sra，
@@ -1084,9 +1194,10 @@ class DownloadManager:
         try:
             proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding='utf-8', errors='replace')
+                text=True, encoding='utf-8', errors='replace',
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         except OSError:
-            return self._dl_python(fe)
+            return self._dl_python(b, fe)
         with self.lock:
             self.procs[fe['out']] = proc
         # aria2c 实测进度行（--summary-interval=2 每 2 秒一帧）：
@@ -1243,7 +1354,8 @@ class DownloadManager:
         try:
             proc = subprocess.Popen(
                 cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                text=True, encoding='utf-8', errors='replace', bufsize=1)
+                text=True, encoding='utf-8', errors='replace', bufsize=1,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         except OSError as e:
             with self.lock:
                 fe['error'] = f'sracha 回退失败: {e}'
@@ -1365,11 +1477,20 @@ class DownloadManager:
             fe['error'] = 'sracha 完成但未找到产物文件'
         return False
 
-    def _dl_python(self, fe):
+    def _dl_python(self, b, fe):
         """内置 HTTP 下载回退（Range 断点续传；URL 已在外层校验）。
 
         先写 .aria_part 临时文件（无 .gz 后缀 → safe_open 原样二进制写，
-        不会对已压缩数据二次 gzip），完成后改名到位。"""
+        不会对已压缩数据二次 gzip），完成后改名到位。
+
+        暂停/取消：每读一块都看一次批次状态，命中立刻中止（不再把整份文件
+        读完才响应）；`.aria_part` 保留，继续时走 Range 续传。"""
+        with self.lock:
+            _bst = b.get('status')
+        if _bst == 'paused':
+            raise _BatchPaused('任务已暂停')
+        if _bst == 'cancelled':
+            raise RuntimeError('任务已停止（用户取消）')
         out, url = fe['out'], fe['url']
         part = check_path(out + '.aria_part', must_exist=False,
                           in_platform=True)
@@ -1397,6 +1518,15 @@ class DownloadManager:
                 mode = 'ab' if (pos and r.status == 206) else 'wb'
                 with safe_open(part, mode) as f:
                     while True:
+                        # 暂停/取消必须能中止读循环：旧实现只有 aria2c/sracha
+                        # 被杀，纯 Python 回退会一直把整份文件读完，pause()
+                        # 的「立刻见效」在这条路径上不成立。
+                        with self.lock:
+                            _bst = b.get('status')
+                        if _bst == 'paused':
+                            raise _BatchPaused('任务已暂停')
+                        if _bst == 'cancelled':
+                            raise RuntimeError('任务已停止（用户取消）')
                         chunk = r.read(1 << 20)
                         if not chunk:
                             break
@@ -1440,6 +1570,20 @@ class DownloadManager:
             b = self.batches.get(bid)
             if not b:
                 return
+            if b.get('status') == 'paused':
+                # 暂停：工作线程是被我们自己叫停的，别在这里判终态/改状态，
+                # 否则「已暂停」一秒后就变成 completed/failed。
+                b['done'], b['failed'] = (
+                    sum(1 for f in b['files'] if f['status'] == 'done'),
+                    sum(1 for f in b['files'] if f['status'] == 'failed'))
+                return
+            if b.get('status') == 'cancelled':
+                # 取消同理：排队中的批次被取消后，worker 仍会走到这里；
+                # 旧实现会按 done=0 判 failed，把「已取消」覆盖成「失败」。
+                b['done'], b['failed'] = (
+                    sum(1 for f in b['files'] if f['status'] == 'done'),
+                    sum(1 for f in b['files'] if f['status'] == 'failed'))
+                return
             done = sum(1 for f in b['files'] if f['status'] == 'done')
             failed = sum(1 for f in b['files'] if f['status'] == 'failed')
             b['done'], b['failed'] = done, failed
@@ -1476,7 +1620,8 @@ class DownloadManager:
         key = os.path.join(b['dir'], '.decode-proc')
         proc = subprocess.Popen(
             cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-            text=True, encoding='utf-8', errors='replace')
+            text=True, encoding='utf-8', errors='replace',
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         with self.lock:
             self.procs[key] = proc
         try:
@@ -1485,7 +1630,7 @@ class DownloadManager:
             proc.kill()
             try:
                 proc.communicate(timeout=10)
-            except Exception:
+            except (subprocess.SubprocessError, OSError):
                 pass
             raise RuntimeError('解码超时')
         finally:
@@ -1659,7 +1804,12 @@ class DownloadManager:
             b['finished'] = None        # 重新在跑：耗时继续累计
         self._blog(b, f'重试 .sra 转换（{len(sra_left)} 个）')
         self._save(b)
-        threading.Thread(target=self._convert_sras, args=(b,), daemon=True,
+
+        def _run_convert():
+            with self.dl_gate:          # 与下载/其他批次串行
+                self._convert_sras(b)
+
+        threading.Thread(target=_run_convert, daemon=True,
                          name=f'dl-convert-{bid}').start()
         return len(sra_left)
 
@@ -1790,6 +1940,20 @@ class DownloadManager:
                                   - float(started))
                 except (TypeError, ValueError):
                     elapsed = None
+            # 批次排队可见化（2026-11-03）：多批次串行执行时，还没轮到的
+            # 批次虽然 status=downloading，实际卡在 dl_gate 上。这里按
+            # wait_since 先后算出「第 N 批」，前端/任务中心据此显示
+            # 「等待中 · 第 N 批」而不是假装在下载。
+            waiting = (b.get('status') == 'downloading'
+                       and bool(b.get('waiting')))
+            queue_pos = 0
+            if waiting:
+                ws = b.get('wait_since') or 0
+                queue_pos = 1 + sum(
+                    1 for ob in self.batches.values()
+                    if ob is not b and ob.get('waiting')
+                    and ob.get('status') == 'downloading'
+                    and (ob.get('wait_since') or 0) < ws)
             return {'id': b.get('id') or bid, 'name': b.get('name') or bid,
                     'status': b.get('status') or 'failed',
                     'dir': b.get('dir') or '',
@@ -1798,6 +1962,7 @@ class DownloadManager:
                     'started': started, 'finished': finished,
                     'elapsed': (round(elapsed, 1)
                                 if elapsed is not None else None),
+                    'waiting': waiting, 'queue_pos': queue_pos,
                     'concurrency': b.get('concurrency', 2),
                     'converting': b.get('converting', False),
                     'convert_msg': b.get('convert_msg', ''),
@@ -1898,6 +2063,8 @@ class DownloadManager:
                     fe['status'] = 'cancelled'
             b['status'] = 'cancelled'
             b['finished'] = time.time()
+            b.pop('waiting', None)      # 排队中的批次取消即出队
+            b.pop('wait_since', None)
         self._blog(b, '批次已取消')
         self._save(b)
         return True
@@ -1940,6 +2107,52 @@ class DownloadManager:
             self._blog(b, f'{"续传" if resume else "重试"} {n} 个文件')
             self._start_workers(bid)
         return n
+
+    def pause(self, bid):
+        """暂停批次（可继续）：停掉在跑的子进程（aria2c/sracha 都留断点），
+        未完成的条目退回 pending，批次状态置 paused。
+
+        为什么不用「让 worker 自己慢慢停」：一个大文件要下半小时，暂停必须
+        立刻见效。aria2c 被杀后靠同目录 `.aria2` 控制文件续传，sracha 走
+        `--prefer-ena` 的断点，内置 HTTP 走 `.aria_part` + Range。
+        """
+        with self.lock:
+            b = self.batches.get(bid)
+            if not b or b.get('status') != 'downloading':
+                return False
+            bdir = os.path.normpath(b['dir'])
+            b['status'] = 'paused'          # 先落状态：worker 看到就收手
+            for fe in b['files']:
+                if fe['status'] in ('downloading', 'verifying'):
+                    fe['status'] = 'pending'
+                    fe['error'] = ''
+            procs = [p for k, p in self.procs.items()
+                     if os.path.normpath(k).startswith(bdir + os.sep)]
+        for p in procs:                     # 锁外杀，terminate 有系统调用
+            try:
+                p.terminate()
+            except OSError:
+                pass
+        self._blog(b, '批次已暂停（点「继续」接着下）')
+        self._save(b)
+        return True
+
+    def resume(self, bid):
+        """继续已暂停的批次（断点续传）。"""
+        with self.lock:
+            b = self.batches.get(bid)
+            if not b or b.get('status') != 'paused':
+                return False
+            for fe in b['files']:
+                if fe['status'] not in ('done', 'failed', 'cancelled'):
+                    fe['status'] = 'pending'
+                    fe['error'] = ''
+            b['status'] = 'downloading'
+            b['finished'] = None
+        self._blog(b, '批次继续下载')
+        self._save(b)
+        self._start_workers(bid)
+        return True
 
     _RECORD_FILES = ('batch.json', 'batch.log')
     _ACTIVE = ('resolving', 'downloading', 'converting')

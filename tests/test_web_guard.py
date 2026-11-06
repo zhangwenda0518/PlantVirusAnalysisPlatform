@@ -50,3 +50,33 @@ def test_same_origin_loopback_allowed(client):
     r2 = client.post('/api/global/reset', json={},
                      headers={'Origin': 'http://127.0.0.1:8765'})
     assert r2.status_code != 403
+
+
+def test_download_file_route_resolves_symlink(client, tmp_path):
+    """批次目录里的符号链接不能把平台外文件带出去（realpath 越界 → 404）。"""
+    import os
+    import shutil
+    import uuid
+
+    from Virus_Platform_Core.public_data import _batch_root
+
+    root = _batch_root()
+    os.makedirs(root, exist_ok=True)
+    bdir = os.path.join(root, 'pytest_' + uuid.uuid4().hex[:8])
+    os.makedirs(bdir, exist_ok=True)
+    outside = tmp_path / 'outside_secret.txt'
+    outside.write_text('secret', encoding='utf-8')
+    try:
+        try:
+            os.symlink(str(outside), os.path.join(bdir, 'evil.fastq.gz'))
+        except (OSError, NotImplementedError):
+            pytest.skip('当前系统不允许创建符号链接')
+        (tmp_path / 'ok.fastq.gz').write_bytes(b'x')
+        os.replace(str(tmp_path / 'ok.fastq.gz'),
+                   os.path.join(bdir, 'ok.fastq.gz'))
+        bid = os.path.basename(bdir)
+        assert client.get(f'/downloads/{bid}/ok.fastq.gz').status_code == 200
+        # 链接目标在批次目录之外 → 必须 404，而不是把 secret 发出去
+        assert client.get(f'/downloads/{bid}/evil.fastq.gz').status_code == 404
+    finally:
+        shutil.rmtree(bdir, ignore_errors=True)

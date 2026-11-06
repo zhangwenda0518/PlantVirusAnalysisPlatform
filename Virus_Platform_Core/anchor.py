@@ -29,8 +29,8 @@
                  stage, input_set, dur_s, outputs_n}
         ledger {seq, head, updated}
     ledger.jsonl  每行 {seq, ts, kind, run_id, …, prev}
-        kind: run.start / stage.begin / stage.done / run.end / input.change /
-              input.digest / verify
+        kind: run.start / stage.begin / stage.done / run.end / run.interrupted /
+              input.change / input.digest / verify
         prev = 上一行的 sha256（首行为 ""），用于事后证明链未被改写
 
 产物摘要的取舍
@@ -57,6 +57,7 @@ import uuid
 __all__ = [
     'SCHEMA', 'HASH_MAX_BYTES', 'root', 'slug_of',
     'start_run', 'stage_begin', 'stage_done', 'end_run', 'note',
+    'reconcile_interrupted',
     'snapshot', 'active', 'samples_meta', 'verify', 'list_slugs',
 ]
 
@@ -120,7 +121,7 @@ def _log(msg):
         os.makedirs(d, exist_ok=True)
         with open(os.path.join(d, '_anchor.log'), 'a', encoding='utf-8') as f:
             f.write('%s %s\n' % (time.strftime('%Y-%m-%d %H:%M:%S'), msg))
-    except Exception:
+    except OSError:
         pass
 
 
@@ -369,6 +370,67 @@ def _current_run(d):
     return None
 
 
+def _run_by_id(d, run_id):
+    """按 run_id 找运行记录（**不要求 status=running**）。
+
+    end_run 必须能收尾被 reconcile_interrupted 标成 interrupted 的记录，
+    否则「启动收尾」与「真实结束」先后顺序一变，end_run 就永远找不到记录、
+    finished/dur_s/outputs 全部丢失（常驻条停在「正在分析」）。
+    """
+    if not run_id:
+        return None
+    for r in reversed(d.get('runs') or []):
+        if r.get('run_id') == run_id:
+            return r
+    return None
+
+
+def _pid_alive(pid):
+    """进程是否仍存活。返回 True/False；pid 缺失或无法判定时返回 None。
+
+    Windows 不能用 os.kill(pid, 0)（会走 TerminateProcess），改用
+    OpenProcess + GetExitCodeProcess；其它平台用 signal 0。
+    """
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return None
+    if pid <= 0:
+        return False
+    if os.name == 'nt':
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.windll.kernel32
+        # 64 位下必须声明 HANDLE 返回类型，否则默认 c_int 会截断/符号化句柄
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL,
+                                    wintypes.DWORD)
+        k32.GetExitCodeProcess.restype = wintypes.BOOL
+        k32.GetExitCodeProcess.argtypes = (
+            wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+        k32.CloseHandle.restype = wintypes.BOOL
+        k32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        h = k32.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        try:
+            code = wintypes.DWORD()
+            if k32.GetExitCodeProcess(h, ctypes.byref(code)):
+                return code.value == 259            # STILL_ACTIVE
+            return None
+        finally:
+            k32.CloseHandle(h)
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+
+
 def _input_set_id(inputs):
     """输入组合短 id：只看 sha256（未算完时退回 size+mtime）。"""
     parts = []
@@ -431,6 +493,8 @@ def start_run(sample, r1, r2=None, stages=None, sample_dir='', project='',
             run_id = uuid.uuid4().hex[:8]
             iset = _input_set_id(d['inputs'])
             run = {'run_id': run_id, 'started': _now(), 'finished': None,
+                   # pid 供 reconcile_interrupted 判活：进程还在就不标 interrupted
+                   'pid': os.getpid(),
                    'status': 'running', 'stages': list(stages or []),
                    'stages_done': [], 'stage': '', 'input_set': iset, 'dur_s': None,
                    'outputs_n': 0}
@@ -527,20 +591,30 @@ def end_run(sample, status='ok', dur_s=None, sample_dir=''):
         d = _read_json(_anchor_path(slug))
         since = time.time()
         if d:
-            r = _current_run(d)
+            # 先按 run_id 认（不要求 running：reconcile_interrupted 可能已把
+            # 本条标成 interrupted）；进程内没有 run_id 时才退回「当前 running」，
+            # 再退回最近一条 interrupted（重启后收尾路径）。
+            r = _run_by_id(d, run_id) if run_id else _current_run(d)
+            if r is None and not run_id:
+                runs = d.get('runs') or []
+                if runs and (runs[-1].get('status') or '') == 'interrupted':
+                    r = runs[-1]
             if r:
-                run_id = r.get('run_id') or run_id
+                # 只有「本来就没有 run_id」时才认领记录 id：_RUNS 里带进来的
+                # id 在锚里找不到时绝不能退而关掉另一条正在跑的记录。
+                if not run_id:
+                    run_id = r.get('run_id') or ''
                 try:
                     since = time.mktime(time.strptime(r['started'],
                                                       '%Y-%m-%dT%H:%M:%S'))
-                except Exception:
+                except (ValueError, OverflowError):
                     pass
         outs = _produced(sample_dir or ((d or {}).get('sample_dir') or ''),
                          since) if (sample_dir or (d or {}).get('sample_dir')) else []
 
         def m(dd):
-            rr = _current_run(dd)
-            if rr and (not run_id or rr.get('run_id') == run_id):
+            rr = _run_by_id(dd, run_id) if run_id else _current_run(dd)
+            if rr:
                 rr['status'] = status
                 rr['finished'] = _now()
                 rr['dur_s'] = round(dur_s, 1) if dur_s else None
@@ -566,6 +640,79 @@ def note(sample, kind, **payload):
     return _safe(lambda: _append(slug_of(sample), kind, payload), False)
 
 
+def reconcile_interrupted(max_quiet_sec=STALE_SEC):
+    """收尾遗留的「running」运行记录（平台启动时调用，2026-11-03）。
+
+    背景：运行记录只被 `end_run` 关闭（正常 ok / 失败 failed 两条路径）。进程
+    被杀或平台重启后，anchor.json 里永远留着 `status='running'` 的记录，常驻
+    条从此每次打开都显示「正在分析」（点 × 只是本次会话隐藏，刷新就回来）。
+    缺的就是「上一进程已经没了」这条收尾路径。
+
+    口径：① 运行记录里带了 pid（2026-11 起）且该进程（**另一个实例**）仍存活
+    → 绝不标 interrupted；本进程 pid 不算活（本函数只在启动阶段调用，本进程
+    刚起、不可能在跑这批旧记录，同 pid 只可能是上一进程的 PID 被复用）。
+    ② 没有 pid 的旧记录退回「账本安静超过 max_quiet_sec（默认 STALE_SEC=30
+    分钟）」判定。
+    命中后把**所有**未关闭的 running 记录关成 `status='interrupted'`，并按
+    正常链路追加一条 `run.interrupted` 账本事件（hash 链保持有效，verify 可过）。
+
+    返回被收尾的样品名列表。
+    """
+    def go():
+        closed = []
+        for slug in list_slugs():
+            d = _read_json(_anchor_path(slug))
+            if not d:
+                continue
+            open_runs = [x for x in (d.get('runs') or [])
+                         if x.get('status') == 'running']
+            if not open_runs:
+                continue
+            # pid 活性优先：只要有一条记录对应的**别的**进程还活着就不收
+            # （误标 interrupted 会让 end_run 失去 running 记录，常驻条永久卡住）。
+            # 本进程 pid 不算活：reconcile 只在启动阶段调用，本进程刚起、不可能
+            # 在跑这批旧记录；记录里出现本进程 pid 只可能是上一进程的 PID 被复用。
+            _me = os.getpid()
+            pids = [x.get('pid') for x in open_runs if x.get('pid')]
+            if any(_pid_alive(p) for p in pids if p != _me):
+                continue
+            try:
+                age = time.time() - time.mktime(time.strptime(
+                    (d.get('ledger') or {}).get('updated')
+                    or min((x.get('started') or '') for x in open_runs),
+                    '%Y-%m-%dT%H:%M:%S'))
+            except Exception:
+                age = 0        # 时间解析不了 → 按刚活跃处理，不收
+            # 有 pid 且全部确认已死 = 强证据，不必再等安静时长；没有 pid
+            # 的旧记录只能沿用安静时长兜底（防止误杀另一个实例）。
+            if not pids and age < max_quiet_sec:
+                continue       # 可能有别的实例正在跑（或刚开始），不动
+            # 全部收掉（真机见过 start_run 重复调用留下两条 running 的锚
+            # ——GQMIX 2026-11-03：只关最后一条，常驻条仍显示「正在分析」）
+            rids = [x.get('run_id') or '' for x in open_runs]
+
+            def m(dd, _rids=rids):
+                n = 0
+                for rr in dd.get('runs') or []:
+                    if rr.get('status') == 'running':
+                        rr['status'] = 'interrupted'
+                        rr['finished'] = _now()
+                        rr['stage'] = ''
+                        n += 1
+                return n
+            _mut(slug, m)
+            _append(slug, 'run.interrupted',
+                    {'sample': d.get('sample') or slug,
+                     'run_ids': rids,
+                     'started': min((x.get('started') or '')
+                                    for x in open_runs),
+                     'quiet_min': round(age / 60.0, 1)},
+                    run_id=rids[-1] or '')
+            closed.append(d.get('sample') or slug)
+        return closed
+    return _safe(go, [])
+
+
 # --------------------------------------------------------------------------
 # 读侧
 # --------------------------------------------------------------------------
@@ -584,7 +731,7 @@ def _summary(slug, d):
                               '%Y-%m-%dT%H:%M:%S'))
             if age > STALE_SEC:
                 status = 'stale'
-        except Exception:
+        except (ValueError, OverflowError):
             pass
     elif last:
         status = last.get('status') or 'idle'
@@ -649,7 +796,7 @@ def snapshot(sample_or_slug, ledger_tail=40):
                         line = line.strip()
                         if line:
                             tail.append(json.loads(line))
-            except Exception:
+            except (OSError, ValueError):
                 pass
         out['ledger_tail'] = tail[-int(ledger_tail or 1):]
         return out
@@ -667,7 +814,9 @@ def active(limit=6):
             s = _summary(slug, d)
             if s['status'] in ('running', 'stale'):
                 running.append(s)
-            elif s.get('finished'):
+            elif s.get('finished') and s['status'] != 'interrupted':
+                # interrupted（启动收尾的遗留运行）不进 recent：常驻条不该
+                # 在收尾后再亮 5 分钟「刚完成」误导用户（2026-11-03）
                 recent.append(s)
         running.sort(key=lambda x: x.get('started') or '', reverse=True)
         recent.sort(key=lambda x: x.get('finished') or '', reverse=True)

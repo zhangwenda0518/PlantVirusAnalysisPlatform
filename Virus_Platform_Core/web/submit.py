@@ -215,8 +215,12 @@ def api_submit_table_fasta(name):
     if not src:
         abort(400, '请提供序列 FASTA 路径')
     try:
+        # 相对路径按运行根解析（DIRS 感知）：results/x、tool_runs/x 跟随
+        # 隔离根与自定义输出根（原 join(PLATFORM_ROOT, src) 经旧目录重定向
+        # 只会兜到真实 run/，2026-11-03 修）。
+        from Virus_Platform_Core.web.tool_results import _resolve_runrel
         p = check_path(src if os.path.isabs(src)
-                       else os.path.join(PLATFORM_ROOT, src), must_exist=True)
+                       else _resolve_runrel(src), must_exist=True)
         rep = store.export_submission_fasta(
             name, p, min_len=int(body.get('min_len', 200) or 200))
     except (ValueError, KeyError, FileNotFoundError, OSError) as e:

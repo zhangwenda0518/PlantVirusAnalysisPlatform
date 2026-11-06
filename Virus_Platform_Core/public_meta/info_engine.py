@@ -1088,7 +1088,9 @@ views:
     try:
         _write(f"📊 正在为 {file_name} 生成交互式报告...")
         result = subprocess.run(['datavzrd', yaml_path, '--output', report_dir],
-                               capture_output=True, text=True)
+                               capture_output=True, text=True,
+                               creationflags=getattr(
+                                   subprocess, 'CREATE_NO_WINDOW', 0))
         # 完整的状态判定与错误打印，杜绝静默失败
         if result.returncode == 0:
             _write(f"✅ 报告已就绪: \033[94m{os.path.join(report_dir, 'index.html')}\033[0m")

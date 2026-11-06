@@ -264,7 +264,7 @@ def _guard_local_origin():
 # ------------------------------------------------------------------
 # Blueprint 注册
 # 路由清单守卫：python tests/_route_inventory.py
-#（锁定 229 条 rule + methods，拆分/新增后必须零差异）
+#（锁定 285 条 rule + methods，拆分/新增后必须零差异，新增路由后跑 --save）
 # ------------------------------------------------------------------
 from Virus_Platform_Core.web import (  # noqa: E402
     ai_assist as _bp_ai,
@@ -286,6 +286,7 @@ from Virus_Platform_Core.web import (  # noqa: E402
     tasks_api as _bp_tasks,
     tool_results as _bp_tool_results,
     tools_api as _bp_tools,
+    update as _bp_update,
     virome as _bp_virome,
 )
 
@@ -305,7 +306,7 @@ for _bp in (_bp_pages, _bp_ai, _bp_anchor, _bp_tool_results, _bp_refs, _bp_logan
             _bp_mcp,
             _bp_samples, _bp_download, _bp_submit, _bp_meta, _bp_prescreen,
             _bp_settings, _bp_virome, _bp_tools, _bp_tasks, _bp_build,
-            _bp_examples, _bp_cds_export):
+            _bp_examples, _bp_cds_export, _bp_update):
     app.register_blueprint(_bp.bp)
 del _bp
 
@@ -960,6 +961,24 @@ def main():
     except OSError:
         pass
     url = f'http://127.0.0.1:{port}'
+    # 遗留运行收尾（2026-11-03）：进程重启后 anchor.json 里永远留着
+    # status='running' 的记录，常驻条从此每次打开都显示「正在分析」
+    # （Dataset_11 停在 fastp 的根因）。这里把当前输出根（含工作空间）与
+    # 平台自带 run/anchors 两处的遗留一起收尾；安静 <30 分钟的不动，
+    # 防止误杀共用 run/ 的另一个实例正在跑的运行。
+    try:
+        from Virus_Platform_Core import anchor as _anchor
+        from Virus_Platform_Core import config as _cfg
+        _anchor.reconcile_interrupted()
+        _saved_root = _cfg.get_output_root()
+        if _saved_root:
+            _cfg.apply_output_root('')
+            try:
+                _anchor.reconcile_interrupted()
+            finally:
+                _cfg.apply_output_root(_saved_root)
+    except Exception:                                   # noqa: BLE001
+        pass
     print('=' * 56)
     print('  植物病毒分析平台 启动中...'
           f'（模式: {"独立桌面窗口" if mode == "gui" else "系统浏览器"}）')
@@ -974,20 +993,48 @@ def main():
         srv = _start_server(port)
     except OSError as e:
         print(f'\n  [错误] 端口 {port} 监听失败: {e}')
-        print('  可在管理员 PowerShell 运行以下命令查看被系统保留的端口段:')
+        print('  可在管理员 PowerShell 运行以下命令看被系统保留的端口段:')
         print('     netsh interface ipv4 show excludedportrange protocol=tcp')
         _pause_before_exit()
         return
-    # Taxonomy 首启自解压（2026-10-25）：数据库包只随附官方 new_taxdump.tar.gz
-    # （155M）；检测到本地 tar 且未解压时，后台线程解压（约 1 分钟，纯本地
+    # 自动更新（2026-11-05，机制见 updater.py）：注册优雅停机回调（换装时
+    # srv.shutdown），起 daemon 线程跑 auto_update_loop——启动 30s 后静默
+    # 检查 -> 有新版自动下载 -> 任务空闲时自动换装重启（源码模式自动跳过）。
+    try:
+        from Virus_Platform_Core.updater import (auto_update_loop,
+                                                 set_shutdown_callback)
+        set_shutdown_callback(srv.shutdown)
+        threading.Thread(target=auto_update_loop, daemon=True).start()
+    except Exception:                                   # noqa: BLE001
+        pass
+    # 自检/依赖审计后台预热（2026-11-06 启动性能）：首屏状态条触发的
+    # selfcheck.collect（含插件索引联网、importprobe 子进程、全盘扫描）与
+    # pydeps 全仓 AST 扫描，原本都在**第一次请求**里同步跑——冷启动首屏
+    # 等到天荒地老。现在服务器一起来就在后台线程预热缓存，页面先开、
+    # 状态条数据稍后到位；测试（VP_NO_WARMUP=1）跳过。
+    if not os.environ.get('VP_NO_WARMUP', '').strip():
+        def _warmup():
+            try:
+                from Virus_Platform_Core import selfcheck as _sc
+                _sc.pydeps_status()
+                _sc.collect()
+            except Exception:                           # noqa: BLE001
+                pass
+        threading.Thread(target=_warmup, daemon=True,
+                         name='vp-warmup').start()
+    # Taxonomy 首启自解压（2026-10-25；2026-11-05 改双档）：分发包随附精简档
+    # new_taxdump_slim.tar.gz（~15M，病毒子树），离线机器可手工放官方全量档
+    # new_taxdump.tar.gz；检测到任一档且未解压时，后台线程解压（秒级，纯本地
     # 零联网——prepare_taxonomy 优先用本地 tar），不阻塞启动。失败静默：
     # 数据库页的一键按钮仍是兜底出口。
     try:
         from Virus_Platform_Core.config import DIRS
         from Virus_Platform_Core.taxonomy import (prepare_taxonomy,
                                                   taxonomy_ready)
-        if not taxonomy_ready() and os.path.isfile(
-                os.path.join(DIRS['databases'], 'new_taxdump.tar.gz')):
+        _has_tar = any(os.path.isfile(os.path.join(DIRS['databases'], _n))
+                       for _n in ('new_taxdump_slim.tar.gz',
+                                  'new_taxdump.tar.gz'))
+        if not taxonomy_ready() and _has_tar:
             def _bg_taxonomy():
                 try:
                     prepare_taxonomy()

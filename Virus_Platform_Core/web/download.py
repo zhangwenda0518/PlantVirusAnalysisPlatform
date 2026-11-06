@@ -47,13 +47,13 @@ def _fmt_speed(bps):
 
 # 下载批次 → 任务中心「外部任务」的状态映射
 _DL_STATUS = {'resolving': 'running', 'downloading': 'running',
-              'converting': 'running', 'completed': 'done',
-              'failed': 'failed', 'cancelled': 'cancelled',
-              'interrupted': 'failed'}
+              'converting': 'running', 'paused': 'paused',
+              'completed': 'done', 'failed': 'failed',
+              'cancelled': 'cancelled', 'interrupted': 'failed'}
 _DL_STAGE = {'resolving': '解析编号', 'downloading': '下载中',
-             'converting': '解码 .sra', 'completed': '已完成',
-             'failed': '失败', 'cancelled': '已取消',
-             'interrupted': '已中断（可续传）'}
+             'converting': '解码 .sra', 'paused': '已暂停（可继续）',
+             'completed': '已完成', 'failed': '失败',
+             'cancelled': '已取消', 'interrupted': '已中断（可续传）'}
 
 
 def download_task_provider(bid):
@@ -61,29 +61,38 @@ def download_task_provider(bid):
 
     这是「下载接入任务中心」的桥：执行仍归 DownloadManager（自建线程、
     自管状态、自管取消），这里只把它的状态翻译成任务中心的统一口径。
+    排队批次（waiting，2026-11-03 串行化引入）显示「等待中 · 第 N 批」，
+    不报速度/ETA（没在真下载，报出来是误导）。
     """
     m = get_dl_manager()
     snap = m.snapshot(bid, include_files=False)
     if not snap:
         return None
     st = _DL_STATUS.get(snap.get('status'), 'running')
-    parts = [f"已下载 {_fmt_bytes(snap.get('done_bytes'))}"
-             f" / {_fmt_bytes(snap.get('total_bytes'))}"]
-    spd = _fmt_speed(snap.get('speed'))
-    if spd != '—':
-        parts.append(f'速度 {spd}')
-    eta = int(snap.get('eta') or 0)
-    if eta > 0:
-        parts.append(f'剩余 {eta}s')
-    parts.append(f"{snap.get('done', 0)}/{snap.get('n_files', 0)} 文件")
-    if snap.get('failed'):
-        parts.append(f"{snap['failed']} 失败")
-    if snap.get('convert_failed'):
-        parts.append(f"{snap['convert_failed']} 个 .sra 未转 FASTQ")
+    if snap.get('waiting'):
+        parts = ['等待前面的批次完成（逐一串行）']
+        eta = 0
+        stage = f'等待中 · 第 {snap.get("queue_pos") or "?"} 批'
+    else:
+        parts = [f"已下载 {_fmt_bytes(snap.get('done_bytes'))}"
+                 f" / {_fmt_bytes(snap.get('total_bytes'))}"]
+        spd = _fmt_speed(snap.get('speed'))
+        if spd != '—':
+            parts.append(f'速度 {spd}')
+        eta = int(snap.get('eta') or 0)
+        if eta > 0:
+            parts.append(f'剩余 {eta}s')
+        parts.append(f"{snap.get('done', 0)}/{snap.get('n_files', 0)} 文件")
+        if snap.get('failed'):
+            parts.append(f"{snap['failed']} 失败")
+        if snap.get('convert_failed'):
+            parts.append(f"{snap['convert_failed']} 个 .sra 未转 FASTQ")
+        stage = _DL_STAGE.get(snap.get('status'),
+                              snap.get('status') or '')
     err = snap.get('error') or ''
     return {'status': st,
             'pct': snap.get('overall'),
-            'stage': _DL_STAGE.get(snap.get('status'), snap.get('status') or ''),
+            'stage': stage,
             'msg': ' · '.join(parts),
             'error': err,
             'eta': eta or None,
@@ -102,8 +111,13 @@ def bind_downloads():
     from Virus_Platform_Core.web.tasks import tm
 
     def _attach(bid):
+        # pausable + 两个回调：任务卡上的「暂停/继续」直接转发给
+        # DownloadManager（批次状态由 provider 回填，暂停后显示「已暂停」）。
         tm.attach(f'下载·{bid}', lambda b=bid: download_task_provider(b),
                   on_cancel=lambda b=bid: get_dl_manager().cancel(b),
+                  on_pause=lambda b=bid: get_dl_manager().pause(b),
+                  on_resume=lambda b=bid: get_dl_manager().resume(b),
+                  pausable=True,
                   link='/download?pop=1', key=f'dl:{bid}', weight='light')
 
     get_dl_manager().add_listener(_attach)
@@ -155,15 +169,19 @@ def api_dl_batch(bid):
 
 @bp.route('/api/dl/batch/<bid>/<action>', methods=['POST'])
 def api_dl_batch_action(bid, action):
-    """批次操作：cancel / retry / retry_convert（只重跑 .sra 转换）/
-    delete（记录+文件全删）/ delete_files（只删文件，留记录与日志）/
-    delete_record（只删记录，留文件）。"""
+    """批次操作：pause / resume（暂停与继续，可断点续传）/ cancel / retry /
+    retry_convert（只重跑 .sra 转换）/ delete（记录+文件全删）/
+    delete_files（只删文件，留记录与日志）/ delete_record（只删记录，留文件）。"""
     m = get_dl_manager()
     if action == 'cancel':
         ok = m.cancel(bid)
     elif action == 'retry':
         n = m.retry_failed(bid)
         return jsonify({'ok': bool(n), 'retried': n})
+    elif action == 'pause':
+        ok = m.pause(bid)
+    elif action == 'resume':
+        ok = m.resume(bid)
     elif action == 'retry_convert':
         n = m.retry_convert(bid)
         return jsonify({'ok': bool(n), 'retried': n})
@@ -190,7 +208,13 @@ get_dl_manager = _dl_manager
 
 @bp.route('/downloads/<bid>/<path:filename>')
 def page_dl_file(bid, filename):
-    """下载批次内文件（严格限定在该批次目录内）。"""
+    """下载批次内文件（严格限定在该批次目录内）。
+
+    check_path 只做 normpath + 前缀比较，**不解析符号链接/junction**：批次
+    目录里放一个指向外部的链接，字符串前缀仍然合法，文件就被发出去了。
+    这里在真正下发前对两边都做 realpath 再比（不改全局 check_path，避免
+    影响其它调用方的既有语义）。
+    """
     if not re.fullmatch(r'[A-Za-z0-9_\-.]+', bid) or '..' in filename:
         abort(400, '无效路径')
     from Virus_Platform_Core.public_data import _batch_root
@@ -198,9 +222,15 @@ def page_dl_file(bid, filename):
                    must_exist=True, in_platform=True)
     bdir = check_path(os.path.join(_batch_root(), bid),
                       must_exist=True, in_platform=True)
-    if not p.startswith(bdir + os.sep):
-        abort(400, '路径越界')
-    return send_file(p, as_attachment=request.args.get('dl') == '1')
+    p_real = os.path.realpath(p)
+    bdir_real = os.path.realpath(bdir)
+    root_real = os.path.realpath(_batch_root())
+    if not bdir_real.startswith(root_real + os.sep):
+        # 批次目录本身是符号链接/junction 且指向下载根之外
+        abort(404, '路径越界')
+    if not p_real.startswith(bdir_real + os.sep):
+        abort(404, '路径越界')
+    return send_file(p_real, as_attachment=request.args.get('dl') == '1')
 
 
 @bp.route('/api/dl/to_pipeline', methods=['POST'])

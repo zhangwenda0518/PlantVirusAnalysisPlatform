@@ -51,7 +51,8 @@ def test_declared_keys_are_real_tool_keys():
     known = set(detect_tools()) | set(md._NO_PLUGIN_HINT) | EXTRA
     bad = []
     for mod, keys in md.MODULE_TOOLS.items():
-        for k in keys:
+        # 声明支持「任一组」（嵌套列表）：先展平成真实工具键再校验
+        for k in md._flat_keys(keys):
             if k not in known:
                 bad.append((mod, k))
     assert not bad, f'未知工具键: {bad}'
@@ -89,6 +90,17 @@ def test_missing_tools_unknown_module():
     assert md.missing_tools(_Cfg({'seqkit'}), 'no-such-module') == []
 
 
+def test_any_of_group_accepts_any_engine():
+    """orfa 的引擎是 DIAMOND → MMseqs2 → BLASTp：任一可用即不该拦。"""
+    for have in ({'diamond'}, {'mmseqs'}, {'blastp'}):
+        assert md.missing_tools(_Cfg(have), 'orfa') == []
+    # 整组全缺：把三个备选都报出来（错误文案点名可选引擎）
+    assert md.missing_tools(_Cfg(set()), 'orfa') == [
+        'diamond', 'mmseqs', 'blastp']
+    # 顶栏口径只展示首选引擎（不全列备选，避免按「全都要」误报）
+    assert md.tools_for('orfa') == ['diamond']
+
+
 def test_ensure_tools_noop_when_complete():
     cfg = _Cfg({'seqkit', 'fastp', 'minibwa', 'kunpeng'})
     r = md.ensure_tools(cfg, 'hostremoval')
@@ -123,9 +135,9 @@ def test_ensure_tools_installs_from_index(monkeypatch, tmp_path):
 
     monkeypatch.setattr(md.pm, 'available_from_index', fake_index)
     monkeypatch.setattr(md.pm, 'install_urls', fake_install)
-    cfg = _Cfg({'orfipy'})
-    # orfa 需要 blastn + makeblastdb，两个都由 blast 插件提供
-    r = md.ensure_tools(cfg, 'orfa')
+    cfg = _Cfg(set())
+    # crispr 需要 blastn + makeblastdb，两个都由 blast 插件提供
+    r = md.ensure_tools(cfg, 'crispr')
     assert r['installed'] == ['blast']
     assert installed and installed[0][1] == 'abc'   # sha256 透传
     assert cfg.refreshed == 1                        # 装完重扫
@@ -143,7 +155,7 @@ def test_ensure_tools_install_failure_is_reported(monkeypatch):
 
     monkeypatch.setattr(md.pm, 'available_from_index', fake_index)
     monkeypatch.setattr(md.pm, 'install_urls', boom)
-    r = md.ensure_tools(_Cfg({'makeblastdb'}), 'orfa')
+    r = md.ensure_tools(_Cfg({'makeblastdb'}), 'crispr')
     assert r['installed'] == []
     assert r['still_missing'] == ['blastn']
     assert 'blastn' in r['hints']

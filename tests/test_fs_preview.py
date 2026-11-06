@@ -6,21 +6,73 @@
 """
 import os
 import sys
+import tempfile
 
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+# 与 test_ai_durable / test_ai_feedback 同款自隔离：RUN_ROOT 指向自己的
+# 临时目录。否则裸 pytest 多文件同进程时，前面 AI 测试 import 期设的
+# VP_RUN_ROOT 会被本文件继承，/api/fs/roots 按存在性过滤后 tool 根丢失。
+os.environ['VP_NO_RECOVER'] = '1'
+os.environ['VP_RUN_ROOT'] = tempfile.mkdtemp(prefix='vp_fsp_')
+
 from flask import Flask  # noqa: E402
 
 
 @pytest.fixture()
 def client():
+    from Virus_Platform_Core.config import DIRS
+    # 端点按目录存在性过滤根；临时根下这些目录未建会让断言空挂。
+    # 按 config 实际生效的 DIRS 建齐（兜住 config 已被前序测试导入的情况）。
+    for _k in ('results', 'tool_runs', 'downloads'):
+        _d = DIRS.get(_k)
+        if _d:
+            os.makedirs(_d, exist_ok=True)
     import Virus_Platform_Core.web.pages as pg
     app = Flask(__name__)
     app.register_blueprint(pg.bp)
     return app.test_client()
+
+
+def test_ai_artifacts_endpoint_maps_text_to_cards(client):
+    """旧历史回填：正文里的平台内路径 → 产物卡片；系统路径必须被丢弃。"""
+    import os
+    from Virus_Platform_Core.config import PLATFORM_ROOT
+    d = os.path.join(PLATFORM_ROOT, 'run', 'tmp')
+    os.makedirs(d, exist_ok=True)
+    p = os.path.join(d, '_t_art_card.html')
+    with open(p, 'w', encoding='utf-8') as fh:
+        fh.write('<!doctype html><p>card</p>')
+    r = None
+    try:
+        r = client.post('/api/ai/artifacts',
+                        json={'texts': ['报告在 %s ，另见 C:\\Windows\\win.ini' % p]})
+        assert r.status_code == 200
+        res = r.get_json()['results']
+        assert len(res) == 1
+        names = [x['name'] for x in res[0]]
+        assert '_t_art_card.html' in names
+        assert all('win.ini' not in n for n in names)
+        assert res[0][0]['kind'] == 'html'
+        assert '/api/fs/raw?path=' in res[0][0]['url']
+    finally:
+        try:
+            r.close()
+        except Exception:
+            pass
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+
+
+def test_ai_artifacts_endpoint_rejects_bad_payload(client):
+    assert client.post('/api/ai/artifacts', json={'texts': 'nope'}).status_code == 400
+    r = client.post('/api/ai/artifacts', json={'text': 'nothing here'})
+    assert r.status_code == 200 and r.get_json()['results'] == [[]]
 
 
 def test_read_text_in_platform(client):
@@ -55,6 +107,39 @@ def test_raw_serves_bytes(client):
     r = client.get('/api/fs/raw?path=examples/example_acmv.fasta')
     assert r.status_code == 200
     assert r.data.startswith(b'>ACMV')
+
+
+def test_raw_html_is_inline_so_iframe_can_preview(client):
+    """对话坞的 HTML 预览用 <iframe src=/api/fs/raw?...>。
+
+    send_file 若带 attachment 头，浏览器会改成下载，iframe 只剩空白——
+    用户会以为预览坏了。这里钉住 inline + text/html。
+    """
+    import os
+    from Virus_Platform_Core.config import PLATFORM_ROOT
+    d = os.path.join(PLATFORM_ROOT, 'run', 'tmp')
+    os.makedirs(d, exist_ok=True)
+    p = os.path.join(d, '_t_inline.html')
+    with open(p, 'w', encoding='utf-8') as fh:
+        fh.write('<!doctype html><meta charset="utf-8"><p>hi</p>')
+    r = None
+    try:
+        r = client.get('/api/fs/raw', query_string={'path': p})
+        assert r.status_code == 200
+        assert 'html' in r.headers.get('Content-Type', '')
+        disp = r.headers.get('Content-Disposition', '')
+        assert 'attachment' not in disp.lower(), disp
+        assert r.data.startswith(b'<!doctype html>')
+    finally:
+        # send_file 在 Windows 上会握住文件句柄：不先 close 就删不掉（实测残留）
+        try:
+            r.close()
+        except Exception:
+            pass
+        try:
+            os.remove(p)
+        except OSError:
+            pass
 
 
 def test_attach_digest_preview_and_missing():

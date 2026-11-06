@@ -261,7 +261,9 @@ def _meta_stream_task(task_name, cmd, done_msg, log_file=None, link=None,
                 env[str(_k)] = str(_v)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True,
-                                encoding='utf-8', errors='replace', env=env)
+                                encoding='utf-8', errors='replace', env=env,
+                                creationflags=getattr(
+                                    subprocess, 'CREATE_NO_WINDOW', 0))
         task_register_proc(proc)                  # 登记 → 取消时硬停止
         try:
             for line in proc.stdout:

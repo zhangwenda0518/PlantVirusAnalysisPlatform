@@ -246,3 +246,94 @@ def test_count_fasta_seqs(tmp_path):
     p.write_text('>a\nACGT\n>b\nACGT\n', encoding='utf-8')
     assert dc.count_fasta_seqs([str(p)]) == 2
     assert dc.count_fasta_seqs([]) == 0
+
+
+# ── 暂停/取消与超时：_run_and_stream 的读循环语义 ─────────────
+class _FakeStdout:
+    """可脚本化的 stdout：吐完既有行后触发 on_eof 再 EOF。"""
+
+    def __init__(self, lines, on_eof=None):
+        self.lines = list(lines)
+        self.on_eof = on_eof
+        self._fired = False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.lines:
+            return self.lines.pop(0)
+        if self.on_eof is not None and not self._fired:
+            self._fired = True
+            self.on_eof()
+        raise StopIteration
+
+
+class _FakeProc:
+    def __init__(self, lines, on_eof=None):
+        self.stdout = _FakeStdout(lines, on_eof)
+        self.pid = 999999
+        self.returncode = None
+
+    def poll(self):
+        return self.returncode
+
+    def wait(self, timeout=None):
+        self.returncode = 1
+        return 1
+
+
+def _bind_task_events(monkeypatch, pause=None, cancel=None):
+    """把当前线程的任务事件绑成测试可控制的 Event。"""
+    import threading
+
+    from Virus_Platform_Core import utils
+    pause = pause or threading.Event()
+    cancel = cancel or threading.Event()
+    monkeypatch.setattr(utils._TASK_STATE, 'pause', pause, raising=False)
+    monkeypatch.setattr(utils._TASK_STATE, 'cancel', cancel, raising=False)
+    monkeypatch.setattr(utils._TASK_STATE, 'procs', [], raising=False)
+    # 不要真的 taskkill 假 pid
+    monkeypatch.setattr(utils, '_kill_proc_tree', lambda _p: None)
+    return pause, cancel
+
+
+def test_run_and_stream_pause_after_eof_raises(monkeypatch):
+    """暂停先杀子进程 → 读线程拿到 EOF；此时必须复检事件并抛 TaskPaused，
+    不能被上层当成「datasets 下载失败（exit=1）」落成 failed。"""
+    from Virus_Platform_Core import utils
+
+    pause, _cancel = _bind_task_events(monkeypatch)
+    monkeypatch.setattr(
+        dc.subprocess, 'Popen',
+        lambda *a, **k: _FakeProc(['Downloading ... 1MB'], pause.set))
+    with pytest.raises(utils.TaskPaused):
+        dc._run_and_stream(['datasets', 'download'], log=lambda _m: None)
+
+
+def test_run_and_stream_deadline_checked_without_queue_empty(monkeypatch):
+    """绝对 deadline 每轮都查：子进程一直不吐行/一直吐行都不得绕过超时。"""
+    import time
+
+    from Virus_Platform_Core import utils
+
+    _bind_task_events(monkeypatch)
+
+    class _SlowStdout:
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            time.sleep(5)          # 模拟读线程一直阻塞
+            raise StopIteration
+
+    class _SlowProc(_FakeProc):
+        def __init__(self):
+            self.stdout = _SlowStdout()
+            self.pid = 999999
+            self.returncode = None
+
+    monkeypatch.setattr(dc.subprocess, 'Popen', lambda *a, **k: _SlowProc())
+    with pytest.raises(RuntimeError, match='datasets 超时'):
+        dc._run_and_stream(['datasets', 'download'], log=lambda _m: None,
+                           timeout=0.01)

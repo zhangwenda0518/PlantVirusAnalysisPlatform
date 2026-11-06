@@ -85,6 +85,38 @@ def test_per_prefix_returns_latest_of_old_modules(sandbox):
     assert [r['name'] for r in only] == ['align_20260901_010101_bbbbbb']
 
 
+def test_with_totals_true_count_per_prefix(sandbox):
+    """with_totals=1：runs 仍按 per 封顶，totals 给全盘真实条数；
+    缺省（不带该参数）保持旧形态（纯数组），旧调用方零感知。"""
+    root, _ = sandbox
+    now = time.time()
+    for i in range(10):
+        _mk_run(root, 'convert_20261028_%06d_eeeeee' % (200000 + i),
+                mtime=now - i)
+    _mk_run(root, 'align_20260901_010101_ffffff', mtime=now - 100000)
+
+    c = _client()
+    # 缺省 = 旧形态纯数组（缓存键含 with_totals，两形态互不串）
+    flat = c.get('/api/tool/runs').get_json()
+    assert isinstance(flat, list)
+
+    # with_totals：runs 按每前缀 per=8 封顶（convert 8 + align 1 = 9 条），
+    # totals 给全盘真数
+    body = c.get('/api/tool/runs?per=8&with_totals=1').get_json()
+    assert isinstance(body, dict)
+    n_convert = sum(1 for r in body['runs'] if r['name'].startswith('convert_'))
+    assert n_convert == 8, 'convert 仍按 per=8 封顶'
+    assert len(body['runs']) == 9
+    assert body['totals']['convert'] == 10
+    assert body['totals']['align'] == 1
+    assert body['total'] == 11
+
+    # prefix 过滤不影响 totals（totals 永远是全盘口径）
+    body2 = c.get('/api/tool/runs?per=8&with_totals=1&prefix=align').get_json()
+    assert [r['name'] for r in body2['runs']] == ['align_20260901_010101_ffffff']
+    assert body2['totals']['convert'] == 10 and body2['totals']['align'] == 1
+
+
 def test_archive_restore_purge(sandbox):
     root, _ = sandbox
     name = 'fastp_20261028_120000_cccccc'

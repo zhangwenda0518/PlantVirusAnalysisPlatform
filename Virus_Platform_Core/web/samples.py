@@ -500,14 +500,14 @@ def _analysis_kwargs(body):
             return None
         return v if os.path.isabs(str(v)) else os.path.join(PLATFORM_ROOT, v)
     def _norm_methods(v):
-        """验证证据方法：接受列表/逗号串，只保留 blastx/bfvd，空则默认双路。"""
+        """验证证据方法：接受列表/逗号串，只保留 blastx/bfvd/cdd，空则默认三路。"""
         if v is None or v == '':
-            v = d.get('verify_methods') or ['blastx', 'bfvd']
+            v = d.get('verify_methods') or ['blastx', 'bfvd', 'cdd']
         if isinstance(v, str):
             v = [x for x in v.replace(';', ',').split(',') if x.strip()]
         keep = tuple(x for x in (str(i).strip() for i in v)
-                     if x in ('blastx', 'bfvd'))
-        return keep or ('blastx', 'bfvd')
+                     if x in ('blastx', 'bfvd', 'cdd'))
+        return keep or ('blastx', 'bfvd', 'cdd')
 
     # 资源钳制（2026-10-04 审查 E3）：线程 ≤ 物理核、内存 ≤ 物理内存
     # 60%——此前 POST 任意大值直通 SPAdes（-m 64 在 16GB 机器换页抖动）

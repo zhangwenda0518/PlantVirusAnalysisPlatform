@@ -20,6 +20,27 @@ from Virus_Platform_Core.web.state import (cfg, run_real_dir as _run_real_dir,
                                            tool_runs_root as _tool_runs_root)
 from Virus_Platform_Core.web.tasks import tm
 
+
+def _resolve_runrel(path):
+    """相对产物路径按运行根解析（DIRS 感知）。
+
+    tool_runs/x、run/tool_runs/x、results/x、run/results/x 一律映射到
+    DIRS['tool_runs'] / DIRS['results'] —— 跟随 VP_RUN_ROOT 测试隔离与
+    自定义输出根（2026-11-03 修：原先 join(PLATFORM_ROOT, path) 靠旧目录
+    重定向只会兜到真实 run/，隔离与自定义输出根下必 404）。
+    绝对路径原样返回，交 check_path 继续校验。
+    """
+    s = str(path).replace('\\', '/').strip()
+    if os.path.isabs(s):
+        return path
+    s = s.lstrip('/')
+    for pre in ('run/tool_runs/', 'tool_runs/', 'run/results/', 'results/'):
+        if s.startswith(pre):
+            key = 'tool_runs' if 'tool_runs' in pre else 'results'
+            from Virus_Platform_Core.config import DIRS
+            return os.path.join(DIRS[key], s[len(pre):])
+    return path
+
 _log = logging.getLogger('Virus_Platform_Core.web.tool_results')
 from Virus_Platform_Core.web.tool_jobs import _find_contig_seq
 
@@ -129,6 +150,25 @@ def api_tool_verify_result():
         with safe_open(summ_json) as f:
             summary = json.load(f)
     return jsonify({'rows': rows, 'summary': summary})
+
+
+@bp.route('/api/tool/hom_result')
+def api_tool_hom_result():
+    """单条深查结果（原 t-hom 卡，2026-11-03 并入 t-verify）：
+    hom_hits.json（分组命中表）+ 运行摘要。"""
+    run = request.args.get('run') or ''
+    if not re.fullmatch(r'[A-Za-z0-9_\-]+', run):
+        abort(400, '无效的运行名')
+    rdir = check_path(_run_real_dir(run), must_exist=True, in_platform=True)
+    data, tsv_path = {}, ''
+    pj = os.path.join(rdir, 'hom_hits.json')
+    if os.path.isfile(pj):
+        with safe_open(pj) as f:
+            data = json.load(f)
+    tj = os.path.join(rdir, 'hom_hits.tsv')
+    if os.path.isfile(tj):
+        tsv_path = tj
+    return jsonify({'result': data, 'tsv': tsv_path})
 
 
 @bp.route('/api/tool/verify_export', methods=['POST'])
@@ -673,8 +713,9 @@ def api_tool_quicktree_data():
     run_dir = check_path(_run_real_dir(run),
                          must_exist=True, in_platform=True)
     tree_file = None
-    for name in ('nj.nwk', 'tree.nwk'):
-        p = os.path.join(run_dir, name)
+    for rel in ('nj.nwk', 'tree.nwk',
+                os.path.join('raxml', 'raxml.raxml.support')):
+        p = os.path.join(run_dir, rel)
         if os.path.isfile(p):
             tree_file = p
             break
@@ -685,8 +726,12 @@ def api_tool_quicktree_data():
     if not nwk:
         abort(404, '树文件为空')
     base = os.path.basename(tree_file)
-    return jsonify({'newick': nwk, 'file': base,
-                    'tool': 'NJ' if base == 'nj.nwk' else 'FastTree',
+    # raxml-ng 的树在 raxml/ 子目录，file 必须带相对路径，前端下载链接才拼得对
+    rel_file = os.path.relpath(tree_file, run_dir).replace('\\', '/')
+    tool = ('NJ' if base == 'nj.nwk'
+            else ('RAxML-NG' if base == 'raxml.raxml.support' else 'FastTree'))
+    return jsonify({'newick': nwk, 'file': rel_file,
+                    'tool': tool,
                     # 「进化树 + 基因组叠加」：与树同名的 <stem>.overlay.json，
                     # 有就带上（无则 null，前端照常渲染纯树）。
                     'overlay': tree_overlay_for(tree_file)})
@@ -727,8 +772,7 @@ def api_align_file():
     if not path.lower().endswith(_ALIGN_EXTS):
         abort(400, '请提供 FASTA/比对文件（' + '/'.join(_ALIGN_EXTS[:4]) + '…）')
     try:
-        p = check_path(path if os.path.isabs(path)
-                       else os.path.join(PLATFORM_ROOT, path),
+        p = check_path(_resolve_runrel(path),
                        must_exist=True)
     except (ValueError, FileNotFoundError) as e:
         abort(400, f'路径不合法: {e}')
@@ -762,8 +806,7 @@ def api_align_save():
         abort(400, f'提交内容 {len(content) / 1048576:.0f} MB 超过比对查看器上限 '
                    f'{_ALIGN_MAX_MB} MB')
     try:
-        p = check_path(path if os.path.isabs(path)
-                       else os.path.join(PLATFORM_ROOT, path),
+        p = check_path(_resolve_runrel(path),
                        must_exist=True)
     except (ValueError, FileNotFoundError) as e:
         abort(400, f'路径不合法: {e}')
@@ -772,7 +815,15 @@ def api_align_save():
         probe = _parse_alignment_fasta_string(content)
     except ValueError as e:
         abort(400, f'内容不是合法 FASTA: {e}')
-    in_plat = str(p).startswith(str(PLATFORM_ROOT) + os.sep)
+    # 平台内判定用 write_roots（平台根 + 自定义输出根/隔离根都在内）：
+    # 原先只认 PLATFORM_ROOT 前缀，隔离/自定义输出根下的产物会被误判成
+    # 平台外，编辑副本落到 align_edit_<ts>/edited.fasta 而不是源文件旁。
+    from Virus_Platform_Core.config import write_roots
+    _np = os.path.normpath(os.path.abspath(str(p)))
+    in_plat = any(_np == os.path.normpath(os.path.abspath(str(r)))
+                  or _np.startswith(os.path.normpath(os.path.abspath(str(r)))
+                                    + os.sep)
+                  for r in write_roots())
     if in_plat:
         stem, _ext = os.path.splitext(p)
         dst = stem + '.edit.fasta'
@@ -832,8 +883,7 @@ def api_tree_file():
         abort(400, '请提供树文件（'
                     + ' / '.join(_TREE_EXTS) + '）')
     try:
-        p = check_path(path if os.path.isabs(path)
-                       else os.path.join(PLATFORM_ROOT, path),
+        p = check_path(_resolve_runrel(path),
                        must_exist=True)
     except (ValueError, FileNotFoundError) as e:
         abort(400, f'路径不合法: {e}')
@@ -1023,6 +1073,10 @@ def api_tool_hostpredict_run():
                             min_confidence=min_conf)
         prog('done', 1.0, f"完成：宿主判定 {res.get('n_contigs', 0)} 条")
         logger.close()
+        # run/out_dir 随结果下发：任务卡并入分类卡块后，前端产物下载按钮
+        # 靠 run 名拼 /tool_runs/<run>/… 链接（outFilesHtml / build_result_preview）
+        res['run'] = run
+        res['out_dir'] = run_dir
         return res
 
     ts = time.strftime('%Y%m%d_%H%M%S')

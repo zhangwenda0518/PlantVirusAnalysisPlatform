@@ -623,6 +623,8 @@ def api_host_genome_download():
     def job(log, prog, cancel):
         from Virus_Platform_Core.public_meta import host_genome as hg
         from Virus_Platform_Core.config import DIRS
+        from Virus_Platform_Core.utils import (TaskPaused, task_cancel_event,
+                                               task_pause_event)
         logger = TaskLogger(callback=log)
         slug = re.sub(r'[^\w\-]+', '_', accession or species).strip('_') \
             or 'host'
@@ -631,7 +633,8 @@ def api_host_genome_download():
             from Virus_Platform_Core.public_meta import datasets_cli as dsc
             res = hg.download_genome_accession(
                 accession, os.path.join(DIRS['host_src'], f'genome_{slug}'),
-                chromosomes=chromosomes, taxid=taxid, log=logger.log)
+                chromosomes=chromosomes, taxid=taxid, log=logger.log,
+                prog=prog)
             _selfcheck_invalidate()
             prog('done', 1.0, f"基因组就绪: {res['genome_fa']}")
             logger.close()
@@ -643,13 +646,25 @@ def api_host_genome_download():
         if source == 'gget':
             prog('download', 0.15, f'gget/Ensembl 下载 {species}')
             res = hg.download_genome_gget(species, out_dir, release=release,
-                                          taxid=t, log=logger.log)
+                                          taxid=t, log=logger.log,
+                                          prog=prog)
         else:
             prog('download', 0.15, f'NCBI 下载 {species}')
             os.makedirs(out_dir, exist_ok=True)
             try:
-                hg.download_genome_https(species, out_dir, log=logger.log)
+                hg.download_genome_https(species, out_dir,
+                                        log=logger.log, prog=prog)
+            except TaskPaused:
+                # 暂停不是失败：继续上抛，TaskManager 才会把卡置「已暂停」
+                # 并保留「继续」按钮（宽 except 会把它吞成 ERROR 日志）。
+                raise
             except Exception as e:                 # noqa: BLE001
+                _pev = task_pause_event()
+                if _pev is not None and _pev.is_set():
+                    raise TaskPaused('任务已暂停') from e
+                _cev = task_cancel_event()
+                if _cev is not None and _cev.is_set():
+                    raise RuntimeError('任务已停止（用户取消）') from e
                 logger.log(f'NCBI 下载失败: {e}', 'ERROR')
             fasta_files = hg.collect_fasta_files(
                 os.path.join(out_dir, 'extracted'))
@@ -674,7 +689,8 @@ def api_host_genome_download():
     # out_dir 在本接口内要到 job 里查完 taxid 才知道，故按任务名去重
     # （同名 = 同 accession/物种，落同一宿主目录）。
     _reject_busy_build(name=_task_name)
-    tid = tm.start(_task_name, job)
+    # pausable：下载类任务，卡上给「暂停/继续」
+    tid = tm.start(_task_name, job, pausable=True)
     return jsonify({'task': tid})
 
 
@@ -772,7 +788,7 @@ def api_datasets_virus():
         res = dsc.download_virus(taxon=taxon or None, host=host or None,
                                  name=name or None, include=('genome',),
                                  accession=accession or None,
-                                 log=logger.log)
+                                 log=logger.log, prog=prog)
         prog('done', 1.0,
              f"数据集就绪: {res['reference']}（{res['n_seqs']} 条序列）")
         logger.close()
@@ -784,7 +800,8 @@ def api_datasets_virus():
                         f'Virus dataset download {taxon or accession}')
     # 给了 name（目标目录已知）按目录去重，否则按任务名（同 taxon+host）。
     _reject_busy_build(tgt if name else None, _task_name)
-    tid = tm.start(_task_name, job)
+    # pausable：下载类任务，卡上给「暂停/继续」
+    tid = tm.start(_task_name, job, pausable=True)
     return jsonify({'task': tid})
 
 
@@ -846,7 +863,8 @@ def api_datasets_download():
         from Virus_Platform_Core.public_meta import datasets_cli as dsc
         logger = TaskLogger(callback=log)
         prog('download', 0.1, f'datasets {mode}（见日志）')
-        res = dsc.download(mode, out_dir=out_dir, log=logger.log, **kwargs)
+        res = dsc.download(mode, out_dir=out_dir, log=logger.log,
+                           prog=prog, **kwargs)
         prog('done', 1.0, f"下载完成: {res['out_dir']}")
         logger.close()
         return {'out_dir': res['out_dir'],
@@ -855,7 +873,8 @@ def api_datasets_download():
                 'n_reports': len(res.get('reports') or [])}
 
     tid = tm.start(cfg.tr(f'datasets {mode} 下载 {slug}',
-                         f'datasets {mode} download {slug}'), job)
+                         f'datasets {mode} download {slug}'), job,
+                   pausable=True)
     return jsonify({'task': tid, 'out_dir': out_dir})
 
 
@@ -1107,7 +1126,7 @@ def api_build_kv_index():
         abort(400, f'不支持的建库引擎: {", ".join(bad)}（可选 salmon / minibwa）')
     if not engines:
         engines = ['salmon']
-    name = (body.get('name') or 'kv_index').strip()
+    name = (body.get('name') or 'plant_ref').strip()   # 平台默认库（2026-09-29 由 kv_index 更名）
     if not re.fullmatch(r'[A-Za-z0-9_\-]+', name):
         abort(400, '库名仅限字母数字-_')
     out_dir = check_path(os.path.join(DIRS['virus_src'], name),
@@ -1286,6 +1305,13 @@ def _kv_index_probe(d, name=None):
                    or lib.get('reference')) else None
 
 
+# 鉴定库发现 = 数据库整根递归扫描（无缓存时首页并行拉它 + /api/dbs 全目录
+# walk，冷启动首屏双卡）。进程内 TTL 缓存：换库/装机后最多 2 分钟延迟可见，
+# `?refresh=1` 立即重扫；extra（外部登记）永远实时，不入缓存。
+_KVLIB_CACHE = {'ts': 0.0, 'root': '', 'data': None}
+_KVLIB_TTL = 120.0
+
+
 @bp.route('/api/kv_index_list')
 def api_kv_index_list():
     """列出可用的鉴定库（自动识别，不写死位置）与引擎可用性。
@@ -1295,6 +1321,17 @@ def api_kv_index_list():
     libs 条目带 scope：platform（可按库名引用）/ internal（数据库根内其他
     位置，按绝对路径引用）/ external（平台外，只读，按绝对路径引用）。
     """
+    root = str(getattr(cfg, 'database_root', '') or '')
+    now = time.time()
+    cached = _KVLIB_CACHE['data']
+    if (cached is not None
+            and str(request.args.get('refresh') or '') not in ('1', 'true')
+            and _KVLIB_CACHE['root'] == root
+            and now - _KVLIB_CACHE['ts'] < _KVLIB_TTL):
+        out = dict(cached)
+        out['extra'] = [p for p in (getattr(cfg, 'extra_kv_indexes', []) or [])]
+        out['cached'] = True
+        return jsonify(out)
     out = {'base': DIRS['virus_src'], 'libs': [], 'engines': {}}
     try:
         from ..known_virus_suite.kv_common import ToolRegistry
@@ -1312,6 +1349,7 @@ def api_kv_index_list():
         lib.setdefault('reference', '')
         out['libs'].append(lib)
     out['extra'] = [p for p in (getattr(cfg, 'extra_kv_indexes', []) or [])]
+    _KVLIB_CACHE.update(ts=now, root=root, data=dict(out))
     return jsonify(out)
 
 
