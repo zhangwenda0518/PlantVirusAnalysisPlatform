@@ -3703,9 +3703,9 @@ exe 才进分发版（v18 已重打验证；_it_submit 集成测试通过）。
   blob/main/wiki/<Page>.md，目录链接指向 tree/main/wiki）。
 - 归档而非删除：旧仓 wiki/历史仍只读可访问；如确认彻底删除可再执行。
 
-### 2026-10-25 补⑭：GitHub 主仓改名 PlantVirusPlatform
+### 2026-10-25 补⑭：GitHub 主仓改名 PlantVirusAnalysisPlatform
 
-`plant-virus-analysis-platform` → **PlantVirusPlatform**（GitHub PATCH name，
+`plant-virus-analysis-platform` → **PlantVirusAnalysisPlatform**（GitHub PATCH name，
 web 链接自动 301；raw 不跟随重定向，必须同步改代码）：
 - plugin_manager.DEFAULT_INDEX_URLS 的 GitHub raw 索引（拆分字面量）；
 - 两个 addon 构建脚本的 Release 兜底 URL；plugins-repo/index.json 全量
@@ -3791,8 +3791,8 @@ selfcheck rc=0、dist_completeness rc=0；体积不变（1.88 / 2.57 GB）。
 package.py 的**构建中间态**；Release/ 才是对外发布目录（两版硬链接克隆）。
 
 新增 `dev_tools/finalize_release.py`：
-- 从三件中间产物组装 `Release/PlantVirusPlatform`（13 工具）与
-  `Release/PlantVirusPlatform_with_Plugin`（26 工具），写启动脚本与
+- 从三件中间产物组装 `Release/PlantVirusAnalysisPlatform`（13 工具）与
+  `Release/PlantVirusAnalysisPlatform_with_Plugin`（26 工具），写启动脚本与
   README、按版补 build_info.edition；
 - 组装成功后默认**删除根目录三件中间产物**及根目录启动脚本/说明
   （--keep-build 可保留）；
@@ -3812,7 +3812,7 @@ package.py 的**构建中间态**；Release/ 才是对外发布目录（两版�
 - 现有两版用同卷 `shutil.move` 迁移（保留硬链接，不复制 GB 级数据），
   删除空 `Release/`。
 - `package.py` 文件头「发布最终化」口径同步：最终只保留
-  `PlantVirusPlatform/`、`PlantVirusPlatform_with_Plugin/`、`README.txt`。
+  `PlantVirusAnalysisPlatform/`、`PlantVirusAnalysisPlatform_with_Plugin/`、`README.txt`。
 
 验证：两版 selfcheck rc=0；体积不变（1.88 / 2.57 GB，磁盘共享后约 2.2 GB）；
 PVAP 根目录只剩两版 + README + 用户自备文件。
@@ -4425,7 +4425,7 @@ temporary directory found in [...]」。
 
 **两个原因**：
 1. 脚本把路径写死成 `%~dp0..\PVAP\VirusPlatform`（= `D:\桌面\PVAP\VirusPlatform`），
-   而分发版现在在 `D:\PVAP\PlantVirusPlatform\VirusPlatform`；源码平台的
+   而分发版现在在 `D:\PVAP\PlantVirusAnalysisPlatform\VirusPlatform`；源码平台的
    `run\fastq` 也可能还没建。
 2. 更深一层：脚本里 `chcp 65001` 之后又用中文 `echo`，cmd 会按"打开文件时的
    代码页"逐行读批处理，遇到多字节行会**从中间切断**——实测最后一行被拆成
@@ -4435,8 +4435,8 @@ temporary directory found in [...]」。
 **重写**（源码根 + 两个分发根各一份，自定位）：
 - 程序目录候选：`<此处>\VirusPlatform.exe`（所在目录就是程序目录）→
   `<此处>\VirusPlatform\`（版本根）→ 旧布局 `..\PVAP\VirusPlatform` →
-  `..\PVAP\PlantVirusPlatform\VirusPlatform` → 扫 C~G 盘的
-  `\PVAP\PlantVirusPlatform\VirusPlatform`；都没有就**让你粘贴路径**；
+  `..\PVAP\PlantVirusAnalysisPlatform\VirusPlatform` → 扫 C~G 盘的
+  `\PVAP\PlantVirusAnalysisPlatform\VirusPlatform`；都没有就**让你粘贴路径**；
 - 数据源：`<此处>\run\fastq`，没有就让你粘贴（例如 `D:\seq\fastq`）；
 - **全文 ASCII**，不再被代码页切断；
 - 已存在时区分「是指向 X 的联接（给 rd 换挂载的提示）」与「普通目录别动」；
@@ -4517,13 +4517,13 @@ temporary directory found in [...]」。
 ## 2026-10-29（补十八）：启动后留下一个空的黑窗口（cmd /K 没关）
 
 **现象**（用户截图）：双击 `Start-Web.bat` 后，桌面上多出一个标题为「命令提示符」、
-停在 `D:\PVAP\PlantVirusPlatform\VirusPlatform>` 的空白控制台。平台本身是好的
+停在 `D:\PVAP\PlantVirusAnalysisPlatform\VirusPlatform>` 的空白控制台。平台本身是好的
 （`VirusPlatform.exe --web --no-open` 在听 8765）。
 
 **根因**：`Start-Web.bat` 里写的是 `start "" /min "%ROOT%open-browser.bat"`。
 `start` 执行 `.bat` 时走的是 **`cmd /K`**（跑完保留窗口），不是 `/C`。helper 脚本
 自己 `exit /b 0` 只退出批处理，`/K` 的命令解释器还在，于是留下一个空提示符。
-实测进程：`cmd.exe /K "D:\PVAP\PlantVirusPlatform\open-browser.bat"`（PID 9204）。
+实测进程：`cmd.exe /K "D:\PVAP\PlantVirusAnalysisPlatform\open-browser.bat"`（PID 9204）。
 
 **改法**：
 - `Start-Web.bat`：改为 `start "" /min cmd /c ""%ROOT%open-browser.bat""`，
@@ -5336,7 +5336,7 @@ _internal、agent-guide/agent-ops 两个子命令进 CLI）。
   fasta 上建的，而当前 fasta 是 CRLF（换行宽度被改写过、索引没重建）。
   两者 mtime 同为 2026-10-19 01:10:14。
 - 影响面：源码库 `databases/virusref_db/plant_ref/` 与用户打包库
-  `D:\PVAP\PlantVirusPlatform_with_Plugin\VirusPlatform-Database\databases\
+  `D:\PVAP\PlantVirusAnalysisPlatform_with_Plugin\VirusPlatform-Database\databases\
   virusref_db\plant_ref\` 两份坏 .fai **sha256 完全相同**
   （`560093E4…D03031437`），即分发时就带着这张坏索引。
 - 数据修复（两边都做，先备份 `.bak_20261102`）：

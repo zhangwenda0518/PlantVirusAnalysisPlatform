@@ -2720,7 +2720,7 @@ def _ov_post(route, data, timeout=120):
     headers = {'Content-Type': 'application/json',
                'Accept': 'application/json',
                'User-Agent': 'VirusPlatform-MCP/1.2 (local virome platform; '
-                             'github.com/zhangwenda0518/PlantVirusPlatform)'}
+                             'github.com/zhangwenda0518/PlantVirusAnalysisPlatform)'}
     r = None
     for attempt in (1, 2):          # 上游网关偶发 5xx，重试一次
         r = httpx.post(_OV_API + route, json=data, timeout=timeout,

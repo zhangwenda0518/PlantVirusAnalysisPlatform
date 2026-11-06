@@ -76,7 +76,7 @@ def build():
         'file': f'{NAME}-plugin.zip',
         'url': f'http://39.106.101.94/plugins/{NAME}-plugin.zip',
         'urls': [f'http://39.106.101.94/plugins/{NAME}-plugin.zip',
-                 'https://github.com/zhangwenda0518/PlantVirusPlatform/'
+                 'https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/'
                  'releases/download/plugin-packs/'
                  f'{NAME}-plugin.zip'],
         'size': size, 'sha256': sha,

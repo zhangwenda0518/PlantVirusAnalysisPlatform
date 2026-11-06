@@ -5,8 +5,8 @@
   <PVAP>/VirusPlatform、VirusPlatform-Examples、VirusPlatform-Database
 作为构建产物直接摊在 PVAP 根目录。发布实际只要两版：
 
-  <PVAP>/PlantVirusPlatform/                 主流程 13 工具
-  <PVAP>/PlantVirusPlatform_with_Plugin/     全量 26 工具
+  <PVAP>/PlantVirusAnalysisPlatform/                 主流程 13 工具
+  <PVAP>/PlantVirusAnalysisPlatform_with_Plugin/     全量 26 工具
 
 两版都由上面三件**硬链接克隆**而来（几乎不额外占盘），因此组装完成后
 根目录那三件就是纯中间产物——留着只会让人分不清哪个是要发的。本脚本
@@ -49,8 +49,8 @@ DB_DIR = os.path.join(DIST, 'VirusPlatform-Database')
 BS = chr(92)
 
 EDITIONS = (
-    ('PlantVirusPlatform', 'minimal'),
-    ('PlantVirusPlatform_with_Plugin', 'full'),
+    ('PlantVirusAnalysisPlatform', 'minimal'),
+    ('PlantVirusAnalysisPlatform_with_Plugin', 'full'),
 )
 
 # 主流程保留集（与 package.py --minimal-tools / dist_completeness.py 同源）
@@ -235,12 +235,12 @@ def write_selector():
     sel = [
         'Plant Virus Analysis Platform - choose your edition',
         '=' * 60, '',
-        '1) PlantVirusPlatform' + BS,
+        '1) PlantVirusAnalysisPlatform' + BS,
         '   Program (13 main-workflow tool suites) + Examples + Database.',
         '   Specialised tools install on demand via Settings -> Plugins.',
         '   Total size: about 1.3 GB  (program 0.90 + examples 0.10 + database 0.28)',
         '',
-        '2) PlantVirusPlatform_with_Plugin' + BS,
+        '2) PlantVirusAnalysisPlatform_with_Plugin' + BS,
         '   Program (full 26-tool suite) + Examples + Database.',
         '   Everything bundled; nothing to install on demand.',
         '   Total size: about 2.0 GB  (program 1.60 + examples 0.10 + database 0.28)',

@@ -51,7 +51,7 @@ from Virus_Platform_Core.config import PLATFORM_ROOT, RUN_ROOT, DIRS
 # 配置（该域名自动进更新白名单，属用户显式选择），不做静默回退。
 DEFAULT_MANIFEST_URLS = [
     'https://raw.githubusercontent.com/zhangwenda0518/'
-    'PlantVirusPlatform/main/updates-repo/manifest.json',
+    'PlantVirusAnalysisPlatform/main/updates-repo/manifest.json',
 ]
 DEFAULT_MANIFEST_URL = DEFAULT_MANIFEST_URLS[0]
 

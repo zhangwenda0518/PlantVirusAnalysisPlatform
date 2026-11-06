@@ -198,7 +198,7 @@ window.VPGuide = (function () {
     } catch (e) { /* 隐私模式等：不记也罢 */ }
   }
 
-  var GH_WIKI = 'https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/';
+  var GH_WIKI = 'https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/';
   function docHref(slug, slug2group) {
     var g = slug2group[slug];
     if (g === '') return GH_WIKI + encodeURIComponent(slug) + '.md';

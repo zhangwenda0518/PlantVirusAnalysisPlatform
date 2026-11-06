@@ -7,7 +7,7 @@ rem  NTFS directory junction: no copy, no extra disk usage.
 rem
 rem  Why the old script failed: it hard-coded
 rem      %~dp0..\PVAP\VirusPlatform
-rem  while the distribution now lives in D:\PVAP\PlantVirusPlatform\VirusPlatform,
+rem  while the distribution now lives in D:\PVAP\PlantVirusAnalysisPlatform\VirusPlatform,
 rem  and the source platform's run\fastq may not exist yet. This version
 rem  auto-detects the program folder, and asks for a path when it cannot.
 rem
@@ -25,9 +25,9 @@ set "PKG="
 if exist "%HERE%VirusPlatform.exe" set "PKG=%HERE%."
 if not defined PKG if exist "%HERE%VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%VirusPlatform"
 if not defined PKG if exist "%HERE%..\PVAP\VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%..\PVAP\VirusPlatform"
-if not defined PKG if exist "%HERE%..\PVAP\PlantVirusPlatform\VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%..\PVAP\PlantVirusPlatform\VirusPlatform"
+if not defined PKG if exist "%HERE%..\PVAP\PlantVirusAnalysisPlatform\VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%..\PVAP\PlantVirusAnalysisPlatform\VirusPlatform"
 if not defined PKG for %%D in (C D E F G) do (
-  if not defined PKG if exist "%%D:\PVAP\PlantVirusPlatform\VirusPlatform\VirusPlatform.exe" set "PKG=%%D:\PVAP\PlantVirusPlatform\VirusPlatform"
+  if not defined PKG if exist "%%D:\PVAP\PlantVirusAnalysisPlatform\VirusPlatform\VirusPlatform.exe" set "PKG=%%D:\PVAP\PlantVirusAnalysisPlatform\VirusPlatform"
 )
 if not defined PKG (
   echo [1/2] Distribution not found ^(VirusPlatform.exe^).

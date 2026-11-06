@@ -55,7 +55,7 @@ def _open_eutils(url, params, timeout=120):
                 or ip.is_link_local or ip.is_multicast):
             raise RuntimeError(f'域名解析到保留地址，已拒绝: {ip}')
 
-    common = {'tool': 'PlantVirusPlatform', 'usehistory': 'y'}
+    common = {'tool': 'PlantVirusAnalysisPlatform', 'usehistory': 'y'}
     email = getattr(get_config(), 'email', '')
     if email:
         common['email'] = email

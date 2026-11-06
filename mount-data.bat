@@ -25,7 +25,7 @@ if exist "%HERE%VirusPlatform.exe" set "PKG=%HERE%."
 if not defined PKG if exist "%HERE%VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%VirusPlatform"
 if not defined PKG if exist "%HERE%..\PVAP\VirusPlatform\VirusPlatform.exe" set "PKG=%HERE%..\PVAP\VirusPlatform"
 if not defined PKG for %%D in (C D E F G) do (
-  if not defined PKG if exist "%%D:\PVAP\PlantVirusPlatform\VirusPlatform\VirusPlatform.exe" set "PKG=%%D:\PVAP\PlantVirusPlatform\VirusPlatform"
+  if not defined PKG if exist "%%D:\PVAP\PlantVirusAnalysisPlatform\VirusPlatform\VirusPlatform.exe" set "PKG=%%D:\PVAP\PlantVirusAnalysisPlatform\VirusPlatform"
 )
 if not defined PKG exit /b 0
 if not exist "%PKG%\VirusPlatform.exe" exit /b 0

@@ -1,6 +1,6 @@
 {
-  "title": "PlantVirusPlatform: an offline-deployable, end-to-end plant virus analysis platform for Windows",
-  "description": "<p>PlantVirusPlatform is a Windows-native platform that runs a 15-stage plant virus analysis pipeline behind a local web interface, a CLI and an MCP server: host depletion, dual-engine known-virus identification and quantification (salmon / minibwa), <i>de novo</i> assembly, consensus calling, ORF annotation, phylogenetics, recombination screening, primer design and report generation. It ships with assembled reference libraries, runs fully offline, and is benchmarked against the VIROMOCK and Bari inter-laboratory panels.</p><p>This record archives the software release. Reference libraries and benchmark inputs are obtained from their upstream sources; see THIRD_PARTY_NOTICES.md and docs/paper/benchmark/README.</p>",
+  "title": "PlantVirusAnalysisPlatform: an offline-deployable, end-to-end plant virus analysis platform for Windows",
+  "description": "<p>PlantVirusAnalysisPlatform is a Windows-native platform that runs a 15-stage plant virus analysis pipeline behind a local web interface, a CLI and an MCP server: host depletion, dual-engine known-virus identification and quantification (salmon / minibwa), <i>de novo</i> assembly, consensus calling, ORF annotation, phylogenetics, recombination screening, primer design and report generation. It ships with assembled reference libraries, runs fully offline, and is benchmarked against the VIROMOCK and Bari inter-laboratory panels.</p><p>This record archives the software release. Reference libraries and benchmark inputs are obtained from their upstream sources; see THIRD_PARTY_NOTICES.md and docs/paper/benchmark/README.</p>",
   "creators": [
     {
       "name": "Zhang, Wenda",
@@ -23,7 +23,7 @@
   ],
   "related_identifiers": [
     {
-      "identifier": "https://github.com/zhangwenda0518/PlantVirusPlatform",
+      "identifier": "https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform",
       "relation": "isSupplementTo",
       "scheme": "url"
     }

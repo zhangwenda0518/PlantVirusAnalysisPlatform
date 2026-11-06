@@ -41,7 +41,7 @@ v1.1/v1.2 的脊柱是从 git 历史恢复的 2026-09-16 基准；用户指出 `
 | alignment engine 物种级确认 20/28（71.4%）、D11–18 8/8 | 同上 + `score.py`（`compare.md` §6） |
 | 20 样本链路 31/36（86.1%）、2.2 GB | `docs/paper/benchmark_20261019/results/chain_results.json` |
 | 248 路由（35 页级 + 213 程序化） | `python tests/_route_inventory.py` 实测 251（含我本地未提交的 3 条 anchor 路由） |
-| 发行包 2.90 GB、85 测试脚本、219 pytest | `D:\PVAP\PlantVirusPlatform_with_Plugin` 实测；`tests/` |
+| 发行包 2.90 GB、85 测试脚本、219 pytest | `D:\PVAP\PlantVirusAnalysisPlatform_with_Plugin` 实测；`tests/` |
 | ~199,000 条流行病学记录 | 平台 `/api/` 实测（v1.2 §2.10 沿用） |
 
 ## 4. 待作者确认的三处口径（已在正文以括号或脚注披露，未擅自统一）

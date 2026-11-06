@@ -184,48 +184,48 @@ mindmap
 
 ## 📦 Module Overview
 
-> Each module's **detailed documentation (inputs/outputs · parameters · CLI · product directories · caveats) lives in the [Wiki](https://github.com/zhangwenda0518/PlantVirusPlatform/tree/main/wiki)**.
+> Each module's **detailed documentation (inputs/outputs · parameters · CLI · product directories · caveats) lives in the [Wiki](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/tree/main/wiki)**.
 
 ### Main analysis pipeline (per sample, ⓪ → ⑩)
 
 | Stage | Wiki | Engine | Output |
 |---|---|---|---|
-| ⓪ fastp QC (optional) | [Preprocess](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Preprocess.md) | fastp | clean reads, QC report |
+| ⓪ fastp QC (optional) | [Preprocess](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Preprocess.md) | fastp | clean reads, QC report |
 | ⓪b FASTQ→FASTA (optional) | same page | seqkit fq2fa | conv_R1/R2.fa.gz (speeds up classification) |
 | ① Host removal | same page | kunpeng (host DB) | kept_R1/R2, host fraction |
-| ②b Known-virus ID & quantification | [Kvsuite](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Kvsuite.md) | salmon (EM quantification) / minibwa | ID table, quantification table, BAM+depth, viral reads |
-| ③ Assembly & classification | [Assembly](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Assembly.md) | SPAdes metaviral/rna + BLAST | contigs, viral-contig annotation table |
+| ②b Known-virus ID & quantification | [Kvsuite](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Kvsuite.md) | salmon (EM quantification) / minibwa | ID table, quantification table, BAM+depth, viral reads |
+| ③ Assembly & classification | [Assembly](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Assembly.md) | SPAdes metaviral/rna + BLAST | contigs, viral-contig annotation table |
 | ③b Candidate sequence verification | same page | host filtering → length split → blastx/BFVD/CDD/viroid | verified candidate set |
 | ③c Consensus & variants | same page | reads re-mapped to the reference → per-position counts | consensus sequences, variant table |
-| ④ Host prediction | [Host-Prediction](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Host-Prediction.md) | kunpeng + ICTV host-probability cascade | host_prediction.tsv, sankey/sunburst plots |
-| ⑥ ORF prediction | [ORF](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/ORF.md) | pyrodigal + pyrodigal-rv | faa/ffn/gff |
+| ④ Host prediction | [Host-Prediction](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Host-Prediction.md) | kunpeng + ICTV host-probability cascade | host_prediction.tsv, sankey/sunburst plots |
+| ⑥ ORF prediction | [ORF](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/ORF.md) | pyrodigal + pyrodigal-rv | faa/ffn/gff |
 | ⑥b ORF functional annotation | same page | PVDB plant-virus library (homology + polyprotein segmentation) + PVDB HMM (Pfam/VOG/VFAM) + PVDB CDD + PVDB BFVD | orf_annotation.tsv, GFF3, feature diagrams |
-| ⑦ Phylogeny & SDT | [Phylo](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Phylo.md) | MAFFT + trimAl + FastTree/RAxML-NG/NJ; exact SDT engine | tree.nwk, identity matrix + heatmap |
-| ⑧ Primer design | [Primer](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Primer.md) | primer3 (conserved regions / full length) + thermodynamic scoring | primers.tsv |
-| ⑨ Genome plots | [Genome-Plots](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Genome-Plots.md) | gbdraw / dna_features_viewer | circular + linear SVG |
-| ⑩ Visual report | [Report](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Report.md) | plotly + pycirclize + matplotlib | report.html |
+| ⑦ Phylogeny & SDT | [Phylo](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Phylo.md) | MAFFT + trimAl + FastTree/RAxML-NG/NJ; exact SDT engine | tree.nwk, identity matrix + heatmap |
+| ⑧ Primer design | [Primer](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Primer.md) | primer3 (conserved regions / full length) + thermodynamic scoring | primers.tsv |
+| ⑨ Genome plots | [Genome-Plots](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Genome-Plots.md) | gbdraw / dna_features_viewer | circular + linear SVG |
+| ⑩ Visual report | [Report](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Report.md) | plotly + pycirclize + matplotlib | report.html |
 
 ### Extended analyses (dedicated tabs)
 
 | Module | Wiki | Description |
 |---|---|---|
-| Phylodynamics toolkit | [Phylodynamics](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Phylodynamics.md) | TreeTime ML molecular clock / geographic reconstruction / skyline / ancestral sequences, RTT·DRT regression, BSP, MCC-tree parsing, spatiotemporal downsampling, metadata governance, alignment QC |
-| BEAST interface | [BEAST](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/BEAST.md) | server-side BEAST job-package generation and read-back verification, Markov-jump XML injection with log parsing, MCC state parsing |
-| Phylogeography | [Phylogeography](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Phylogeography.md) | migration reconstruction driven by time/geography metadata + migration-arc animated GIF; RDP5 recombination analysis; pre-recombination sequence pre-filtering |
-| Public data search & download | [Public-Data](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Public-Data.md) | SRA+GSA dual-engine search, unified metadata (Core14/Full), publication-grade metadata figure set, aria2c bulk download + built-in sracha FASTQ conversion, host-genome download from three sources (NCBI taxon / accession with chromosome filtering / gget·Ensembl Plants), full NCBI datasets CLI wrapper (genome/gene/taxonomy/virus with host filtering; virus feeds straight into DB building) |
-| Specialized toolbox | [Toolbox](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Toolbox.md) | end-to-end dsRNA design (windowing → efficacy → off-target → primers), miRNA target prediction (5 engines), NCBI reference download, GenBank collections with CDS/PEP extraction, MSA viewer, contig depth annotation, one-step tools |
-| NCBI submission preparation | [Submission](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/NCBI-Submission.md) | one unified_metadata.csv drives everything: online editing → validation → source.src / miuvig / assembly / BioSample / template.sbt / submission report |
-| LOGAN tracing | [Logan](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Logan.md) | submits viral contigs to Logan-Search (covering ~23.4M public SRA samples), batch submission + SSE live progress + tracing report |
+| Phylodynamics toolkit | [Phylodynamics](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Phylodynamics.md) | TreeTime ML molecular clock / geographic reconstruction / skyline / ancestral sequences, RTT·DRT regression, BSP, MCC-tree parsing, spatiotemporal downsampling, metadata governance, alignment QC |
+| BEAST interface | [BEAST](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/BEAST.md) | server-side BEAST job-package generation and read-back verification, Markov-jump XML injection with log parsing, MCC state parsing |
+| Phylogeography | [Phylogeography](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Phylogeography.md) | migration reconstruction driven by time/geography metadata + migration-arc animated GIF; RDP5 recombination analysis; pre-recombination sequence pre-filtering |
+| Public data search & download | [Public-Data](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Public-Data.md) | SRA+GSA dual-engine search, unified metadata (Core14/Full), publication-grade metadata figure set, aria2c bulk download + built-in sracha FASTQ conversion, host-genome download from three sources (NCBI taxon / accession with chromosome filtering / gget·Ensembl Plants), full NCBI datasets CLI wrapper (genome/gene/taxonomy/virus with host filtering; virus feeds straight into DB building) |
+| Specialized toolbox | [Toolbox](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Toolbox.md) | end-to-end dsRNA design (windowing → efficacy → off-target → primers), miRNA target prediction (5 engines), NCBI reference download, GenBank collections with CDS/PEP extraction, MSA viewer, contig depth annotation, one-step tools |
+| NCBI submission preparation | [Submission](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/NCBI-Submission.md) | one unified_metadata.csv drives everything: online editing → validation → source.src / miuvig / assembly / BioSample / template.sbt / submission report |
+| LOGAN tracing | [Logan](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Logan.md) | submits viral contigs to Logan-Search (covering ~23.4M public SRA samples), batch submission + SSE live progress + tracing report |
 
 ### Platform facilities
 
 | Module | Wiki | Description |
 |---|---|---|
-| Databases & reference libraries | [Databases](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Databases.md) | Taxonomy, kunpeng classification DBs, virus reference/ID DBs, annotation DBs (RefSeq proteins / Pfam), tree-building DBs (plant_tree.db / ICTV VMR), host-probability tables, host-DB building |
-| Pipeline orchestration | [Pipeline](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Pipeline-Overview.md) | dependency scheduling, resume-from-checkpoint, weighted progress with self-learning ETA, resource estimation, concurrency gates |
-| Settings · task center · operations | [Settings-Ops](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Settings-Ops.md) | bilingual zh/en UI, 19 default parameters, disk watermark, environment self-check, tool_runs archive cleanup, database migration |
-| Full CLI reference | [CLI-Reference](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/CLI-Reference.md) | all 40 subcommands with every parameter |
-| FAQ & known issues | [FAQ](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/FAQ.md) | common questions, non-ASCII path support, large-genome DB building, design notes |
+| Databases & reference libraries | [Databases](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Databases.md) | Taxonomy, kunpeng classification DBs, virus reference/ID DBs, annotation DBs (RefSeq proteins / Pfam), tree-building DBs (plant_tree.db / ICTV VMR), host-probability tables, host-DB building |
+| Pipeline orchestration | [Pipeline](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Pipeline-Overview.md) | dependency scheduling, resume-from-checkpoint, weighted progress with self-learning ETA, resource estimation, concurrency gates |
+| Settings · task center · operations | [Settings-Ops](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/Settings-Ops.md) | bilingual zh/en UI, 19 default parameters, disk watermark, environment self-check, tool_runs archive cleanup, database migration |
+| Full CLI reference | [CLI-Reference](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/CLI-Reference.md) | all 40 subcommands with every parameter |
+| FAQ & known issues | [FAQ](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/FAQ.md) | common questions, non-ASCII path support, large-genome DB building, design notes |
 
 ## 🚀 Quick Start
 
@@ -233,11 +233,11 @@ mindmap
 
 No installation: unpack the package and start it (Windows 10+, 64-bit). In the package root, double-click `Start-Desktop.bat` for the desktop window or `Start-Web.bat` to open the platform in your browser; both launch `VirusPlatform\VirusPlatform.exe`. Command-line equivalents: `VirusPlatform.exe --gui` and `VirusPlatform.exe --web`. The Python runtime, the external tools and the web front end all ship inside the folder.
 
-- **Editions**: two packages are published — `PlantVirusPlatform` (main-workflow tool set; specialised tools install on demand) and `PlantVirusPlatform_with_Plugin` (full tool set). Both ship the same database package. `README-Distribution.txt` in each package lists exactly what is inside.
+- **Editions**: two packages are published — `PlantVirusAnalysisPlatform` (main-workflow tool set; specialised tools install on demand) and `PlantVirusAnalysisPlatform_with_Plugin` (full tool set). Both ship the same database package. `README-Distribution.txt` in each package lists exactly what is inside.
 - **First run**: if the package carries the NCBI Taxonomy archive it is unpacked once automatically (about a minute, no network); the console prints `[init] ...` while that happens. Later runs start immediately.
 - **Everything is local**: the platform listens on `127.0.0.1` only and never uploads your data.
 - **Databases** (~3.4 GB) live in the separate `VirusPlatform-Database` folder for editions 02/03; for the standalone edition place that folder next to the program (it is detected automatically), or build the libraries on the Database build page.
-- **Source mode** (optional, for development): `git clone https://github.com/zhangwenda0518/PlantVirusPlatform.git`, `python -m pip install -r requirements.txt`, then `python app.py --web`. The frozen executable remains the supported delivery form.
+- **Source mode** (optional, for development): `git clone https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform.git`, `python -m pip install -r requirements.txt`, then `python app.py --web`. The frozen executable remains the supported delivery form.
 
 ### 2. Launch (two modes)
 
@@ -338,7 +338,7 @@ Legacy path compatibility: platform-relative paths such as `tool_runs/` and `res
 
 ## 📚 Documentation
 
-- **[Wiki home](https://github.com/zhangwenda0518/PlantVirusPlatform/tree/main/wiki)** — 25 pages with per-module detail (quick start / each pipeline stage / phylodynamics / BEAST / phylogeography / public data / toolbox / submission / LOGAN / databases / CLI / FAQ).
+- **[Wiki home](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/tree/main/wiki)** — 25 pages with per-module detail (quick start / each pipeline stage / phylodynamics / BEAST / phylogeography / public data / toolbox / submission / LOGAN / databases / CLI / FAQ).
 - Wiki source files are maintained in the [`wiki/`](wiki/) folder of this repository.
 - **[MCP server](docs/mcp_server.md)** — exposes the toolbox / pipeline / task management as 22 `vp_*` tools (toolbox + pipeline + task management + full CLI + virus prescreening + OpenVirome cloud search), so MCP clients such as Claude Desktop and ZCode can drive it directly (both stdio and streamable-HTTP modes, with per-parameter schemas and a calling model).
 - Development notes: [`docs/DEVELOPMENT_NOTES.md`](docs/DEVELOPMENT_NOTES.md).
@@ -369,7 +369,7 @@ Handled automatically: SPAdes runs through `%TEMP%\vp_spades` (pure ASCII), and 
 Fixed: sequences are split automatically into ≤1MB chunks (a 34bp overlap between neighbours preserves cross-cut k-mers), so a 1.8GB genome builds with 2GB of RAM and the k-mer counts match whole-sequence indexing exactly.
 </details>
 
-More in the [Wiki FAQ](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/FAQ.md).
+More in the [Wiki FAQ](https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/blob/main/wiki/FAQ.md).
 
 ## 🙏 Credits & Acknowledgements
 

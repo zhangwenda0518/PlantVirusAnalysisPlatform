@@ -11,8 +11,8 @@
 发布最终化（2026-10-26）：python dev_tools/finalize_release.py
   把上面三件硬链接克隆成 PVAP 根目录下的两版（主流程 13 工具 / 全量 26 工具），
   并删除三件中间产物。最终只保留：
-    <PVAP>/PlantVirusPlatform/                 主流程 13 工具
-    <PVAP>/PlantVirusPlatform_with_Plugin/     全量 26 工具
+    <PVAP>/PlantVirusAnalysisPlatform/                 主流程 13 工具
+    <PVAP>/PlantVirusAnalysisPlatform_with_Plugin/     全量 26 工具
     <PVAP>/README.txt                          版本选择说明
   根目录的 VirusPlatform* 只是构建中间态，不再保留（--keep-build 可保留排查）。
 

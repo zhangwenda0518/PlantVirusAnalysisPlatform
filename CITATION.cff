@@ -5,9 +5,9 @@
 # minted DOI record and cannot be edited afterwards for a tagged release.
 cff-version: 1.2.0
 message: "If you use this platform or its reference libraries, please cite the software record (and the manuscript once published)."
-title: "PlantVirusPlatform: an offline-deployable web platform for end-to-end plant virus detection, quantification and evolutionary analysis on Windows workstations"
+title: "PlantVirusAnalysisPlatform: an offline-deployable web platform for end-to-end plant virus detection, quantification and evolutionary analysis on Windows workstations"
 abstract: >-
-  PlantVirusPlatform is a Windows-native, fully offline platform that runs a
+  PlantVirusAnalysisPlatform is a Windows-native, fully offline platform that runs a
   15-stage plant virus analysis pipeline (host depletion, dual-engine known-virus
   identification and quantification, de novo assembly, consensus calling, ORF
   annotation, phylogenetics, recombination and primer design) behind a local web
@@ -16,8 +16,8 @@ type: software
 version: 1.2.0
 date-released: "2026-10-26"
 license: MIT
-repository-code: "https://github.com/zhangwenda0518/PlantVirusPlatform"
-url: "https://github.com/zhangwenda0518/PlantVirusPlatform"
+repository-code: "https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform"
+url: "https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform"
 keywords:
   - plant virology
   - virus detection

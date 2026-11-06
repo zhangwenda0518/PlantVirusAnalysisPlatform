@@ -721,7 +721,7 @@ def _open_ictv(url, timeout=120, retries=3):
         try:
             _check_host_ip(u.hostname.lower())
             req = urllib.request.Request(url, headers={
-                'User-Agent': 'PlantVirusPlatform/1.0 (+ictv-db-updater)'})
+                'User-Agent': 'PlantVirusAnalysisPlatform/1.0 (+ictv-db-updater)'})
             with _ICTV_OPENER.open(req, timeout=timeout) as r:
                 final = urllib.parse.urlparse(r.geturl() or url)
                 if (final.hostname or '').lower() not in ICTV_HOSTS:

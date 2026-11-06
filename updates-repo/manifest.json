@@ -7,22 +7,22 @@
   "paused": false,
   "rollout_percent": 100,
   "packages": {
-    "PlantVirusPlatform": {
+    "PlantVirusAnalysisPlatform": {
       "version": "1.3.0",
-      "size": 205940245,
-      "sha256": "7b5ae59d72804ee453ec02d5f76739651e76689f73945b04a08cf08e22a597db",
+      "size": 205942951,
+      "sha256": "b37bf709bd59f75cdc1e683558c5c85cf56851f22388934e38efa954d0f1f85c",
       "urls": [
-        "http://39.106.101.94/updates/vp-core-1.3.0-PlantVirusPlatform.zip",
-        "https://github.com/zhangwenda0518/PlantVirusPlatform/releases/download/v1.3.0/vp-core-1.3.0-PlantVirusPlatform.zip"
+        "http://39.106.101.94/updates/vp-core-1.3.0-PlantVirusAnalysisPlatform.zip",
+        "https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/releases/download/v1.3.0/vp-core-1.3.0-PlantVirusAnalysisPlatform.zip"
       ]
     },
-    "PlantVirusPlatform_with_Plugin": {
+    "PlantVirusAnalysisPlatform_with_Plugin": {
       "version": "1.3.0",
-      "size": 205940213,
-      "sha256": "1c913da4ec17154756bcaeb6ca14e83e301130bbdc45bcc629e6cd27a1b2744d",
+      "size": 205942917,
+      "sha256": "f9c4b4734e114a869c4100e8176fc286d8e9912933ebcdc6e020b37f3cc1c279",
       "urls": [
-        "http://39.106.101.94/updates/vp-core-1.3.0-PlantVirusPlatform_with_Plugin.zip",
-        "https://github.com/zhangwenda0518/PlantVirusPlatform/releases/download/v1.3.0/vp-core-1.3.0-PlantVirusPlatform_with_Plugin.zip"
+        "http://39.106.101.94/updates/vp-core-1.3.0-PlantVirusAnalysisPlatform_with_Plugin.zip",
+        "https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/releases/download/v1.3.0/vp-core-1.3.0-PlantVirusAnalysisPlatform_with_Plugin.zip"
       ]
     }
   }

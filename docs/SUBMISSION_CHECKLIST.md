@@ -9,7 +9,7 @@
 
 | 项 | 状态 | 证据 / 落地位置 |
 |---|---|---|
-| 公开仓库 | `[x]` | `https://github.com/zhangwenda0518/PlantVirusPlatform`（2026-10-27 实测 HTTP 200，公开可访问） |
+| 公开仓库 | `[x]` | `https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform`（2026-10-27 实测 HTTP 200，公开可访问） |
 | 版本 tag | `[x]` | 远端已有 `v1.1.0`、`v1.2.0`；`v1.0.0` **只存在于本地**，未推送 |
 | 根 LICENSE | `[x]`（2026-10-27 新增） | `LICENSE`：MIT，覆盖本项目自有源码；**3rd/ 与 databases/ 明确排除在外** |
 | 第三方组件索引 | `[x]` | `THIRD_PARTY_NOTICES.md`（33 个工具 + 129 个 Python 包，由 `dev_tools/third_party_notices.py` 生成） |
@@ -42,7 +42,7 @@
 | 基金 | `[?]` | 有无资助项目号 |
 | 利益冲突声明 | `[x]` | 稿内已写 "The author declares ... no potential conflict of interest" |
 | 数据可用性 | `[x]` | 稿内 Availability and requirements 已列仓库/tag/两个归档目录/数据集 DOI；软件 DOI 待 Zenodo mint |
-| 代码可用性 | `[x]` | 同上，含 LICENSE(MIT) 与运行环境；仓库 https://github.com/zhangwenda0518/PlantVirusPlatform |
+| 代码可用性 | `[x]` | 同上，含 LICENSE(MIT) 与运行环境；仓库 https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform |
 | AI 使用声明 | `[?]` | 若写作过程用过 LLM 辅助，按目标刊政策声明；平台内置的可选 AI 引导功能也应在 Methods 说明其默认关闭 |
 | 图件规格 | `[ ]` | 目标刊一般要求 300 dpi TIFF/EPS；现有图为 `docs/paper/benchmark/figs/*.png|svg`，需按刊转格式 |
 | 参考文献核验 | 基本完成 | [54] Tamisier 2021 *Peer Community Journal* 1:e53（EN 稿误写 e38，已改）；[55] Massart 2019 Phytopathology 109:488-497, doi:10.1094/PHYTO-02-18-0067-R；[56] Dryad `doi:10.5061/dryad.0zpc866z8`（DataCite 实测：15 位创建者、2021、14,614,047,052 bytes、CC0-1.0）；[57] GitLab VIROMOCK 仓库 HTTP 200 |

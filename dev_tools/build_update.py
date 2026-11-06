@@ -6,8 +6,8 @@
     python dev_tools/package.py ...          # 打出程序包（build_info.json 带 version）
     python dev_tools/finalize_release.py     # 组装两档版本目录
     python dev_tools/build_update.py \
-        --src "D:/PVAP/PlantVirusPlatform" \
-        --src "D:/PVAP/PlantVirusPlatform_with_Plugin" \
+        --src "D:/PVAP/PlantVirusAnalysisPlatform" \
+        --src "D:/PVAP/PlantVirusAnalysisPlatform_with_Plugin" \
         --out updates-dist                   # 打更新 zip + 合并生成 manifest
 
     # 上传：zip -> 自有服务器 updates/ 目录 + GitHub Releases；
@@ -150,7 +150,7 @@ def merge_manifest(results, notes_zh='', notes_en='', min_version='',
             'urls': [
                 'http://39.106.101.94/updates/'
                 + os.path.basename(r['zip']),
-                'https://github.com/zhangwenda0518/PlantVirusPlatform/'
+                'https://github.com/zhangwenda0518/PlantVirusAnalysisPlatform/'
                 'releases/download/v' + r['version'] + '/'
                 + os.path.basename(r['zip']),
             ],
