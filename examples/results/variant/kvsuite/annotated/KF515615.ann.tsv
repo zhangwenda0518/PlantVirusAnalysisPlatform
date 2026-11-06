@@ -1,0 +1,3 @@
+CHROM	POS	REF	ALT	Gene_Name	Annotation	Impact	HGVS_c	HGVS_p	AA	CDS	Feature_ID	Note
+KF515615.1	234	A	G	C1	synonymous_variant	LOW	c.387T>C	p.Ile129Ile	129/146	387/441	AGV02026.1	
+KF515615.1	237	C	A	C1	missense_variant	MODERATE	c.384G>T	p.Glu128Asp	128/146	384/441	AGV02026.1	

@@ -1,0 +1,71 @@
+LOCUS       PQ490804                1042 bp    RNA     linear   VRL 12-NOV-2024
+DEFINITION  Freesia konkovirus 1 isolate Fr231211 segment RNA2, complete
+            sequence.
+ACCESSION   PQ490804
+VERSION     PQ490804.1
+KEYWORDS    .
+SOURCE      Freesia konkovirus 1
+  ORGANISM  Freesia konkovirus 1
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Hareavirales; Konkoviridae;
+            Olpivirus; Olpivirus freesiae.
+REFERENCE   1  (bases 1 to 1042)
+  AUTHORS   Marra,M., Rotunno,S., Frascati,F., Pierro,R., Restuccia,P.,
+            Hammond,J., Vaira,A.M. and Miozzi,L.
+  TITLE     Expanding the virome associated with the necrotic disorder of
+            freesia through a combined metatranscriptomic and wet-lab approach
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 1042)
+  AUTHORS   Rotunno,S., Miozzi,L. and Vaira,A.M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (17-OCT-2024) CNR, Institute for Sustainable Plant
+            Protection, strada delle cacce, 73, Turin, TO 10135, Italy
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: Spades v. 3.15.1; CAP3 v.Date: 02/10/15
+            Sequencing Technology :: Illumina
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..1042
+                     /organism="Freesia konkovirus 1"
+                     /mol_type="genomic RNA"
+                     /isolate="Fr231211"
+                     /isolation_source="necrotic leaf tissue"
+                     /host="Freesia refracta hyb"
+                     /db_xref="taxon:3378204"
+                     /segment="RNA2"
+                     /geo_loc_name="Italy: Liguria"
+                     /collection_date="2011/2014"
+                     /note="identical sequence found in isolate Fr140314"
+     gene            complement(245..964)
+                     /gene="p28"
+     CDS             complement(245..964)
+                     /gene="p28"
+                     /codon_start=1
+                     /product="nucleocapsid"
+                     /protein_id="XKB87612.1"
+                     /translation="MVELIKEKIDEKTINEISESISFKGFNPRVIFKIINDKIKANPS
+                     VKKDLYIMIVFGLTRGFGGGKSWDSIINRTNPEGREKLQNAKDKLEVKLTRPEDESTV
+                     TVPRLMQVFSMVTYRIFCILSKSGKIRAFDYQGELPQRLRWTGSPSCMSAAAWSKWCK
+                     EYVNFSIHCSKVWNREQDPVIAMRFAELAYKTATWPEEHRLSVRVLREPLIEDKDEEE
+                     EEAETSSTMEAPEKPKRIGEE"
+ORIGIN      
+        1 acacaaagac caacaactca actttaactt tcacttagca aatgttttct gtaaccatta
+       61 gtcgttgaaa gctttgctaa gtaagagaga aaattgaagt tgttggtttt tgtgttttac
+      121 actaattttt ttaatttttc aacatttttc cgattttttt ggttttttca tttatttaag
+      181 atttacatgg cagaaaaaac aaaaataatc actttcatac atatttcaaa ctatgtgatt
+      241 attttcattc ttcaccaatt ctttttggtt tctctggagc ctccattgta ctactagtct
+      301 ctgcttcttc ttcttcttca tctttatcct caatgagcgg ttctctcaga acacgtacac
+      361 tcagtctgtg ttcttcaggc caagttgcag ttttgtaagc taactctgca aatctcatcg
+      421 ctatcacagg atcttgttct ctattccaaa ctttggaaca atggatagag aagttcacat
+      481 actctttaca ccattttgac caagcagcag cagacataca agagggagat ccagtccaac
+      541 gcaatctctg aggcagttca ccttgataat caaatgctct tattttccca gattttgaca
+      601 aaatgcaaaa aattctgtaa gtgaccatag aaaaaacttg catcaatctt ggcactgtta
+      661 ctgtgctctc atcttcaggt cttgtgagtt ttacttccaa tttgtccttt gcattttgta
+      721 atttttctct gccttcaggg tttgttctat tgatgattga gtcccagctt ttacctcctc
+      781 cgaaacctct agttaatccg aacactatca tgatgtagag gtctttcttc acagaaggat
+      841 tggcttttat tttatcattg atgattttga aaataactct tggattgaag cctttgaagg
+      901 aaattgactc ggatatctca ttaattgttt tctcgtcaat cttttccttg atcagttcaa
+      961 ccatttgttt aacttcttct ggtgatcgac ataatgccaa tttttttgct aatgaattta
+     1021 tcttgagttg tcttctttgt gt
+//
+

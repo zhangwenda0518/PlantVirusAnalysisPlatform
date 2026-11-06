@@ -1,0 +1,53 @@
+segment	candidate_id	rank	target_record	observed_PAM	PAM_match	observed_seed	seed_match	effective_seed_mm	effective_spacer_mm	effective_nonseed_mm_count	target_pass	observed_window
+main	CNmain_00005	1	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GTTATGTA	是			0	是	AAGGTTATGTATTAGTGGTGGGCCACTATATACTT
+main	CNmain_00006	2	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	TTGTGGCT	是			0	是	AAGTTGTGGCTAGTGCGCAATGTGGGATCCACTGG
+main	CNmain_00007	3	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CGACCAGG	是			0	是	AAGCGACCAGGAGATATCATCATTTCCACTCCAGG
+main	CNmain_00008	4	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GTTCGTCG	是			0	是	AAGGTTCGTCGAAGACTGAACTTCGACAGCCCATA
+main	CNmain_00009	5	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	ACTGAACT	是			0	是	AAGACTGAACTTCGACAGCCCATACAGGAACCGTG
+main	CNmain_00013	6	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GTCCAGTC	是			0	是	AAGGTCCAGTCGTTTGAGCAGAGGGATGATGTGAA
+main	CNmain_00014	7	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CACCTTGG	是			0	是	AAGCACCTTGGTATCTGTAAGGTGATTAGTGATGT
+main	CNmain_00015	8	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GTGATTAG	是			0	是	AAGGTGATTAGTGATGTGACGCGTGGGCCTGGGCT
+main	CNmain_00024	9	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GAGCAGGC	是			0	是	AAGGAGCAGGCGTTGGTGAAAAGGTTTTACAGGTT
+main	CNmain_00026	10	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	TATGAGAA	是			0	是	AAGTATGAGAATCACACAGAGAATGCTTTGCTTCT
+main	CNmain_00030	11	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	ACCAGTCT	是			0	是	AAGACCAGTCTGAGGCTGTAAGGTTGTCCAGATCT
+main	CNmain_00031	12	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GTTGTCCA	是			0	是	AAGGTTGTCCAGATCTGGAAGTTGAGAAAACATTT
+main	CNmain_00033	13	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CAGTTGAT	是			0	是	AAGCAGTTGATATGGAGGTAATATGAACATCCACA
+main	CNmain_00034	14	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	ATCCACTC	是			0	是	AAGATCCACTCTCCTACGCCGGATGGCTCGCTTCT
+main	CNmain_00035	15	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	ATTGCATT	是			0	是	AAGATTGCATTCTTTAATGCCCAGGCCTTTAGCGC
+main	CNmain_00039	16	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GTCCAGGT	是			0	是	AAGGTCCAGGTGTCCACACAGGTAATTATGTGGGC
+main	CNmain_00040	17	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	ATCTGGCC	是			0	是	AAGATCTGGCCCATATCGTCTTCCCTGTTCTGCTA
+main	CNmain_00041	18	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GAAGAACA	是			0	是	AAGGAAGAACATGGGAAGGGAGAAACATAAGGAGC
+main	CNmain_00044	19	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GAGCTGGT	是			0	是	AAGGAGCTGGTGGCTCTTGGAAAATCCTATCTAAA
+main	CNmain_00047	20	ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	AGCTTCTG	是			0	是	AAGAGCTTCTGACTTACTGCCGCTGTTAAGCGCTT
+main	CNmain_00049		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CATCATTC	是			0	是	AAGCATCATTCGCTGATTGTTGACCGCCTCTAGCA
+main	CNmain_00050		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	AGACGATT	是			0	是	AAGAGACGATTGTTCGTAATCGTGATTTTACCCTC
+main	CNmain_00051		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	TGAGGTTC	是			0	是	AAGTGAGGTTCCCCATTCTGATGCAGCTCTCTACA
+main	CNmain_00059		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CTGTAGCA	是			0	是	AAGCTGTAGCACCAGTTTCCACCCCAACATTCAAG
+main	CNmain_00061		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CTCGGATG	是			0	是	AAGCTCGGATGTCAAGTCCTATCTGGATAAGGACG
+main	CNmain_00062		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	TCCTATCT	是			0	是	AAGTCCTATCTGGATAAGGACGGCGACACCGTCGA
+main	CNmain_00063		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GACGGCGA	是			0	是	AAGGACGGCGACACCGTCGAATGGGGACAATTTCA
+main	CNmain_00064		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CGCTTAAC	是			0	是	AAGCGCTTAACAGCGGCAGTAAGTCAGAAGCTCTT
+main	CNmain_00066		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CTCTTAAT	是			0	是	AAGCTCTTAATGTCATTAGGGAATTAGTCCCAAAG
+main	CNmain_00068		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	AGCCACCA	是			0	是	AAGAGCCACCAGCTCCTTATGTTTCTCCCTTCCCA
+main	CNmain_00069		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	TTCCTGTT	是			0	是	AAGTTCCTGTTGAAATTGAAGAATGGGTCGCTGAT
+main	CNmain_00071		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GTGATAGC	是			0	是	AAGGTGATAGCAGAACAGGGAAGACGATATGGGCC
+main	CNmain_00072		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	ACGATATG	是			0	是	AAGACGATATGGGCCAGATCTTTAGGCCCACATAA
+main	CNmain_00073		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GTCTTCAA	是			0	是	AAGGTCTTCAATAATGCTGCCTGGTACAACGTCAT
+main	CNmain_00075		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GAATTCAT	是			0	是	AAGGAATTCATGGGGTCCCAGAGGGACTGGCAGTC
+main	CNmain_00076		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GTGGAATT	是			0	是	AAGGTGGAATTCCCACTATCTTCCTCTGCAATCCA
+main	CNmain_00077		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	AGTTCCTA	是			0	是	AAGAGTTCCTAGCCGAGGAAAAGCAAGAAGCGCTA
+main	CNmain_00078		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CAAGAAGC	是			0	是	AAGCAAGAAGCGCTAAAGGCCTGGGCATTAAAGAA
+main	CNmain_00079		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	AAGCGCTA	是			0	是	AAGAAGCGCTAAAGGCCTGGGCATTAAAGAATGCA
+main	CNmain_00082		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	AATGCAAT	是			0	是	AAGAATGCAATCTTCATCACCCTCACAGAACCACT
+main	CNmain_00083		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	TCACTCAC	是			0	是	AAGTCACTCACAGACAAGTCAAGAAGCGAGCCATC
+main	CNmain_00084		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	TCAAGAAG	是			0	是	AAGTCAAGAAGCGAGCCATCCGGCGTAGGAGAGTG
+main	CNmain_00085		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	AAGCGAGC	是			0	是	AAGAAGCGAGCCATCCGGCGTAGGAGAGTGGATCT
+main	CNmain_00086		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CGAGCCAT	是			0	是	AAGCGAGCCATCCGGCGTAGGAGAGTGGATCTTGT
+main	CNmain_00087		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	TCATCACT	是			0	是	AAGTCATCACTGCTCCTCAAGCAATGAATGGCGTG
+main	CNmain_00088		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CAATGAAT	是			0	是	AAGCAATGAATGGCGTGTATACCTGGGAAATAAAC
+main	CNmain_00095		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CATTCTCT	是			0	是	AAGCATTCTCTGTGTGATTCTCATACTTCCCTGCC
+main	CNmain_00099		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GTGCTTCA	是			0	是	AAGGTGCTTCACATCATCCCTCTGCTCAAACGACT
+main	CNmain_00100		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	TTCAGTCT	是			0	是	AAGTTCAGTCTTCGACGAACCTTGGATCCTGGAGT
+main	CNmain_00101		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	GCCTGCAA	是			0	是	AAGGCCTGCAAATATTTAATTGCCAGCATACACCT
+main	CNmain_00103		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	TATATAGT	是			0	是	AAGTATATAGTGGCCCACCACTAATACATAACCTT
+main	CNmain_00104		ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan	AAG	是	CTACATCA	是			0	是	AAGCTACATCATGATTGGCCGACATAAGTAGTGCG

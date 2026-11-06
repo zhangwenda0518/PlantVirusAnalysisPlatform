@@ -1,0 +1,84 @@
+LOCUS       OL471980                1088 bp    cRNA    linear   ENV 27-JUN-2022
+DEFINITION  MAG: Artemisia fimovirus 1 isolate MIR20SW segment RNA3, complete
+            sequence.
+ACCESSION   OL471980
+VERSION     OL471980.1
+DBLINK      BioProject: PRJNA772045
+            BioSample: SAMN22357975
+            Sequence Read Archive: SRR16552259
+KEYWORDS    ENV; Metagenome Assembled Genome; MAG.
+SOURCE      Artemisia fimovirus 1 (plant metagenome)
+  ORGANISM  Artemisia fimovirus 1
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Elliovirales; Fimoviridae;
+            Emaravirus; Emaravirus artemisiae.
+REFERENCE   1  (bases 1 to 1088)
+  AUTHORS   Rivarez,M.P.S., Bacnik,K., Kogej,Z., Lengar,Z., Maksimovic Carvalho
+            Ferreira,O., Pecman,A., Seljak,G., Vucurovic,A., Mehle,N.,
+            Gutierrez-Aguirre,I., Ravnikar,M. and Kutnjak,D.
+  TITLE     Diversity, phylogenetic relationships and infectivity of viruses
+            from tomato and surrounding weeds agroecosystems
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 1088)
+  AUTHORS   Rivarez,M.P.S., Bacnik,K., Kogej,Z., Lengar,Z., Maksimovic Carvalho
+            Ferreira,O., Pecman,A., Seljak,G., Vucurovic,A., Mehle,N.,
+            Gutierrez-Aguirre,I., Ravnikar,M. and Kutnjak,D.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (08-NOV-2021) Department of Biotechnology and Systems
+            Biology, National Institute of Biology, Vecna pot 111, Ljubljana
+            1000, Slovenia
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: SPAdes v. 3.14; CLC Genomic Workbench v.
+                                     20.0
+            Sequencing Technology :: HiSeq 2500 (151 paired-end reads);
+                                     Illumina
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..1088
+                     /organism="Artemisia fimovirus 1"
+                     /mol_type="viral cRNA"
+                     /isolate="MIR20SW"
+                     /isolation_source="pooled weed plants gathered at the
+                     immediate surroundings of tomato farms"
+                     /host="Artemisia verlotiorum"
+                     /db_xref="taxon:2950836"
+                     /segment="RNA3"
+                     /environmental_sample
+                     /geo_loc_name="Slovenia"
+                     /collection_date="Aug-2020"
+                     /collected_by="MPS Rivarez et al."
+                     /metagenome_source="plant metagenome"
+                     /note="metagenomic"
+     CDS             72..908
+                     /note="N"
+                     /codon_start=1
+                     /product="nucleocapsid"
+                     /protein_id="USL90374.1"
+                     /translation="MAMTIKKYDGKKATTVQFDKSKVPVFSPTGVIGTVSRVNNFNVD
+                     NPKVICSRMSVLFQGLVEVKAKLKERVDIKINIATETNPTYLFVVNGVTDNGGEKDII
+                     SFPKYSAIVSYQLWAVVQKTRYDWTTGKYEPITIKETFDPLPVNRLAESIGLNNTSKL
+                     YFLYVQGVEFIFERAPEEVMAICLWKASNAKRLKLTGDIKENMKNLIAKLVKQASVTY
+                     QDTSIVGVKKVLASLNQTNIDRYYAELDKTEANTGLSPSYEEIFKFLCTSYKQINNKI
+                     EA"
+ORIGIN      
+        1 ttcgcttatt tacacaatca cagaatcaaa acaaaaatca agaaagaaaa aactaaaatc
+       61 aaaaagctaa aatggctatg acaatcaaga agtacgacgg taaaaaagct acaacagtac
+      121 aatttgacaa gagcaaagtt ccagttttct ctccaacagg agttattggt acagtctcta
+      181 gagtcaacaa tttcaatgtt gataatccaa aagttatctg ttcaagaatg tcagttctat
+      241 tccaaggtct tgttgaggtc aaggcaaagc ttaaagaaag ggttgatatt aagatcaaca
+      301 ttgctactga gactaatcca acatatcttt ttgttgttaa tggtgtcact gacaatggtg
+      361 gtgagaaaga tattatctcc tttcctaaat attctgcaat agtttcatac caactttggg
+      421 ctgtagttca gaaaactaga tatgattgga caacagggaa gtatgagcct atcacaatca
+      481 aggaaacatt tgatccattg ccagtcaaca ggcttgctga atctataggt ttaaacaaca
+      541 cttcaaaatt gtactttcta tatgtccaag gtgttgaatt catatttgaa agagctcctg
+      601 aagaggtgat ggcaatatgt ttgtggaagg caagtaatgc taaaaggttg aagttgactg
+      661 gagatataaa ggaaaacatg aagaatttaa ttgctaaatt ggtaaagcag gcatcagtca
+      721 catatcaaga tacctctatt gtaggtgtca aaaaagtcct agcaagtctt aatcagacaa
+      781 acattgatag atactatgct gagctagata aaactgaggc aaacacaggc ttgagtccat
+      841 catatgaaga aatatttaaa ttcctctgta catcttacaa acagatcaat aacaaaattg
+      901 aagcttgagg tcctataaag gtttccaaaa gtccatggtt taaaatggca caattgattg
+      961 tgttctaatt gtttaaaact gttcatatat ttaggatttt atcttccctt gtagttactg
+     1021 atttactaga tttttgattt tgtctttttt gtttggtatt cttttgtttg ttaaatggtg
+     1081 taaataag
+//
+

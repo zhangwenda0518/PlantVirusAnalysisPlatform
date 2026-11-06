@@ -1,0 +1,136 @@
+LOCUS       MW698813                2753 bp    DNA     circular VRL 29-MAY-2021
+DEFINITION  Trifolium virus 1 isolate T.plasmid-1, complete genome.
+ACCESSION   MW698813
+VERSION     MW698813.1
+KEYWORDS    .
+SOURCE      Trifolium virus 1
+  ORGANISM  Trifolium virus 1
+            Viruses; Floreoviria; Shotokuvirae; Cressdnaviricota;
+            Repensiviricetes; Geplafuvirales; Geminiviridae; Capulavirus;
+            Capulavirus trifolii.
+REFERENCE   1  (bases 1 to 2753)
+  AUTHORS   Ma,Y., Svanella-Dumas,L., Julian,C., Galzi,S., Fernandez,E.,
+            Yvon,M., Pirolles,E., Lefebvre,M., Filloux,D., Roumagnac,P. and
+            Candresse,T.
+  TITLE     Genome characterization and diversity of trifolium virus 1:
+            identification of a novel legume-infecting capulavirus
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 2753)
+  AUTHORS   Ma,Y., Svanella-Dumas,L., Julian,C., Galzi,S., Fernandez,E.,
+            Yvon,M., Pirolles,E., Lefebvre,M., Filloux,D., Roumagnac,P. and
+            Candresse,T.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (02-MAR-2021) BIOS, CIRAD, TA A-54/K Campus International
+            de Montferrier-Baillarguet, Montpellier 34398, France
+COMMENT     ##Assembly-Data-START##
+            Sequencing Technology :: Sanger dideoxy sequencing
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..2753
+                     /organism="Trifolium virus 1"
+                     /mol_type="genomic DNA"
+                     /isolate="T.plasmid-1"
+                     /isolation_source="host leaves"
+                     /host="Trifolium repens"
+                     /db_xref="taxon:2838317"
+                     /geo_loc_name="France: Nouvelle Aquitaine,Bergerac"
+                     /collection_date="2016"
+                     /collected_by="Yuxin Ma, Laurence Svanella-Dumas and
+                     Thierry Candesse"
+     CDS             162..437
+                     /codon_start=1
+                     /product="V4 protein"
+                     /protein_id="QVS02690.1"
+                     /translation="MDYCAELLFWWQTIVLILLLSILFIINGKSFVLVRGIARDVRET
+                     TGLLYGSLLGPNASEGPRNAIVQGGHNLRRTQSRLPTIPEEEGEMAH"
+     CDS             241..654
+                     /codon_start=1
+                     /product="V3 protein"
+                     /protein_id="QVS02691.1"
+                     /translation="MENRLYLLEELPETYGRLQGFCTDLFLGQMQVKAQEMQLFREAI
+                     IYGELRAAFRRSQRRKERWPIKVAQFNETLAACINTGRRITEEAQLQIDYKKKIEENG
+                     SYKIGQNLWRGPGPKNLGCEKAPNDTFSTDNNWTC"
+     CDS             542..1276
+                     /codon_start=1
+                     /product="coat protein"
+                     /protein_id="QVS02692.1"
+                     /translation="MVRTRSGRTYGGGQAQRTWGARRPRTTRSRPTIIGPVRRSNFQI
+                     KTRYAPHRPQTKIHSLANVKVICGADQGYGWHVSDVPIGSGFEDRHSDKIRINSINFR
+                     LQLKTSQLGQDSNIWHNVYMFLVKDNSSGGAVPKFNSICMMDNSNPATAEIDHDSKDR
+                     FTIVRRWKFQLKGNSTRSGTPYDCAKPTYDFTKFVRISSVTEFKSATSGSYANTQKNA
+                     WVLYFVPQSFDMWVDGHCTLKYVSIV"
+     CDS             complement(join(1384..1767,1907..2515))
+                     /codon_start=1
+                     /product="replication-associated protein"
+                     /protein_id="QVS02695.1"
+                     /translation="MPRNANSFRVQGKSIFLTYPKCPLTPIFLIDYFYQLLKHLDPTY
+                     ARVCTENHETGEPHLHCLIQFDKKFNITNQRFFDIKDPNGGSVYHPNCQVPRRDADVA
+                     DYISKGGVFEERGLLRASRRSPKKTRDTIWGAILSESTSKSEFLARVEHEQPFIFATQ
+                     LRNLEYVAARKWPDPPTVYTPRWTHFPNVPEAIRTWADTNIFTEQRPERPITLIIEGP
+                     SKTGKTAWARSLGRHNYFCGGVDFSFWDNHAIYNVIDDIPFQFLPCKKELLGSQKDFT
+                     VNEKYRKKSRIPGGIPTIVLCNPDQSYRLALLGSDMYAWSEMNVIHVEINEAFY"
+     CDS             complement(1754..2515)
+                     /codon_start=1
+                     /product="RepA"
+                     /protein_id="QVS02694.1"
+                     /translation="MPRNANSFRVQGKSIFLTYPKCPLTPIFLIDYFYQLLKHLDPTY
+                     ARVCTENHETGEPHLHCLIQFDKKFNITNQRFFDIKDPNGGSVYHPNCQVPRRDADVA
+                     DYISKGGVFEERGLLRASRRSPKKTRDTIWGAILSESTSKSEFLARVEHEQPFIFATQ
+                     LRNLEYVAARKWPDPPTVYTPRWTHFPNVPEAIRTWADTNIFTVSMAAIQLIDPTITR
+                     SDVVWAHDLTVDMINDAYNEHFDEPEVITLSGTET"
+     CDS             complement(1903..2361)
+                     /codon_start=1
+                     /product="C3 protein"
+                     /protein_id="QVS02693.1"
+                     /translation="MRQVNHTFTVLFSSTRNSTSRTRGSSTSRILMEDPYTIPIVRSP
+                     EGTLTWQTTSPREEYSRNEDYLELQEEVLRRLGIQSGVQSSRSLHPSPNSSPESNMNN
+                     HLSLQHNSEIWSMLQQENGQIPQLCIHPDGLISLMYLKPLEHGQTPTSSP"
+ORIGIN      
+        1 acggttttcg ctgtgggccc caccgacaaa agaaaaagca aaagataaag ttgtcggtgg
+       61 gcttttgact gcttttgact ataaaagtag gacatagaca gtgacctggt gaaggatctg
+      121 aatgctctcg aagaggtcat tgggagcacc tagtactgtt tatggactat tgtgctgagt
+      181 tattattttg gtggcaaacg attgtgttga tccttttatt atcaatttta tttataataa
+      241 atggaaaatc gtttgtactt gttagaggaa ttgccagaga cgtacgggag actacagggc
+      301 ttttgtacgg atctcttctt gggccaaatg caagtgaagg cccaagaaat gcaattgttc
+      361 agggaggcca taatctacgg cgaactcaga gccgccttcc gacgatccca gaggaggaag
+      421 gagagatggc ccattaaggt agcccagttc aatgaaactc tagctgcgtg tataaatacg
+      481 ggccgtcgca taacagaaga ggcccagttg cagatagatt acaaaaaaaa aattgaagaa
+      541 aatggttcgt acaagatcgg gcagaactta tggagggggc caggcccaaa gaacttgggg
+      601 tgcgagaagg ccccgaacga cacgttctcg accgacaata attggacctg ttaggaggtc
+      661 caattttcaa attaagaccc gttacgctcc acataggcct caaacgaaga tccattcgtt
+      721 ggccaacgtt aaggtgatat gtggggctga tcaaggttac ggatggcatg tgtcagacgt
+      781 tcctattggt tcaggattcg aggataggca tagtgataaa attagaatta attcaattaa
+      841 ttttagatta caattgaaga cctctcaact tggtcaagac tcgaacattt ggcataatgt
+      901 ttatatgttt ttagttaagg ataattcaag tggaggtgct gttcccaaat ttaattcaat
+      961 ttgtatgatg gataattcaa atccagctac tgctgaaatt gatcacgata gtaaagatcg
+     1021 ttttactatt gttcgtcgtt ggaagttcca actcaagggg aacagcactc gtagtggcac
+     1081 cccatacgac tgtgccaagc ctacatatga ctttacaaaa ttcgttagaa ttagttcggt
+     1141 cactgagttc aagagtgcga caagtgggtc gtacgctaac actcagaaaa atgcatgggt
+     1201 tttgtatttt gtccctcagt cgttcgacat gtgggtcgac ggtcattgta cactaaaata
+     1261 tgtatctatt gtgtaaatat tgtttttgtt agttatcgtt tgtgaaaaca attctaagtt
+     1321 acactagcat ttctatatga ataaacgccg agccggcagg cgagctgtaa caactccgta
+     1381 taatcaataa aatgcttcat taatttcaac atgaattaca ttcatttcac tccatgcata
+     1441 catatcactg cctaacagag ccaatctata tgattggtct gggttacata acacaattgt
+     1501 aggaataccc cctggtattc tagacttttt acgatacttt tcgttgaccg taaagtcctt
+     1561 ttggctacct aacaattctt ttttacaagg taaaaactga aaagggatat catctattac
+     1621 attgtaaatt gcatgattat cccagaaact aaaatcaaca ccaccacaaa aataattatg
+     1681 acgtcctaag ctccttgccc atgccgtctt cccagtttta ctgggacctt caataattaa
+     1741 cgtgattggt cgttcaggtc tctgttcctg aaagagtaat cacttcaggt tcatcaaaat
+     1801 gttcattata agcatcatta atcatatcaa cagtcaaatc atgagcccaa acaacatctg
+     1861 aacgtgtaat tgttgggtca ataagctgta ttgcagccat acttacggtg aagatgttgg
+     1921 tgtctgccca tgttctaatg gcttcaggta cattagggaa atgagtccat ctgggtgtat
+     1981 acacagttgg gggatctggc cattttcttg ctgcaacata ctccagattt cggagttgtg
+     2041 ttgcaaagat aaatggttgt tcatgttcga ctctggcgag gaattcggac ttggatgtag
+     2101 actccgagag gattgcaccc cagattgtat ccctagtctt cttaggactt cttcttgaag
+     2161 ctctaagtag tcctcgttcc tcgaatactc ctcccttgga gatgtagtct gccacgtcag
+     2221 cgtcccttct ggggacctga caattgggat ggtatacgga tcctccatta ggatccttga
+     2281 tgtcgaagaa cctctggttc gtgatgttga atttcttgtc gaactgaata agacagtgaa
+     2341 ggtgtggttc acctgtctca tgattctccg tacagaccct ggcgtaagtt ggatctaagt
+     2401 gctttagtaa ttgataaaaa taatcaatta aaaaaatagg tgttaaagga cattttgggt
+     2461 atgtgaggaa aatagattta ccttgaacgc ggaaggaatt agcgtttcta ggcatgtttt
+     2521 tcaaacttgt atctattact ggtttgagcg gagcaacgga gcaacgaagc gagtagtgta
+     2581 ttttacgaag gaaaatagaa ggaatctcgg atttgcttta gtcattcgaa gcgacttaat
+     2641 taaatatata ataatagagg accgttggat gtacgccacg tgtccgtcaa tctaatgaac
+     2701 acgcgtgaaa cgcgtggaac tgtcggcagg ccgcagcgaa aaccaataat att
+//
+

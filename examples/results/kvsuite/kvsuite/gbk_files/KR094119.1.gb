@@ -1,0 +1,69 @@
+LOCUS       KR094119                1201 bp    RNA     linear   VRL 04-JAN-2016
+DEFINITION  Ramu stunt virus strain PNG segment RNA6, complete sequence.
+ACCESSION   KR094119
+VERSION     KR094119.1
+KEYWORDS    .
+SOURCE      Ramu stunt virus
+  ORGANISM  Ramu stunt virus
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Hareavirales; Phenuiviridae;
+            Mechlorovirus; Mechlorovirus ramuense.
+REFERENCE   1  (bases 1 to 1201)
+  AUTHORS   Mollov,D., Maroon-Lango,C. and Kuniata,L.
+  TITLE     Detection by next generation sequencing of a multi-segmented viral
+            genome from sugarcane associated with Ramu stunt disease
+  JOURNAL   Virus Genes 52 (1), 152-155 (2016)
+   PUBMED   26728080
+REFERENCE   2  (bases 1 to 1201)
+  AUTHORS   Mollov,D., Maroon-Lango,C. and Kuniata,L.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (10-APR-2015) ASR, USDA, 10300 Baltimore Ave, Beltsville,
+            MD 20705, USA
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: CLC v. 5; Geneious v. 7
+            Sequencing Technology :: Illumina; Sanger dideoxy sequencing
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..1201
+                     /organism="Ramu stunt virus"
+                     /mol_type="genomic RNA"
+                     /strain="PNG"
+                     /isolation_source="leaf tissue"
+                     /host="sugarcane; cultivar: Ragnar"
+                     /db_xref="taxon:1738604"
+                     /segment="RNA6"
+                     /geo_loc_name="Papua New Guinea"
+                     /collection_date="01-Feb-2013"
+                     /collected_by="Lastus Kuniata"
+     CDS             60..590
+                     /codon_start=1
+                     /product="hypothetical protein"
+                     /protein_id="ALJ83287.1"
+                     /translation="MYSSQLSKKPITHDEFKIDELVEVEYDERVLYMSKTLSKIWNFL
+                     SSSVKKVITKAEMQNLEKMMSKTIKSIFNDILSKTNSDSGFINSCITFVKEIISKKLY
+                     ISSEVDIDHDLILQHADIGFLTQDMLEHPEIMNKEQFRSVLNYLWEDDISHDQNIKIH
+                     IGSFIMKMAHHLGRHI"
+ORIGIN      
+        1 acacaaagtc cggggtatca aaaagataaa aattctcttg ctttctataa cagtaaatca
+       61 tgtactcttc acagcttagc aaaaagccca ttacacatga tgagttcaag attgatgagc
+      121 ttgtggaggt cgaatatgat gagagagtgt tatatatgtc taaaactctt agcaagattt
+      181 ggaacttcct atcatcgagt gttaaaaaag tcatcacaaa agcagagatg caaaaccttg
+      241 agaagatgat gtccaagact atcaagagta ttttcaatga tattctctca aagacaaatt
+      301 ctgatagcgg gtttatcaat agctgcataa cctttgttaa agaaatcatc tcaaagaaac
+      361 tatatatttc atcagaagtc gatattgatc atgacctaat actgcaacat gcagacattg
+      421 gctttctaac tcaggatatg ttggagcatc ctgagattat gaacaaggaa caatttagga
+      481 gtgttctgaa ctacctgtgg gaggatgaca tatctcatga tcaaaacata aagatacata
+      541 ttggttcatt cataatgaag atggctcatc atttaggcag acacatctaa atcttaattt
+      601 ctcactctgg tcattgacca caatgtcagc ctcaaatagc atcaactgga atattaacca
+      661 catattggga aagcataaat gcaattctca tctctaatta gtaattagca cttaatcaca
+      721 acagccttag tgatgccagc tatagacatg agctctccat ctatagatct atgaatgcat
+      781 atcgagatat tatcaattgt gattaatgaa attgaacctg tcactggttg tctctagttc
+      841 ccaaacatcc aatgattaac actgttttcc tgatgaggta tgatccacat ctaccttcag
+      901 atttctatct atgtatgtta cactcttatc aaccatctct agaatgcaac aaaggatttc
+      961 aaatctcaaa tctgctgttt gagatttgaa atcaatgtca taagattctc taacacctga
+     1021 tagagagatg ctgactcttg gcacagagcc aagattttgt aatatcaaaa tgccattaag
+     1081 acattgtagt taagagatca gatcacagta tttgtatagc aataatctta agatccactt
+     1141 aggcatattt taattataaa gaagagaata gttttatctt tttgataccc cgactatgtg
+     1201 t
+//
+

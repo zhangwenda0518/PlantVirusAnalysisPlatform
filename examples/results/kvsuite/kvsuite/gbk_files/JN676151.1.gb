@@ -1,0 +1,143 @@
+LOCUS       JN676151                2593 bp    DNA     circular VRL 31-AUG-2012
+DEFINITION  Tomato severe leaf curl virus - SLP 3, complete genome.
+ACCESSION   JN676151
+VERSION     JN676151.1
+KEYWORDS    .
+SOURCE      Tomato severe leaf curl virus - SLP 3
+  ORGANISM  Tomato severe leaf curl virus - SLP 3
+            Viruses; Floreoviria; Shotokuvirae; Cressdnaviricota;
+            Repensiviricetes; Geplafuvirales; Geminiviridae; Begomovirus;
+            Begomovirus solanumseveri.
+REFERENCE   1  (bases 1 to 2593)
+  AUTHORS   Banuelos-Hernandez,B., Mauricio-Castillo,J.A., Cardenas-Conejo,Y.,
+            Guevara-Gonzalez,R.G. and Arguello-Astorga,G.R.
+  TITLE     A new strain of tomato severe leaf curl virus and a unique variant
+            of tomato yellow leaf curl virus from Mexico
+  JOURNAL   Arch. Virol. 158 (9), 1835-1841 (2012)
+   PUBMED   22684489
+REFERENCE   2  (bases 1 to 2593)
+  AUTHORS   Banuelos-Hernandez,B., Mauricio-Castillo,J.A. and
+            Arguello-Astorga,G.R.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (13-SEP-2011) Molecular Biology, Instituto Potosino de
+            Investigacion Cientifica y Tecnologica A.C., Camino a la Presa San
+            Jose 2055, San Luis Potosi, S.L.P. 78216, Mexico
+FEATURES             Location/Qualifiers
+     source          1..2593
+                     /organism="Tomato severe leaf curl virus - SLP 3"
+                     /mol_type="genomic DNA"
+                     /host="tomoato plant"
+                     /db_xref="taxon:1127769"
+                     /geo_loc_name="Mexico"
+                     /collection_date="01-Jun-2011"
+     gene            186..941
+                     /gene="AR1"
+                     /note="CP"
+     CDS             186..941
+                     /gene="AR1"
+                     /note="encapsidation of viral genome; coat protein"
+                     /codon_start=1
+                     /product="capsid protein"
+                     /protein_id="AEX93204.1"
+                     /translation="MPKRDAPWRLMAGTPKVSRSSNQSPRTGIGPKFDKAHAWVNRPM
+                     YRKPRIYRAWRTPDVPRGCEGPCKVQSYEQRHDISHVGKVMCISDVTRGNGITHRVGK
+                     RFCVKSVYILGKIWMDENIKLKNHTNSVMFWLVRDRRPYGTPMDFGQVFNMFDNEPST
+                     ATVKNDLRDRYQVMHKFYGKVTGGQYASNEQAIVRRFWRVNNHVVYNHQEAGKYENHT
+                     ENALLWYMACTHASNPVYATLKIRIYFYDSVLN"
+     gene            complement(938..1336)
+                     /gene="AL3"
+                     /note="TrAP"
+     CDS             complement(938..1336)
+                     /gene="AL3"
+                     /codon_start=1
+                     /product="replication enhancer protein"
+                     /protein_id="AEX93205.1"
+                     /translation="MDSRTGESITVDQAESSVFIWEVPNPLYFTILSVENPIHTNTRI
+                     YHIQIRFNHNLRKALHLHKAYLNYQIWTTSVRASGTNYLNRFKYLVLLYLDRLGVICI
+                     NNVVRAVRFATDKSYVNHVLENYSIKFKIY"
+     gene            complement(1083..1469)
+                     /gene="AL2"
+                     /note="TrAP"
+     CDS             complement(1083..1469)
+                     /gene="AL2"
+                     /note="transcriptional regulator of late genes; silencing
+                     supressor"
+                     /codon_start=1
+                     /product="transactivation protein"
+                     /protein_id="AEX93206.1"
+                     /translation="MQNSSPSTPPSIKPKHKIAKSRIRRKRIDLNCGCSFYQHIDCAN
+                     HGFTHRGEHHCGSGREFRFYLGSTKSPLFHDTQCREPNTHKHQDIPHPNTVQPQPEEG
+                     VASTQSVPQLPNLDDISSSFWDELLK"
+     gene            complement(1426..2460)
+                     /gene="AL1"
+     CDS             complement(1426..2460)
+                     /gene="AL1"
+                     /note="RCR-initiator protein; rolling-circle replication
+                     initiator"
+                     /codon_start=1
+                     /product="replication initiation protein"
+                     /protein_id="AEX93208.1"
+                     /translation="MPRNPNLFRLAAKNIFLTYPQCDIPKDEAIEMVQNLPWSVVKPT
+                     YIRVAREEHADGFPHLHCLIQLSGKSNIKDARFFDLTHPRRSANFHPNAQAAKDTNAV
+                     QNYITKEGDYCESGQYKVSGGTKSNKDDVYYNAVNAASAGEALDIIRAGDPKTFIVSY
+                     HNVKANIERLFQKAPEPWVPPFPLSSFTNVPDEMQEWADDYFGRDAAARPERPISIII
+                     EGESRTGKTMWARALGPHNYLSGHLDFNSRVYSNEAEYNVIDDITPQYLKMKHWKELI
+                     GAQKDWQSNCKYGKPVQIKGGIPSIVLCNPGEGASYKSFLDKEENASLKAWTLHNAKF
+                     ISLNSTLYQA"
+     gene            complement(2014..2381)
+                     /gene="AL4"
+     CDS             complement(2016..2381)
+                     /gene="AL4"
+                     /codon_start=1
+                     /product="AC4 protein"
+                     /protein_id="AEX93207.1"
+                     /translation="MKLLKWFKICHGQSSNQRTYESPERNTQMDFRTSTVSSNSPGSP
+                     TSRMLDFSTSLTPEGLPIFIQTHRQPKTPTPSRITSPKKVIIVNPDNTKCLGVQNQTK
+                     TTFIITPSMQLVLERLSTL"
+ORIGIN      
+        1 accggatggc cgcgattttt tttggacctg gcccactatc agaaattgcg ttgggccttc
+       61 ctggataaag ttaaccaatc agtacacgtt tgggtagtct aattattact aacttggtca
+      121 ccaagttgtt ttatggtcta taaatttgtc gttatgtgtg tggtccaacc atgtaaatag
+      181 tgataatgcc taagcgtgat gccccatggc gcttaatggc gggtacccct aaggtgagtc
+      241 ggtcctctaa ccagtctccc cggactggta ttgggcctaa attcgataag gcccatgcct
+      301 gggtaaacag gcccatgtat aggaagccca ggatatatcg ggcttggaga acgcccgatg
+      361 ttccaagagg ctgtgaaggc ccatgtaagg tccagtccta cgagcaacga cacgatatct
+      421 cccacgtggg gaaagtcatg tgcatatccg atgtcacacg tggtaatggt atcacccacc
+      481 gtgttggtaa gcggttctgt gttaagtctg tgtatatcct cggtaagata tggatggacg
+      541 agaacatcaa gctgaagaac cacacgaaca gtgtcatgtt ctggttagtg agggaccgta
+      601 gaccctatgg tacgcctatg gatttcggcc aggtgttcaa catgtttgac aatgagccca
+      661 gcactgccac ggtcaagaac gatctacgtg atcgttatca ggtcatgcac aagttctacg
+      721 gcaaggtgac aggtggacag tatgccagca acgagcaggc tatagtcagg cgattctgga
+      781 gggtcaacaa ccatgtggtc tacaatcacc aagaggctgg caagtatgag aatcacacgg
+      841 agaacgcgtt gttatggtat atggcatgta ctcatgcctc taaccctgtg tatgctactc
+      901 ttaagatccg gatctatttt tatgattcgg tgttaaatta ataaattttg aattttattg
+      961 aataattctc aagtacatga tttacatatg atttatctgt tgcgaagcga acagctctga
+     1021 ctacattatt aatgcaaata acacctaacc tatctaaata caataagact aaatatttaa
+     1081 atctatttaa gtaattcgtc ccagaagctc gaactgatgt cgtccagatt tggtagttga
+     1141 ggtacgcttt gtgtagatgc aacgccttcc tcaggttgtg gttgaaccgt atttggatgt
+     1201 ggtatatcct ggtgtttgtg tgtattgggt tctctacact gagtatcgtg aaatagaggg
+     1261 gatttggtac ttcccagata aaaacggaac tctctgcctg atccacagtg atgctctccc
+     1321 ctgtgcgtga atccatggtt ggcgcaatcg atgtgctggt agaacgagca gccacagttt
+     1381 aggtctatcc tctttcgacg aatcctggac tttgcaattt tgtgcttagg cttgatagag
+     1441 ggtggagttg agggagatga attttgcatt gtggagtgtc caggctttta atgatgcatt
+     1501 ttcctctttg tcgaggaaac ttttatagct ggctccctct cctggattgc agagcacgat
+     1561 tgatggtatc ccacctttaa tttgaactgg ctttccgtat ttgcagtttg attgccagtc
+     1621 cttttgggcc ccaatcagct ctttccaatg cttcatcttt aaatattgcg gagtgatgtc
+     1681 atcaatgacg ttgtattccg cttcatttga gtaaacccta gaattgaaat ctaggtgtcc
+     1741 actcaaataa ttgtgtgggc ctaaggcacg cgcccacatt gtctttcccg tcctcgattc
+     1801 accctcgatg attatactta taggtctctc cggccgcgca gcggcatccc taccaaaata
+     1861 atcatctgcc cattcttgca tctcgtccgg aacgtttgtg aacgacgaga gtggaaacgg
+     1921 aggaacccat ggttccggag ccttctgaaa gagccgctcg atgttagctt tgacgttatg
+     1981 gtagcttaca ataaacgttt ttgggtcacc ggcccttata atgtcgagag cctctccagc
+     2041 actagctgca ttgacggcgt tataataaac gtcgtctttg tttgattttg tacccccaga
+     2101 cactttgtat tgtccggatt cacaataatc accttctttg gtgatgtaat tctggacggc
+     2161 gttggtgtct ttggctgcct gtgcgtttgg atgaaaattg gcagaccttc tggggtgagt
+     2221 gaggtcgaaa aatctagcat ccttgatgtt ggacttcccg gagagttgga tgagacagtg
+     2281 gaggtgcgga aatccatctg cgtgttcctc tctggcgact cgtatgtacg ttggtttgac
+     2341 gactgaccat ggcagatttt gaaccatttc aatagcttca tctttgggga tatcacactg
+     2401 tggatatgtt aagaaaatat ttttggcagc tagacgaaat aaattagggt tccgtggcat
+     2461 ttttgtaaat atgagccagg acaccagggg gagctctctc taaaactcta tgttgctggt
+     2521 gtcctggtgt cccatttata ctaaaaccct ctgggggaca ccaagggcaa attcggccat
+     2581 ccgcaataat att
+//
+

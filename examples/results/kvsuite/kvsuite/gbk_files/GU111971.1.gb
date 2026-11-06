@@ -1,0 +1,67 @@
+LOCUS       GU111971                1352 bp    DNA     circular VRL 18-MAY-2012
+DEFINITION  Bhendi yellow vein mosaic betasatellite
+            [India:Thadagan:OY158:2006], complete sequence.
+ACCESSION   GU111971
+VERSION     GU111971.1
+KEYWORDS    .
+SOURCE      Bhendi yellow vein mosaic betasatellite [India:Thadagan:OY158:2006]
+  ORGANISM  Bhendi yellow vein mosaic betasatellite [India:Thadagan:OY158:2006]
+            Viruses; Tolecusatellitidae; Betasatellite; Betasatellite
+            abelmoschusmusiviflavi.
+REFERENCE   1  (bases 1 to 1352)
+  AUTHORS   Venkataravanappa,V., Reddy,C.N., Swaranalatha,P., Jalali,S.,
+            Briddon,R.W. and Reddy,M.K.
+  TITLE     Diversity and phylogeography of Begomovirus-associated beta
+            satellites of Okra in India
+  JOURNAL   Virol. J. 8, 555 (2011)
+   PUBMED   22188644
+REFERENCE   2  (bases 1 to 1352)
+  AUTHORS   Venkataravanappa,V., Lakshiminarayanareddy,C.N., Jalali,S.,
+            Swaranalatha,P. and Krishnareddy,M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (25-SEP-2009) Division of Plant Pathology, Indian
+            Institute of Horticultural Research, Hessaraghatta Lake PO,
+            Bangalore, Karnataka 560089, India
+FEATURES             Location/Qualifiers
+     source          1..1352
+                     /organism="Bhendi yellow vein mosaic betasatellite
+                     [India:Thadagan:OY158:2006]"
+                     /mol_type="genomic DNA"
+                     /isolate="OY158"
+                     /isolation_source="leaf"
+                     /host="Abelmoschus esculentus (okra)"
+                     /db_xref="taxon:908083"
+                     /geo_loc_name="India: Thadagan, Tamil Nadu"
+                     /collection_date="2006"
+                     /collected_by="M.Krishnareddy"
+     gene            complement(199..636)
+                     /gene="C1"
+     misc_feature    complement(199..636)
+                     /gene="C1"
+                     /note="similar to C1 protein"
+ORIGIN      
+        1 accgtgggcg agcggagtct gagtcgttgt gggacccact tatgaatgaa gttcatgggt
+       61 gatttcaagt atatggagga aattgtggat gagaaaaatg aatcatgttt gtttttgcaa
+      121 attattttag ataacagtct cctaataata attaatatgc aaacatatta ctaacaaaat
+      181 taaattatta tcttattatc aatagttact ggttcgtcta catccattcc catgatatct
+      241 gggttttcta taataataat acccaccata tgtatgatat cttcttctaa tatttcttct
+      301 gcttttgaac cccagtaatg aaatttgaag gttgatgtga tcgttccttc tagaccgttg
+      361 aagtcgaatg gaatgtgtaa ttgttggtat gtgtagtcga tgatgaatgt ctttgttgat
+      421 atggctggag attttgttga actgatctgc atatggaccg atatcctttg atgttgcatg
+      481 agcctgacat ctactttgaa gacgatcccc tccctggatt tgctgaaccg tgtcatttga
+      541 ttgtgcgtct aatgtatatg ttcgaaggtg aatatataga tgaaatgtat agatattttt
+      601 atagaatgtg tggatgaaat gtatagatat tttcatataa tgtgtggata tcatgtcata
+      661 aagctccatc ctgatccaaa gaaaagtcat gagaaattcc cttattgagc tcagaaatac
+      721 gggaacgaca taaagttcag cgaacaaact accatcttca agtaaactca gccgataaga
+      781 aaaacaaaag aggaaataga ggaaaaatga aaccagaaag aaagaatata tatataaact
+      841 aagaaaaaag aaaagggagc gcagcgataa aaaaaagcgg agagaaagaa ataacaaaat
+      901 ccaaaaaaaa agaaattcac aaagaaaata aaaagaaaaa atccgaggtc aaaacgaagc
+      961 cgttttgagg aggaagagga aagagaacgt tcaatttaca ttttttacca tttactgcgt
+     1021 ggtaaatggt aaatagtaaa tgagtgggta aattagacag acaccgatag gtaaatgaga
+     1081 caccgatata tcggttctca attggtacct ctggagtctt ataaagtgct tgtttaccat
+     1141 tttgccccta cttttaagtt atatcgcgcg tcgtagtgcg cttaaaaagt tatcttctct
+     1201 ctcttcagtt ccgataaaaa cctaatttcc cgatgatcgg agtcgaattt tccgacacgc
+     1261 gcggcggtgt gtacccctgg gagggtaggt accactacgc tacgcagcag ccttagctac
+     1321 gccggagctt agctcgccca cgttctaata tt
+//
+

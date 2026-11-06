@@ -1,0 +1,9 @@
+SNPGenie parameter log.
+
+MINIMUM ALLELE FREQUENCY: Default used; all SNPs included
+SLIDING WINDOW LENGTH: None
+MULTI-FASTA MODE: Default used; No
+SNP REPORTS: User submitted file: HF585098.vcf
+REFERENCE FASTA FILE: User submitted file: ref_HF585098.1.ref.fasta
+GTF FILE: User submitted file: HF585098.1.gtf
+COMPLEMENT MODE: No

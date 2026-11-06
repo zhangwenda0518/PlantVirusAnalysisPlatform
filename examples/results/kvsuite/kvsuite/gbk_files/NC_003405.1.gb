@@ -1,0 +1,78 @@
+LOCUS       NC_003405               1353 bp ss-DNA     linear   VRL 13-AUG-2018
+DEFINITION  Bhendi yellow vein mosaic virus-associated DNA beta, complete
+            genome.
+ACCESSION   NC_003405
+VERSION     NC_003405.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq; C1 gene; complete genome; DNA beta.
+SOURCE      Bhendi yellow vein betasatellite
+  ORGANISM  Bhendi yellow vein betasatellite
+            Viruses; Tolecusatellitidae; Betasatellite.
+REFERENCE   1
+  AUTHORS   Jose,J. and Usha,R.
+  TITLE     Bhendi yellow vein mosaic disease in India is caused by association
+            of a DNA Beta satellite with a begomovirus
+  JOURNAL   Virology 305 (2), 310-317 (2003)
+   PUBMED   12573576
+REFERENCE   2  (bases 1 to 1353)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (03-SEP-2004) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 1353)
+  AUTHORS   Usha,R.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (02-FEB-2001) Usha R., Plant Biotechnology, Madurai
+            Kamaraj University, Palkalai Nagar, Tamil Nadu 625021, INDIA
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence was derived from AJ308425.
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..1353
+                     /organism="Bhendi yellow vein betasatellite"
+                     /mol_type="genomic DNA"
+                     /isolate="Muthuppatti"
+                     /host="okra"
+                     /db_xref="taxon:186371"
+                     /geo_loc_name="India:Madurai, Tamil Nadu"
+     gene            complement(180..602)
+                     /gene="C1"
+                     /locus_tag="ByvmvDbgp1"
+                     /db_xref="GeneID:935020"
+     CDS             complement(180..602)
+                     /gene="C1"
+                     /locus_tag="ByvmvDbgp1"
+                     /codon_start=1
+                     /product="C1 protein"
+                     /protein_id="NP_570980.1"
+                     /db_xref="UniProtKB/TrEMBL:Q99A12"
+                     /db_xref="GeneID:935020"
+                     /translation="MKISIHFIYIFISNIYIKRTIKMTRFSKNREGIVFKVDVRLMQQ
+                     QRISVHMQISSTRSPAISTRTFIIDYTYQQLHIPFDFNGLEGTITSTFKFHYWGSKAE
+                     EILEEDIIHMVDIIIIENPDIMGMDVNEPVTIDNKIII"
+ORIGIN      
+        1 accgtgggcg agcggagtct gagtcgttgt ggaaccctct tatgaatgaa gtttatgggt
+       61 gatttctagt atatggagga aattgtggat gagaaaagga atcaagtttt ggttttgcaa
+      121 attattttag ataacagtct cctaataata attaatatgc aaacatatta ctaacaaaat
+      181 taaattatta tcttattatc aatagttact ggttcgttta catccattcc catgatatct
+      241 gggttttcaa taataataat atccaccata tgtatgatgt cttcttctag tatttcttct
+      301 gctttagaac cccagtaatg aaacttgaag gttgatgtga tcgttccttc taacccgttg
+      361 aagtcgaatg gaatgtgtaa ttgttggtat gtgtagtcga tgatgaatgt tcttgttgaa
+      421 atggctggag atcttgttga actgatctgc atatggactg atatcctttg ttgttgcatg
+      481 agccttacat ctactttgaa gacgatcccc tccctgtttt tgctgaacct cgtcatcttg
+      541 attgtgcgtt taatgtatat gtttgaaatg aatatataga tgaaatgtat agatattttc
+      601 atataatgtg tggatgaaat ttatagatat tttcatataa tgtgtggata tcatttcata
+      661 aaactccatc ctgatccaaa gaaaggtcat gagaaattcc cttattgagc tcagaaatac
+      721 gggaacgaca taaagttcag ccaacaaact accatcttca aataaactca gccgataaga
+      781 aaaattaaag aggaaataga ggaaaaatga aaccagaaag aaaggaaata tatataaact
+      841 aagaaaaaag aaaagggagc gcagcgataa aaaaataatc ggaaagaaaa aataacaaaa
+      901 tccaaaaaaa aagaaattca caaagaaaag aaaaataaaa aaatccgagg tcaaaacgaa
+      961 gccgttttga ggaggatgag gaaagggaac ggtcaattta catttttacc atttaccgcg
+     1021 cggtaaatgg taaatagtaa atgagtgggt aaattagaca gacaccgata ggtaaatgag
+     1081 acaccgatat atcggttctc aattggtacc tctggagtct tataaagtgc ttgtttacca
+     1141 ttttgcccct acttttaagt tatatcgcgc gtcgtagtgc gcttaaaaag ttatcttctc
+     1201 tctcttcagt tccgataaaa acctaatttc ccgatgatcg gagtcgaatt ttccgacacg
+     1261 cgcggcggtg tgtacccctg ggagggtaga aacctctacg ctacgcagca gccttagcta
+     1321 cgccggagct tagctcgtcc acgttctaat att
+//
+

@@ -1,0 +1,2 @@
+sample	type	status	bytes	steps	R1	R2	files	error
+example_hostfree.fasta	fasta	done	3400903	1,2,3	D:\桌面\植物病毒分析平台\examples\example_hostfree.fasta		assembly__contigs.filtered.fasta;contigs__viral_contigs.fasta;contigs__virus_classification.tsv	

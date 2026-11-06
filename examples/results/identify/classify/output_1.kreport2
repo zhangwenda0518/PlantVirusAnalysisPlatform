@@ -1,22 +1,399 @@
-100.00	3600	0	R	1	root
-100.00	3600	0	R1	10239	  Viruses
-100.00	3600	0	R2	2559587	    Riboviria
-100.00	3600	0	K	2732396	      Orthornavirae
-66.67	2400	0	P	2732406	        Kitrinoviricota
-66.67	2400	0	C	2732461	          Alsuviricetes
-66.67	2400	0	O	675063	            Tymovirales
-33.33	1200	0	F	675064	              Alphaflexiviridae
-33.33	1200	0	G	12176	                Potexvirus
-33.33	1200	0	S	3433818	                  Potexvirus colombiense
-33.33	1200	1200	S1	2843917	                    Cassava Colombian symptomless virus
-33.33	1200	0	F	249184	              Tymoviridae
-33.33	1200	0	G	12148	                Tymovirus
-33.33	1200	0	S	3060771	                  Tymovirus naranjillae
-33.33	1200	1200	S1	2073044	                    Naranjilla chlorotic mosaic virus
-33.33	1200	0	P	2732408	        Pisuviricota
-33.33	1200	0	C	2732506	          Pisoniviricetes
-33.33	1200	0	O	2732553	            Sobelivirales
-33.33	1200	0	F	2169577	              Solemoviridae
-33.33	1200	26	G	119164	                Polerovirus
-32.61	1174	0	S	3431769	                  Polerovirus PEVYV6
-32.61	1174	1174	S1	698400	                    Pepper yellows virus
+15.20	25295	25295	U	0	unclassified
+84.80	141141	0	R	1	root
+84.80	141141	55	R1	10239	  Viruses
+79.04	131544	4294	R2	2559587	    Riboviria
+71.77	119451	0	K	2732396	      Orthornavirae
+38.86	64675	0	P	2497569	        Negarnaviricota
+22.78	37911	0	P1	2497570	          Haploviricotina
+22.78	37911	0	C	2497574	            Monjiviricetes
+22.78	37911	0	O	11157	              Mononegavirales
+22.78	37911	18	F	11270	                Rhabdoviridae
+22.74	37841	0	F1	2842408	                  Betarhabdovirinae
+13.49	22454	0	G	3424890	                    Alphacytorhabdovirus
+2.88	4801	0	S	3426104	                      Alphacytorhabdovirus alphamedicagonis
+2.88	4801	0	S1	1972639	                        Cytorhabdovirus medicagonis
+2.88	4801	4801	S2	998864	                          Alfalfa dwarf virus
+2.82	4700	0	S	3426103	                      Alphacytorhabdovirus alphafragariae
+2.82	4700	0	S1	2676436	                        Cytorhabdovirus fragariae
+2.82	4700	4700	S2	2594796	                          strawberry-associated virus 1
+2.76	4601	0	S	3702416	                      Alphacytorhabdovirus lonicerae
+2.76	4601	4601	S1	3386333	                        Honeysuckle-associated cytorhabdovirus 1
+2.58	4301	4301	S	3426105	                      Alphacytorhabdovirus alphapogostemi
+2.43	4051	0	S	3426139	                      Alphacytorhabdovirus glehniae
+2.43	4051	0	S1	3059955	                        Cytorhabdovirus glehniae
+2.43	4051	4051	S2	2793728	                          Glehnia littoralis virus 1
+5.77	9604	0	G	3424891	                    Betacytorhabdovirus
+2.94	4901	0	S	3427199	                      Betacytorhabdovirus lycii
+2.94	4901	4901	S1	3112997	                        Cytorhabdovirus sp. 'lycii'
+2.82	4701	0	S	3427217	                      Betacytorhabdovirus tiliae
+2.82	4701	4701	S1	3004219	                        Cytorhabdovirus sp. 'tiliae'
+0.00	2	0	G1	3472406	                      unclassified Betacytorhabdovirus
+0.00	2	2	S	3478605	                        Artemisia betanucleorhabdovirus 2
+2.52	4200	0	G	140295	                    Varicosavirus
+2.52	4200	0	S	3703650	                      Varicosavirus orychophragmi
+2.52	4200	4200	S1	3149017	                        Orychophragmus violaceus varicosavirus
+0.95	1583	149	G	2733248	                    Betanucleorhabdovirus
+0.77	1280	0	S	3427242	                      Betanucleorhabdovirus betalycopersici
+0.77	1280	1280	S1	2950851	                        Tomato betanucleorhabdovirus 2
+0.03	44	0	S	3427241	                      Betanucleorhabdovirus alphalycopersici
+0.03	44	44	S1	2950850	                        Tomato betanucleorhabdovirus 1
+0.02	33	0	S	2734377	                      Betanucleorhabdovirus ribes
+0.02	33	33	S1	2079521	                        Black currant nucleorhabdovirus 1
+0.02	31	0	G1	2788073	                      unclassified Betanucleorhabdovirus
+0.02	31	31	S	3118959	                        Beet leaf curl betanucleorhabdovirus
+0.01	23	0	S	3702560	                      Betanucleorhabdovirus alphasambuci
+0.01	23	23	S1	3141829	                        Sambucus betanucleorhabdovirus 1
+0.01	9	0	S	3702563	                      Betanucleorhabdovirus betasambuci
+0.01	9	9	S1	3141830	                        Sambucus betanucleorhabdovirus 2
+0.00	8	0	S	3702564	                      Betanucleorhabdovirus deltasambuci
+0.00	8	8	S1	3141832	                        Sambucus betanucleorhabdovirus 4
+0.00	1	0	S	3702566	                      Betanucleorhabdovirus gammasambuci
+0.00	1	1	S1	3141831	                        Sambucus betanucleorhabdovirus 3
+0.00	1	0	S	3702565	                      Betanucleorhabdovirus epsilonsambuci
+0.00	1	1	S1	3141833	                        Sambucus betanucleorhabdovirus 5
+0.00	1	0	S	3059774	                      Betanucleorhabdovirus plectranthi
+0.00	1	1	S1	2793738	                        Plectranthus aromaticus virus 1
+0.00	1	0	S	3059773	                      Betanucleorhabdovirus cnidii
+0.00	1	1	S1	2903266	                        Cnidium virus 1
+0.00	1	0	S	2955466	                      Betanucleorhabdovirus bacopae
+0.00	1	1	S1	2813288	                        Bacopa monnieri virus 2
+0.00	1	0	S	2747940	                      Betanucleorhabdovirus venasonchi
+0.00	1	1	S1	2358214	                        Sowthistle yellow vein virus
+0.03	52	0	F1	35303	                  unclassified Rhabdoviridae
+0.02	36	36	S	2738555	                    Cardamom vein clearing nucleorhabdovirus 1
+0.01	14	14	S	2802554	                    Green Sichuan pepper nucleorhabdovirus
+0.00	1	1	S	2933137	                    Common ivy rhabdovirus
+0.00	1	1	S	2793726	                    Cuscuta virus 1
+16.08	26764	0	P1	2497571	          Polyploviricotina
+16.08	26764	0	C	3151693	            Bunyaviricetes
+10.61	17660	0	O	3151839	              Hareavirales
+8.66	14407	0	F	1980418	                Phenuiviridae
+3.55	5904	0	G	12329	                  Tenuivirus
+3.55	5903	0	S	3432721	                    Tenuivirus pontaense
+3.55	5903	5903	S1	2871179	                      Wheat white spike virus
+0.00	1	1	S	3052763	                    Tenuivirus oryzaclavatae
+3.22	5353	0	G	3044759	                  Mechlorovirus
+3.22	5353	0	S	3430746	                    Mechlorovirus ramuense
+3.22	5353	5353	S1	1738604	                      Ramu stunt virus
+1.89	3150	0	G	2560118	                  Coguvirus
+1.89	3150	0	S	3428032	                    Coguvirus chrysanthae
+1.89	3150	3150	S1	2992856	                      Edgeworthia chrysantha mosaic-associated virus
+1.95	3253	0	F	3152128	                Konkoviridae
+1.95	3253	0	G	3152957	                  Olpivirus
+1.95	3253	0	S	3703338	                    Olpivirus freesiae
+1.95	3253	3253	S1	3378204	                      Freesia konkovirus 1
+5.47	9104	0	O	3151837	              Elliovirales
+5.46	9085	0	F	1980412	                Fimoviridae
+5.46	9085	3	G	675845	                  Emaravirus
+2.79	4650	0	S	3428471	                    Emaravirus kudzu
+2.79	4650	4650	S1	2944626	                      Pueraria lobata-associated emaravirus
+2.64	4401	0	S	3428469	                    Emaravirus artemisiae
+2.64	4401	4401	S1	2950836	                      Artemisia fimovirus 1
+0.01	11	0	S	2845033	                    Emaravirus ziziphi
+0.01	11	11	S1	2595002	                      Jujube yellow mottle-associated virus
+0.00	7	7	S	1980431	                    Emaravirus idaeobati
+0.00	4	0	S	2955857	                    Emaravirus quercus
+0.00	4	4	S1	2742449	                      Common oak ringspot-associated virus
+0.00	3	3	S	2099567	                    Emaravirus cordylinae
+0.00	2	2	S	2843908	                    Emaravirus verbanni
+0.00	2	0	G1	1086556	                    unclassified Emaravirus
+0.00	1	1	S	3400317	                      Spiraea chlorotic leaf spot distortion virus
+0.00	1	1	S	2684179	                      Alfalfa ringspot-associated virus
+0.00	1	1	S	3428468	                    Emaravirus ailanthi
+0.00	1	0	S	2734418	                    Emaravirus rubi
+0.00	1	1	S1	3070201	                      blackberry leaf mottle-associated virus
+0.01	12	0	O1	3367772	                unclassified Elliovirales
+0.01	11	11	S	3393335	                  Blackberry leaf blotch virus
+0.00	1	1	S	2970004	                  Sanya bunya-like virus 2
+0.00	7	0	F	1980419	                Tospoviridae
+0.00	7	2	G	2560196	                  Orthotospovirus
+0.00	2	0	S	3703367	                    Orthotospovirus tomatonecromaculae
+0.00	2	2	S1	1582907	                      Tomato necrotic spot tospovirus
+0.00	2	2	S	3052572	                    Orthotospovirus citrullonecrosis
+0.00	1	0	S	3703365	                    Orthotospovirus scadoxiflavianuli
+0.00	1	1	S1	2838136	                      Scadoxus chlorotic ringspot virus
+20.46	34060	0	P	2732406	        Kitrinoviricota
+19.68	32758	0	C	2732461	          Alsuviricetes
+13.67	22755	0	O	2732544	            Martellivirales
+8.77	14601	0	F	564644	              Endornaviridae
+8.77	14601	0	G	2003394	                Alphaendornavirus
+3.00	5001	0	S	3426180	                  Alphaendornavirus lagenariae
+3.00	5001	0	S1	2003680	                    Lagenaria siceraria alphaendornavirus
+3.00	5001	5001	S2	1468454	                      Lagenaria siceraria endornavirus-California
+2.94	4900	0	S	3426176	                  Alphaendornavirus fuphaseoli
+2.94	4900	4900	S1	1188793	                    Phaseolus vulgaris alphaendornavirus 2
+2.82	4700	0	S	3426179	                  Alphaendornavirus hordei
+2.82	4700	4700	S1	1774276	                    Hordeum vulgare alphaendornavirus
+3.55	5901	0	F	69973	              Closteroviridae
+3.54	5900	0	G	2946831	                Bluvavirus
+3.54	5900	0	S	3427519	                  Bluvavirus vaccinii
+3.54	5900	5900	S1	1206566	                    Blueberry virus A
+0.00	1	0	G	217160	                Ampelovirus
+0.00	1	0	S	3426346	                  Ampelovirus tetravitis
+0.00	1	1	S1	70177	                    Grapevine leafroll-associated virus 4
+1.35	2250	0	F	675071	              Virgaviridae
+1.35	2250	0	G	12234	                Tobamovirus
+1.35	2250	0	S	3432878	                  Tobamovirus maracujae
+1.35	2250	2250	S1	368736	                    Maracuja mosaic virus
+0.00	2	0	F	2560061	              Kitaviridae
+0.00	1	0	F1	2712691	                unclassified Kitaviridae
+0.00	1	1	S	3051860	                  Chrysanthemum kita-like virus
+0.00	1	0	G	2022856	                Blunervirus
+0.00	1	1	S	3047693	                  Blunervirus vaccinii
+0.00	1	0	F	39740	              Bromoviridae
+0.00	1	0	G	12316	                Ilarvirus
+0.00	1	0	S	3429931	                  Ilarvirus PNRSV
+0.00	1	1	S1	37733	                    Prunus necrotic ringspot virus
+6.01	10003	0	O	675063	            Tymovirales
+3.46	5752	0	F	675068	              Betaflexiviridae
+3.46	5751	0	F1	1914297	                Quinvirinae
+3.46	5751	0	G	12163	                  Carlavirus
+1.74	2901	0	S	3427744	                    Carlavirus betarosae
+1.74	2901	2901	S1	2777710	                      Rose virus B
+1.71	2850	0	S	3427776	                    Carlavirus latensverbenae
+1.71	2850	2850	S1	134374	                      Verbena latent virus
+0.00	1	0	F1	1914298	                Trivirinae
+0.00	1	0	G	184751	                  Vitivirus
+0.00	1	0	S	3433254	                    Vitivirus betavitis
+0.00	1	1	S1	35289	                      Grapevine virus B
+2.55	4251	0	F	675064	              Alphaflexiviridae
+2.55	4251	0	G	12176	                Potexvirus
+1.29	2150	0	S	3433832	                  Potexvirus ecsnerinis
+1.29	2150	2150	S1	333348	                    Nerine virus X
+1.26	2101	0	S	3433851	                  Potexvirus marmormanihotis
+1.26	2101	2101	S1	39046	                    Cassava common mosaic virus
+0.78	1302	0	C	2732463	          Tolucaviricetes
+0.78	1302	0	O	2732548	            Tolivirales
+0.78	1302	0	F	39738	              Tombusviridae
+0.78	1300	0	F1	2560077	                Procedovirinae
+0.78	1300	0	G	1911600	                  Betacarmovirus
+0.78	1300	0	S	3047948	                    Betacarmovirus hibisci
+0.78	1300	1300	S1	53181	                      Hibiscus chlorotic ringspot virus
+0.00	2	0	F1	2560078	                Regressovirinae
+0.00	2	0	G	12036	                  Luteovirus
+0.00	2	0	G1	368617	                    unclassified Luteovirus
+0.00	2	2	S	224578	                      Barley yellow dwarf virus GAV
+7.03	11705	0	P	2732405	        Duplornaviricota
+5.32	8854	0	C	2732459	          Resentoviricetes
+5.32	8854	0	O	2732541	            Reovirales
+5.32	8853	0	F	2946187	              Spinareoviridae
+5.32	8853	0	G	10988	                Fijivirus
+5.32	8853	0	S	3428771	                  Fijivirus cuartoense
+5.32	8853	8853	S1	185954	                    Mal de Rio Cuarto virus
+0.00	1	0	F	2946186	              Sedoreoviridae
+0.00	1	0	G	10985	                Phytoreovirus
+0.00	1	0	S	3431664	                  Phytoreovirus alphaoryzae
+0.00	1	1	S1	10991	                    Rice dwarf virus
+1.71	2851	0	C	2732458	          Chrymotiviricetes
+1.71	2851	0	O	2732540	            Ghabrivirales
+1.71	2851	0	O1	3415267	              Alphatotivirineae
+1.71	2851	0	F	3152141	                Orthototiviridae
+1.71	2851	0	G	11007	                  Totivirus
+0.93	1551	0	S	3432969	                    Totivirus sanjyuni
+0.93	1551	1551	S1	2829560	                      Tea-oil camellia-associated totivirus 1
+0.78	1300	0	S	3432971	                    Totivirus shichi
+0.78	1300	1300	S1	1729670	                      Maize-associated totivirus 1
+5.41	9011	0	P	2732408	        Pisuviricota
+2.50	4159	0	C	2732507	          Stelpaviricetes
+2.50	4159	0	O	2732550	            Patatavirales
+2.50	4159	0	F	39729	              Potyviridae
+2.50	4157	0	G	12195	                Potyvirus
+1.95	3250	0	S	3240600	                  Potyvirus plumpoxi
+1.95	3250	141	S1	12211	                    Plum pox virus
+1.86	3090	3090	S2	12212	                      Plum pox virus D
+0.01	12	12	S2	587197	                      Plum pox virus strain Marcus
+0.00	5	5	S2	1286212	                      Plum pox virus strain Dideron
+0.00	2	2	S2	31738	                      Plum pox virus strain El Amar
+0.33	551	0	S	3240507	                  Potyvirus clitoriae
+0.33	551	551	S1	114891	                    Clitoria virus Y
+0.21	350	0	S	3240551	                  Potyvirus kalanchoes
+0.21	350	350	S1	674908	                    Kalanchoe mosaic virus
+0.00	3	0	G1	332470	                  unclassified Potyvirus
+0.00	2	2	S	3025886	                    Lamprocapnos virus A
+0.00	1	1	S	2835563	                    Amomum potyvirus A
+0.00	2	0	S	3158382	                  Potyvirus musae
+0.00	2	2	S1	45661	                    Banana bract mosaic virus
+0.00	1	0	S	3240606	                  Potyvirus ranunculitenuis
+0.00	1	1	S1	341111	                    Ranunculus mild mosaic virus
+0.00	2	0	G	39730	                Rymovirus
+0.00	2	0	S	3432219	                  Rymovirus lolii
+0.00	2	2	S1	40666	                    Ryegrass mosaic virus
+2.25	3752	0	C	2732506	          Pisoniviricetes
+2.25	3751	0	O	2732553	            Sobelivirales
+2.25	3751	0	F	2169577	              Solemoviridae
+1.17	1951	0	G	119164	                Polerovirus
+1.17	1951	0	S	3431771	                  Polerovirus PLAVA
+1.17	1951	1951	S1	2871160	                    Plantago asiatica virus A
+1.08	1800	0	G	12289	                Enamovirus
+1.08	1800	0	S	3428474	                  Enamovirus AGV
+1.08	1800	1800	S1	2992867	                    Ageratum virus 2
+0.00	1	0	O	464095	            Picornavirales
+0.00	1	0	F	675072	              Secoviridae
+0.00	1	0	F1	675075	                Comovirinae
+0.00	1	0	G	12269	                  Fabavirus
+0.00	1	0	S	3702850	                    Fabavirus camphorae
+0.00	1	1	S1	3115796	                      Camphor tree fabavirus
+0.66	1100	0	C	2732505	          Duplopiviricetes
+0.66	1100	0	O	2732549	            Durnavirales
+0.66	1100	0	F	1511860	              Amalgaviridae
+0.66	1100	0	G	1511861	                Amalgavirus
+0.66	1100	0	S	3048327	                  Amalgavirus spinaciae
+0.66	1100	1100	S1	1985164	                    Spinach amalgavirus 1
+4.57	7600	0	K	2732397	      Pararnavirae
+4.57	7600	0	P	2732409	        Artverviricota
+4.57	7600	0	C	2732514	          Revtraviricetes
+4.57	7600	0	O	2169561	            Ortervirales
+4.57	7600	0	F	186534	              Caulimoviridae
+2.94	4900	0	G	10652	                Badnavirus
+1.50	2500	0	S	3048277	                  Badnavirus tessellopolysciatis
+1.50	2500	2500	S1	2528410	                    Polyscias mosaic virus
+1.44	2400	0	S	3048451	                  Badnavirus wisteriae
+1.44	2400	2400	S1	1973265	                    Wisteria badnavirus 1
+1.62	2700	0	G	2733292	                Dioscovirus
+1.62	2700	0	S	3052184	                  Dioscovirus dioscoreae
+1.62	2700	2700	S1	2303485	                    Dioscorea nummularia-associated virus
+0.06	100	0	O	3420547	      Tombendovirales
+0.06	100	0	F	3424667	        Pamosaviridae
+0.06	100	0	G	1921431	          Papanivirus
+0.06	100	0	S	3431350	            Papanivirus panici
+0.06	100	0	S1	1921432	              Panicum papanivirus 1
+0.06	100	0	S2	154834	                Panicum mosaic satellite virus
+0.06	100	100	S3	2019555	                  Panicum mosaic virus satellite RNA satC
+0.06	99	0	R3	265963	      unclassified viroids
+0.06	99	99	S	2059665	        Apple hammerhead viroid-like RNA
+4.24	7057	0	R2	2731342	    Floreoviria
+4.24	7057	0	K	2732092	      Shotokuvirae
+4.24	7057	0	P	2732416	        Cressdnaviricota
+4.24	7057	0	C	2732424	          Repensiviricetes
+4.24	7057	0	O	2732539	            Geplafuvirales
+3.70	6156	0	F	10811	              Geminiviridae
+2.11	3505	44	G	10814	                Begomovirus
+1.02	1699	0	S	3426840	                  Begomovirus macroptilicommunis
+1.02	1699	1699	S1	1904881	                    Macroptilium common mosaic virus
+0.53	879	0	S	3427004	                  Begomovirus solanumflavuschinaense
+0.53	879	513	S1	185793	                    Tomato yellow leaf curl China virus
+0.20	333	333	S2	221530	                      Tomato yellow leaf curl China virus-Tb[Y36]
+0.00	6	6	S2	221525	                      Tomato yellow leaf curl China virus-[Y64]
+0.00	5	5	S2	408092	                      Tomato yellow leaf curl China virus-[YN72]
+0.00	4	4	S2	329292	                      Tomato yellow leaf curl China virus-[Y194]
+0.00	4	4	S2	221532	                      Tomato yellow leaf curl China virus-To[Y25]
+0.00	3	3	S2	493827	                      Tomato yellow leaf curl China virus-Dali198
+0.00	3	3	S2	221531	                      Tomato yellow leaf curl China virus-Tb[Y38]
+0.00	3	3	S2	221526	                      Tomato yellow leaf curl China virus-Tb[Y5]
+0.00	2	2	S2	329825	                      Tomato yellow leaf curl China virus -[Y285]
+0.00	2	2	S2	284541	                      Tomato yellow leaf curl China virus-[Y43]
+0.00	1	1	S2	366681	                      Tomato yellow leaf curl China virus-[Y322]
+0.51	842	0	S	3427066	                  Begomovirus solanumseveri
+0.51	842	336	S1	92963	                    Tomato severe leaf curl virus
+0.30	502	502	S2	1127769	                      Tomato severe leaf curl virus - SLP 3
+0.00	4	4	S2	1086071	                      Tomato severe leaf curl virus - Huasteca
+0.01	14	0	S	3426676	                  Begomovirus alceae
+0.01	14	14	S1	163655	                    Hollyhock leaf curl virus
+0.01	10	0	G1	291027	                  unclassified Begomovirus
+0.00	8	8	S	435646	                    Radish leaf curl virus
+0.00	1	0	S	1000675	                    Tomato leaf curl Joydebpur virus-India
+0.00	1	1	S1	1000677	                      Tomato leaf curl Joydebpur virus-India [India/Jaunpur/Chilli/2007]
+0.00	1	1	S	693894	                    Tomato leaf curl Cameroon virus
+0.00	7	0	S	3426677	                  Begomovirus alceamuvisi
+0.00	7	7	S1	944994	                    Hollyhock yellow vein mosaic virus
+0.00	2	2	S	3426878	                  Begomovirus myanmarense
+0.00	2	0	S	3426848	                  Begomovirus malvastri
+0.00	2	0	S1	329290	                    Malvastrum leaf curl virus
+0.00	2	2	S2	329291	                      Malvastrum leaf curl virus - [G87]
+0.00	1	0	S	3427092	                  Begomovirus synedrellae
+0.00	1	1	S1	1914900	                    Synedrella yellow vein clearing virus
+0.00	1	0	S	3427041	                  Begomovirus solanumlapazense
+0.00	1	1	S1	240492	                    Tomato chino La Paz virus
+0.00	1	0	S	3426984	                  Begomovirus solanumbangalorense
+0.00	1	1	S1	220608	                    Tomato leaf curl Bangalore virus
+0.00	1	0	S	3426894	                  Begomovirus papayae
+0.00	1	0	S1	928315	                    Papaya leaf crumple virus
+0.00	1	1	S2	913601	                      Papaya leaf crumple virus-Nirulas [India:New Delhi:Papaya:2007]
+0.00	1	0	S	3426882	                  Begomovirus nicotianae
+0.00	1	1	S1	180526	                    Tobacco curly shoot virus
+0.00	1	0	S	3426745	                  Begomovirus corchori
+0.00	1	0	S1	390436	                    Corchorus golden mosaic virus
+0.00	1	1	S2	1517545	                      Corchorus golden mosaic virus [Bangladesh:Jamalpur:2013]
+1.05	1751	97	G	10812	                Mastrevirus
+0.54	901	0	S	3430704	                  Mastrevirus digitariae
+0.54	901	901	S1	10837	                    Digitaria streak virus
+0.23	383	0	S	3430734	                  Mastrevirus storeyi
+0.23	383	55	S1	10821	                    Maize streak virus
+0.14	240	240	S2	268330	                      Maize streak virus - B[Mom]
+0.03	56	56	S2	268331	                      Maize streak virus - E[Pat]
+0.01	23	23	S2	268328	                      Maize streak virus - A[South Africa]
+0.00	7	7	S2	268316	                      Maize streak virus - A[Ama]
+0.00	2	2	S2	268326	                      Maize streak virus - A[Nigeria1]
+0.22	370	145	G1	334782	                  unclassified Mastrevirus
+0.07	112	112	S	3347170	                    maize streak virus F
+0.07	109	109	S	3347177	                    maize streak virus B1
+0.00	3	3	S	3347172	                    maize streak virus B3
+0.00	1	1	S	2918789	                    North American maize-associated mastrevirus
+0.54	900	0	G	2022857	                Capulavirus
+0.54	900	0	S	3427725	                  Capulavirus trifolii
+0.54	900	900	S1	2838317	                    Trifolium virus 1
+0.54	901	0	F	3152121	              Geplanaviridae
+0.54	901	0	G	3152880	                Alohovirus
+0.54	901	0	S	3426087	                  Alohovirus bromis
+0.54	901	901	S1	1590154	                    Bromus-associated circular DNA virus 1
+1.29	2146	0	F	1993640	    Tolecusatellitidae
+1.29	2146	503	G	190729	      Betasatellite
+0.34	559	0	S	3427301	        Betasatellite abelmoschusinvolutionis
+0.34	559	168	S1	756759	          Okra leaf curl betasatellite
+0.22	363	363	S2	169689	            Okra leaf curl disease associated sequence
+0.01	18	18	S2	908121	            Okra leaf curl betasatellite [India:Munthal:EL38:2006]
+0.01	10	10	S2	908122	            Okra leaf curl betasatellite [India:Munthal:EL41:2006]
+0.24	401	0	S	3427397	        Betasatellite solanimalaysiaense
+0.24	401	401	S1	2049892	          Tomato leaf curl Malaysia betasatellite
+0.21	357	0	S	3427302	        Betasatellite abelmoschusmusiviflavi
+0.21	357	117	S1	908070	          Bhendi yellow vein mosaic betasatellite
+0.07	117	117	S2	908073	            Bhendi yellow vein mosaic betasatellite [India:Guntur:OY112:2006]
+0.02	35	35	S2	908079	            Bhendi yellow vein mosaic betasatellite [India:Pandarahalli:OY174:2006]
+0.02	27	27	S2	908075	            Bhendi yellow vein mosaic betasatellite [India:Karnal:OY80:2006]
+0.01	13	13	S2	908081	            Bhendi yellow vein mosaic betasatellite [India:Raichur:OY56:2005]
+0.01	12	12	S2	908076	            Bhendi yellow vein mosaic betasatellite [India:Karnal:OY80A:2006]
+0.01	10	10	S2	908078	            Bhendi yellow vein mosaic betasatellite [India:Munthal:EL39:2006]
+0.01	9	9	S2	908077	            Bhendi yellow vein mosaic betasatellite [India:Kolar:OYVijipura:2006]
+0.00	6	6	S2	908074	            Bhendi yellow vein mosaic betasatellite [India:Kaivara:OYKaivara:2006]
+0.00	4	4	S2	908085	            Bhendi yellow vein mosaic betasatellite [India:Trichy:OY118:2006]
+0.00	4	4	S2	908072	            Bhendi yellow vein mosaic betasatellite [India:Coimbator:OYCO1:2005]
+0.00	3	3	S2	908278	            Bhendi yellow vein mosaic betasatellite [India:Pandarahalli:OY175:2006]
+0.19	322	32	G1	2670808	        unclassified Betasatellite
+0.14	231	13	S	908009	          Bhendi yellow vein India betasatellite
+0.05	76	76	S1	908010	            Bhendi yellow vein India betasatellite [India:Aurangabad:OY164:2006]
+0.04	60	60	S1	908019	            Bhendi yellow vein India betasatellite [India:Srinivaspur:OYSOK3:2006]
+0.02	30	30	S1	908022	            Bhendi yellow vein India betasatellite [India:Bangalore:OYNun:2006]
+0.01	14	14	S1	908020	            Bhendi yellow vein India betasatellite [India:Thadagan:OY156:2006]
+0.01	9	9	S1	908016	            Bhendi yellow vein India betasatellite [India:Pandarahalli:OY168:2006]
+0.00	8	8	S1	908013	            Bhendi yellow vein India betasatellite [India:Guntur:OY62:2006]
+0.00	7	7	S1	908138	            Bhendi yellow vein India betasatellite [India:Coimbatore:OY141:2006]
+0.00	5	5	S1	908018	            Bhendi yellow vein India betasatellite [India:Sonipat:EL12:2006]
+0.00	4	4	S1	908014	            Bhendi yellow vein India betasatellite [India:Jalgov:OY121:2006]
+0.00	3	3	S1	908015	            Bhendi yellow vein India betasatellite [India:Jalgov:OY126:2006]
+0.00	2	2	S1	908021	            Bhendi yellow vein India betasatellite [India:Trichy:OY115:2006]
+0.01	18	18	S	1705091	          Malachra yellow vein mosaic betasatellite
+0.01	15	15	S	700987	          Okra yellow vein mosaic virus satellite DNA beta
+0.01	14	9	S	908276	          Okra enation leaf curl betasatellite
+0.00	5	5	S1	908277	            Okra enation leaf curl betasatellite [India:Sonipat:EL10:2006]
+0.00	8	3	S	186371	          Bhendi yellow vein betasatellite
+0.00	5	5	S1	1046295	            Bhendi yellow vein betasatellite [India:Dhanbad:2008]
+0.00	3	3	S	562747	          Ludwigia leaf distortion betasatellite
+0.00	1	1	S	3050125	          Luffa yellow vein mosaic betasatellite
+0.00	2	0	S	3427331	        Betasatellite gossypimultanense
+0.00	2	0	S1	306025	          Cotton leaf curl Multan betasatellite
+0.00	2	2	S2	508759	            Cotton leaf curl Multan DNA betasatellite - [India:Haringhata 05:Kenaf:2006]
+0.00	1	0	S	3427399	        Betasatellite solaninepalense
+0.00	1	1	S1	2031200	          Tomato leaf curl Nepal betasatellite
+0.00	1	0	S	3427305	        Betasatellite ageraflavichinaense
+0.00	1	1	S1	329288	          Ageratum yellow vein China betasatellite
+0.12	200	0	F	185751	    Pospiviroidae
+0.06	100	0	G	185756	      Apscaviroid
+0.06	100	0	S	3426411	        Apscaviroid zetacitri
+0.06	100	100	S1	697192	          Citrus viroid VI
+0.06	100	0	G	185753	      Pospiviroid
+0.06	100	0	S	3431858	        Pospiviroid fusituberis
+0.06	100	100	S1	12892	          Potato spindle tuber viroid
+0.08	139	0	F	185752	    Avsunviroidae
+0.08	139	0	G	185759	      Pelamoviroid
+0.08	139	9	S	2485233	        Pelamoviroid malleusmali
+0.08	130	130	S1	1737346	          Apple hammerhead viroid-like circular RNA

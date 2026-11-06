@@ -1,0 +1,99 @@
+LOCUS       NC_008728               1931 bp    RNA     linear   VRL 13-AUG-2018
+DEFINITION  Mal de Rio Cuarto virus segment S8, complete sequence.
+ACCESSION   NC_008728
+VERSION     NC_008728.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Mal de Rio Cuarto virus (MRCV)
+  ORGANISM  Mal de Rio Cuarto virus
+            Viruses; Riboviria; Orthornavirae; Duplornaviricota;
+            Resentoviricetes; Reovirales; Spinareoviridae; Fijivirus; Fijivirus
+            cuartoense.
+REFERENCE   1  (bases 1 to 1931)
+  AUTHORS   Distefano,A.J., Conci,L.R., Munoz Hidalgo,M., Guzman,F.A.,
+            Hopp,H.E. and del Vas,M.
+  TITLE     Sequence analysis of genome segments S4 and S8 of Mal de Rio Cuarto
+            virus (MRCV): evidence that the virus should be a separate
+            Fijivirus species
+  JOURNAL   Arch. Virol. 147 (9), 1699-1709 (2002)
+   PUBMED   12209310
+REFERENCE   2  (bases 1 to 1931)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (27-DEC-2006) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 1931)
+  AUTHORS   Distefano,A.J., Conci,L.R., Munoz Hidalgo,M., Hopp,H.E. and del
+            Vas,M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (28-JUN-2001) Biotechnology Institute, National Institute
+            of Agronomic Technology (INTA), Las Cabanas y Los Reseros sin
+            Numero, Castelar, Buenos Aires CP 1712, Argentina
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence was derived from AF395872.
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..1931
+                     /organism="Mal de Rio Cuarto virus"
+                     /mol_type="genomic RNA"
+                     /db_xref="taxon:185954"
+                     /segment="8"
+                     /geo_loc_name="Argentina"
+                     /note="MRCV"
+     gene            25..1800
+                     /locus_tag="MRCV_sS8gp1"
+                     /db_xref="GeneID:5176545"
+     CDS             25..1800
+                     /locus_tag="MRCV_sS8gp1"
+                     /note="ORFS8"
+                     /codon_start=1
+                     /product="NTP binding protein P-S8"
+                     /protein_id="YP_956843.1"
+                     /db_xref="GeneID:5176545"
+                     /translation="MTDETDTLISLRLLFFNLWNSKQINNPIHHRNQNKLKKQKITSN
+                     LNQASPHPRPLIEYEERLADEFAKANRQPFKTCQLLSAFSRLETIFSRMNGYFDLFSN
+                     PIRHLGFIVLMTNVNYQFDPPSECHNFYTLKKNHGMTFNELEFFLNSKMLLGQIIKTT
+                     ELDFSKQFETYYFDPRSEKTSYGFLKRMALVRFDFLSYNYVNDLTATEVESLPPWISS
+                     LLLRMNITNSLLSREIFRDSIDPSQHYAVIVLKNDVTNVTLGRFWTVLDDHRPFIAIK
+                     TDIQKLIFENSIEAKSGNIKHVLNNCLPLGEPLVFNPKSYKFRLSLIGTGLSPLDDLV
+                     IIRLKDLINVFKQGHDVQVIGNKGVGKTEIGRMMSDTYPHLLVIDSDDYGRFLTFLLN
+                     LTPNLFKNSDFEINDEMLTDDVYFEAMSQFITGKRADKHEMESLFDTLMGSLIAPNTS
+                     QTGDVDGESILDAFNRVFHLILGSQSIGYKKFIIEYTRIMYTNFEKTQTLHFVHSYCE
+                     LAFVPHSLAYLTLHSSFNSSVLNLLTRKDHSGDSASDLLTANLLYHFYDRYTTDVNPT
+                     SVFLFKYHFGLTKGLNVIEASKLVN"
+ORIGIN      
+        1 aagttttttt tgcactgtct gaagatgact gacgaaaccg acacgctgat ctctttaaga
+       61 cttttattct ttaatttatg gaactcaaaa caaataaaca acccaatcca ccacagaaac
+      121 cagaacaaac ttaaaaaaca aaaaataacc tcgaatttaa atcaagcctc accgcacccc
+      181 agaccattaa ttgaatacga agaacgacta gccgacgaat ttgccaaggc aaacagacaa
+      241 cctttcaaaa catgccaact actctctgct tttagccgcc tcgaaacaat atttagccgt
+      301 atgaatggat attttgatct attttccaac ccgatccgac atcttggttt tattgtgttg
+      361 atgacgaatg tcaattacca gtttgaccca ccttctgaat gccacaactt ttacacattg
+      421 aagaaaaatc atggaatgac gtttaatgaa ctagaatttt tccttaattc aaaaatgcta
+      481 ttaggtcaaa taattaaaac tactgaattg gacttttcta agcagtttga aacatattac
+      541 tttgatcccc gttctgaaaa gacaagttat ggcttcctga aacgtatggc tttagttaga
+      601 tttgactttc tatcttataa ttatgttaat gatttgacag caacagaagt tgaatcactg
+      661 ccgccatgga tttcttcttt attattaaga atgaacatca caaacagcct tctttcacgt
+      721 gaaatttttc gtgacagtat tgacccttca caacactatg ctgttattgt tttgaaaaac
+      781 gacgtaacaa atgtaacact tggtcgattc tggactgtac ttgatgacca tagaccattt
+      841 attgcgatca aaaccgacat tcaaaaactt atttttgaga atagtatcga agcaaaatca
+      901 ggaaatatta aacatgttct gaataattgt ctgccattgg gtgaacccct ggtctttaat
+      961 cctaaaagct ataagtttag attgtcattg attggaactg gactctctcc attagatgat
+     1021 ttggtaatca tccgtttgaa ggatttaatt aatgtattca agcaaggaca tgatgttcaa
+     1081 gtgattggaa ataaaggtgt aggtaagact gaaattggaa gaatgatgtc agacacatat
+     1141 cctcatttac ttgtaattga tagtgatgat tacggacggt tcttaacatt cttgttgaat
+     1201 ttaacgccta atttgtttaa aaacagtgat tttgaaataa atgatgaaat gttaactgat
+     1261 gatgtttatt ttgaggctat gtcccagttc ataacgggta agagagcaga caagcatgag
+     1321 atggaatctt tatttgacac gcttatggga agtttgattg caccgaacac atcacaaact
+     1381 ggtgacgtag atggagaaag tatcttagat gcattcaatc gagtatttca tttaatcctt
+     1441 ggttcacaat caatcggtta taaaaaattc attattgaat acactcggat tatgtacaca
+     1501 aattttgaaa aaacacagac gttacatttt gttcactctt actgtgagtt ggcattcgtg
+     1561 ccacattctc tagcttattt aacattacat agcagcttca attcatcagt acttaatctt
+     1621 ttaacacgta aggatcatag tggtgactca gcgtctgatt tgttaacagc aaatttattg
+     1681 tatcattttt acgaccgata taccactgat gtaaatccaa cttcagtctt cttatttaag
+     1741 tatcattttg ggcttactaa aggattgaat gtaattgaag catctaaact agttaactaa
+     1801 acacgcatct attaaagaat atcgtccttt tagggtcatg cgtctgacat ccgtttcgtt
+     1861 tcagtctaat atccgatgac gtgctaggtc ttggacgatt ctagttacct gtgcaaaaat
+     1921 cagctaatgt c
+//
+

@@ -1,0 +1,71 @@
+{
+ "engine_version": "1.0.0",
+ "ts": "2026-11-05 02:12:53",
+ "params": {
+  "profile": "strict",
+  "amp_mode": "RPA",
+  "nuclease": "cas12a",
+  "pfs_note": "TTTV PAM（严格档）；容错档前 3 位容 1 错配，活性需实验验证",
+  "probe_type": "none",
+  "spacer_len": 20,
+  "flank": 250,
+  "site_margin": 25,
+  "top_n": 20,
+  "use_host": "1",
+  "near_fasta": "",
+  "group_by_segment": "1",
+  "screen_k": 20,
+  "engine": "VirusPlatform crispr_design 1.0.0"
+ },
+ "summary": {
+  "tool": "crispr",
+  "ok": true,
+  "engine_version": "1.0.0",
+  "target": "example_acmv.fasta",
+  "n_input_records": 1,
+  "n_segments": 1,
+  "segments": {
+   "main": {
+    "n_isolates": 1,
+    "consensus_len": 2779,
+    "n_pam_sites": 81,
+    "n_after_funnel": 59,
+    "n_designed": 89
+   }
+  },
+  "exclusions": [
+   {
+    "name": "宿主基因组",
+    "key": "__host__",
+    "route": "BLAST(blastn-short)",
+    "note": "FASTA 1716MB（k-mer 上限 250MB；BLAST 库缓存在本机 TEMP，首次运行构建较慢）"
+   }
+  ],
+  "n_sets_total": 89,
+  "n_sets_output": 20,
+  "best_score": 79.3,
+  "amp_mode": "RPA",
+  "profile": "strict",
+  "nuclease": "LbCas12a",
+  "nuclease_key": "cas12a",
+  "pfs_note": "TTTV PAM（严格档）；容错档前 3 位容 1 错配，活性需实验验证",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\cricon_20261105_021218_ec5a26\\crispr",
+  "elapsed_sec": 35.3,
+  "evidence_note": "证据边界（ACS Sensors 2026 综述口径）：本结果为序列级候选优先级排序，不构成 crRNA 活性、错配区分度、扩增兼容性或基质性能的证据；实验结论须按 validation_checklist.md 的 L1–L5 逐级建立。"
+ },
+ "files": {
+  "candidates": "crrna_candidates.tsv",
+  "ranked": "ranked_sets.tsv",
+  "panel": "panel.tsv",
+  "order": "order_sheet.xlsx",
+  "checklist": "validation_checklist.md",
+  "report": "report.json"
+ },
+ "evidence_note": "证据边界（ACS Sensors 2026 综述口径）：本结果为序列级候选优先级排序，不构成 crRNA 活性、错配区分度、扩增兼容性或基质性能的证据；实验结论须按 validation_checklist.md 的 L1–L5 逐级建立。",
+ "citations": [
+  "Wang H. et al. ACS Sensors 2026. DOI:10.1021/acssensors.6c02636",
+  "Low S.J. et al. Commun Biol 2025 (PathoGD). DOI:10.1038/s42003-025-07591-1",
+  "CASPER (iGEM 2025 Lambert GA) — 初始评分权重",
+  "AutoCORDSv2 / RPA-Primer-Design / CRISPRPrimerDesigner — 规则与参数参考（净室实现）"
+ ]
+}

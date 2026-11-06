@@ -1,0 +1,45 @@
+LOCUS       MG662372                 433 bp    RNA     circular VRL 07-MAY-2018
+DEFINITION  Apple hammerhead viroid-like RNA isolate AHVd-17-WA1, complete
+            sequence.
+ACCESSION   MG662372
+VERSION     MG662372.1
+KEYWORDS    .
+SOURCE      Apple hammerhead viroid-like RNA
+  ORGANISM  Apple hammerhead viroid-like RNA
+            Viruses.
+REFERENCE   1  (bases 1 to 433)
+  AUTHORS   Szostek,S.A., Wright,A.A. and Harper,S.J.
+  TITLE     First report of Apple hammerhead viroid in the U.S., Japan, and
+            Italy
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 433)
+  AUTHORS   Szostek,S.A., Wright,A.A. and Harper,S.J.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (08-DEC-2017) Plant Pathology, Washington State
+            University Irrigated Agriculture Research and Extension Center,
+            24106 N Bunn Road, Prosser, WA 99350, USA
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: CLC Genomics Workbench v. 10.1.1
+            Sequencing Technology :: Illumina
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..433
+                     /organism="Apple hammerhead viroid-like RNA"
+                     /mol_type="genomic RNA"
+                     /isolate="AHVd-17-WA1"
+                     /isolation_source="leaf"
+                     /host="Malus domestica"
+                     /db_xref="taxon:2059665"
+                     /geo_loc_name="USA"
+                     /collection_date="2017"
+ORIGIN      
+        1 ggaggctatt agccttcctg atgagtccgt tccaaggacg aaaccgtctc tcctaactcc
+       61 cagtttccgt aggttaatta tcctcacgga ttacttctgg taaccaggag tttgttgtga
+      121 cgtaagtttc gtcctaaaag gactcatcag gtagcctaat agactacgac ttacgcggta
+      181 ggtcgtgaat aagcccggag tacattccca atggaactag ggaacccctc cggtcttatc
+      241 caacctctgt ttcggcagag gataccgtgc tccacagttg gaagactgtg ggcccgagag
+      301 aagtcgctct ctctcgccct tcacatcctc tcaggcatag agatgaccat ttgcctaggg
+      361 tgagtcttta agtagacaca gcctatctat ggcgatgtgt aggggcacgg gttttatcac
+      421 ccccgtgacg gtc
+//
+

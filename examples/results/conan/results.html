@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="VirusPlatform module_page">
+<title>工具箱 · CONAN-SWIFT 检测设计（conan_20261105_021159_552d58） · 模块结果 · 植物病毒分析平台</title>
+<style>
+:root{--green:#17513c;--blue:#23415c;--ink:#1c2430;--mut:#6b7683;
+--line:#dfe3e8;--bg:#f4f5f3;--card:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+font:15px/1.65 "Microsoft YaHei","PingFang SC","Segoe UI",Arial,sans-serif}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+.mp-top{background:linear-gradient(135deg,#0f3d2e,#17513c 60%,#23415c);
+color:#fff;padding:26px 28px 18px}
+.mp-top h1{margin:6px 0 4px;font-size:24px}
+.mp-kicker{font-size:12px;letter-spacing:2px;opacity:.75;text-transform:uppercase}
+.mp-purpose{margin:4px 0 10px;opacity:.92;max-width:920px}
+.mp-meta{font-size:12.5px;opacity:.8;display:flex;gap:22px;flex-wrap:wrap}
+.mp-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.mp-nav a{color:#fff;background:rgba(255,255,255,.14);border:1px solid
+rgba(255,255,255,.28);padding:3px 11px;border-radius:999px;font-size:12.5px}
+.mp-nav a:hover{background:rgba(255,255,255,.26);text-decoration:none}
+.mp-nav a.self{background:rgba(255,255,255,.34);font-weight:600}
+.mp-nav a.ghost{opacity:.55}
+main{max-width:1280px;margin:0 auto;padding:18px 20px 40px}
+section{margin:20px 0}
+section>h2{font-size:18px;margin:0 0 10px;color:var(--green);
+border-left:4px solid var(--green);padding-left:10px}
+section>h2 small{color:var(--mut);font-weight:400;margin-left:8px}
+.mp-card{background:var(--card);border:1px solid var(--line);
+border-radius:10px;padding:14px 16px;margin:10px 0;
+box-shadow:0 1px 3px rgba(20,40,30,.06)}
+.mp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:14px}
+.mp-fig{background:#fff;border:1px solid var(--line);border-radius:10px;
+padding:10px 12px;margin:0;overflow:hidden}
+.mp-imgbox{background:#fbfbfa;border:1px solid var(--line);border-radius:6px;
+padding:6px;text-align:center;cursor:zoom-in;min-height:120px;
+display:flex;align-items:center;justify-content:center}
+.mp-imgbox img{max-width:100%;height:auto}
+.mp-fig figcaption{margin-top:8px;font-size:13px}
+.mp-fig figcaption b{font-size:14px;color:var(--green)}
+.mp-fig figcaption .mp-read{display:block;color:var(--mut);font-size:12.5px;margin-top:3px}
+.mp-figbar{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.mp-fmt,.mp-act{font-size:12px;border:1px solid var(--line);background:#fff;
+color:var(--ink);padding:2px 10px;border-radius:999px;cursor:pointer}
+.mp-fmt.active{background:var(--green);color:#fff;border-color:var(--green)}
+.mp-act:hover,.mp-fmt:hover{border-color:var(--green)}
+.mp-path{font-size:11.5px;color:var(--mut);margin-left:auto;
+white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46%}
+.mp-sub{margin:14px 0 6px;font-size:14px;color:var(--blue);font-weight:600}
+table.mp-tbl{border-collapse:collapse;width:100%;font-size:12.5px;background:#fff}
+table.mp-tbl th,table.mp-tbl td{border:1px solid var(--line);padding:4px 8px;
+text-align:left;max-width:340px;overflow:hidden;text-overflow:ellipsis;
+white-space:nowrap}
+table.mp-tbl th{background:#eef4f0;color:var(--green);position:sticky;top:0}
+.mp-tbl-wrap{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:8px}
+.mp-chip{display:inline-block;background:#fff;border:1px solid var(--line);
+border-radius:999px;padding:3px 12px;margin:3px 6px 3px 0;font-size:12.5px}
+.mp-chip:hover{border-color:var(--green);text-decoration:none}
+.mp-chip .mp-size{color:var(--mut);font-size:11px;margin-left:6px}
+.mp-note{color:var(--mut);font-size:13px}
+details.mp-prev{margin:8px 0 0}
+details.mp-prev summary{cursor:pointer;color:var(--blue);font-size:12.5px}
+details.mp-prev pre{background:#f7f7f5;border:1px solid var(--line);
+border-radius:8px;padding:10px;font-size:12px;line-height:1.5;
+max-height:360px;overflow:auto;white-space:pre;word-break:break-all}
+.mp-load iframe{width:100%;height:560px;border:1px solid var(--line);
+border-radius:8px;margin-top:8px;background:#fff}
+.mp-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:4px 18px}
+.mp-file{font-size:13px;padding:2px 0;border-bottom:1px dashed #edf0ee}
+.mp-file .mp-size{color:var(--mut);font-size:11.5px;margin-left:8px}
+.mp-file .mp-desc{color:var(--mut);font-size:12px;margin-left:8px}
+#mp-lightbox{position:fixed;inset:0;background:rgba(12,18,14,.92);display:none;
+z-index:99;align-items:center;justify-content:center;flex-direction:column;padding:24px}
+#mp-lightbox.show{display:flex}
+#mp-lightbox img{max-width:96vw;max-height:88vh;background:#fff;padding:8px;border-radius:6px}
+#mp-lightbox .mp-lb-cap{color:#dfe3e8;font-size:13px;margin-top:10px;max-width:90vw;text-align:center}
+#mp-lightbox .mp-lb-close{position:fixed;top:14px;right:20px;color:#fff;
+font-size:30px;cursor:pointer;line-height:1}
+@media (max-width:760px){.mp-grid{grid-template-columns:1fr}}
+/* ---- 页内目录（左栏 sticky；移动端折叠成横向 chips）---- */
+.mp-wrap{display:grid;grid-template-columns:216px minmax(0,1fr);
+max-width:1440px;margin:0 auto;align-items:start}
+.mp-toc{position:sticky;top:0;max-height:100vh;overflow:auto;
+padding:16px 10px 24px 18px;border-right:1px solid var(--line);
+background:#fbfaf8;min-height:calc(100vh - 40px)}
+.mp-toc h3{font-size:11.5px;color:var(--mut);letter-spacing:2px;
+margin:0 0 6px;text-transform:uppercase}
+.mp-toc a{display:flex;justify-content:space-between;align-items:center;
+gap:6px;padding:4px 9px;border-radius:6px;font-size:13px;color:var(--ink)}
+.mp-toc a:hover{background:#eef2ee;text-decoration:none}
+.mp-toc a.active{background:#e3efe8;color:var(--green);font-weight:600}
+.mp-toc a .n{color:var(--mut);font-size:11px;font-weight:400}
+.mp-toc .mp-toc-sub{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+.mp-toc .mp-toc-sub a{font-size:12px;color:var(--blue)}
+.mp-main{padding:18px 22px 40px;min-width:0}
+@media (max-width:900px){.mp-wrap{grid-template-columns:1fr}
+.mp-toc{position:static;min-height:0;max-height:none;border-right:none;
+border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:2px 6px;
+padding:10px 14px}
+.mp-toc h3{width:100%}
+.mp-toc a{padding:3px 9px}
+.mp-toc .mp-toc-sub{border-top:none;padding-top:2px;margin-top:4px}}
+</style>
+</head>
+<body>
+<header class="mp-top"><div class="mp-kicker">VirusPlatform · 模块结果页</div><h1>工具箱 · CONAN-SWIFT 检测设计（conan_20261105_021159_552d58）</h1><p class="mp-purpose">Cas3 检测位点候选与负筛。本页整理该次运行的全部产物：输入/参数见 run.log，图配读法，文件全部可点开。</p><div class="mp-meta"><span>运行目录　<b>conan_20261105_021159_552d58</b></span><span>生成时间　<b>2026-11-05 02:12</b></span><span>产物规模　<b>图表 4 · 表格 2 · 数据/序列 1 · 交互页 0 · 文件总数 11</b></span></div></header>
+<div class="mp-wrap"><nav class="mp-toc"><h3>本页目录</h3><a href="#sec-figs" data-sec="sec-figs">图表<span class="n">4</span></a><a href="#sec-tables" data-sec="sec-tables">表格<span class="n">2</span></a><a href="#sec-data" data-sec="sec-data">数据与序列<span class="n">1</span></a><a href="#sec-files" data-sec="sec-files">各类文件<span class="n">4</span></a></nav><main class="mp-main">
+<section id="sec-figs"><h2>图表 <small>4 张 · 同名 PNG/SVG 可切换 · 点击放大</small></h2><div class="mp-sub">子目录 conan</div><div class="mp-grid"><figure class="mp-fig"><div class="mp-imgbox"><img loading="lazy" data-rel="conan/locus_overview.png" src="conan/locus_overview.png" alt="locus_overview.png"></div><figcaption><b>CONAN 位点示意</b><span class="mp-read">候选位点附近的序列结构示意（PAM/原型间隔区位置）。</span></figcaption><div class="mp-figbar"><button class="mp-fmt" data-src="conan/locus_overview.png">PNG</button><button class="mp-fmt" data-src="conan/locus_overview.svg">SVG</button><span class="mp-path" title="conan/locus_overview.png">conan</span></div></figure><figure class="mp-fig"><div class="mp-imgbox"><img loading="lazy" data-rel="conan/top_candidates.png" src="conan/top_candidates.png" alt="top_candidates.png"></div><figcaption><b>CONAN 候选位点得分</b><span class="mp-read">CONAN-SWIFT（Cas3）候选位点的排序得分图。读法：得分靠前且negative_checks 无信号的位点优先进入验证。</span></figcaption><div class="mp-figbar"><button class="mp-fmt" data-src="conan/top_candidates.png">PNG</button><button class="mp-fmt" data-src="conan/top_candidates.svg">SVG</button><span class="mp-path" title="conan/top_candidates.png">conan</span></div></figure></div></section><section id="sec-tables"><h2>表格 <small>2 张 · 前 30 行内嵌预览</small></h2><div class="mp-card"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b>candidates.tsv</b><span class="mp-note">4.4 KB</span><span class="mp-path">conan/candidates.tsv</span></div><div class="mp-tbl-wrap"><table class="mp-tbl"><thead><tr><th>segment</th><th>rank</th><th>candidate_id</th><th>strand</th><th>PAM</th><th>cons_start</th><th>cons_end</th><th>locus_sequence_5to3</th><th>protospacer_5to3_after_PAM</th><th>guide_spacer_5to3_RC</th><th>seed</th><th>spacer_GC_percent</th><th>seed_max_homo_run</th><th>cons_mean</th><th>filter_pass</th><th>filter_reason</th><th>target_coverage_rate</th><th>target_PAM_conservation_rate</th><th>target_seed_match_rate</th><th>negative_PAM_residual_rate</th><th>negative_seed_match_rate</th><th>negative_leak_rate</th><th>target_pass_count</th><th>target_total_count</th><th>…</th></tr></thead><tbody><tr><td>main</td><td>1</td><td>CNmain_00003</td><td>+</td><td>AAG</td><td>202</td><td>236</td><td>AAGGTTAACTTTTCCAAGGTCATTTCTCAGGAACA</td><td>GTTAACTTTTCCAAGGTCATTTCTCAGGAACA</td><td>TGTTCCTGAGAAATGACCTTGGAAAAGTTAAC</td><td>GTTAACTT</td><td>37.5</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>2</td><td>CNmain_00005</td><td>+</td><td>AAG</td><td>245</td><td>279</td><td>AAGCTACTAATGCGTACCCTGAGTTTGAAATCACC</td><td>CTACTAATGCGTACCCTGAGTTTGAAATCACC</td><td>GGTGATTTCAAACTCAGGGTACGCATTAGTAG</td><td>CTACTAAT</td><td>43.75</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>3</td><td>CNmain_00006</td><td>+</td><td>AAG</td><td>416</td><td>450</td><td>AAGGACGAGATTACGTCCATTGCTGTATGCCTAAT</td><td>GACGAGATTACGTCCATTGCTGTATGCCTAAT</td><td>ATTAGGCATACAGCAATGGACGTAATCTCGTC</td><td>GACGAGAT</td><td>43.75</td><td>1</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>4</td><td>CNmain_00031</td><td>+</td><td>AAG</td><td>1371</td><td>1405</td><td>AAGATCTGAGTGGGATGTAGACAAGTCTGTGTTAC</td><td>ATCTGAGTGGGATGTAGACAAGTCTGTGTTAC</td><td>GTAACACAGACTTGTCTACATCCCACTCAGAT</td><td>ATCTGAGT</td><td>43.75</td><td>1</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>5</td><td>CNmain_00032</td><td>+</td><td>AAG</td><td>1393</td><td>1427</td><td>AAGTCTGTGTTACAGGCGTTATCTATGACTTTTCT</td><td>TCTGTGTTACAGGCGTTATCTATGACTTTTCT</td><td>AGAAAAGTCATAGATAACGCCTGTAACACAGA</td><td>TCTGTGTT</td><td>37.5</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>6</td><td>CNmain_00033</td><td>+</td><td>AAG</td><td>1438</td><td>1472</td><td>AAGTTGGCTGAAGCAAAAGATCAAGTCGTACTTAA</td><td>TTGGCTGAAGCAAAAGATCAAGTCGTACTTAA</td><td>TTAAGTACGACTTGATCTTTTGCTTCAGCCAA</td><td>TTGGCTGA</td><td>37.5</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>7</td><td>CNmain_00038</td><td>+</td><td>AAG</td><td>1563</td><td>1597</td><td>AAGGCTCATTAGCGGTGGGTTTGTAAAAGTTGCTG</td><td>GCTCATTAGCGGTGGGTTTGTAAAAGTTGCTG</td><td>CAGCAACTTTTACAAACCCACCGCTAATGAGC</td><td>GCTCATTA</td><td>46.88</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>8</td><td>CNmain_00047</td><td>+</td><td>AAG</td><td>1838</td><td>1872</td><td>AAGTGATCGTCGCCATCATGAAGAACGAACTCACA</td><td>TGATCGTCGCCATCATGAAGAACGAACTCACA</td><td>TGTGAGTTCGTTCTTCATGATGGCGACGATCA</td><td>TGATCGTC</td><td>46.88</td><td>1</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>9</td><td>CNmain_00048</td><td>+</td><td>AAG</td><td>1858</td><td>1892</td><td>AAGAACGAACTCACACTGCCTTTTAAAAATCCAAC</td><td>AACGAACTCACACTGCCTTTTAAAAATCCAAC</td><td>GTTGGATTTTTAAAAGGCAGTGTGAGTTCGTT</td><td>AACGAACT</td><td>37.5</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>10</td><td>CNmain_00049</td><td>+</td><td>AAG</td><td>1898</td><td>1932</td><td>AAGCATTATCGGATGCTCTTTCACCGTTACCCAAA</td><td>CATTATCGGATGCTCTTTCACCGTTACCCAAA</td><td>TTTGGGTAACGGTGAAAGAGCATCCGATAATG</td><td>CATTATCG</td><td>43.75</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>11</td><td>CNmain_00065</td><td>+</td><td>AAG</td><td>2363</td><td>2397</td><td>AAGTCATCGTATTACTCGAATGGGCTGATGGATTC</td><td>TCATCGTATTACTCGAATGGGCTGATGGATTC</td><td>GAATCCATCAGCCCATTCGAGTAATACGATGA</td><td>TCATCGTA</td><td>43.75</td><td>1</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>12</td><td>CNmain_00066</td><td>+</td><td>AAG</td><td>2481</td><td>2515</td><td>AAGCTGCTTAAAGGACGGTGAGCCCGTACCTTCGG</td><td>CTGCTTAAAGGACGGTGAGCCCGTACCTTCGG</td><td>CCGAAGGTACGGGCTCACCGTCCTTTAAGCAG</td><td>CTGCTTAA</td><td>59.38</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>13</td><td>CNmain_00067</td><td>+</td><td>AAG</td><td>2491</td><td>2525</td><td>AAGGACGGTGAGCCCGTACCTTCGGATGCGAAAGT</td><td>GACGGTGAGCCCGTACCTTCGGATGCGAAAGT</td><td>ACTTTCGCATCCGAAGGTACGGGCTCACCGTC</td><td>GACGGTGA</td><td>59.38</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>14</td><td>CNmain_00068</td><td>+</td><td>AAG</td><td>2522</td><td>2556</td><td>AAGTCACGTTAGTAGATGGCGTTCCTGGTTGTGGA</td><td>TCACGTTAGTAGATGGCGTTCCTGGTTGTGGA</td><td>TCCACAACCAGGAACGCCATCTACTAACGTGA</td><td>TCACGTTA</td><td>50.0</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>15</td><td>CNmain_00072</td><td>+</td><td>AAG</td><td>2641</td><td>2675</td><td>AAGAGAGCTAATAAGTCTGGACATGTAAGAGCGAC</td><td>AGAGCTAATAAGTCTGGACATGTAAGAGCGAC</td><td>GTCGCTCTTACATGTCCAGACTTATTAGCTCT</td><td>AGAGCTAA</td><td>43.75</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>16</td><td>CNmain_00073</td><td>+</td><td>AAG</td><td>2653</td><td>2687</td><td>AAGTCTGGACATGTAAGAGCGACAAAGGATAATGT</td><td>TCTGGACATGTAAGAGCGACAAAGGATAATGT</td><td>ACATTATCCTTTGTCGCTCTTACATGTCCAGA</td><td>TCTGGACA</td><td>40.62</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>17</td><td>CNmain_00074</td><td>+</td><td>AAG</td><td>2667</td><td>2701</td><td>AAGAGCGACAAAGGATAATGTAAGAACTGTGGATT</td><td>AGCGACAAAGGATAATGTAAGAACTGTGGATT</td><td>AATCCACAGTTCTTACATTATCCTTTGTCGCT</td><td>AGCGACAA</td><td>37.5</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>18</td><td>CNmain_00076</td><td>+</td><td>AAG</td><td>2688</td><td>2722</td><td>AAGAACTGTGGATTCGTTCTTAATGCATTTGAAGC</td><td>AACTGTGGATTCGTTCTTAATGCATTTGAAGC</td><td>GCTTCAAATGCATTAAGAACGAATCCACAGTT</td><td>AACTGTGG</td><td>37.5</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>19</td><td>CNmain_00082</td><td>+</td><td>AAG</td><td>3026</td><td>3060</td><td>AAGTGGTTAGAGGGAAAGGGGTTTTTAACCCGAAA</td><td>TGGTTAGAGGGAAAGGGGTTTTTAACCCGAAA</td><td>TTTCGGGTTAAAAACCCCTTTCCCTCTAACCA</td><td>TGGTTAGA</td><td>43.75</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr><tr><td>main</td><td>20</td><td>CNmain_00087</td><td>+</td><td>AAG</td><td>3107</td><td>3141</td><td>AAGCCGAACTGAAGGAGCGTGGTTATGAAGAAGTT</td><td>CCGAACTGAAGGAGCGTGGTTATGAAGAAGTT</td><td>AACTTCTTCATAACCACGCTCCTTCAGTTCGG</td><td>CCGAACTG</td><td>46.88</td><td>2</td><td>1.0</td><td>是</td><td></td><td>100.0</td><td>100.0</td><td>100.0</td><td></td><td></td><td></td><td>5</td><td>5</td><td>…</td></tr></tbody></table></div><div class="mp-figbar"><a class="mp-act" data-rel="conan/candidates.tsv" href="conan/candidates.tsv" target="_blank">打开完整表格 ↗</a></div></div><div class="mp-card"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b>target_checks.tsv</b><span class="mp-note">105.7 KB</span><span class="mp-path">conan/target_checks.tsv</span></div><div class="mp-tbl-wrap"><table class="mp-tbl"><thead><tr><th>segment</th><th>candidate_id</th><th>rank</th><th>target_record</th><th>observed_PAM</th><th>PAM_match</th><th>observed_seed</th><th>seed_match</th><th>effective_seed_mm</th><th>effective_spacer_mm</th><th>effective_nonseed_mm_count</th><th>target_pass</th><th>observed_window</th></tr></thead><tbody><tr><td>main</td><td>CNmain_00003</td><td>1</td><td>PZ530881.1|Odontoglossum_ringspot_virus</td><td>AAG</td><td>是</td><td>GTTAACTT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGGTTAACTTTTCCAAGGTCATTTCTCAGGAACA</td></tr><tr><td>main</td><td>CNmain_00003</td><td>1</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>GTTAACTT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGGTTAACTTTTCCAAGGTCATTTCTCAGGAACA</td></tr><tr><td>main</td><td>CNmain_00003</td><td>1</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>GTTAACTT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGGTTAACTTTTCCAAGGTCATTTCTCAGGAACA</td></tr><tr><td>main</td><td>CNmain_00003</td><td>1</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>GTTAACTT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGGTTAACTTTTCCAAGGTCATTTCTCAGGAACA</td></tr><tr><td>main</td><td>CNmain_00003</td><td>1</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>GTTAACTT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGGTTAACTTTTCCAAGGTCATTTCTCAGGAACA</td></tr><tr><td>main</td><td>CNmain_00005</td><td>2</td><td>PZ530881.1|Odontoglossum_ringspot_virus</td><td>AAG</td><td>是</td><td>CTACTAAT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGCTACTAATGCGTACCCTGAGTTTGAAATCACC</td></tr><tr><td>main</td><td>CNmain_00005</td><td>2</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>CTACTAAT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGCTACTAATGCGTACCCTGAGTTTGAAATCACC</td></tr><tr><td>main</td><td>CNmain_00005</td><td>2</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>CTACTAAT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGCTACTAATGCGTACCCTGAGTTTGAAATCACC</td></tr><tr><td>main</td><td>CNmain_00005</td><td>2</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>CTACTAAT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGCTACTAATGCGTACCCTGAGTTTGAAATCACC</td></tr><tr><td>main</td><td>CNmain_00005</td><td>2</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>CTACTAAT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGCTACTAATGCGTACCCTGAGTTTGAAATCACC</td></tr><tr><td>main</td><td>CNmain_00006</td><td>3</td><td>PZ530881.1|Odontoglossum_ringspot_virus</td><td>AAG</td><td>是</td><td>GACGAGAT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGGACGAGATTACGTCCATTGCTGTATGCCTAAT</td></tr><tr><td>main</td><td>CNmain_00006</td><td>3</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>GACGAGAT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGGACGAGATTACGTCCATTGCTGTATGCCTAAT</td></tr><tr><td>main</td><td>CNmain_00006</td><td>3</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>GACGAGAT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGGACGAGATTACGTCCATTGCTGTATGCCTAAT</td></tr><tr><td>main</td><td>CNmain_00006</td><td>3</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>GACGAGAT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGGACGAGATTACGTCCATTGCTGTATGCCTAAT</td></tr><tr><td>main</td><td>CNmain_00006</td><td>3</td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>GACGAGAT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGGACGAGATTACGTCCATTGCTGTATGCCTAAT</td></tr><tr><td>main</td><td>CNmain_00007</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus</td><td>AAG</td><td>是</td><td>ATACTGTT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGATACTGTTTCTACTTATCTGGCTAGGCTCGAG</td></tr><tr><td>main</td><td>CNmain_00007</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>ATACTGTT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGATACTGTTTCTACTTATCTGGCTAGGCTCGAG</td></tr><tr><td>main</td><td>CNmain_00007</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>ATACTGTT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGATACTGTTTCTACTTATCTGGCTAGGCTCGAG</td></tr><tr><td>main</td><td>CNmain_00007</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>ATACTGTT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGATACTGTTTCTACTTATCTGGCTAGGCTCGAG</td></tr><tr><td>main</td><td>CNmain_00007</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f</td><td>TAG</td><td>否</td><td>ATACTGTT</td><td>是</td><td></td><td>12,13,19,23</td><td>4</td><td>否</td><td>TAGATACTGTTTCTGATTATCCGGCGAGGCTCGAG</td></tr><tr><td>main</td><td>CNmain_00011</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus</td><td>AAG</td><td>是</td><td>ACTGTTCT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGACTGTTCTTACTCCGTTGATCTTCCGGGAAAA</td></tr><tr><td>main</td><td>CNmain_00011</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>ACTGTTCT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGACTGTTCTTACTCCGTTGATCTTCCGGGAAAA</td></tr><tr><td>main</td><td>CNmain_00011</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>ACTGTTCT</td><td>是</td><td></td><td>24,30</td><td>2</td><td>是</td><td>AAGACTGTTCTTACTCCGTTGATCTTACGGGATAA</td></tr><tr><td>main</td><td>CNmain_00011</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>ACTGTTCT</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGACTGTTCTTACTCCGTTGATCTTCCGGGAAAA</td></tr><tr><td>main</td><td>CNmain_00011</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f</td><td>AAC</td><td>否</td><td>ACAGTTCT</td><td>否</td><td>3</td><td>3,25</td><td>1</td><td>否</td><td>AACACAGTTCTTACTCCGTTGATCTTCTGGGAAAA</td></tr><tr><td>main</td><td>CNmain_00016</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus</td><td>AAG</td><td>是</td><td>TTCACCAA</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGTTCACCAAGGTAGATACTTATTTCCTTTTCCG</td></tr><tr><td>main</td><td>CNmain_00016</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>TTCACCAA</td><td>是</td><td></td><td>14,15,20,28</td><td>4</td><td>是</td><td>AAGTTCACCAAGGTAGTAACTTGTTTCCTTCTCCG</td></tr><tr><td>main</td><td>CNmain_00016</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>TTCACCAA</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGTTCACCAAGGTAGATACTTATTTCCTTTTCCG</td></tr><tr><td>main</td><td>CNmain_00016</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>TTCACCAA</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGTTCACCAAGGTAGATACTTATTTCCTTTTCCG</td></tr><tr><td>main</td><td>CNmain_00016</td><td></td><td>PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f</td><td>AAG</td><td>是</td><td>TTCACCAA</td><td>是</td><td></td><td></td><td>0</td><td>是</td><td>AAGTTCACCAAGGTAGATACTTATTTCCTTTTCCG</td></tr></tbody></table></div><div class="mp-note">仅预览前 30 行 · 完整文件请点下方链接。</div><div class="mp-figbar"><a class="mp-act" data-rel="conan/target_checks.tsv" href="conan/target_checks.tsv" target="_blank">打开完整表格 ↗</a></div></div></section><section id="sec-data"><h2>数据与序列 <small>1 个 · 折叠预览</small></h2><div class="mp-card"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b>summary.json</b><span class="mp-note">18.6 KB · 2026-11-05 02:12</span><span class="mp-path">conan/summary.json</span></div><div><span class="mp-desc">JSON 数据</span></div><details class="mp-prev"><summary>预览 JSON（前 120 行）</summary><pre>{
+ &quot;engine&quot;: &quot;VirusPlatform conan_design 1.0.0&quot;,
+ &quot;ts&quot;: &quot;2026-11-05 02:12:17&quot;,
+ &quot;params&quot;: {
+  &quot;pam&quot;: &quot;AAG&quot;,
+  &quot;spacer_len&quot;: 32,
+  &quot;seed_len&quot;: 8,
+  &quot;ignored_text&quot;: &quot;6&quot;,
+  &quot;max_nonseed_mm&quot;: 4,
+  &quot;terminal_margin&quot;: 150,
+  &quot;exclude_terminal&quot;: true,
+  &quot;select_gc&quot;: true,
+  &quot;gc_min&quot;: 35.0,
+  &quot;gc_max&quot;: 65.0,
+  &quot;exclude_homopolymer&quot;: true,
+  &quot;homopolymer&quot;: 3,
+  &quot;group_by_segment&quot;: true,
+  &quot;top_n&quot;: 20,
+  &quot;negative&quot;: null,
+  &quot;threads&quot;: 8
+ },
+ &quot;params_snapshot&quot;: {
+  &quot;pam&quot;: &quot;AAG&quot;,
+  &quot;spacer_len&quot;: 32,
+  &quot;seed_len&quot;: 8,
+  &quot;ignored&quot;: [
+   6
+  ],
+  &quot;max_nonseed_mm&quot;: 4,
+  &quot;terminal_margin&quot;: 150,
+  &quot;gc&quot;: [
+   35.0,
+   65.0
+  ],
+  &quot;homopolymer&quot;: 3
+ },
+ &quot;segments&quot;: [
+  {
+   &quot;segment&quot;: &quot;main&quot;,
+   &quot;n_targets&quot;: 5,
+   &quot;n_negatives&quot;: null,
+   &quot;negative_applied&quot;: null,
+   &quot;n_raw&quot;: 305,
+   &quot;n_kept&quot;: 137,
+   &quot;all_targets_pass&quot;: 86,
+   &quot;background_clear&quot;: 0
+  }
+ ],
+ &quot;n_candidates&quot;: 20,
+ &quot;top&quot;: [
+  {
+   &quot;segment&quot;: &quot;main&quot;,
+   &quot;candidate_id&quot;: &quot;CNmain_00003&quot;,
+   &quot;strand&quot;: &quot;+&quot;,
+   &quot;cons_start&quot;: 202,
+   &quot;cons_end&quot;: 236,
+   &quot;guide&quot;: &quot;TGTTCCTGAGAAATGACCTTGGAAAAGTTAAC&quot;,
+   &quot;pam_len&quot;: 3,
+   &quot;gc&quot;: 37.5,
+   &quot;coverage&quot;: 100.0,
+   &quot;leak&quot;: null,
+   &quot;score&quot;: 200.0,
+   &quot;all_targets_pass&quot;: true,
+   &quot;all_negatives_locus_pass&quot;: null
+  },
+  {
+   &quot;segment&quot;: &quot;main&quot;,
+   &quot;candidate_id&quot;: &quot;CNmain_00005&quot;,
+   &quot;strand&quot;: &quot;+&quot;,
+   &quot;cons_start&quot;: 245,
+   &quot;cons_end&quot;: 279,
+   &quot;guide&quot;: &quot;GGTGATTTCAAACTCAGGGTACGCATTAGTAG&quot;,
+   &quot;pam_len&quot;: 3,
+   &quot;gc&quot;: 43.75,
+   &quot;coverage&quot;: 100.0,
+   &quot;leak&quot;: null,
+   &quot;score&quot;: 200.0,
+   &quot;all_targets_pass&quot;: true,
+   &quot;all_negatives_locus_pass&quot;: null
+  },
+  {
+   &quot;segment&quot;: &quot;main&quot;,
+   &quot;candidate_id&quot;: &quot;CNmain_00006&quot;,
+   &quot;strand&quot;: &quot;+&quot;,
+   &quot;cons_start&quot;: 416,
+   &quot;cons_end&quot;: 450,
+   &quot;guide&quot;: &quot;ATTAGGCATACAGCAATGGACGTAATCTCGTC&quot;,
+   &quot;pam_len&quot;: 3,
+   &quot;gc&quot;: 43.75,
+   &quot;coverage&quot;: 100.0,
+   &quot;leak&quot;: null,
+   &quot;score&quot;: 200.0,
+   &quot;all_targets_pass&quot;: true,
+   &quot;all_negatives_locus_pass&quot;: null
+  },
+  {
+   &quot;segment&quot;: &quot;main&quot;,
+   &quot;candidate_id&quot;: &quot;CNmain_00031&quot;,
+   &quot;strand&quot;: &quot;+&quot;,
+   &quot;cons_start&quot;: 1371,
+   &quot;cons_end&quot;: 1405,
+   &quot;guide&quot;: &quot;GTAACACAGACTTGTCTACATCCCACTCAGAT&quot;,
+   &quot;pam_len&quot;: 3,
+   &quot;gc&quot;: 43.75,
+   &quot;coverage&quot;: 100.0,
+   &quot;leak&quot;: null,
+   &quot;score&quot;: 200.0,
+   &quot;all_targets_pass&quot;: true,
+   &quot;all_negatives_locus_pass&quot;: null
+  },
+  {
+   &quot;segment&quot;: &quot;main&quot;,
+   &quot;candidate_id&quot;: &quot;CNmain_00032&quot;,
+   &quot;strand&quot;: &quot;+&quot;,
+   &quot;cons_start&quot;: 1393,
+   &quot;cons_end&quot;: 1427,
+   &quot;guide&quot;: &quot;AGAAAAGTCATAGATAACGCCTGTAACACAGA&quot;,
+   &quot;pam_len&quot;: 3,
+   &quot;gc&quot;: 37.5,
+   &quot;coverage&quot;: 100.0,
+…（仅前 120 行）</pre></details><div class="mp-figbar"><a class="mp-act" data-rel="conan/summary.json" href="conan/summary.json" target="_blank">打开原文件 ↗</a></div></div></section><section id="sec-files"><h2>各类文件 <small>4 个 · 全部可点开</small></h2><div class="mp-sub">.pdf <span class="mp-note">（2 个）</span></div><div class="mp-files"><div class="mp-file"><a data-rel="conan/locus_overview.pdf" href="conan/locus_overview.pdf">locus_overview.pdf</a><span class="mp-size">40.3 KB</span><span class="mp-desc">PDF（矢量出版格式）</span></div><div class="mp-file"><a data-rel="conan/top_candidates.pdf" href="conan/top_candidates.pdf">top_candidates.pdf</a><span class="mp-size">39.7 KB</span><span class="mp-desc">PDF（矢量出版格式）</span></div></div><div class="mp-sub">.log <span class="mp-note">（1 个）</span></div><div class="mp-files"><div class="mp-file"><a data-rel="run.log" href="run.log">run.log</a><span class="mp-size">1019 B</span></div></div><div class="mp-sub">.md <span class="mp-note">（1 个）</span></div><div class="mp-files"><div class="mp-file"><a data-rel="conan/report.md" href="conan/report.md">report.md</a><span class="mp-size">4.0 KB</span></div></div></section>
+<footer class="mp-note" style="margin-top:30px">由 module_page 自 <b>D:\桌面\植物病毒分析平台\run\tool_runs\conan_20261105_021159_552d58</b> 的落盘产物自动生成，2026-11-05 02:12。产物均为相对链接，磁盘双击与平台内预览均可打开。</footer>
+</main></div>
+<div id="mp-lightbox"><span class="mp-lb-close">×</span><img src="" alt=""><div class="mp-lb-cap"></div></div>
+<script>var __VP_BASE__="D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\conan_20261105_021159_552d58";
+(function(){
+var BASE=__VP_BASE__;
+function inRaw(){return location.protocol.indexOf('http')===0&&
+location.pathname.indexOf('/api/fs/raw')>=0}
+function rawUrl(rel){return '/api/fs/raw?path='+encodeURIComponent(BASE+'/'+rel)}
+if(inRaw()){
+  document.querySelectorAll('[data-rel]').forEach(function(el){
+    var rel=el.getAttribute('data-rel');
+    if(el.tagName==='IMG'){el.setAttribute('src',rawUrl(rel));}
+    else{el.setAttribute('href',rawUrl(rel));}
+  });
+}
+function curSrc(img){var r=img.getAttribute('data-rel');
+  return inRaw()?rawUrl(r):img.getAttribute('src')||r;}
+document.querySelectorAll('.mp-fmt').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var box=btn.closest('.mp-fig');if(!box)return;
+    var img=box.querySelector('.mp-imgbox img');if(!img)return;
+    var src=btn.getAttribute('data-src');
+    img.setAttribute('src',inRaw()?rawUrl(src):src);
+    img.setAttribute('data-rel',src);
+    box.querySelectorAll('.mp-fmt').forEach(function(b){b.classList.remove('active')});
+    btn.classList.add('active');
+  });
+});
+document.querySelectorAll('.mp-imgbox').forEach(function(box){
+  box.addEventListener('click',function(){
+    var img=box.querySelector('img');if(!img)return;
+    var fig=box.closest('.mp-fig');
+    var cap=fig?(fig.querySelector('figcaption b')||{}).textContent||'':'';
+    var lb=document.getElementById('mp-lightbox');if(!lb)return;
+    lb.querySelector('img').setAttribute('src',curSrc(img));
+    lb.querySelector('.mp-lb-cap').textContent=cap;
+    lb.classList.add('show');
+    return false;
+  });
+});
+var lb=document.getElementById('mp-lightbox');
+if(lb){lb.addEventListener('click',function(){lb.classList.remove('show')});}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&lb)lb.classList.remove('show')});
+document.querySelectorAll('.mp-load button').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var w=btn.parentNode;var old=w.querySelector('iframe');
+    if(old){old.remove();btn.textContent='预览';return;}
+    var src=btn.getAttribute('data-src');
+    var fr=document.createElement('iframe');
+    fr.setAttribute('src',inRaw()?rawUrl(src):src);
+    fr.setAttribute('loading','lazy');
+    w.appendChild(fr);
+    btn.textContent='收起预览';
+  });
+});
+/* --- 目录滚动高亮 --- */
+var tocLinks=[].slice.call(document.querySelectorAll('.mp-toc a[data-sec]'));
+function tocSpy(){
+  var cur='';
+  tocLinks.forEach(function(a){
+    var el=document.getElementById(a.getAttribute('data-sec'));
+    if(el&&el.getBoundingClientRect().top<130)cur=a.getAttribute('data-sec');
+  });
+  if(!cur&&tocLinks.length)cur=tocLinks[0].getAttribute('data-sec');
+  tocLinks.forEach(function(a){
+    a.classList.toggle('active',a.getAttribute('data-sec')===cur)});
+}
+if(tocLinks.length){
+  window.addEventListener('scroll',tocSpy,{passive:true});
+  tocSpy();
+}
+})();
+</script>
+</body>
+</html>

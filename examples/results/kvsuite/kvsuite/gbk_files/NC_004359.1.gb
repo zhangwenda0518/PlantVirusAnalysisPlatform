@@ -1,0 +1,45 @@
+LOCUS       NC_004359                330 bp ss-RNA     circular VRL 13-AUG-2018
+DEFINITION  Citrus viroid VI, complete genome.
+ACCESSION   NC_004359
+VERSION     NC_004359.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Citrus viroid VI
+  ORGANISM  Citrus viroid VI
+            Viruses; Pospiviroidae; Apscaviroid; Apscaviroid zetacitri.
+REFERENCE   1
+  AUTHORS   Ito,T., Ieki,H., Ozaki,K. and Ito,T.
+  TITLE     Characterization of a new citrus viroid species tentatively termed
+            Citrus viroid OS
+  JOURNAL   Arch. Virol. 146 (5), 975-982 (2001)
+   PUBMED   11448034
+REFERENCE   2  (bases 1 to 330)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (03-SEP-2004) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 330)
+  AUTHORS   Ito,T.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (04-NOV-1998) Takao Ito, National Institute of Fruit Tree
+            Science, MAFF., Department of Citriculture; Kuchinotsu, Nagasaki
+            859-2501, Japan (E-mail:itotaka@kcnt.affrc.go.jp,
+            Tel:81-957-86-2306, Fax:81-957-86-4268)
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence was derived from AB019508.
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..330
+                     /organism="Citrus viroid VI"
+                     /mol_type="genomic RNA"
+                     /db_xref="taxon:697192"
+                     /note="JCVd 1"
+ORIGIN      
+        1 ggaggaaact ccgtgtggtt cctgtgggtc accccccggt tccctctaat gaaaagaaag
+       61 gcaaggagaa ctcacctgtc gtcgtcgacg aaggcatgtg agcttccact cgatgaagag
+      121 cgtcagcgga cggcctctga gacgagcgat ggacagtaga gctcgtctct accagtcgcg
+      181 tgctgactct cacgcccacc cgcacggctg ctccgaggga ggggctctct gccgctagtc
+      241 gagcggacta acagagtgac tcccctgccc tattttctac ggagcaccgg cggtggagtc
+      301 cccagggtaa aacacgattg gtgtttcccc
+//
+

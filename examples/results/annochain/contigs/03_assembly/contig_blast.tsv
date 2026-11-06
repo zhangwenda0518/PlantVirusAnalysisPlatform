@@ -1,0 +1,3 @@
+contig	blast_top_hit	blast_identity(%)	blast_coverage_hsp(%)	blast_aln_len	blast_species	blast_family
+example_contig_2	NC_027131.1	100.0	100.0	6988	Badnavirus decoloratiovitis	Caulimoviridae
+example_contig_1	NC_077216.1	100.0	100.0	6096	Polerovirus PEVYV6	Solemoviridae

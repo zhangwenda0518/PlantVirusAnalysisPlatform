@@ -1,14 +1,18 @@
 {
  "inputs": [
   {
-   "path": "D:\\桌面\\植物病毒分析平台\\examples\\example_R1.fastq.gz",
-   "size": 414643,
-   "mtime": 1788965973399963300
+   "path": "D:\\桌面\\植物病毒分析平台\\examples\\example_sim100x_R1.fastq.gz",
+   "size": 17881578,
+   "mtime": 1791823214475639600
   },
   {
-   "path": "D:\\桌面\\植物病毒分析平台\\examples\\example_R2.fastq.gz",
-   "size": 414431,
-   "mtime": 1788965973398966600
+   "path": "D:\\桌面\\植物病毒分析平台\\examples\\example_sim100x_R2.fastq.gz",
+   "size": 18587374,
+   "mtime": 1791823227811479800
   }
- ]
+ ],
+ "params": {
+  "dedup": false,
+  "min_len": 15
+ }
 }

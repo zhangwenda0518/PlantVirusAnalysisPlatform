@@ -9,7 +9,7 @@
 ## 0. 平台是什么
 
 VirusPlatform（植物病毒分析平台，PVAP）——Windows 本地的植物病毒诊断与深度
-分析平台：从原始 FASTQ 到 NCBI 提交文件，15 阶段流水线 + ~32 个工具箱工具 +
+分析平台：从原始 FASTQ 到 NCBI 提交文件，15 阶段流水线 + ~35 个工具箱工具 +
 公共数据检索/下载 + NCBI 提交 + LOGAN 溯源，中英双语，本地优先、离线可用。
 
 三个入口共享同一引擎（`Virus_Platform_Core/`）：
@@ -48,6 +48,10 @@ VirusPlatform（植物病毒分析平台，PVAP）——Windows 本地的植物�
 
 - 工具清单与参数口径**以 `mcp_tool_catalog`（坞内 AI）或 MCP 客户端的
   tools/list 为准**，不要凭记忆报数字；平台升级会增删。
+- 要「结论文档」（学术论文风单文件 HTML，含结论/漏斗/逐阶段深读/缺口/问答/
+  命令/溯源）用 `vp_build_report`：target 给样品名、工具运行名或平台内目录，
+  同一调用顺带回正文纯文本（`result.digest`），不必再取文件。它只写
+  `report_v2.html` + `report_v2_meta.json`，不动任何分析产物。
 - 破坏面工具（如 `vp_delete_tool_run`）在网页控制台与内置对话坞中不开放；
   外部 agent 是否受限取决于宿主权限策略，请自行把关。
 
@@ -56,6 +60,22 @@ VirusPlatform（植物病毒分析平台，PVAP）——Windows 本地的植物�
 `python main.py <子命令> --help` 逐个看；常用：
 `analyze`（全链路）· `report` · `build-host-db` · `datasets` · `meta-search` ·
 `submit-*`（NCBI 提交）· `logan-*`（溯源）· `agent-guide` / `agent-ops`。
+
+`report` 会同时刷新图表报告 `report.html` 与结论文档 `report_v2.html`；只要
+结论文档时用 `python -m Virus_Platform_Core.report_kit <目录>`（更快，不碰
+matplotlib）。加 `--pdf` 顺带打印一份 PDF（`report_v2.pdf`）：借本机
+Chrome/Edge 无头模式打印同一份 DOM，版式与网页一致、不新增依赖；
+`module-report --pdf` 对 `results.html` 同理（实现在
+`Virus_Platform_Core/pdf_export.py`，可用 `VP_PDF_BROWSER` 指定浏览器）。
+
+`module-report` 生成**模块结果页**：每个阶段目录/工具运行目录一份
+`results.html`（输入 → 图表 → 表格 → 数据/序列 → 交互页 → 各类文件，
+图配图例读法、PNG/SVG 可切换、点击放大、文件全链接）。页内文件链接**默认
+本页预览**（不跳转），预览弹层里再给「新标签打开 / 下载」；平台内各「模块结果」
+入口同样在本页弹层预览 `results.html`，预览头有「新标签打开」。用法：
+`python main.py module-report --sample <样品> [--stage <阶段键|目录>] [--pdf]`
+或 `--run <工具运行名>`；流水线每个阶段完成时也会自动刷新对应页。
+Web 端按需生成走 `/api/module_report?sample=&stage=` / `?run=`。
 
 ### 方式三：HTTP（平台在跑时）
 
@@ -101,7 +121,26 @@ agent 走 MCP/CLI 即可，HTTP 仅调试用。
 - 外部工具在 `3rd/`（探测：`python main.py tools`）；数据库在 `databases/`、
   `host-db/`；样品结果在 `run/results/<样品>/0X_*/`；工具箱单步产物在
   `run/tool_runs/<tool>_<ts>_<uuid>/`；任务状态 `run/tasks/`，日志 `run/logs/`。
-- 平台只监听本机回环；下载仅限 NCBI/ENA/NGDC 官方域名白名单。
+  每个阶段目录与工具运行目录下有 `results.html` 模块结果页（自动生成，
+  整理该模块全部图表/表格/文件并附输入说明与图例读法）；平台静态图统一
+  PNG+SVG 双格式（gbdraw/genome_diag 的 SVG 在装了可选依赖 cairosvg 时
+  才补 PNG）。
+  这些目录都跟着**输出目录**设置走：`platform.json` 的 `output_root` 一旦被改，
+  `results` / `tool_runs` 等全部平移到新根下（默认空 = 平台根 `run/`）。
+  例外：AI 对话会话镜像 `run/ai_sessions/<conv>.jsonl`（只追加，2026-11-03 起）
+  与 API Key 真身 `run/ai_local.json` 固定在平台根，不随输出根迁移。
+- API Key 支持环境变量引用：`ai_local.json` 里写 `${DEEPSEEK_API_KEY}` 这类
+  **整值占位符**，运行时从环境变量展开——配置文件零密钥，可随意备份/同步。
+- 对话坞会把你回答里写的**绝对路径**渲染成可点开的产物卡片（报告可内嵌预览、
+  图片给缩略图、表格给前几十行）。所以给路径时写绝对路径、别写「去结果中心点看」；
+  工作空间条上的「📥 输出到此」等于把 `output_root` 设成该工作空间。
+  整轮跑完时的那条「本轮分析全部完成」也会自动带卡片（结论文档 → 图表报告 →
+  漏斗图 → 进化树 → 基因组图），不必等 AI 再说一遍；**每个阶段完成**（图/表/
+  交互页，最多 3 张）和**执行单完成**（所跑阶段的产物，最多 4 张）同样自带卡片。
+- 平台只监听本机回环；下载仅限 NCBI/ENA/NGDC 官方域名白名单
+  （**例外**：分发包自更新走独立更新源白名单，机制与发版流程见
+  virusplatform-dev 技能卡 §8.1；用户在 platform.json 显式配置的
+  `update_manifest_url` 域名也进更新白名单，可指向内网服务器）。
 - 界面中英双语；CLI/日志中文为主（`--lang en` 可切，覆盖以
   `i18n_cli_catalog` 词表为准，未登记串原样保留）。
 

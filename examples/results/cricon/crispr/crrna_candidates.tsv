@@ -1,0 +1,60 @@
+segment	rank	spacer	PAM	strand	cons_start	cons_end	cons_score	GC%	MFE	PAM_priority	t7_unsafe	host_worst_tier	near_worst_tier	veto	note
+main	1	CTTCTGTACATGGCATGTAC	TTTG	+	1129	1152	1.0	45.0	-3.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	2	TCAACTTCCAGATCTGGACA	TTTC	-	1405	1428	1.0	45.0	-2.9	2	否	0		是	排除库精确命中（mm0），剔除
+main	3	CACCCCAACATTCAAGGTGC	TTTC	-	2479	2502	1.0	55.0	-2.4	2	否	0		是	排除库精确命中（mm0），剔除
+main	4	GAGACACCTATATAATGTCT	TTTA	-	43	66	1.0	35.0	-2.4	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	5	TTTCCCAGGTATACACGCCA	TTTA	+	1553	1576	1.0	50.0	-2.2	2	否	0		是	排除库精确命中（mm0），剔除
+main	6	CCAGGTATACACGCCATTCA	TTTC	+	1557	1580	1.0	50.0	-2.2	2	否	0		是	排除库精确命中（mm0），剔除
+main	7	CAGACTCGGTGCATGGGCTT	TTTC	+	310	333	1.0	60.0	-2.1	2	否	0		是	排除库精确命中（mm0），剔除
+main	8	GACTAAGGTCCAGGTGTCCA	TTTG	+	2014	2037	1.0	55.0	-1.8	2	否	0		是	排除库精确命中（mm0），剔除
+main	9	TTAAGGGTCTTTAGATACCA	TTTC	-	1358	1381	1.0	35.0	-1.7	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	10	AAATTGTCCCCATTCGACGG	TTTG	+	2408	2431	1.0	50.0	-1.6	2	否	0		是	排除库精确命中（mm0），剔除
+main	11	AGGAATTCATGGGGTCCCAG	TTTA	-	1926	1949	1.0	55.0	-1.6	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	12	AAATCGATGGACGATCTGCT	TTTC	-	2391	2414	1.0	45.0	-1.5	2	否	0		是	排除库精确命中（mm0），剔除
+main	13	GGCCCACATAATTACCTGTG	TTTA	-	2038	2061	1.0	50.0	-1.5	2	否	0		是	排除库精确命中（mm0），剔除
+main	14	GATAGGATTTTCCAAGAGCC	TTTA	-	2233	2256	1.0	45.0	-1.3	2	是	0		是	排除库精确命中（mm0），剔除
+main	15	AAGCTACATCATGATTGGCC	TTTA	-	203	226	1.0	45.0	-1.3	2	否	0		是	排除库精确命中（mm0），剔除
+main	16	GCGCTTCTTGCTTTTCCTCG	TTTA	+	1789	1812	1.0	55.0	-1.2	2	是			否	
+main	17	GGACTAATTCCCTAATGACA	TTTG	+	2293	2316	1.0	40.0	-1.0	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	18	ATGAACTTAGGGTTTGATTG	TTTA	+	2625	2648	1.0	35.0	-0.9	2	否			否	
+main	19	GGTATGTGAGAAAGACATTC	TTTG	+	2701	2724	1.0	40.0	-0.9	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	20	CGACCCTGTGTGTCAGCCCA	TTTC	-	745	768	1.0	65.0	-0.9	2	否	0		是	排除库精确命中（mm0），剔除
+main	21	CAGGCCTTAGAGGATACATA	TTTG	+	357	380	1.0	45.0	-0.8	2	否	0		是	排除库精确命中（mm0），剔除
+main	22	ATGCCCAGGCCTTTAGCGCT	TTTA	+	1774	1797	1.0	60.0	-0.8	2	否	0		是	排除库精确命中（mm0），剔除
+main	23	AATGAATGACAGTAGGTGTT	TTTG	+	2660	2683	1.0	35.0	-0.7	2	否	0		是	排除库精确命中（mm0），剔除
+main	24	CACTCCAGGATCCAAGGTTC	TTTC	+	474	497	1.0	55.0	-0.5	2	否	0		是	排除库精确命中（mm0），剔除
+main	25	GAATTCAAGCCAAGAATGTC	TTTC	-	2718	2741	1.0	40.0	-0.5	2	否	0		是	排除库精确命中（mm0），剔除
+main	26	GATTTGTGACGTGGACAGTG	TTTC	-	547	570	1.0	50.0	-0.5	2	否	0		是	排除库精确命中（mm0），剔除
+main	27	AACAGGAACTTGGTCAAAGG	TTTC	+	2174	2197	1.0	45.0	-0.4	2	否	0		是	排除库精确命中（mm0），剔除
+main	28	ACATGTTTGATAATGAGCCC	TTTA	+	917	940	1.0	40.0	-0.3	2	否	0		是	排除库精确命中（mm0），剔除
+main	29	CCGTATTTCGTGTTGGACTG	TTTC	+	1893	1916	1.0	50.0	-0.3	2	否	0		是	排除库精确命中（mm0），剔除
+main	30	TCACATACCCAAAGTGTTCT	TTTC	-	2694	2717	1.0	40.0	-0.3	2	否	0		是	排除库精确命中（mm0），剔除
+main	31	ATAATGAGCCCAGTACTGCA	TTTG	+	926	949	1.0	45.0	-0.2	2	否	0		是	排除库精确命中（mm0），剔除
+main	32	AGGTGTTGAGGAAATTTCAT	TTTC	+	977	1000	1.0	35.0	-0.2	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	33	TGTACATGGGCCTGTTCACC	TTTC	-	580	603	1.0	55.0	-0.1	2	否	0		是	排除库精确命中（mm0），剔除
+main	34	AATTAAAAGGCTCAAAAGGC	TTTG	+	96	119	1.0	35.0	0.0	2	否			否	
+main	35	AAGGTTATGTATTAGTGGTG	TTTA	+	221	244	1.0	35.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	36	AGCAGAGGGATGATGTGAAG	TTTG	+	677	700	1.0	50.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	37	TATCAAGTCCATTTACATTC	TTTG	+	774	797	1.0	30.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	38	CATTCTTGGTAAGATCTGGC	TTTA	+	789	812	1.0	45.0	0.0	2	否			否	
+main	39	AGGGATAGGTTTCAGGTGTT	TTTG	+	964	987	1.0	45.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	40	TTTCATGAGTCAACTTGCAC	TTTA	+	1235	1258	1.0	40.0	0.0	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	41	TGAATCCCCAGCTCCTTCCT	TTTG	+	1432	1455	1.0	55.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	42	ATTGGAACCTGAGTAGAGTG	TTTG	+	1721	1744	1.0	45.0	0.0	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	43	CTCGGCTAGGAACTCTTTAT	TTTC	+	1805	1828	1.0	45.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	44	GATTATGAAACTGAAGTACA	TTTA	+	2263	2286	1.0	30.0	0.0	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	45	ATTGGAGAGAAAGTGTTTGA	TTTG	+	2641	2664	1.0	35.0	0.0	2	否			否	
+main	46	GGTATAGAACACTTTGGGTA	TTTG	+	2685	2708	1.0	40.0	0.0	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	47	TCTCCAATCAAACCCTAAGT	TTTC	-	2633	2656	1.0	40.0	0.0	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	48	TCCCTTCCCATGTTCTTCCT	TTTC	-	2195	2218	1.0	50.0	0.0	2	否			否	
+main	49	ACCAAGTTCCTGTTGAAATT	TTTG	-	2172	2195	1.0	35.0	0.0	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	50	CGCACAGGGGAAGTCATCAC	TTTA	-	1595	1618	1.0	60.0	0.0	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	51	ACAATCACCAGGCACCAACA	TTTC	-	1517	1540	1.0	50.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	52	TTCAATGTAATTGCCAACAC	TTTG	-	1265	1288	1.0	35.0	0.0	2	否			否	
+main	53	TTAATTGCCAATACTGTCAT	TTTA	-	1203	1226	1.0	30.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	54	AACGTCGCATATACAGGATT	TTTC	-	1163	1186	1.0	40.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	55	ACCAACGCCTGCTCCTTCAT	TTTC	-	1028	1051	1.0	55.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	56	CTCAACACCTGAAACCTATC	TTTC	-	971	994	1.0	45.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	57	CTTCTTAATAGTTTCATCCA	TTTG	-	813	836	1.0	30.0	0.0	2	否	1		否	近缘库 ≤1 错配命中：区分度风险，实验需验证
+main	58	ATCCAGCCAGATCTTACCAA	TTTC	-	798	821	1.0	45.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除
+main	59	ATTGCCAGCATACACCTAAG	TTTA	-	331	354	1.0	45.0	0.0	2	否	0		是	排除库精确命中（mm0），剔除

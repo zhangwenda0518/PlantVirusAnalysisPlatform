@@ -1,0 +1,78 @@
+LOCUS       PQ490805                1357 bp    RNA     linear   VRL 12-NOV-2024
+DEFINITION  Freesia konkovirus 1 isolate Fr231211 segment RNA3, complete
+            sequence.
+ACCESSION   PQ490805
+VERSION     PQ490805.1
+KEYWORDS    .
+SOURCE      Freesia konkovirus 1
+  ORGANISM  Freesia konkovirus 1
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Hareavirales; Konkoviridae;
+            Olpivirus; Olpivirus freesiae.
+REFERENCE   1  (bases 1 to 1357)
+  AUTHORS   Marra,M., Rotunno,S., Frascati,F., Pierro,R., Restuccia,P.,
+            Hammond,J., Vaira,A.M. and Miozzi,L.
+  TITLE     Expanding the virome associated with the necrotic disorder of
+            freesia through a combined metatranscriptomic and wet-lab approach
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 1357)
+  AUTHORS   Rotunno,S., Miozzi,L. and Vaira,A.M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (17-OCT-2024) CNR, Institute for Sustainable Plant
+            Protection, strada delle cacce, 73, Turin, TO 10135, Italy
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: Spades v. 3.15.1; CAP3 v.Date: 02/10/15
+            Sequencing Technology :: Illumina
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..1357
+                     /organism="Freesia konkovirus 1"
+                     /mol_type="genomic RNA"
+                     /isolate="Fr231211"
+                     /isolation_source="necrotic leaf tissue"
+                     /host="Freesia refracta hyb"
+                     /db_xref="taxon:3378204"
+                     /segment="RNA3"
+                     /geo_loc_name="Italy: Liguria"
+                     /collection_date="2011/2014"
+                     /note="identical sequence found in isolate Fr140314"
+     gene            complement(214..1278)
+                     /gene="p40"
+     CDS             complement(214..1278)
+                     /gene="p40"
+                     /codon_start=1
+                     /product="movement protein"
+                     /protein_id="XKB87613.1"
+                     /translation="MSSKMVGPPNYSHVLEQENKKVRFEEDDLDSVIDSITSQGVNDV
+                     NELCEVTRDCNLKQRAETMSRGKSVLIESDSEEEKPDIPTKVSKDKNDIGLLYETADN
+                     FRSFEELMKIDKIRSSSFIRAPFNIKGGKLHYFSIPWPTLKQKIKNSMNIFANSKNIY
+                     YKLEGLFFLWTPLYTQEKTNVMVAITDKRGRGSKPQVANSVKFESHQTTVSGMSIGNC
+                     VHQNDLSKVQLSVALGKQIADKGVMYASVEVCFYISVSNRASLETHSVIHPVHIEPGT
+                     KFLLKDYKKVTQKLRDSNAKVISKLKKSEDDNEMEALLNGTEKRVGPSVTEEKIKTLS
+                     KHMTSKPTSRFDMTESTLKL"
+ORIGIN      
+        1 acacaaagac cgaccaccac aaccttgagc aacatccgtt cttagaaaac gattattact
+       61 caagatagta aaacatggtc ggtttctgcg tttaattttt gaattttttt cattttttaa
+      121 tttttttggt ttttgttttt ttattttaaa aactcaatgc aaaattgaaa acaataatta
+      181 aacataatta taattagaca ttactcaaca tttttacaat tttaaagtag attcagtcat
+      241 gtcaaacctg gaagtgggtt ttgaagtcat gtgtttactt aaagttttta ttttttcttc
+      301 agtgacagaa ggtccaactc ttttctcagt tccattcaac aaagcttcca tttcattatc
+      361 atcttcactc tttttgagtt tgctaataac tttggcatta gaatctctta acttctgagt
+      421 caccttcttg taatctttaa gcagaaattt ggtaccaggt tcaatatgca cagggtgtat
+      481 cactgagtga gtctctagac tagcacgatt ggacacacta atgtaaaagc aaacctcaac
+      541 actagcatac atgacacctt tatctgcaat ttgcttaccc aaagcaacag ataattgaac
+      601 tttcgagaga tcattctgat gtacacagtt tcctatagac attccagaaa ccgtagtctg
+      661 atggctttca aatttcacag aattagcaac ttgtggcttg gagcctcttc cacgtttgtc
+      721 tgttattgca accatgacat tagtcttttc ctgagtgtaa agaggagtcc ataagaaaaa
+      781 caagccttct agcttgtagt agatgttctt actgttggca aatatgttca tagaattttt
+      841 tattttttgt tttagggtag gccatgggat actaaagtaa tgaagttttc ctcctttaat
+      901 attgaaagga gccctaataa agctggatga tcttatttta tcaattttca tcagctcttc
+      961 aaaagatcta aaattgtcag cagtctcata cagcaaccca atgtcattct tatctttaga
+     1021 cactttagtg ggaatgtctg gcttctcttc ttctgagtca ctttctatga gtacactctt
+     1081 ccctctgctc attgtctctg ctctttgttt tagattgcaa tctcttgtga cttcacaaag
+     1141 ttcatttaca tcattaaccc cttgagaagt tatagaatca ataacgctat ccaaatcatc
+     1201 ttcttcaaat ctgacctttt tattctcctg ctctaacaca tgagaatagt ttggaggtcc
+     1261 aaccatctta gatgacatat tgatgaaatt tgagctgtgc gattaggaaa ccggttgtca
+     1321 atatgaattt ttatgttgtt ggtggtcttc tttgtgt
+//
+

@@ -1,0 +1,2 @@
+file	product	N_diffs	S_diffs	N_diffs_vs_ref	S_diffs_vs_ref	N_sites	S_sites	piN	piS	mean_dN_vs_ref	mean_dS_vs_ref	mean_gdiv_polymorphic	mean_N_gdiv	mean_S_gdiv	N_VARIANTS_IN_ORF	ORF_COVERED
+LC333552.vcf	polyprotein	0	0	3	21	7287.33333333344	2135.66666666664	0	0	0.000411673222943915	0.00983299516154217	0	*	*	24	True

@@ -1,0 +1,85 @@
+LOCUS       NC_076119               1352 bp    DNA     circular VRL 05-MAY-2023
+DEFINITION  Okra leaf curl betasatellite [India:Munthal:EL38:2006], complete
+            sequence.
+ACCESSION   NC_076119
+VERSION     NC_076119.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Okra leaf curl betasatellite [India:Munthal:EL38:2006]
+  ORGANISM  Okra leaf curl betasatellite [India:Munthal:EL38:2006]
+            Viruses; Tolecusatellitidae; Betasatellite; Betasatellite
+            abelmoschusinvolutionis.
+REFERENCE   1  (bases 1 to 1352)
+  AUTHORS   Venkataravanappa,V., Reddy,C.N., Swaranalatha,P., Jalali,S.,
+            Briddon,R.W. and Reddy,M.K.
+  TITLE     Diversity and phylogeography of Begomovirus-associated beta
+            satellites of Okra in India
+  JOURNAL   Virol. J. 8, 555 (2011)
+   PUBMED   22188644
+REFERENCE   2  (bases 1 to 1352)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (03-MAY-2023) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 1352)
+  AUTHORS   Venkataravanappa,V., Lakshiminarayanareddy,C.N., Jalali,S.,
+            Swaranalatha,P. and Krishnareddy,M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (25-SEP-2009) Division of Plant Pathology, Indian
+            Institute of Horticultural Research, Hessaraghatta Lake PO,
+            Bangalore, Karnataka 560089, India
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to GU111963.
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..1352
+                     /organism="Okra leaf curl betasatellite
+                     [India:Munthal:EL38:2006]"
+                     /mol_type="genomic DNA"
+                     /isolate="EL38"
+                     /isolation_source="leaf"
+                     /host="Abelmoschus esculentus (okra)"
+                     /db_xref="taxon:908121"
+                     /geo_loc_name="India: Munthal, Haryana"
+                     /collection_date="2006"
+                     /collected_by="M.Krishnareddy"
+     gene            complement(197..553)
+                     /gene="C1"
+                     /locus_tag="QKK89_gp1"
+                     /db_xref="GeneID:80534676"
+     CDS             complement(197..553)
+                     /gene="C1"
+                     /locus_tag="QKK89_gp1"
+                     /codon_start=1
+                     /product="C1 protein"
+                     /protein_id="YP_010796982.1"
+                     /db_xref="GeneID:80534676"
+                     /translation="MTRFSKNREGIVFKVDVRLMQQQRISVHMQISSTRSPAISTRTF
+                     IIDYTYQQLHIPFDFNGLEGTITSTFKFHYWGSIAEEILDEDVIHMTDIITTENEDIM
+                     GMDVNPPVTIDNKIII"
+ORIGIN      
+        1 accgtgggcg agcggagtct gagtcgttgt gggacccaca gatgaatgaa gttcatgggt
+       61 gatttcaagt atatggagga aattgtggat gagaaaaatg aatcatgttt ggtctctgca
+      121 agagattctt ggtcgagttc tatcgtgcca gactctgctt gcacagtgat ggtcttcact
+      181 cctcgtctat taaactctaa attattatct tattatcaat agttactggt gggtttacat
+      241 ccattcccat tatatcttcg ttttcggtgg taataatatc cgtcatgtgt atgacgtctt
+      301 cgtcgagtat ttcttctgct attgaacccc agtaatgaaa cttgaaggtt gatgtgatcg
+      361 ttccttctaa accgttgaag tcgaatggaa tgtgtaattg ttggtatgtg tagtcgatga
+      421 tgaatgttct tgttgaaatg gctggagatc ttgttgaact gatctgcata tggactgata
+      481 tcctttgttg ttgcatgagc ctgacatcta ctttgaagac gatcccctcc ctgtttttgc
+      541 tgaaccttgt catcttgaat gtgcgttaaa gtatatgtgt caaatgaata tatagatgaa
+      601 atgtatagat acttccacat aatgtgtgga tatcatttta aatgatatat gtggttcttg
+      661 tttgtttgca cataatatct ggtataatgg ataataaggt agtatatatg tagttattta
+      721 taaattgaag aaatagaaat actgtgttac agatatacgg gtatatttgt aggataagaa
+      781 aaagaaaaga ggaaatagag gaaaaatgaa accagaaaga aaggaaatat atataaacta
+      841 aaaaaagaaa agggagcgca gcgagaaaaa aaaataatcg gaaaagaaaa aaataagaaa
+      901 atcaaataaa gaaaattcac aaagaaaaat aaagaagaaa aaatccgagg tcaaaacgaa
+      961 gccgttttgt ggaggaaaag gaaagaaaac ggtcaatgta tattttttac cagttaccgc
+     1021 acagtaaatg gtaaatagta aatgagtggg taaaatatag agtccccgat aggtaaattg
+     1081 acaccaatat atcggtactc aatcgggtcc tctggagtct taggaagtgc ttgtttacca
+     1141 ttttgcccct actttcaagt tatatcgcgc tcgtagtgcg cttaaaaagt tatcttctct
+     1201 ctcttcagtt ccgataaaaa cctaatttcc cgatgatcgg agtcgaattt tccgacacgc
+     1261 gcggcggtgt gtacccctgg gagggtaggt accactacgc tacgcagcag ccttagctac
+     1321 gccggagctt agctcgccca cgttctaata tt
+//
+

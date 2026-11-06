@@ -1,0 +1,12 @@
+{
+ "stage": "gbdraw",
+ "standalone": true,
+ "input": "example_viral_contigs.fasta",
+ "plots": [
+  "example_contig_2.circular.svg",
+  "example_contig_2.linear.svg",
+  "example_contig_1.circular.svg",
+  "example_contig_1.linear.svg"
+ ],
+ "n_seqs": 2
+}

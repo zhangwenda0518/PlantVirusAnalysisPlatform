@@ -1,0 +1,514 @@
+{
+ "engine": "VirusPlatform conan_design 1.0.0",
+ "ts": "2026-11-05 02:13:02",
+ "params": {
+  "pam": "AAG",
+  "spacer_len": 32,
+  "seed_len": 8,
+  "ignored_text": "6",
+  "max_nonseed_mm": 4,
+  "terminal_margin": 150,
+  "exclude_terminal": true,
+  "select_gc": true,
+  "gc_min": 35.0,
+  "gc_max": 65.0,
+  "exclude_homopolymer": true,
+  "homopolymer": 3,
+  "group_by_segment": true,
+  "top_n": 20,
+  "negative": null,
+  "threads": 8
+ },
+ "params_snapshot": {
+  "pam": "AAG",
+  "spacer_len": 32,
+  "seed_len": 8,
+  "ignored": [
+   6
+  ],
+  "max_nonseed_mm": 4,
+  "terminal_margin": 150,
+  "gc": [
+   35.0,
+   65.0
+  ],
+  "homopolymer": 3
+ },
+ "segments": [
+  {
+   "segment": "main",
+   "n_targets": 1,
+   "n_negatives": null,
+   "negative_applied": null,
+   "n_raw": 108,
+   "n_kept": 52,
+   "all_targets_pass": 52,
+   "background_clear": 0
+  }
+ ],
+ "n_candidates": 20,
+ "top": [
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00005",
+   "strand": "+",
+   "cons_start": 225,
+   "cons_end": 259,
+   "guide": "AAGTATATAGTGGCCCACCACTAATACATAAC",
+   "pam_len": 3,
+   "gc": 37.5,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00006",
+   "strand": "+",
+   "cons_start": 267,
+   "cons_end": 301,
+   "guide": "CCAGTGGATCCCACATTGCGCACTAGCCACAA",
+   "pam_len": 3,
+   "gc": 56.25,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00007",
+   "strand": "+",
+   "cons_start": 452,
+   "cons_end": 486,
+   "guide": "CCTGGAGTGGAAATGATGATATCTCCTGGTCG",
+   "pam_len": 3,
+   "gc": 50.0,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00008",
+   "strand": "+",
+   "cons_start": 491,
+   "cons_end": 525,
+   "guide": "TATGGGCTGTCGAAGTTCAGTCTTCGACGAAC",
+   "pam_len": 3,
+   "gc": 50.0,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00009",
+   "strand": "+",
+   "cons_start": 502,
+   "cons_end": 536,
+   "guide": "CACGGTTCCTGTATGGGCTGTCGAAGTTCAGT",
+   "pam_len": 3,
+   "gc": 53.12,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00013",
+   "strand": "+",
+   "cons_start": 665,
+   "cons_end": 699,
+   "guide": "TTCACATCATCCCTCTGCTCAAACGACTGGAC",
+   "pam_len": 3,
+   "gc": 50.0,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00014",
+   "strand": "+",
+   "cons_start": 698,
+   "cons_end": 732,
+   "guide": "ACATCACTAATCACCTTACAGATACCAAGGTG",
+   "pam_len": 3,
+   "gc": 40.62,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00015",
+   "strand": "+",
+   "cons_start": 716,
+   "cons_end": 750,
+   "guide": "AGCCCAGGCCCACGCGTCACATCACTAATCAC",
+   "pam_len": 3,
+   "gc": 59.38,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00024",
+   "strand": "+",
+   "cons_start": 1031,
+   "cons_end": 1065,
+   "guide": "AACCTGTAAAACCTTTTCACCAACGCCTGCTC",
+   "pam_len": 3,
+   "gc": 46.88,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00026",
+   "strand": "+",
+   "cons_start": 1103,
+   "cons_end": 1137,
+   "guide": "AGAAGCAAAGCATTCTCTGTGTGATTCTCATA",
+   "pam_len": 3,
+   "gc": 37.5,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00030",
+   "strand": "+",
+   "cons_start": 1381,
+   "cons_end": 1415,
+   "guide": "AGATCTGGACAACCTTACAGCCTCAGACTGGT",
+   "pam_len": 3,
+   "gc": 50.0,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00031",
+   "strand": "+",
+   "cons_start": 1400,
+   "cons_end": 1434,
+   "guide": "AAATGTTTTCTCAACTTCCAGATCTGGACAAC",
+   "pam_len": 3,
+   "gc": 37.5,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00033",
+   "strand": "+",
+   "cons_start": 1629,
+   "cons_end": 1663,
+   "guide": "TGTGGATGTTCATATTACCTCCATATCAACTG",
+   "pam_len": 3,
+   "gc": 37.5,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00034",
+   "strand": "+",
+   "cons_start": 1667,
+   "cons_end": 1701,
+   "guide": "AGAAGCGAGCCATCCGGCGTAGGAGAGTGGAT",
+   "pam_len": 3,
+   "gc": 59.38,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00035",
+   "strand": "+",
+   "cons_start": 1762,
+   "cons_end": 1796,
+   "guide": "GCGCTAAAGGCCTGGGCATTAAAGAATGCAAT",
+   "pam_len": 3,
+   "gc": 46.88,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00039",
+   "strand": "+",
+   "cons_start": 2022,
+   "cons_end": 2056,
+   "guide": "GCCCACATAATTACCTGTGTGGACACCTGGAC",
+   "pam_len": 3,
+   "gc": 53.12,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00040",
+   "strand": "+",
+   "cons_start": 2060,
+   "cons_end": 2094,
+   "guide": "TAGCAGAACAGGGAAGACGATATGGGCCAGAT",
+   "pam_len": 3,
+   "gc": 50.0,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00041",
+   "strand": "+",
+   "cons_start": 2194,
+   "cons_end": 2228,
+   "guide": "GCTCCTTATGTTTCTCCCTTCCCATGTTCTTC",
+   "pam_len": 3,
+   "gc": 46.88,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00044",
+   "strand": "+",
+   "cons_start": 2222,
+   "cons_end": 2256,
+   "guide": "TTTAGATAGGATTTTCCAAGAGCCACCAGCTC",
+   "pam_len": 3,
+   "gc": 43.75,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00047",
+   "strand": "+",
+   "cons_start": 2319,
+   "cons_end": 2353,
+   "guide": "AAGCGCTTAACAGCGGCAGTAAGTCAGAAGCT",
+   "pam_len": 3,
+   "gc": 50.0,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  }
+ ],
+ "matrices": [
+  {
+   "segment": "main",
+   "cols": [
+    {
+     "kind": "T",
+     "name": "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan"
+    }
+   ],
+   "rows": [
+    {
+     "candidate_id": "CNmain_00005",
+     "rank": 1,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00006",
+     "rank": 2,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00007",
+     "rank": 3,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00008",
+     "rank": 4,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00009",
+     "rank": 5,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00013",
+     "rank": 6,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00014",
+     "rank": 7,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00015",
+     "rank": 8,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00024",
+     "rank": 9,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00026",
+     "rank": 10,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00030",
+     "rank": 11,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00031",
+     "rank": 12,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00033",
+     "rank": 13,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00034",
+     "rank": 14,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00035",
+     "rank": 15,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00039",
+     "rank": 16,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00040",
+     "rank": 17,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00041",
+     "rank": 18,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00044",
+     "rank": 19,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00047",
+     "rank": 20,
+     "cells": {
+      "ACMV|NC_001467.1|geminiviridae|African cassava mosaic virus, isolate West Kenyan": "ok"
+     }
+    }
+   ]
+  }
+ ],
+ "elapsed_sec": 9.4,
+ "files": {
+  "candidates": "conan/candidates.tsv",
+  "report": "conan/report.md",
+  "summary": "conan/summary.json",
+  "target_checks": "conan/target_checks.tsv",
+  "top_plot": "conan/top_candidates.png",
+  "locus_plot": "conan/locus_overview.png"
+ }
+}

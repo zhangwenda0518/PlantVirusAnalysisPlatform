@@ -1,0 +1,69 @@
+LOCUS       HM590504                1351 bp    DNA     circular VRL 01-JUL-2012
+DEFINITION  Bhendi yellow vein betasatellite [India:Dhanbad:2008], complete
+            sequence.
+ACCESSION   HM590504
+VERSION     HM590504.1
+KEYWORDS    .
+SOURCE      Bhendi yellow vein betasatellite [India:Dhanbad:2008]
+  ORGANISM  Bhendi yellow vein betasatellite [India:Dhanbad:2008]
+            Viruses; Tolecusatellitidae; Betasatellite; Bhendi yellow vein
+            betasatellite.
+REFERENCE   1  (bases 1 to 1351)
+  AUTHORS   Singh,A.K. and Chakraborty,S.
+  TITLE     Diversity of begomoviruses causing okra yellow vein mosaic disease
+            in India
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 1351)
+  AUTHORS   Singh,A.K. and Chakraborty,S.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (26-JUN-2010) Molecular Virology Laboratory, School of
+            Life Sciences, Jawaharlal Nehru University, New Delhi, Delhi
+            110067, India
+FEATURES             Location/Qualifiers
+     source          1..1351
+                     /organism="Bhendi yellow vein betasatellite
+                     [India:Dhanbad:2008]"
+                     /mol_type="genomic DNA"
+                     /isolate="Dhanbad"
+                     /host="okra"
+                     /db_xref="taxon:1046295"
+                     /geo_loc_name="India"
+                     /collection_date="Apr-2008"
+                     /collected_by="Punam Kumari"
+     gene            complement(180..602)
+                     /gene="C1"
+     CDS             complement(180..602)
+                     /gene="C1"
+                     /note="suppressor of RNAi; pathogenicity factor"
+                     /codon_start=1
+                     /product="C1 protein"
+                     /protein_id="AEI73658.1"
+                     /translation="MKISIHFIYIFTSNIYIRRTVKMTRFSKTREGVVFKVDVRLMQQ
+                     QRISVHMQISSTKSPAISTKTFIIDYTYQQLHIPFDFNGLEGTITSTFKFHYWGSKAE
+                     EILEEDIIHMVDIIIIENPDIMGMDVNEPVTIDNKIII"
+ORIGIN      
+        1 accgtgggcg agcggagtct gagtcgttgt gggacccact tatgaatgaa gttcatgggt
+       61 gatttcaagt atatggagga aattgtggat gagaaaaatg aatcatgttt gtttttgcaa
+      121 attattttag ataacagtct cctaataata attaatatgc aaacatatta ctaacaaaat
+      181 taaattatta tcttattatc aatagttact ggttcgttta catccattcc catgatatct
+      241 gggttttcaa taataataat atccaccata tgtatgatgt cttcttctaa tatttcttct
+      301 gcttttgaac cccagtaatg aaatttgaag gttgatgtga tcgttccttc tagaccgttg
+      361 aagtcgaatg gaatgtgtaa ttgttggtat gtgtagtcga tgatgaatgt ctttgttgat
+      421 atggctggag attttgttga actgatctgc atatggaccg atatcctttg ttgttgcatg
+      481 agcctgacat ctactttgaa gacgaccccc tccctggttt tgctgaacct tgtcatcttg
+      541 actgtgcgtc taatgtatat gttcgaagtg aatatataga tgaaatgtat agatattttc
+      601 atagaatgtg tggatgaaat gtatagatat tttcatataa tgtgtggata tcatttcata
+      661 aaactccatc ctgatccaaa gaaaagtcat gagaaattcc cttattgagc tcagaaatac
+      721 gggaacgaca taaagttcag cgaacaagct accatcttca agtaaactca gccgataaga
+      781 aaaaaaaaga ggaaatagag gaaaaatgaa accagaaaga aagaatatat atataaacta
+      841 agaaaaaaca aaagggagcg cagcgataaa aaaaagcgga tagaaagaaa taacaaaatc
+      901 caaaaaaaaa gaaattcaca aagaaaagaa aaagaaaaaa tcctaggtca aaacgaagcc
+      961 gttttgagga ggaagaggaa agagaacgtt caatttatat tttttaccat ttactgcgtg
+     1021 gtaaatggta aatagtaaat gagcgggtaa attagacaga caccgatagg taaatgagac
+     1081 accgatatat cggttctcaa ttggtacctc tggagtctta taaagtgctt gtttaccatt
+     1141 ttgcccctac ttttaagtta tatcgcgcgt cgtagtgcgc ttaaaaagtt atcttctctc
+     1201 tcttcagttc cgataaaaac ctaatttccc gatgatcgga gtcgaatttt ccgacacgcg
+     1261 cggcggtgtg tacccctggg agggtatggt acactacgct acgcagcagc cttagctacg
+     1321 ccggagctta gctcgcccac gttctaatat t
+//
+

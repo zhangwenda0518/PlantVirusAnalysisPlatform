@@ -1,0 +1,78 @@
+LOCUS       NC_079074                966 bp ss-RNA     linear   VRL 06-MAY-2023
+DEFINITION  Arceuthobium sichuanense virus 1 isolate China segment RNA 5,
+            complete sequence.
+ACCESSION   NC_079074
+VERSION     NC_079074.1
+DBLINK      BioProject: PRJNA485481
+            Sequence Read Archive: SRR3081483, SRR3081484
+KEYWORDS    RefSeq.
+SOURCE      Arceuthobium sichuanense virus 1
+  ORGANISM  Arceuthobium sichuanense virus 1
+            Viruses; Riboviria.
+REFERENCE   1  (bases 1 to 966)
+  AUTHORS   Sidharthan,V.K., Chaturvedi,K.K. and Baranwal,V.K.
+  TITLE     Diverse RNA viruses in a parasitic flowering plant (spruce dwarf
+            mistletoe) revealed through RNA-seq data mining
+  JOURNAL   J Gen Plant Pathol 88 (2), 138-144 (2022)
+  REMARK    DOI: 10.1007/s10327-021-01049-y
+REFERENCE   2  (bases 1 to 966)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (05-MAY-2023) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 966)
+  AUTHORS   Sidharthan,V.K. and Baranwal,V.K.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (14-JUN-2021) Division of Plant Pathology, Indian
+            Agricultural Research Institute, Pusa, New Delhi, Delhi 110012,
+            India
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to BK059267.
+            
+            ##Assembly-Data-START##
+            Assembly Method :: SPAdes v. 3.13.1
+            ##Assembly-Data-END##
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..966
+                     /organism="Arceuthobium sichuanense virus 1"
+                     /mol_type="genomic RNA"
+                     /isolate="China"
+                     /host="Arceuthobium sichuanense"
+                     /db_xref="taxon:2873234"
+                     /segment="RNA 5"
+     gene            291..905
+                     /gene="ORF5"
+                     /locus_tag="QK868_s5gp1"
+                     /db_xref="GeneID:80554540"
+     CDS             291..905
+                     /gene="ORF5"
+                     /locus_tag="QK868_s5gp1"
+                     /codon_start=1
+                     /product="P5"
+                     /protein_id="YP_010840855.1"
+                     /db_xref="GeneID:80554540"
+                     /translation="MSQLNLSIESVLIDLWHDLFYSLAEYLDHEIYDEVIDMKIQLVD
+                     DGELNSTTSFEKTAVLKFNKMVFICTQIVDFNGILKNKFKNHLEKFNITLIEKDFRMR
+                     YRNKIALSRTIYNTINFNKDLSKIDYWDKALSNISKQSMKNINMAEATLVITCENHLQ
+                     IIAKLNDIIKNVMNDTDEFKTALDSFEHFNIDEDNDDEPSTSYD"
+ORIGIN      
+        1 tgaagaataa taaaaaataa taaaaaataa taaaataaaa taaaaaataa aaaataaaaa
+       61 acataaaaaa agaaataata aaaagactgt tttttcagtc gaatctcatt ccggtatatc
+      121 aaatgcttag ttgtttaaaa ggacctagtt ttaagaatat tacatattgt atgatttgtt
+      181 tagtttttta gggagaacac tacttagtag tgaactccct aaaaaactac aatctacaga
+      241 catctgttta aatcataaaa taaggtaagg atacttttga tcacaggaaa atgtcacaat
+      301 taaatttatc aattgaatca gtcttgattg atctttggca tgatcttttt tacagtctag
+      361 ctgaatattt agatcatgag atttatgatg aagtcattga tatgaagatt caacttgttg
+      421 atgatggaga attgaactct acaacttctt ttgaaaaaac agcagtatta aaatttaata
+      481 agatggtatt tatatgcaca caaattgtgg atttcaatgg catcttaaaa aataaattta
+      541 aaaatcactt ggagaaattt aatataactt taatagaaaa agactttagg atgagatatc
+      601 ggaataaaat agctttatcg agaacaatat ataatacaat aaactttaat aaagatttat
+      661 caaaaattga ttattgggat aaagcactga gtaatatatc aaaacaatct atgaagaaca
+      721 ttaatatggc tgaagctaca ctagtgataa catgtgaaaa tcatctacaa attatagcca
+      781 aattaaatga tataataaag aatgttatga atgacactga tgaattcaaa acagcattgg
+      841 attcttttga acatttcaat attgatgaag acaatgatga tgagccatct acaagttatg
+      901 attaattaaa tataatacat atatataaaa aattaataca ttaatatggc tgaagctaca
+      961 ctagtg
+//
+

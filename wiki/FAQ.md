@@ -1,6 +1,6 @@
 # FAQ · 常见问题与已知事项
 
-> 返回 [Home](Home) ｜ 上一页：[CLI-Reference](CLI-Reference) ｜ 下一页：[AI-Assistant](AI-Assistant)
+> 返回 [Home](Home) ｜ 上一页：[Settings-Ops](Settings-Ops) ｜ 下一页：[Toolbox](Toolbox)
 
 ---
 

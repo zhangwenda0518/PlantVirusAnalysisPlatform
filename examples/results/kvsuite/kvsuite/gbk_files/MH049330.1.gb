@@ -1,0 +1,44 @@
+LOCUS       MH049330                 433 bp    RNA     circular VRL 06-NOV-2018
+DEFINITION  Pelamoviroid malleusmali isolate Italy2, complete genome.
+ACCESSION   MH049330
+VERSION     MH049330.1
+KEYWORDS    .
+SOURCE      Pelamoviroid malleusmali
+  ORGANISM  Pelamoviroid malleusmali
+            Viruses; Avsunviroidae; Pelamoviroid.
+REFERENCE   1  (bases 1 to 433)
+  AUTHORS   Szostek,S.A., Wright,A.A. and Harper,S.J.
+  TITLE     First report of Apple hammerhead viroid in the U.S., Japan, and
+            Italy
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 433)
+  AUTHORS   Szostek,S.A., Wright,A.A. and Harper,S.J.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (12-MAR-2018) Plant Pathology, Washington State
+            University Irrigated Agriculture Research and Extension Center,
+            24106 N Bunn Road, Prosser, WA 99350, United States
+COMMENT     ##Assembly-Data-START##
+            Sequencing Technology :: Sanger dideoxy sequencing
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..433
+                     /organism="Pelamoviroid malleusmali"
+                     /mol_type="genomic RNA"
+                     /isolate="Italy2"
+                     /isolation_source="leaf, midrib, petiole"
+                     /host="Malus domestica"
+                     /db_xref="taxon:2485233"
+                     /geo_loc_name="Italy"
+                     /collection_date="2017"
+                     /collected_by="S. Szostek"
+ORIGIN      
+        1 ggaggctatt agccttcctg atgagtccgt tccaaggacg aaaccgtctc tcctgactcc
+       61 cagtttccgt aggttaatta tcctcacgga ttacttctgg taactaggag tttgttgtga
+      121 cgtaagtttc gtcctaaaag gactcatcag gtagcctaat agactacgac ttacgcggta
+      181 ggtcgtgaat aagcccggag tacattccca atggaactag ggaacccctc cggtcttatc
+      241 caacctctgt ttcggcagag gataccgtgc tccacagttg gaagactgtg ggcccgagag
+      301 aagtcgctct ctctcgccct atacatcctc tcaggcatag agatgaccat ttgcctaggg
+      361 tgagtcttta agtagacaca gcctatctat ggtgatgtat tggggcacgg gttttaacac
+      421 ccccatgacg gtc
+//
+

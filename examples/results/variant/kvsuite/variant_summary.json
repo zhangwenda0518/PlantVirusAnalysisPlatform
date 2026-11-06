@@ -1,32 +1,196 @@
 {
- "n_success": 2,
- "n_skipped": 1,
+ "n_success": 16,
+ "n_skipped": 7,
  "results": [
   {
-   "accession": "NC_076132.1",
-   "genome": "NC_076132",
-   "chrom": "NC_076132.1",
-   "vcf": "D:\\桌面\\植物病毒分析平台\\examples\\results\\variant\\kvsuite\\vcf\\NC_076132.vcf",
-   "n_variants": 43,
-   "n_coding_ann": 39,
-   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\examples\\results\\variant\\kvsuite\\annotated\\NC_076132.ann.vcf",
-   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\examples\\results\\variant\\kvsuite\\annotated\\NC_076132.ann.tsv"
+   "accession": "NC_043085.1",
+   "genome": "NC_043085",
+   "chrom": "NC_043085.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\NC_043085.vcf",
+   "n_variants": 13,
+   "n_coding_ann": 13,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\NC_043085.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\NC_043085.ann.tsv"
   },
   {
-   "accession": "NC_077008.1",
-   "genome": "NC_077008",
-   "chrom": "NC_077008.1",
-   "vcf": "D:\\桌面\\植物病毒分析平台\\examples\\results\\variant\\kvsuite\\vcf\\NC_077008.vcf",
-   "n_variants": 43,
-   "n_coding_ann": 53,
-   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\examples\\results\\variant\\kvsuite\\annotated\\NC_077008.ann.vcf",
-   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\examples\\results\\variant\\kvsuite\\annotated\\NC_077008.ann.tsv"
+   "accession": "NC_014846.1",
+   "genome": "NC_014846",
+   "chrom": "NC_014846.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\NC_014846.vcf",
+   "n_variants": 13,
+   "n_coding_ann": 4,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\NC_014846.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\NC_014846.ann.tsv"
+  },
+  {
+   "accession": "NC_003405.1",
+   "genome": "NC_003405",
+   "chrom": "NC_003405.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\NC_003405.vcf",
+   "n_variants": 6,
+   "n_coding_ann": 0,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\NC_003405.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\NC_003405.ann.tsv"
+  },
+  {
+   "accession": "NC_001445.1",
+   "genome": "NC_001445",
+   "chrom": "NC_001445.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\NC_001445.vcf",
+   "n_variants": 68,
+   "n_coding_ann": 133,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\NC_001445.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\NC_001445.ann.tsv"
+  },
+  {
+   "accession": "LC333552.1",
+   "genome": "LC333552",
+   "chrom": "LC333552.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\LC333552.vcf",
+   "n_variants": 24,
+   "n_coding_ann": 48,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\LC333552.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\LC333552.ann.tsv"
+  },
+  {
+   "accession": "KF515615.1",
+   "genome": "KF515615",
+   "chrom": "KF515615.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\KF515615.vcf",
+   "n_variants": 2,
+   "n_coding_ann": 2,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\KF515615.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\KF515615.ann.tsv"
+  },
+  {
+   "accession": "HF585098.1",
+   "genome": "HF585098",
+   "chrom": "HF585098.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\HF585098.vcf",
+   "n_variants": 51,
+   "n_coding_ann": 50,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\HF585098.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\HF585098.ann.tsv"
+  },
+  {
+   "accession": "HM590504.1",
+   "genome": "HM590504",
+   "chrom": "HM590504.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\HM590504.vcf",
+   "n_variants": 5,
+   "n_coding_ann": 5,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\HM590504.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\HM590504.ann.tsv"
+  },
+  {
+   "accession": "HM590506.1",
+   "genome": "HM590506",
+   "chrom": "HM590506.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\HM590506.vcf",
+   "n_variants": 10,
+   "n_coding_ann": 7,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\HM590506.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\HM590506.ann.tsv"
+  },
+  {
+   "accession": "GU111966.1",
+   "genome": "GU111966",
+   "chrom": "GU111966.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\GU111966.vcf",
+   "n_variants": 1,
+   "n_coding_ann": 1,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\GU111966.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\GU111966.ann.tsv"
+  },
+  {
+   "accession": "GU111968.1",
+   "genome": "GU111968",
+   "chrom": "GU111968.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\GU111968.vcf",
+   "n_variants": 2,
+   "n_coding_ann": 2,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\GU111968.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\GU111968.ann.tsv"
+  },
+  {
+   "accession": "GU111969.1",
+   "genome": "GU111969",
+   "chrom": "GU111969.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\GU111969.vcf",
+   "n_variants": 35,
+   "n_coding_ann": 9,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\GU111969.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\GU111969.ann.tsv"
+  },
+  {
+   "accession": "GU111979.1",
+   "genome": "GU111979",
+   "chrom": "GU111979.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\GU111979.vcf",
+   "n_variants": 2,
+   "n_coding_ann": 0,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\GU111979.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\GU111979.ann.tsv"
+  },
+  {
+   "accession": "AJ316029.1",
+   "genome": "AJ316029",
+   "chrom": "AJ316029.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\AJ316029.vcf",
+   "n_variants": 59,
+   "n_coding_ann": 14,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\AJ316029.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\AJ316029.ann.tsv"
+  },
+  {
+   "accession": "AF329886.1",
+   "genome": "AF329886",
+   "chrom": "AF329886.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\AF329886.vcf",
+   "n_variants": 70,
+   "n_coding_ann": 98,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\AF329886.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\AF329886.ann.tsv"
+  },
+  {
+   "accession": "PZ000445.1",
+   "genome": "PZ000445",
+   "chrom": "PZ000445.1",
+   "vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\vcf\\PZ000445.vcf",
+   "n_variants": 156,
+   "n_coding_ann": 139,
+   "ann_vcf": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\PZ000445.ann.vcf",
+   "ann_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\annotated\\PZ000445.ann.tsv"
   }
  ],
  "skipped": [
   {
-   "genome": "NC_077216",
-   "reason": "SnpEff build NC_077216 失败(rc=4294967295): ERROR: Database check failed."
+   "genome": "NC_028132",
+   "reason": "NC_028132 的 GenBank 记录无 CDS/gene 注释（viroid 等非编码病毒），SnpEff 无法建库"
+  },
+  {
+   "genome": "PQ434707",
+   "reason": "PQ434707 的 GenBank 记录无 CDS/gene 注释（viroid 等非编码病毒），SnpEff 无法建库"
+  },
+  {
+   "genome": "PQ434746",
+   "reason": "PQ434746 的 GenBank 记录无 CDS/gene 注释（viroid 等非编码病毒），SnpEff 无法建库"
+  },
+  {
+   "genome": "PQ434757",
+   "reason": "PQ434757 的 GenBank 记录无 CDS/gene 注释（viroid 等非编码病毒），SnpEff 无法建库"
+  },
+  {
+   "genome": "PQ434765",
+   "reason": "PQ434765 的 GenBank 记录无 CDS/gene 注释（viroid 等非编码病毒），SnpEff 无法建库"
+  },
+  {
+   "genome": "MH049330",
+   "reason": "MH049330 的 GenBank 记录无 CDS/gene 注释（viroid 等非编码病毒），SnpEff 无法建库"
+  },
+  {
+   "genome": "GU111971",
+   "reason": "SnpEff build GU111971 失败(rc=4294967295): FATAL ERROR: Most Exons do not have sequences!"
   }
  ]
 }

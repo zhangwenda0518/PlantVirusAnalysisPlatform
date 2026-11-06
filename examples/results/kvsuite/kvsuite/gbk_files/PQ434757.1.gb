@@ -1,0 +1,94 @@
+LOCUS       PQ434757                2696 bp    DNA     linear   ENV 14-OCT-2024
+DEFINITION  MAG UNVERIFIED: Maize streak virus B3 isolate 22_REU_E1016_MSV_B3
+            genomic sequence.
+ACCESSION   PQ434757
+VERSION     PQ434757.1
+DBLINK      BioProject: PRJNA1161727
+            BioSample: SAMN44060033
+            Sequence Read Archive: SRR30886739
+KEYWORDS    ENV; Metagenome Assembled Genome; MAG; UNVERIFIED.
+SOURCE      maize streak virus B3 (plant metagenome)
+  ORGANISM  maize streak virus B3
+            Viruses; Floreoviria; Shotokuvirae; Cressdnaviricota;
+            Repensiviricetes; Geplafuvirales; Geminiviridae; Mastrevirus.
+REFERENCE   1  (bases 1 to 2696)
+  AUTHORS   Ben Chehida,S., Devi Bunwaree,H., Hoareau,M., Moubset,O.,
+            Julian,C., Blondin,L., Filloux,D., Lavergne,C., Roumagnac,P.,
+            Varsani,A., Martin,D.P., Lett,J.-M. and Lefeuvre,P.
+  TITLE     Increase of niche filling with increase of host richness for plant
+            infecting mastreviruses
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 2696)
+  AUTHORS   Ben Chehida,S., Devi Bunwaree,H., Hoareau,M., Moubset,O.,
+            Julian,C., Blondin,L., Filloux,D., Lavergne,C., Roumagnac,P.,
+            Varsani,A., Martin,D.P., Lett,J.-M. and Lefeuvre,P.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (01-OCT-2024) UMR PVBMT, CIRAD, 7, chemin de l'IRAT,
+            Saint-Pierre, La Reunion 97400, France
+COMMENT     GenBank staff is unable to verify sequence and/or annotation
+            provided by the submitter.
+            
+            ##Assembly-Data-START##
+            Assembly Method       :: Flye v. 2.6
+            Sequencing Technology :: MinION Oxford Nanopore Technology
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..2696
+                     /organism="maize streak virus B3"
+                     /mol_type="genomic DNA"
+                     /isolate="22_REU_E1016_MSV_B3"
+                     /host="Urochloa panicoides"
+                     /db_xref="taxon:3347172"
+                     /environmental_sample
+                     /geo_loc_name="Reunion"
+                     /collection_date="2022"
+                     /metagenome_source="plant metagenome"
+                     /note="metagenomic"
+ORIGIN      
+        1 accgcgcctt ctttttcctg cgagggcccg gtagggcccg agcgatttga tttaaagttt
+       61 ggttctgctt tgtttgattt attgaaagca gtcctgttta aagaaaccgg tcccctgcga
+      121 ctataaattg tctcacaagt gcgattcatt tatggatcca cagaactcct atcttctaca
+      181 gccgcgggta cccacagcag ctccgacgtc cggaggagtg ccgtggagtc gcgtaggcga
+      241 ggtagctatt ttgagctttg ttggattgat ttgcttttac ctgctttacc tttgggtgct
+      301 gagagatctt atcttagttc tgaaggctcg tcaaggcaga tccacggagg agctgatatt
+      361 tggaatacaa gctgtggata ggagcaaccc tatccctaat ataccagcac caccaagtca
+      421 ggggaatccc gggccgtttg ttccaggcac gggataagca atcagccatg tccacgtcca
+      481 agaggaagcg ggggagatga tgcgaactgg aataagcggg tgactaagaa gaagccttct
+      541 tcagctggtc tgaagaaggc tggaagcaag gccgataggc catcccttca gatccagaca
+      601 ctccagcatg ctgggtccac catgataaca gtcccctccg gaggagtatg tgacctcatc
+      661 aacacctatg cccgaggatc tgacgagggc aaccgccaca ccagcgagac tctgacgtac
+      721 aagattgccg tcgactacca cttcgttgct gacgcgcaag cctgcaagta ctccaacacc
+      781 ggaaccggtg tgatgtggct ggtgtatgac accactcccg gcggacaagc gccgacccca
+      841 caaactatat ttgcctaccc ggacacgctg aaagcttggc cggcgacatg gaaagtgagc
+      901 cgggagctgt gtcatcgctt cgtggtgaaa cggcgatggt tgttcaacat ggagaccgac
+      961 ggtcggattg gttcggatat ccctccatcg aatgcaagtt ggaagccttg caagcgcaac
+     1021 atctacttcc acaagttcac gagtgggttg ggagtgagaa cgcagtggaa gaatgtaacg
+     1081 gacggaggag ttggtgccat ccagagagga gctctgtaca tggtcattgc ccctggcaat
+     1141 ggccttacat ttactgccca tgggcagacc cgtctgtact ttaagagtgt tggcaaccag
+     1201 taatgaataa aaaactcccg ttttattata tctgatgaat gctgaaagct tacattaata
+     1261 tgtcagccga ttggctgaac gaaaaataca tagcgcagcc gcgggctaaa gaccgcgtct
+     1321 caagcgaccc tgaacataca ataatcgaaa aaaacaagat gattatgaat taaacttcct
+     1381 ccgtaggagg aagcactggg ggagaaaacc acttctcccc ccggcgacat aatgtaaatc
+     1441 atgcagtttg cctcgaaata ctccagctgc cctggagtca tttccttcat ccagtcttca
+     1501 tccgagttgg cgaggattat tgtaggcttg gacttcatct ggactttctt cttctttcca
+     1561 tattttggat ttacaacgaa ttctttttgg cagccaacta actgtttcca acaaggacag
+     1621 tatttaaatg ggatatcatc tacgatgttg tagattgcgt cttcgttgta agaagaccaa
+     1681 tcaacattat tctgccaata attatgaatc cctaggcttc tggcccaagt agattttcct
+     1741 gtccttgttg gaccgacgat gtagaggctc tgctttcttg atccttcatc tgttggctgg
+     1801 ataatttatc catccattca aggtcagaga tagcatcttc gacggtataa caggttggtt
+     1861 gaagaagcat gtatgattct ggactaacct gatagatgtt aggctggagc caatctttga
+     1921 ttgactcatt acaaaggaga tcaggtgaag atggtggatg agggctgatg aactcttcct
+     1981 gaatctcagg aaacagttta tttgcagagt attcaaaata ctgcaatttt gtggcccagt
+     2041 cataagggga attctttacg aaccatagag aggtactctt gctttgaagt ggagtgtgaa
+     2101 ataatctctc gcattatttc atcttttgga aggtttcttt ttctgaattt cccttggaag
+     2161 aatttcctag gaagcttgac ttcctaggaa tgaaagtacc tctctcaaac aaggccagag
+     2221 gttccttgag aatgtaatcc ctgaccttgt ttacggattt ggcactctga atgttcgggt
+     2281 ggaacccgtt gatatcaaag aaccttgagt cagtgattct taccggtttg tccgtctgga
+     2341 ctaatgcatg tagatgaaaa ctctcatctc tatgtgcctc tcgggcacat atgatgtact
+     2401 tggggtgtcc aacgaccgac gagctcccaa atcatctgac agacgatttc tggattttct
+     2461 ggacagtgtg gatatgttaa gaacgtgtta acgttcctgt gtgagaactg acggttggat
+     2521 gaggaggagg ccatatcgga cgactccgag cagcttgcgg gatggcaggt tgggagctcc
+     2581 aaactctatg taaccggttt gcgccttcga aatccgccgc tccccccttt tatagtggtt
+     2641 gttcttgggc cggactgggc cggtcccgcg ggaaaaagaa ggcgcgcact aatatt
+//
+

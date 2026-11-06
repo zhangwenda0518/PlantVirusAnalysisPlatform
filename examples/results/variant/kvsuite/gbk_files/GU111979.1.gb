@@ -1,0 +1,72 @@
+LOCUS       GU111979                1372 bp    DNA     circular VRL 18-MAY-2012
+DEFINITION  Bhendi yellow vein mosaic betasatellite [India:Karnal:OY80A:2006],
+            complete sequence.
+ACCESSION   GU111979
+VERSION     GU111979.1
+KEYWORDS    .
+SOURCE      Bhendi yellow vein mosaic betasatellite [India:Karnal:OY80A:2006]
+  ORGANISM  Bhendi yellow vein mosaic betasatellite [India:Karnal:OY80A:2006]
+            Viruses; Tolecusatellitidae; Betasatellite; Betasatellite
+            abelmoschusmusiviflavi.
+REFERENCE   1  (bases 1 to 1372)
+  AUTHORS   Venkataravanappa,V., Reddy,C.N., Swaranalatha,P., Jalali,S.,
+            Briddon,R.W. and Reddy,M.K.
+  TITLE     Diversity and phylogeography of Begomovirus-associated beta
+            satellites of Okra in India
+  JOURNAL   Virol. J. 8, 555 (2011)
+   PUBMED   22188644
+REFERENCE   2  (bases 1 to 1372)
+  AUTHORS   Venkataravanappa,V., Lakshiminarayanareddy,C.N., Jalali,S.,
+            Swaranalatha,P. and Krishnareddy,M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (25-SEP-2009) Division of Plant Pathology, Indian
+            Institute of Horticultural Research, Hessaraghatta Lake PO,
+            Bangalore, Karnataka 560089, India
+FEATURES             Location/Qualifiers
+     source          1..1372
+                     /organism="Bhendi yellow vein mosaic betasatellite
+                     [India:Karnal:OY80A:2006]"
+                     /mol_type="genomic DNA"
+                     /isolate="OY80A"
+                     /isolation_source="leaf"
+                     /host="Abelmoschus esculentus (okra)"
+                     /db_xref="taxon:908076"
+                     /geo_loc_name="India: Karnal, Haryana"
+                     /collection_date="2006"
+                     /collected_by="M.Krishnareddy"
+     gene            complement(192..614)
+                     /gene="C1"
+     CDS             complement(192..614)
+                     /gene="C1"
+                     /codon_start=1
+                     /product="C1 protein"
+                     /protein_id="ADQ55872.1"
+                     /translation="MKISIHFIYKFISSIYIRRTIKMTRFSKNREGIVFKVDVKLMQQ
+                     QRISVQMQISSTRSPAISTKTFIIDYTYQQLHIPFDFNGLEGTITSTFKFHYWGSKAE
+                     EILEEDIIHMVDIIIIENPQTMGMDVNEPLTIDNKIII"
+ORIGIN      
+        1 accgtgggcg agcggagtct gagtcgctgt gggacccact tatgaatgaa gttcatggga
+       61 gatttcaagt atatggagga aattgtggat gagaaagaga aaaagtgaat gcgtgtgagt
+      121 tctggcggat cattgtagaa tagcagtcca cgtattacta attggtatgc caagcgtatt
+      181 actgacagaa attaaattat tatcttattg tcgatagtta agggttcgtt gacgtccatt
+      241 cccatggttt gtgggttttc aataataata atatccacca tatgtatgat gtcttcttct
+      301 aatatttctt ctgcttttga gccccagtaa tgaaacttga aggttgatgt gatcgttcct
+      361 tctaaaccgt tgaagtcgaa tggaatatgt aattgttggt atgtatagtc gatgatgaat
+      421 gtttttgttg atattgctgg agatcttgtt gaactgatct gcatctggac tgatatcctt
+      481 tgttgttgca tgagcttgac atctactttg aagacgatcc cctccctgtt tttgctgaac
+      541 cttgtcattt tgattgtgcg tctaatgtat atgcttgaaa tgaatttata gatgaaatgt
+      601 atagatattt tcatataatg tgtggatatc atgaaatgta tagatatttt catataatgt
+      661 gtggatatca tttcataatt atcctgaatc aaagaaaagt catgagaagt tcccttattg
+      721 agctcagaaa tacggaagga cataaagttc agccaagaaa ctaccatctt caaataaact
+      781 cagccgataa gaaaaagtaa agaggaaata gaggaaaaat gaaaccagaa agaaaggaag
+      841 aaagaatata tatataaact aggaaaaaaa aaaagggagc gcatcgataa aaaaaagcgg
+      901 atagaaagaa ataaccaaat ccaaaaaaaa agaaattcac aaataaaaga aaaagaaaaa
+      961 atccgaggtc aaaacgaagc cgttttgagg aggaagagga aagagaacgt tctatttata
+     1021 ttttttacca ttcactgcgt ggtaaatggt aaatagtaaa tgagtgggta aattagacat
+     1081 acaccgatag gtaaatgaga caccgatata tcggtactca attggtacct ctggggtctt
+     1141 ataaagtgct tgtttaccat tttgccccta cttttaagtt atatcgcgcg tcgtagtgcg
+     1201 cttaaaaagt tatcttctct ctcttcagtt ccgataaaaa cctaatttcc cgatgatcgg
+     1261 agtccaattt tccgacacgc gcggcggcgt gtacccctgg gacggtaggt accactacgc
+     1321 tacgcagcag ccttagctac tgcggagctt agctcgccca cgttctaata tt
+//
+

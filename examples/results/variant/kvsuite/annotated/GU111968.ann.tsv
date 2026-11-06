@@ -1,0 +1,3 @@
+CHROM	POS	REF	ALT	Gene_Name	Annotation	Impact	HGVS_c	HGVS_p	AA	CDS	Feature_ID	Note
+GU111968.1	352	G	A	C1	synonymous_variant	LOW	c.184C>T	p.Leu62Leu	62/118	184/357	ADQ55865.1	
+GU111968.1	410	C	T	C1	synonymous_variant	LOW	c.126G>A	p.Lys42Lys	42/118	126/357	ADQ55865.1	

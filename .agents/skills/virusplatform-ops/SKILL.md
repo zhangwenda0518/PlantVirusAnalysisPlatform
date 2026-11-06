@@ -22,7 +22,7 @@ agent_created: true
 2. **结果只依据真实文件**。不许由执行单、日志摘要或上次结果推断数字。
    引用任何指标都要能指到 `run/results/<样品>/...` 下的具体文件。
 3. **先查目录，再动手**。不熟悉的操作先 `agent-ops --id <op> --schema`，
-   id 与条数一律以目录输出为准（当前 54 条 = 32 工具 / 15 阶段 / 7 动作）。
+   id 与条数一律以目录输出为准（当前 57 条 = 35 工具 / 15 阶段 / 7 动作）。
 
 ## 1. 三个入口怎么选
 
@@ -47,7 +47,8 @@ python main.py agent-guide                    # 完整指南（= AGENTS.md）
 
 Python 层四件套（`Virus_Platform_Core.agent_catalog`）：
 `list_operations()` / `search(kw)` / `describe(op_id)` / `parameter_schema(op_id)`。
-`list_operations()` 返回 `{'total': 54, 'items': [...]}`。
+`list_operations()` 返回 `{'total': 58, 'items': [...]}`（条数以实际返回为准，
+平台升级会增删；当前 = 36 工具 + 15 阶段 + 7 动作）。
 
 MCP 侧（当前 32 个 `vp_*` 工具，清单以客户端 tools/list 或 `vp_platform_info` 为准）：
 `vp_platform_info` / `vp_selfcheck`、`vp_search_operations` / `vp_describe_operation`、
@@ -99,20 +100,28 @@ MCP 与网页的归档口径一致：**归档是手动动作**——切模块、
 
 `vp_pipeline_stages` 返回各阶段键、中英文名、默认全流程序列与分组。
 
-## 4. 工具箱（tool，32 个，按用途分组）
+## 4. 工具箱（tool，35 个，按用途分组）
 
 | 组 | 工具 id |
 |---|---|
-| 预处理与转换 | `fastp` 质控、`hostremoval` 宿主去除与序列提取、`convert` 格式转换、`prepchain` 一键前处理 |
-| 组装与鉴定 | `assemble`、`contigs`、`identify`、`verify`、`kvsuite`、`virchain`(识别分类·一键)、`kvchain`(定量与共识·一键)、`annochain`(注释三连·一键) |
+| 预处理与转换 | `fastp` 质控、`hostremoval` 非宿主序列提取（宿主去除）、`convert` 格式转换、`loganfetch`(Logan 预组装 contigs 获取)、`prepchain` 一键前处理 |
+| 组装与鉴定 | `assemble`、`contigs`、`identify`、`verify`、`hom`(同源比对·单条深查)、`kvsuite`、`virchain`(组装验证·一键)、`kvchain`(定量与共识·一键)、`annochain`(注释三连·一键；2026-11-04 卡片已摘，agent 经 MCP/对话坞仍可调) |
 | 定量与同一性 | `consensus`、`identity`(NT+AA 同一性)、`sdt`(精确分析) |
 | 注释与结构 | `orf`、`orfa`、`genoplot`、`structcmp` |
 | 进化与系统地理 | `align`、`quicktree`、`rtt`(时间信号)、`rdp`(重组)、`phylogeo`、`phylodyn`(一键定年+迁移)、`pdprep`、`beastexport` |
-| 引物与检测设计 | `primer`、`crispr`、`conan`(Cas3 crRNA)、`dsrna`、`mirna` |
+| 引物与检测设计 | `primer`、`crispr`(Cas12a/Cas13a 检测试剂设计)、`lamp`(LAMP 引物组设计)、`dsrna`、`mirna` |
+| 比较基因组 | `cmpchain`(⚡ 一键分析；2026-11-04 并行开发引入，工具可经 MCP/agent 调用) |
 
 一键链（`prepchain`/`virchain`/`kvchain`/`annochain`）内部顺序调用多个单步工具，
 产物落在各自的 `run/tool_runs/<tool>_<ts>_<uuid>/`；**单跑某步失败不自动回滚**，
-重跑要自己判断从哪一步接。
+重跑要自己判断从哪一步接。`prepchain`、`kvchain`、`virchain` 都支持目录批量（`input_dir`）：
+自动按 `_R1`/`_R1_001`/`_1` 命名配对单双端，逐样本跑、失败隔离，可加 `samples`
+只跑勾选样本；汇总见 `_chain.json` 与 `samples.tsv`，并可就地生成
+`chain_report.html`（材料/方法/结果）。`kvchain` 的目录只接受 FASTQ
+（`.sra` 先用 `prepchain`/`convert` 转）；`virchain` 的目录只接受
+FASTA（FASTQ 请先在样本处理组做宿主去除/病毒序列提取）。
+`virchain` 的三步用 `steps` 自由组合（默认 `1,2,3`）：1=病毒组装、
+2=病毒鉴定、3=候选序列验证；2 依赖 1、3 依赖 2。
 
 ## 5. 七个执行动作（action，7 个）
 
@@ -152,8 +161,9 @@ MCP 与网页的归档口径一致：**归档是手动动作**——切模块、
 `identity`/`sdt` 工具；时间信号 `rtt`，重组 `rdp`，系统地理 `phylogeo`/`phylodyn`。
 
 **F. 引物与检测设计**
-`primer`（PCR 引物）、`crispr`（Cas12a/Cas13a）、`conan`（Cas3 crRNA）、
-`dsrna`（dsRNA 片段）、`mirna`（miRNA 靶标）。输入通常是 FASTA 或上一步产物。
+`primer`（PCR 引物）、`crispr`（Cas12a/Cas13a 检测试剂设计，`--amp LAMP`
+为 CRISPR-LAMP 档）、`lamp`（LAMP 六引物组独立设计）、`dsrna`（dsRNA
+片段）、`mirna`（miRNA 靶标）。输入通常是 FASTA 或上一步产物。
 
 **G. NCBI 提交**
 `submit-init` → `submit-validate` → `submit-fill` → `submit-export` → `submit-sbt`；
@@ -179,6 +189,13 @@ MCP 与网页的归档口径一致：**归档是手动动作**——切模块、
 `{"confirm": "archive"}`（可带 `keep`）与 `{"confirm": "purge"}`；全局清理是
 `{"confirm": "reset"}`。**缺 confirm 一律 400**，脚本调用要带上。
 
+坞里的阶段卡（`📖 阶段开始 / ✔ 阶段完成 / 🏁 全部完成`）来自
+`ai_agent/broadcast.py` 的进程内缓冲，默认只播 `kvsuite`/`assembly`/`report`
+（`ai.broadcast_stages`）。坞里发起的跑批跑在 MCP 子进程，事件经
+`run/ai_audit/spool/*.jsonl` 回灌到网页进程——所以坞里现在也能看到这些卡。
+**跨进程的闸门卡是只读的**：卡片上不会给「继续/终止」按钮（传不回子进程），
+要中止请到任务中心停止该任务，或等它按超时自动继续。
+
 ## 8. 结果判读（读哪些文件）
 
 | 想知道 | 读这里 |
@@ -190,6 +207,8 @@ MCP 与网页的归档口径一致：**归档是手动动作**——切模块、
 | 进化树 | `05_phylo/summary.json`、`05_phylo/<病毒>/aln.fasta` |
 | 报告与图 | `07_report/fig_manifest.json`、`genome_*.png` |
 | 任务日志 | `vp_get_task_log` 或 `GET /api/task/<tid>/log?lines=200`；落盘在 `run/logs/` |
+| 一键流程规范报告 | 工具运行目录的 `chain_report.html`（材料/方法/结果五章）；`vp_build_report(target=<运行名>)`、`GET /api/tool/chain_report?run=<运行名>` 或 `python -m Virus_Platform_Core.chain_report <运行名>` 生成/复用 |
+| 某个模块的全部产物一眼看完 | 该阶段目录（或工具运行目录）的 `results.html` 模块结果页：输入说明 + 图表（PNG/SVG 切换、点击放大、配图例读法）+ 表格前 30 行预览 + 交互页 iframe + 全部文件链接。文件链接默认本页预览（不跳转），弹层内再给「新标签打开 / 下载」；平台各「模块结果」入口也是本页弹层预览。生成：`python main.py module-report --sample <样品> [--stage <阶段>]` / `--run <运行名>`；Web `/api/module_report?sample=&stage=` / `?run=`；流水线阶段完成时自动刷新 |
 
 判读纪律：先看 `.done` 与 `summary.json`，再引具体行；表格用 pandas 读、**按列名取**
 （别按列序号猜）；样品里没有的物种/数字不许「按经验补」。
@@ -209,6 +228,9 @@ MCP 与网页的归档口径一致：**归档是手动动作**——切模块、
 | 批量归档/清理 400「需显式确认」 | 缺 confirm 令牌 | body 带 `{"confirm": "archive"}` / `{"confirm": "purge"}` |
 | 前端改了没变化 | 打到另一个实例 / 浏览器缓存 | 确认端口对应进程；`Ctrl+F5` |
 | 长任务一直排队 | heavy 槽 2 / light 槽 4 限流（`platform.json` 可调） | 等，别并发硬塞 |
+| 界面常驻条一直显示「正在分析」但任务中心没有任务 | 平台重启/进程被杀，anchor.json 留下永不关闭的运行记录 | 已自动收尾（启动时 `reconcile_interrupted`，安静 >30 分钟的 running 一律关成 interrupted，账本补 `run.interrupted` 事件）；MCP 用 `vp_anchor_active` 查、`vp_anchor_verify` 核对账本链 |
+| AI 填好 Key 仍提示「未配置完整」 | 旧版本有默认关闭的总开关 | 2026-11-03 已取消总开关：`ai_ready` 只看 base_url/model/Key；填好即用 |
+| 想让 AI 别拆多步计划（或强制拆） | 任务分解口径需要切换 | 对话坞底部 🧩 按钮三态切换 auto/off/always；off 时后端从工具契约**物理移除** plan 动作（强制单步，非提示词自觉） |
 
 ## 10. 参数速查（必填字段，权威仍是 `--schema`）
 
@@ -219,11 +241,16 @@ MCP 与网页的归档口径一致：**归档是手动动作**——切模块、
 | `align` / `quicktree` / `sdt` / `structcmp` | `seqs` | align 可加 `seqs_extra` 合并第二份 FASTA |
 | `orf` | `fasta` | |
 | `identity` | `nt_seqs` | |
-| `rtt` | `input` + `meta` | 缺时间信息会退化 |
-| `rdp` / `phylogeo` / `crispr` / `dsrna` / `conan` / `prepchain` / `virchain` / `beastexport` | `input` | |
+| `rtt` | `input` + `meta` | 有效日期叶 <5 时明确拒绝（不会退化）；日期列不传时自动识别（date > year） |
+| `rdp` / `phylogeo` / `crispr` / `dsrna` / `virchain` / `beastexport` | `input` | |
+| `prepchain` | `input`（单文件）**或** `input_dir`（目录批量） | 二选一；目录模式自动解析单/双端，可加 `samples`（逗号分隔）只跑勾选样本；单样本失败不拖垮整批 |
+| `kvchain` | `input_dir`（目录批量，可加 `samples`）或 `samples`/`reads`/`sample_sheet` 三选一 | 目录只收 FASTQ（`.sra` 先用 `prepchain`/`convert`）；逐样本跑全流程、失败隔离 |
+| `virchain` | `input`（去宿主 FASTA）**或** `input_dir`（目录批量，可加 `samples`） | 四步用 `steps` 组合（默认 `2,3,4`，3 依赖 2、4 依赖 3）；目录接受 FASTA/FASTQ/`.sra`，FASTQ 需 steps 含 1；仍可用 `run_identify`/`do_verify` 旧开关 |
 | `annochain` | `fasta` | |
 | `contigs` | `contigs` | |
-| `consensus` / `kvsuite` / `kvchain` / `genoplot` / `orfa` / `mirna` / `pdprep` / `phylodyn` | 无必填 | 靠运行上下文（样品、上一步产物、`run`/`fasta` 字段） |
+| `consensus` / `kvsuite` / `genoplot` / `orfa` / `mirna` | 无必填 | 靠运行上下文（样品、上一步产物、`run`/`fasta` 字段） |
+| `pdprep` | 按 source | files=fasta+meta、manual=fasta_text+meta_text、genbank=accessions/term/species/taxid/gb_files 至少其一 |
+| `phylodyn` | `input`（pipeline） | stage 模式配 `from_run` 时可省；无 input 无 from_run 会 400；A1 自带 **LTT 谱系-时间曲线**（`ltt` 默认开，对齐 VirPhyKit TreeDater-LTT 免 MCMC 口径，产物 `clock/ltt_curve.tsv`，斜率≈净多样化率） |
 
 ## 11. 说「完成」之前（自检清单）
 

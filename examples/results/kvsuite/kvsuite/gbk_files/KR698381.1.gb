@@ -1,0 +1,82 @@
+LOCUS       KR698381                1583 bp    RNA     linear   VRL 04-JAN-2016
+DEFINITION  Ramu stunt virus strain PNG segment RNA3, complete sequence.
+ACCESSION   KR698381
+VERSION     KR698381.1
+KEYWORDS    .
+SOURCE      Ramu stunt virus
+  ORGANISM  Ramu stunt virus
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Hareavirales; Phenuiviridae;
+            Mechlorovirus; Mechlorovirus ramuense.
+REFERENCE   1  (bases 1 to 1583)
+  AUTHORS   Mollov,D., Maroon-Lango,C. and Kuniata,L.
+  TITLE     Detection by next generation sequencing of a multi-segmented viral
+            genome from sugarcane associated with Ramu stunt disease
+  JOURNAL   Virus Genes 52 (1), 152-155 (2016)
+   PUBMED   26728080
+REFERENCE   2  (bases 1 to 1583)
+  AUTHORS   Mollov,D., Maroon-Lango,C. and Kuniata,L.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (04-MAY-2015) ASR, USDA, 10300 Baltimore Ave, Beltsville,
+            MD 20705, USA
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: CLC v. 5; Geneious v. 7
+            Sequencing Technology :: Illumina; Sanger dideoxy sequencing
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..1583
+                     /organism="Ramu stunt virus"
+                     /mol_type="genomic RNA"
+                     /strain="PNG"
+                     /isolation_source="leaf tissue"
+                     /host="sugarcane; cultivar: Ragnar"
+                     /db_xref="taxon:1738604"
+                     /segment="RNA3"
+                     /geo_loc_name="Papua New Guinea"
+                     /collection_date="01-Feb-2013"
+                     /collected_by="Lastus Kuniata"
+     CDS             50..658
+                     /codon_start=1
+                     /product="hypothetical protein"
+                     /protein_id="ALJ83288.1"
+                     /translation="MNSLVRISKKQPLIPIRGSSSVTVDDVIHVSFDKNPGKPTEYVT
+                     HTLKSQWRSHAKSEEKIVELDGPTINRYFRIRFAVLRFSPLIPQDCGRGKIILINKAL
+                     EANSAAKNPIFEIEYGCNEHFMVIFGSNQWLECTKKISVFNQTVDSISKPGEVINDID
+                     VHIVYECVAKTYNVVPIPMEKINMAKVEDSLNDLMGSEKVTL"
+     CDS             complement(1141..1524)
+                     /codon_start=1
+                     /product="hypothetical protein"
+                     /protein_id="ALJ83289.1"
+                     /translation="MSSLALSSVMPSYPQTLIHFMTAFNSVYIDEYIPLEIANVAIKL
+                     GYFDNELSNEVFDGYRDRRSRLALFKHILKSLKTRIANRPEVCAPLDCDVFYKFMDDQ
+                     VKYLQGASYEEMIIEKTNTGRLEEE"
+ORIGIN      
+        1 acacaaagtc ggggttgaaa gaaatacaaa cattcactta tttgcaataa tgaactcgct
+       61 tgtgcgcatt tcgaagaaac agcctctaat ccctattaga ggttcttcat ccgtgactgt
+      121 tgatgatgtt atccatgttt catttgataa gaatcctggt aaacctactg agtatgtcac
+      181 acatactttg aaatcccaat ggagaagtca tgctaaatct gaagagaaga ttgttgagtt
+      241 ggatgggcca accatcaata gatatttcag gattagattt gcagtgttaa ggttttcacc
+      301 cttaatccct caagactgtg gtagagggaa aataattcta attaacaaag ctcttgaagc
+      361 taattccgca gctaagaacc cgatctttga aattgaatat ggttgcaatg aacacttcat
+      421 ggtgatattt ggtagtaatc aatggttaga gtgtacaaag aagatctctg tgttcaatca
+      481 aactgttgac agcatttcta agccaggaga agtgattaat gacatagatg tgcatattgt
+      541 ctatgagtgt gtggccaaga cttacaatgt tgttcctata cccatggaaa agatcaacat
+      601 ggcaaaagtt gaagatagtt tgaatgatct tatgggctct gagaaagtca ctctgtgact
+      661 ggaaattata atgacaagtt gagcaatgct caacaattgt cagagatttc gtgcttgttg
+      721 atgctcaaga gaatgtttta atgatttaga actacaatag acagtctcag atatgaggct
+      781 gacatcagtc acaattagct catgagtgct gagttgttga gcatatacta atgaataata
+      841 gcatggcaat cttgtattag cagttcattg ttgagtattc cgtaatttcc atccttcgat
+      901 cacaattgtg cattctgcaa ttgacaactg ccattcctaa tatttagatg ataattgtaa
+      961 ggaagcaatt actaatccca tagtatgcag ctgttcatgc cgaaatactg actctaagtg
+     1021 gaaagagttc aaatctctaa taattatcct taatctggaa tcaattgctt agcaatagca
+     1081 tggtgtctga cagtggggca ttgcccctaa ttcagattca gtaattcatg atgaaagacc
+     1141 tcattcctct tctaatctgc ctgtgtttgt tttctctatg atcatctctt catatgatgc
+     1201 tccttgtaga tacttgacct gatcatccat aaatttgtag aacacatcac agtctaatgg
+     1261 agcacatacc tctggtctgt ttgcaatcct ggttttgaga ctctttagta tgtgtttgaa
+     1321 gagtgctagt cttgatcttc tatctctgta cccatcaaac acttcatttg ataactcatt
+     1381 atcaaaatat cccaacttta tggcaacatt tgcaatctcc aatgggatat attcatcaat
+     1441 ataaactgag ttgaatgctg tcatgaaatg aatgagagtt tgaggataag aaggcatcac
+     1501 gcttgataaa gctaagctgc tcattgtgaa tcgattaatt aaaaagtgaa tagttgtatt
+     1561 tctttcaacc ccggactttg tgt
+//
+

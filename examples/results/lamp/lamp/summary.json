@@ -1,0 +1,826 @@
+{
+ "tool": "lamp",
+ "ok": true,
+ "engine_version": "1.0.0",
+ "target": "example_acmv.fasta",
+ "n_input_records": 1,
+ "n_segments": 1,
+ "segments": {
+  "main": {
+   "n_isolates": 1,
+   "consensus_len": 2779,
+   "msa": false,
+   "n_sets": 39
+  }
+ },
+ "n_sets_total": 39,
+ "n_sets_output": 10,
+ "best_score": 88.3,
+ "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\lamp_20261106_002151_a07ec1\\lamp",
+ "elapsed_sec": 3.5,
+ "evidence_note": "证据边界：计算设计仅支持候选优先级排序，不构成扩增效率、引物间干扰或基质性能的证据；实验结论须按 L1-L5 逐级建立（LAMP 段：65°C Bst 酶体系、内外引物浓度比、环引物增益）",
+ "top_sets": [
+  {
+   "rank": 1,
+   "score": 88.3,
+   "segment": "main",
+   "seq_len": 2779,
+   "product_bp": 150,
+   "fip": "CCTGCTGAACCAGGACATCATTTTTTGTGAATCCCCAGCTCC",
+   "bip": "TTATTTCCCAGGTATACACGCCATTTTTTACGCACAGGGGAAGTC",
+   "lf": {
+    "seq": "CGAACCTGGACTGTTATGATG",
+    "start": 1472,
+    "len": 21,
+    "tm": 56.01,
+    "gc": 47.6
+   },
+   "lb": {
+    "seq": "AGGAGCAGTGATGACTTCC",
+    "start": 1588,
+    "len": 19,
+    "tm": 56.01,
+    "gc": 52.6
+   },
+   "lf_seq": "CGAACCTGGACTGTTATGATG",
+   "lb_seq": "AGGAGCAGTGATGACTTCC",
+   "primers": {
+    "f3": {
+     "seq": "CCAGATCTGGAAGTTGAGA",
+     "tm": 53.02,
+     "start": 1408,
+     "len": 19,
+     "gc": 47.4
+    },
+    "f2": {
+     "seq": "TTGTGAATCCCCAGCTCC",
+     "tm": 56.07,
+     "start": 1433,
+     "len": 18,
+     "gc": 55.6
+    },
+    "f1": {
+     "seq": "TGATGTCCTGGTTCAGCAGG",
+     "tm": 59.24,
+     "start": 1488,
+     "len": 20,
+     "gc": 55.0
+    },
+    "b1": {
+     "seq": "TTATTTCCCAGGTATACACGCCA",
+     "tm": 59.11,
+     "start": 1554,
+     "len": 23,
+     "gc": 43.5
+    },
+    "b2": {
+     "seq": "GACTTCCCCTGTGCGTAA",
+     "tm": 56.15,
+     "start": 1600,
+     "len": 18,
+     "gc": 55.6
+    },
+    "b3": {
+     "seq": "GGAGGTAATATGAACATCCAC",
+     "tm": 53.06,
+     "start": 1642,
+     "len": 21,
+     "gc": 42.9
+    }
+   },
+   "qc": {
+    "max_cross_pct": 57.1,
+    "max_self_pct": 64.7
+   },
+   "flags": [],
+   "penalty": 11.7,
+   "f2_b2_span": [
+    1432,
+    1617
+   ]
+  },
+  {
+   "rank": 2,
+   "score": 88.3,
+   "segment": "main",
+   "seq_len": 2779,
+   "product_bp": 150,
+   "fip": "TGTATCCTCTAAGGCCTGCAAATTTTTGTGAATGAGTTTCCAGACTCG",
+   "bip": "GGGCTCGTAATTATGTCGAAGCTTTTGGATCCTGGAGTGGAAATGA",
+   "lf": {
+    "seq": "AAATATTTGCAGGCCTTAGAGG",
+    "start": 352,
+    "len": 22,
+    "tm": 56.02,
+    "gc": 40.9
+   },
+   "lb": {
+    "seq": "CCAGGAGATATCATCATTTCCAC",
+    "start": 458,
+    "len": 23,
+    "tm": 56.1,
+    "gc": 43.5
+   },
+   "lf_seq": "AAATATTTGCAGGCCTTAGAGG",
+   "lb_seq": "CCAGGAGATATCATCATTTCCAC",
+   "primers": {
+    "f3": {
+     "seq": "CTATATACTTGCAGGCGAAG",
+     "tm": 53.01,
+     "start": 250,
+     "len": 20,
+     "gc": 45.0
+    },
+    "f2": {
+     "seq": "GTGAATGAGTTTCCAGACTCG",
+     "tm": 56.24,
+     "start": 301,
+     "len": 21,
+     "gc": 47.6
+    },
+    "f1": {
+     "seq": "ATTTGCAGGCCTTAGAGGATACA",
+     "tm": 59.1,
+     "start": 356,
+     "len": 23,
+     "gc": 43.5
+    },
+    "b1": {
+     "seq": "GGGCTCGTAATTATGTCGAAGC",
+     "tm": 59.11,
+     "start": 434,
+     "len": 22,
+     "gc": 50.0
+    },
+    "b2": {
+     "seq": "TCATTTCCACTCCAGGATCC",
+     "tm": 56.16,
+     "start": 471,
+     "len": 20,
+     "gc": 50.0
+    },
+    "b3": {
+     "seq": "CTGTCCACGTCACAAATC",
+     "tm": 53.02,
+     "start": 549,
+     "len": 18,
+     "gc": 50.0
+    }
+   },
+   "qc": {
+    "max_cross_pct": 58.8,
+    "max_self_pct": 63.6
+   },
+   "flags": [],
+   "penalty": 11.7,
+   "f2_b2_span": [
+    300,
+    490
+   ]
+  },
+  {
+   "rank": 3,
+   "score": 88.2,
+   "segment": "main",
+   "seq_len": 2779,
+   "product_bp": 150,
+   "fip": "TGGCGTGTATACCTGGGAAATAATTTTGTGCCTGGTGATTGTGAAATA",
+   "bip": "ATCCACAGACAAGATCCACTCTCTTTTGACAAGTCAAGAAGCGAGC",
+   "lf": {
+    "seq": "GGGGATTGTTTATTTCCCAGG",
+    "start": 1545,
+    "len": 21,
+    "tm": 56.1,
+    "gc": 47.6
+   },
+   "lb": {
+    "seq": "TGGCTCGCTTCTTGACTT",
+    "start": 1690,
+    "len": 18,
+    "tm": 56.06,
+    "gc": 50.0
+   },
+   "lf_seq": "GGGGATTGTTTATTTCCCAGG",
+   "lb_seq": "TGGCTCGCTTCTTGACTT",
+   "primers": {
+    "f3": {
+     "seq": "TTCCTCAGGTTGTGATTGA",
+     "tm": 53.11,
+     "start": 1451,
+     "len": 19,
+     "gc": 42.1
+    },
+    "f2": {
+     "seq": "GTGCCTGGTGATTGTGAAATA",
+     "tm": 56.08,
+     "start": 1522,
+     "len": 21,
+     "gc": 42.9
+    },
+    "f1": {
+     "seq": "TTATTTCCCAGGTATACACGCCA",
+     "tm": 59.11,
+     "start": 1554,
+     "len": 23,
+     "gc": 43.5
+    },
+    "b1": {
+     "seq": "ATCCACAGACAAGATCCACTCTC",
+     "tm": 59.11,
+     "start": 1657,
+     "len": 23,
+     "gc": 47.8
+    },
+    "b2": {
+     "seq": "GCTCGCTTCTTGACTTGTC",
+     "tm": 56.26,
+     "start": 1692,
+     "len": 19,
+     "gc": 52.6
+    },
+    "b3": {
+     "seq": "GTGAGTGACTTTGATTGGAA",
+     "tm": 53.03,
+     "start": 1712,
+     "len": 20,
+     "gc": 40.0
+    }
+   },
+   "qc": {
+    "max_cross_pct": 55.6,
+    "max_self_pct": 69.2
+   },
+   "flags": [],
+   "penalty": 11.8,
+   "f2_b2_span": [
+    1521,
+    1710
+   ]
+  },
+  {
+   "rank": 4,
+   "score": 88.1,
+   "segment": "main",
+   "seq_len": 2779,
+   "product_bp": 150,
+   "fip": "CGTGATGATTCAACCTGTAAAACCTTTTTACTGTTGTTGGTGGTCCATA",
+   "bip": "GCTTCTGTACATGGCATGTACTCTTTTACGTATTTTCAACGTCGCAT",
+   "lf": {
+    "seq": "GCGTTGGTGAAAAGGTTTTAC",
+    "start": 1040,
+    "len": 21,
+    "tm": 56.13,
+    "gc": 42.9
+   },
+   "lb": {
+    "seq": "CCTGTATATGCGACGTTGAAA",
+    "start": 1166,
+    "len": 21,
+    "tm": 56.03,
+    "gc": 42.9
+   },
+   "lf_seq": "GCGTTGGTGAAAAGGTTTTAC",
+   "lb_seq": "CCTGTATATGCGACGTTGAAA",
+   "primers": {
+    "f3": {
+     "seq": "CGATTTGAGGGATAGGTTTC",
+     "tm": 53.07,
+     "start": 961,
+     "len": 20,
+     "gc": 45.0
+    },
+    "f2": {
+     "seq": "ACTGTTGTTGGTGGTCCATA",
+     "tm": 56.23,
+     "start": 1004,
+     "len": 20,
+     "gc": 45.0
+    },
+    "f1": {
+     "seq": "AGGTTTTACAGGTTGAATCATCACG",
+     "tm": 59.39,
+     "start": 1052,
+     "len": 25,
+     "gc": 40.0
+    },
+    "b1": {
+     "seq": "GCTTCTGTACATGGCATGTACTC",
+     "tm": 59.02,
+     "start": 1132,
+     "len": 23,
+     "gc": 47.8
+    },
+    "b2": {
+     "seq": "ATGCGACGTTGAAAATACGT",
+     "tm": 56.06,
+     "start": 1173,
+     "len": 20,
+     "gc": 40.0
+    },
+    "b3": {
+     "seq": "TTCATGAGTCAACTTGCAC",
+     "tm": 53.11,
+     "start": 1240,
+     "len": 19,
+     "gc": 42.1
+    }
+   },
+   "qc": {
+    "max_cross_pct": 55.6,
+    "max_self_pct": 64.7
+   },
+   "flags": [],
+   "penalty": 11.9,
+   "f2_b2_span": [
+    1003,
+    1192
+   ]
+  },
+  {
+   "rank": 5,
+   "score": 88.1,
+   "segment": "main",
+   "seq_len": 2779,
+   "product_bp": 150,
+   "fip": "CCTGTATGGGCTGTCGAAGTTTTTGAGATATCATCATTTCCACTCCAG",
+   "bip": "TGTACAGAAAGCCCACGATGTATTTTCACAGCCCCTAGGTATGTC",
+   "lf": {
+    "seq": "GAAGACTGAACTTCGACAGC",
+    "start": 501,
+    "len": 20,
+    "tm": 56.09,
+    "gc": 50.0
+   },
+   "lb": {
+    "seq": "GTATAGAAGCCCAGACATACCT",
+    "start": 622,
+    "len": 22,
+    "tm": 56.06,
+    "gc": 45.5
+   },
+   "lf_seq": "GAAGACTGAACTTCGACAGC",
+   "lb_seq": "GTATAGAAGCCCAGACATACCT",
+   "primers": {
+    "f3": {
+     "seq": "ATTATGTCGAAGCGACCA",
+     "tm": 53.24,
+     "start": 443,
+     "len": 18,
+     "gc": 44.4
+    },
+    "f2": {
+     "seq": "GAGATATCATCATTTCCACTCCAG",
+     "tm": 56.28,
+     "start": 462,
+     "len": 24,
+     "gc": 41.7
+    },
+    "f1": {
+     "seq": "ACTTCGACAGCCCATACAGG",
+     "tm": 59.04,
+     "start": 510,
+     "len": 20,
+     "gc": 55.0
+    },
+    "b1": {
+     "seq": "TGTACAGAAAGCCCACGATGTA",
+     "tm": 59.0,
+     "start": 594,
+     "len": 22,
+     "gc": 45.5
+    },
+    "b2": {
+     "seq": "GACATACCTAGGGGCTGTG",
+     "tm": 56.18,
+     "start": 635,
+     "len": 19,
+     "gc": 57.9
+    },
+    "b3": {
+     "seq": "TTGAGCAGAGGGATGATG",
+     "tm": 53.13,
+     "start": 678,
+     "len": 18,
+     "gc": 50.0
+    }
+   },
+   "qc": {
+    "max_cross_pct": 58.3,
+    "max_self_pct": 63.6
+   },
+   "flags": [],
+   "penalty": 11.9,
+   "f2_b2_span": [
+    461,
+    653
+   ]
+  },
+  {
+   "rank": 6,
+   "score": 87.9,
+   "segment": "main",
+   "seq_len": 2779,
+   "product_bp": 150,
+   "fip": "TGGGGACAATTTCAAATCGATGGTTTTTTAAGCGCTTTGGCGTAAG",
+   "bip": "CCGAGCTTGATTTGGCACCTTTTGATTGTGTACACCCAAGCTG",
+   "lf": {
+    "seq": "CGTCCATCGATTTGAAATTGTC",
+    "start": 2398,
+    "len": 22,
+    "tm": 56.01,
+    "gc": 40.9
+   },
+   "lb": {
+    "seq": "GGGTGGAAACTGGTGCTA",
+    "start": 2494,
+    "len": 18,
+    "tm": 56.01,
+    "gc": 55.6
+   },
+   "lf_seq": "CGTCCATCGATTTGAAATTGTC",
+   "lb_seq": "GGGTGGAAACTGGTGCTA",
+   "primers": {
+    "f3": {
+     "seq": "CCTTTGGGACTAATTCCCT",
+     "tm": 53.2,
+     "start": 2291,
+     "len": 19,
+     "gc": 47.4
+    },
+    "f2": {
+     "seq": "TTAAGCGCTTTGGCGTAAG",
+     "tm": 56.24,
+     "start": 2344,
+     "len": 19,
+     "gc": 47.4
+    },
+    "f1": {
+     "seq": "CCATCGATTTGAAATTGTCCCCA",
+     "tm": 59.12,
+     "start": 2401,
+     "len": 23,
+     "gc": 43.5
+    },
+    "b1": {
+     "seq": "CCGAGCTTGATTTGGCACC",
+     "tm": 59.08,
+     "start": 2465,
+     "len": 19,
+     "gc": 57.9
+    },
+    "b2": {
+     "seq": "CAGCTTGGGTGTACACAATC",
+     "tm": 56.3,
+     "start": 2512,
+     "len": 20,
+     "gc": 50.0
+    },
+    "b3": {
+     "seq": "ACGATTGTTCGTAATCGTG",
+     "tm": 53.21,
+     "start": 2538,
+     "len": 19,
+     "gc": 42.1
+    }
+   },
+   "qc": {
+    "max_cross_pct": 55.6,
+    "max_self_pct": 69.2
+   },
+   "flags": [],
+   "penalty": 12.1,
+   "f2_b2_span": [
+    2343,
+    2531
+   ]
+  },
+  {
+   "rank": 7,
+   "score": 84.4,
+   "segment": "main",
+   "seq_len": 2779,
+   "product_bp": 150,
+   "fip": "GATAACTGAGACTAGATCCCTCACCTTTTATATTTGCAGGCCTTAGAGGA",
+   "bip": "AAGGTTCGTCGAAGACTGAACTTTTTCAGTAGCACGGTTCCTGTA",
+   "lf": {
+    "seq": "ACTGGTGAGGGATCTAGTCT",
+    "start": 405,
+    "len": 20,
+    "tm": 56.02,
+    "gc": 50.0
+   },
+   "lb": {
+    "seq": "TACAGGAACCGTGCTACTG",
+    "start": 524,
+    "len": 19,
+    "tm": 56.07,
+    "gc": 52.6
+   },
+   "lf_seq": "ACTGGTGAGGGATCTAGTCT",
+   "lb_seq": "TACAGGAACCGTGCTACTG",
+   "primers": {
+    "f3": {
+     "seq": "GGATCCACTGGTGAATGA",
+     "tm": 53.02,
+     "start": 291,
+     "len": 18,
+     "gc": 50.0
+    },
+    "f2": {
+     "seq": "ATATTTGCAGGCCTTAGAGGA",
+     "tm": 56.03,
+     "start": 354,
+     "len": 21,
+     "gc": 42.9
+    },
+    "f1": {
+     "seq": "GGTGAGGGATCTAGTCTCAGTTATC",
+     "tm": 59.09,
+     "start": 408,
+     "len": 25,
+     "gc": 48.0
+    },
+    "b1": {
+     "seq": "AAGGTTCGTCGAAGACTGAACT",
+     "tm": 59.21,
+     "start": 491,
+     "len": 22,
+     "gc": 45.5
+    },
+    "b2": {
+     "seq": "TACAGGAACCGTGCTACTG",
+     "tm": 56.07,
+     "start": 524,
+     "len": 19,
+     "gc": 52.6
+    },
+    "b3": {
+     "seq": "CTGTCCACGTCACAAATC",
+     "tm": 53.02,
+     "start": 549,
+     "len": 18,
+     "gc": 50.0
+    }
+   },
+   "qc": {
+    "max_cross_pct": 57.1,
+    "max_self_pct": 69.2
+   },
+   "flags": [],
+   "penalty": 15.6,
+   "f2_b2_span": [
+    353,
+    542
+   ]
+  },
+  {
+   "rank": 8,
+   "score": 76.6,
+   "segment": "main",
+   "seq_len": 2779,
+   "product_bp": 150,
+   "fip": "TGTATTTCACAATCACCAGGCACTTTTCGAACCTGGACTGTTATGATG",
+   "bip": "GATGACTTCCCCTGTGCGTATTTTCTGTGGATGTTCATATTACCTCC",
+   "lf": {
+    "seq": "AGCAGGAATGGTCGTTGT",
+    "start": 1502,
+    "len": 18,
+    "tm": 56.03,
+    "gc": 50.0
+   },
+   "lb": {
+    "seq": "GGAGGTAATATGAACATCCACAG",
+    "start": 1642,
+    "len": 23,
+    "tm": 56.05,
+    "gc": 43.5
+   },
+   "lf_seq": "AGCAGGAATGGTCGTTGT",
+   "lb_seq": "GGAGGTAATATGAACATCCACAG",
+   "primers": {
+    "f3": {
+     "seq": "CCAGATCTGGAAGTTGAGA",
+     "tm": 53.02,
+     "start": 1408,
+     "len": 19,
+     "gc": 47.4
+    },
+    "f2": {
+     "seq": "CGAACCTGGACTGTTATGATG",
+     "tm": 56.01,
+     "start": 1472,
+     "len": 21,
+     "gc": 47.6
+    },
+    "f1": {
+     "seq": "GTGCCTGGTGATTGTGAAATACA",
+     "tm": 59.06,
+     "start": 1522,
+     "len": 23,
+     "gc": 43.5
+    },
+    "b1": {
+     "seq": "GATGACTTCCCCTGTGCGTA",
+     "tm": 59.04,
+     "start": 1597,
+     "len": 20,
+     "gc": 55.0
+    },
+    "b2": {
+     "seq": "GGAGGTAATATGAACATCCACAG",
+     "tm": 56.05,
+     "start": 1642,
+     "len": 23,
+     "gc": 43.5
+    },
+    "b3": {
+     "seq": "GTGAGTGACTTTGATTGGAA",
+     "tm": 53.03,
+     "start": 1712,
+     "len": 20,
+     "gc": 40.0
+    }
+   },
+   "qc": {
+    "max_cross_pct": 66.7,
+    "max_self_pct": 64.7
+   },
+   "flags": [],
+   "penalty": 23.4,
+   "f2_b2_span": [
+    1471,
+    1664
+   ]
+  },
+  {
+   "rank": 9,
+   "score": 76.4,
+   "segment": "main",
+   "seq_len": 2779,
+   "product_bp": 150,
+   "fip": "GGTGGAATTCCCACTATCTTCCTTTTTAGGAACTCTTTATAGGACGAGG",
+   "bip": "TAGGTAGTGGGGATCGACGTTTTTCAATAATGCTGCCTGGTACAA",
+   "lf": {
+    "seq": "AGAGGAAGATAGTGGGAATTCC",
+    "start": 1853,
+    "len": 22,
+    "tm": 56.23,
+    "gc": 45.5
+   },
+   "lb": {
+    "seq": "GTTGTACCAGGCAGCATTATT",
+    "start": 1986,
+    "len": 21,
+    "tm": 56.15,
+    "gc": 42.9
+   },
+   "lf_seq": "AGAGGAAGATAGTGGGAATTCC",
+   "lb_seq": "GTTGTACCAGGCAGCATTATT",
+   "primers": {
+    "f3": {
+     "seq": "TGCATTCTTTAATGCCCAG",
+     "tm": 53.16,
+     "start": 1767,
+     "len": 19,
+     "gc": 42.1
+    },
+    "f2": {
+     "seq": "AGGAACTCTTTATAGGACGAGG",
+     "tm": 56.02,
+     "start": 1816,
+     "len": 22,
+     "gc": 45.5
+    },
+    "f1": {
+     "seq": "AGGAAGATAGTGGGAATTCCACC",
+     "tm": 59.1,
+     "start": 1855,
+     "len": 23,
+     "gc": 47.8
+    },
+    "b1": {
+     "seq": "TAGGTAGTGGGGATCGACGT",
+     "tm": 59.02,
+     "start": 1956,
+     "len": 20,
+     "gc": 55.0
+    },
+    "b2": {
+     "seq": "TTGTACCAGGCAGCATTATTG",
+     "tm": 56.15,
+     "start": 1987,
+     "len": 21,
+     "gc": 42.9
+    },
+    "b3": {
+     "seq": "TGTGGGCCTAAAGATCTG",
+     "tm": 53.02,
+     "start": 2050,
+     "len": 18,
+     "gc": 50.0
+    }
+   },
+   "qc": {
+    "max_cross_pct": 58.3,
+    "max_self_pct": 75.0
+   },
+   "flags": [
+    "自二聚75.0%"
+   ],
+   "penalty": 23.6,
+   "f2_b2_span": [
+    1815,
+    2007
+   ]
+  },
+  {
+   "rank": 10,
+   "score": 76.4,
+   "segment": "main",
+   "seq_len": 2779,
+   "product_bp": 150,
+   "fip": "GATAACTGAGACTAGATCCCTCACCTTTTTATTTGCAGGCCTTAGAGGAT",
+   "bip": "AAGGTTCGTCGAAGACTGAACTTTTTCAGTAGCACGGTTCCTGT",
+   "lf": {
+    "seq": "ACTGGTGAGGGATCTAGTCT",
+    "start": 405,
+    "len": 20,
+    "tm": 56.02,
+    "gc": 50.0
+   },
+   "lb": {
+    "seq": "TACAGGAACCGTGCTACTG",
+    "start": 524,
+    "len": 19,
+    "tm": 56.07,
+    "gc": 52.6
+   },
+   "lf_seq": "ACTGGTGAGGGATCTAGTCT",
+   "lb_seq": "TACAGGAACCGTGCTACTG",
+   "primers": {
+    "f3": {
+     "seq": "GGATCCACTGGTGAATGA",
+     "tm": 53.02,
+     "start": 291,
+     "len": 18,
+     "gc": 50.0
+    },
+    "f2": {
+     "seq": "TATTTGCAGGCCTTAGAGGAT",
+     "tm": 56.03,
+     "start": 355,
+     "len": 21,
+     "gc": 42.9
+    },
+    "f1": {
+     "seq": "GGTGAGGGATCTAGTCTCAGTTATC",
+     "tm": 59.09,
+     "start": 408,
+     "len": 25,
+     "gc": 48.0
+    },
+    "b1": {
+     "seq": "AAGGTTCGTCGAAGACTGAACT",
+     "tm": 59.21,
+     "start": 491,
+     "len": 22,
+     "gc": 45.5
+    },
+    "b2": {
+     "seq": "ACAGGAACCGTGCTACTG",
+     "tm": 56.17,
+     "start": 525,
+     "len": 18,
+     "gc": 55.6
+    },
+    "b3": {
+     "seq": "CTGTCCACGTCACAAATC",
+     "tm": 53.02,
+     "start": 549,
+     "len": 18,
+     "gc": 50.0
+    }
+   },
+   "qc": {
+    "max_cross_pct": 58.3,
+    "max_self_pct": 75.0
+   },
+   "flags": [
+    "自二聚75.0%"
+   ],
+   "penalty": 23.6,
+   "f2_b2_span": [
+    354,
+    542
+   ]
+  }
+ ],
+ "files": {
+  "sets": "lamp\\lamp_sets.tsv",
+  "order": "lamp\\lamp_order.tsv",
+  "report": "lamp\\report.md",
+  "layout_png": "lamp\\primer_layout.png",
+  "layout_svg": "lamp\\primer_layout.svg",
+  "seqview": "lamp\\sequence_view.html"
+ }
+}

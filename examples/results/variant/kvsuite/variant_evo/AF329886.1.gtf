@@ -1,0 +1,3 @@
+AF329886.1	kv	CDS	150	455	.	+	0	gene_id "V1";
+AF329886.1	kv	CDS	466	1200	.	+	0	gene_id "V2";
+AF329886.1	kv	CDS	1704	2522	.	-	0	gene_id "C1";

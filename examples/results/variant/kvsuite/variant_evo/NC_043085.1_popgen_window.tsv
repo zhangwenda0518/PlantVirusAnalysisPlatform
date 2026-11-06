@@ -1,0 +1,14 @@
+# EXPLORATORY Pool-Seq statistic; N_EFF basis = mean read depth (single-sample; NOT independent genomes)
+BIN_START	BIN_END	BIN_MID	N_VARIANTS	N_EFF	N_EFF_BASIS	PI	TAJIMA_D
+1	100	50.5	1	47	avg_depth	0.00000000	
+51	150	100.5	3	49	avg_depth	0.00000000	-2.075872
+101	200	150.5	2	50	avg_depth	0.00000000	
+151	250	200.5	4	87	avg_depth	0.00000000	-2.032399
+201	300	250.5	5	87	avg_depth	0.00000000	-2.180340
+251	350	300.5	2	92	avg_depth	0.00000000	
+301	400	350.5	3	91	avg_depth	0.00000000	-1.825709
+351	450	400.5	2	88	avg_depth	0.00000000	
+401	500	450.5	2	59	avg_depth	0.00000000	
+451	550	500.5	2	59	avg_depth	0.00000000	
+501	600	550.5	0	0	avg_depth	0.00000000	
+551	650	600.5	0	0	avg_depth	0.00000000	

@@ -84,6 +84,8 @@ agent_created: true
 2. **查目录**：`python main.py agent-ops`；单条 schema `agent-ops --id <op> --schema`。
    条数与 id 一律以输出为准，不要记死数字。
 3. **校环境**：`python main.py selfcheck`；外部工具 `python main.py tools`。
+   （网页侧：设置 → 「🧰 工具探测与插件」合一卡——上半 3 列探测总览、
+   下半插件源 2 列，检测芯片与安装按钮同行；缺什么点什么补齐。）
 4. **认实例**：同一台机可能同时跑**源码实例**与**打包实例**，`run/` 目录不同；
    改动没生效先确认 8765 端口对应哪个进程、哪个工作目录。
 

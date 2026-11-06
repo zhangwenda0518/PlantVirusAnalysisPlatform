@@ -1,0 +1,76 @@
+LOCUS       KR094118                1377 bp    RNA     linear   VRL 04-JAN-2016
+DEFINITION  Ramu stunt virus strain PNG segment RNA5, complete sequence.
+ACCESSION   KR094118
+VERSION     KR094118.1
+KEYWORDS    .
+SOURCE      Ramu stunt virus
+  ORGANISM  Ramu stunt virus
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Hareavirales; Phenuiviridae;
+            Mechlorovirus; Mechlorovirus ramuense.
+REFERENCE   1  (bases 1 to 1377)
+  AUTHORS   Mollov,D., Maroon-Lango,C. and Kuniata,L.
+  TITLE     Detection by next generation sequencing of a multi-segmented viral
+            genome from sugarcane associated with Ramu stunt disease
+  JOURNAL   Virus Genes 52 (1), 152-155 (2016)
+   PUBMED   26728080
+REFERENCE   2  (bases 1 to 1377)
+  AUTHORS   Mollov,D., Maroon-Lango,C. and Kuniata,L.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (10-APR-2015) ASR, USDA, 10300 Baltimore Ave, Beltsville,
+            MD 20705, USA
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: CLC v. 5; Geneious v. 7
+            Sequencing Technology :: Illumina; Sanger dideoxy sequencing
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..1377
+                     /organism="Ramu stunt virus"
+                     /mol_type="genomic RNA"
+                     /strain="PNG"
+                     /isolation_source="leaf tissue"
+                     /host="sugarcane; cultivar: Ragnar"
+                     /db_xref="taxon:1738604"
+                     /segment="RNA5"
+                     /geo_loc_name="Papua New Guinea"
+                     /collection_date="01-Feb-2013"
+                     /collected_by="Lastus Kuniata"
+     gene            37..900
+                     /gene="N"
+     CDS             37..900
+                     /gene="N"
+                     /codon_start=1
+                     /product="nucleocapsid protein"
+                     /protein_id="ALJ83286.1"
+                     /translation="MNINKNIINLLDSLADVSLDKYYEDILAEFLYMGFDPVRMWTNV
+                     LSHDNYNAKEIMLLLCACFQKGCQMESFLRSVKSSESAGVFRRLIAKYGILSKPIEND
+                     TITLYRLLSSGGYAAFKAFIHVEMSDRLPVSAEIMDGITGPVILQQQFIISLTGNITM
+                     NNFMWEPVQIINEFLRARINHLFTVKDKKNMKECMLDCCRYSMATRRSPIVGSSHQKL
+                     ELIEYFGNRSYYISRNHGDPTTCINDLLYIHKVLFDEDFKSRFNAYGPIGAKMKTCNN
+                     SELAEYLLSEL"
+ORIGIN      
+        1 acacaaagtc gggggtgaag caatgaaaac aattaaatga atattaataa aaatataata
+       61 aacctattag actctttagc tgatgttagt ttggataaat attatgaaga tattctagcc
+      121 gaattccttt atatgggatt cgatcctgtc agaatgtgga ctaatgtgct atcacatgat
+      181 aattacaatg caaaagagat aatgctatta ttatgtgctt gcttccaaaa gggctgtcag
+      241 atggaatcat ttctcagatc tgtgaaatca tctgaatctg caggagtgtt cagaagattg
+      301 attgctaaat atggcatatt atccaaaccc attgagaatg atacaatcac tctctataga
+      361 ttgttatcct ctggtgggta tgcagcattc aaagccttta tccacgtgga gatgagtgat
+      421 agattgccag tcagtgctga gatcatggat ggaatcacag gaccagtaat tctgcagcag
+      481 caattcatca tatctctgac aggtaatata actatgaata atttcatgtg ggagcctgtg
+      541 caaatcatca atgagttttt gagagctaga attaatcacc tattcactgt caaggataag
+      601 aagaatatga aagaatgtat gttagactgc tgcagatatt cgatggccac tagaagatct
+      661 cctattgttg gttctagtca tcaaaaattg gagttaattg agtattttgg aaatagatct
+      721 tattacatca gcaggaatca tggagatcca accacatgca taaacgatct tctgtatatt
+      781 cacaaggtgt tgtttgatga ggatttcaaa tccagattta atgcttatgg accaattggt
+      841 gctaaaatga aaacttgtaa taacagtgag ttggctgaat atttattatc tgaattgtga
+      901 gttattactg aggtggagca atgctccaaa tgtcagtatc tattcacagc cttatgaatt
+      961 aggattgaat ggattggcaa caaataatca tgtttgtata aactcttagg cattgacatt
+     1021 gattgtggac atattagaat taagatggaa actcataata agcttgcata ctatccaatg
+     1081 tctgtgaccg gagtgctctg aacattagtg gctcatcctg gtcgtgtgtt taaaatctag
+     1141 ttatttaaaa ttgtagttaa tgatcttgag acaatggatt tgaaacaagc acatatccac
+     1201 cacttagtca gaagttggga tatagcagtt gacagtggag ctatgctcca tttgccaatt
+     1261 atgatttgtt aatatgaatg cataagtgct tgtatattgg atctcatgtc acagccattg
+     1321 tttactatag tttaatgagt ggatagttat tctctgcttc tcccccggac tttgtgt
+//
+

@@ -1,0 +1,5 @@
+CHROM	POS	REF	ALT	Gene_Name	Annotation	Impact	HGVS_c	HGVS_p	AA	CDS	Feature_ID	Note
+NC_014846.1	297	C	T	C1	synonymous_variant	LOW	c.306G>A	p.Glu102Glu	102/140	306/423	BhYVIVb_gp1	
+NC_014846.1	324	C	T	C1	synonymous_variant	LOW	c.279G>A	p.Lys93Lys	93/140	279/423	BhYVIVb_gp1	
+NC_014846.1	357	G	A	C1	synonymous_variant	LOW	c.246C>T	p.Asn82Asn	82/140	246/423	BhYVIVb_gp1	
+NC_014846.1	375	A	G	C1	synonymous_variant	LOW	c.228T>C	p.His76His	76/140	228/423	BhYVIVb_gp1	

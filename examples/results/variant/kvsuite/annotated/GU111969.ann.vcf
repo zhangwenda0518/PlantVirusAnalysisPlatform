@@ -1,0 +1,174 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##bcftoolsVersion=1.24+htslib-1.24
+##bcftoolsCommand=mpileup -f D:\桌面\植物病毒分析平台\databases\virusref_db\plant_ref\reference.fasta -d 100000 -q 0 -Q 13 -B -a FORMAT/AD,FORMAT/DP,INFO/AD -Ob -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.pileup.bcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\bam\EXAMPLE.sorted.bam
+##reference=file://D:\桌面\植物病毒分析平台\databases\virusref_db\plant_ref\reference.fasta
+##contig=<ID=NC_079073.1,length=1447>
+##contig=<ID=NC_079074.1,length=966>
+##contig=<ID=NC_079075.1,length=1739>
+##contig=<ID=NC_079076.1,length=7112>
+##contig=<ID=NC_079077.1,length=2177>
+##contig=<ID=NC_076119.1,length=1352>
+##contig=<ID=NC_076977.1,length=12193>
+##contig=<ID=NC_077068.1,length=8845>
+##contig=<ID=NC_055562.1,length=7592>
+##contig=<ID=NC_043085.1,length=560>
+##contig=<ID=NC_043145.1,length=1720>
+##contig=<ID=NC_043150.1,length=1140>
+##contig=<ID=NC_040712.1,length=8139>
+##contig=<ID=NC_038422.1,length=14817>
+##contig=<ID=NC_038686.1,length=1342>
+##contig=<ID=NC_035070.1,length=3420>
+##contig=<ID=NC_034252.1,length=7326>
+##contig=<ID=NC_031448.1,length=2632>
+##contig=<ID=NC_028949.1,length=14243>
+##contig=<ID=NC_028237.2,length=14494>
+##contig=<ID=NC_028132.1,length=434>
+##contig=<ID=NC_028044.1,length=3956>
+##contig=<ID=NC_026241.1,length=2776>
+##contig=<ID=NC_023641.1,length=15088>
+##contig=<ID=NC_018519.1,length=17798>
+##contig=<ID=NC_014846.1,length=1385>
+##contig=<ID=NC_008728.1,length=1931>
+##contig=<ID=NC_008716.1,length=6794>
+##contig=<ID=NC_007679.1,length=6582>
+##contig=<ID=NC_004359.1,length=330>
+##contig=<ID=NC_003405.1,length=1353>
+##contig=<ID=NC_003608.1,length=3911>
+##contig=<ID=NC_001658.1,length=6376>
+##contig=<ID=NC_001478.1,length=2701>
+##contig=<ID=NC_001445.1,length=9741>
+##contig=<ID=NC_002030.1,length=359>
+##contig=<ID=PQ587056.1,length=13930>
+##contig=<ID=PQ490803.1,length=6339>
+##contig=<ID=PQ490804.1,length=1042>
+##contig=<ID=PQ490805.1,length=1357>
+##contig=<ID=PQ490806.1,length=1288>
+##contig=<ID=PQ434707.1,length=2690>
+##contig=<ID=PQ434746.1,length=2690>
+##contig=<ID=PQ434757.1,length=2696>
+##contig=<ID=PQ434765.1,length=2690>
+##contig=<ID=PP777177.1,length=5895>
+##contig=<ID=PP770489.1,length=6795>
+##contig=<ID=OR489165.1,length=14812>
+##contig=<ID=ON602044.1,length=6660>
+##contig=<ID=ON602045.1,length=2861>
+##contig=<ID=OL471982.1,length=902>
+##contig=<ID=OP441764.1,length=999>
+##contig=<ID=OL471978.1,length=7249>
+##contig=<ID=OL471979.1,length=2057>
+##contig=<ID=OL471980.1,length=1088>
+##contig=<ID=OL471981.1,length=1325>
+##contig=<ID=ON181430.1,length=7068>
+##contig=<ID=ON181431.1,length=2252>
+##contig=<ID=ON181432.1,length=1521>
+##contig=<ID=ON181433.1,length=1520>
+##contig=<ID=ON181434.1,length=1710>
+##contig=<ID=MZ703097.1,length=8959>
+##contig=<ID=MZ703098.1,length=3522>
+##contig=<ID=MZ703099.1,length=2256>
+##contig=<ID=MZ703100.1,length=1864>
+##contig=<ID=MZ703101.1,length=1447>
+##contig=<ID=MW698813.1,length=2753>
+##contig=<ID=MK159261.1,length=14159>
+##contig=<ID=MH049330.1,length=433>
+##contig=<ID=MG662372.1,length=433>
+##contig=<ID=LC333552.1,length=9426>
+##contig=<ID=MF372923.1,length=444>
+##contig=<ID=KR094115.1,length=8902>
+##contig=<ID=KR094116.1,length=1675>
+##contig=<ID=KR094117.1,length=1574>
+##contig=<ID=KR094118.1,length=1377>
+##contig=<ID=KR094119.1,length=1201>
+##contig=<ID=KR698381.1,length=1583>
+##contig=<ID=KF515615.1,length=1346>
+##contig=<ID=HF585098.1,length=9784>
+##contig=<ID=HM590504.1,length=1351>
+##contig=<ID=HM590506.1,length=1360>
+##contig=<ID=JN676151.1,length=2593>
+##contig=<ID=GU111966.1,length=1364>
+##contig=<ID=GU111968.1,length=1370>
+##contig=<ID=GU111969.1,length=1356>
+##contig=<ID=GU111971.1,length=1352>
+##contig=<ID=GU111979.1,length=1372>
+##contig=<ID=AJ316029.1,length=1361>
+##contig=<ID=AJ420316.1,length=2730>
+##contig=<ID=AF329886.1,length=2683>
+##contig=<ID=PZ000445.1,length=8052>
+##contig=<ID=NC_116680.1,length=4714>
+##contig=<ID=NC_139378.1,length=14152>
+##contig=<ID=NC_117321.1,length=12913>
+##contig=<ID=NC_116799.1,length=5881>
+##contig=<ID=NC_139271.1,length=5523>
+##contig=<ID=NC_040543.1,length=2730>
+##ALT=<ID=*,Description="Represents allele(s) other than observed.">
+##INFO=<ID=INDEL,Number=0,Type=Flag,Description="Indicates that the variant is an INDEL.">
+##INFO=<ID=IDV,Number=1,Type=Integer,Description="Maximum number of raw reads supporting an indel">
+##INFO=<ID=IMF,Number=1,Type=Float,Description="Maximum fraction of raw reads supporting an indel">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Raw read depth">
+##INFO=<ID=VDB,Number=1,Type=Float,Description="Variant Distance Bias for filtering splice-site artefacts in RNA-seq data (bigger is better)",Version="3">
+##INFO=<ID=RPBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Read Position Bias (closer to 0 is better)">
+##INFO=<ID=MQBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Mapping Quality Bias (closer to 0 is better)">
+##INFO=<ID=BQBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Base Quality Bias (closer to 0 is better)">
+##INFO=<ID=MQSBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Mapping Quality vs Strand Bias (closer to 0 is better)">
+##INFO=<ID=SCBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Soft-Clip Length Bias (closer to 0 is better)">
+##INFO=<ID=SGB,Number=1,Type=Float,Description="Segregation based metric, http://samtools.github.io/bcftools/rd-SegBias.pdf">
+##INFO=<ID=MQ0F,Number=1,Type=Float,Description="Fraction of MQ0 reads (smaller is better)">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="List of Phred-scaled genotype likelihoods">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Number of high-quality bases">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths (high-quality bases)">
+##INFO=<ID=AD,Number=R,Type=Integer,Description="Total allelic depths (high-quality bases)">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes for each ALT allele, in the same order as listed">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
+##INFO=<ID=DP4,Number=4,Type=Integer,Description="Number of high-quality ref-forward , ref-reverse, alt-forward and alt-reverse bases">
+##INFO=<ID=MQ,Number=1,Type=Integer,Description="Average mapping quality">
+##bcftools_callVersion=1.24+htslib-1.24
+##bcftools_callCommand=call -mv -Ob -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.call.bcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.pileup.bcf; Date=Tue Nov 03 12:58:23 2026
+##bcftools_viewVersion=1.24+htslib-1.24
+##bcftools_viewCommand=view -Ov -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.raw.vcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.call.bcf; Date=Tue Nov 03 12:58:23 2026
+##FILTER=<ID=FAIL,Description="Set if not true: QUAL>=3.5 && INFO/DP>=20 && INFO/AD[1]/INFO/DP>=0.05 && INFO/DP4[2]>=3 && INFO/DP4[3]>=3">
+##bcftools_filterVersion=1.24+htslib-1.24
+##bcftools_filterCommand=filter -s FAIL -i 'QUAL>=3.5 && INFO/DP>=20 && INFO/AD[1]/INFO/DP>=0.05 && INFO/DP4[2]>=3 && INFO/DP4[3]>=3' -Ov -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.soft.vcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.raw.vcf; Date=Tue Nov 03 12:58:24 2026
+##bcftools_filterCommand=filter -i FILTER=="PASS" -Ov -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.vcf.filtered D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.soft.vcf; Date=Tue Nov 03 12:58:24 2026
+##SnpEffVersion="5.4c (build 2026-02-23 07:25), by Pablo Cingolani"
+##SnpEffCmd="SnpEff  GU111969 D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\GU111969.vcf "
+##INFO=<ID=ANN,Number=.,Type=String,Description="Functional annotations: 'Allele | Annotation | Annotation_Impact | Gene_Name | Gene_ID | Feature_Type | Feature_ID | Transcript_BioType | Rank | HGVS.c | HGVS.p | cDNA.pos / cDNA.length | CDS.pos / CDS.length | AA.pos / AA.length | Distance | ERRORS / WARNINGS / INFO' ">
+##INFO=<ID=LOF,Number=.,Type=String,Description="Predicted loss of function effects for this variant. Format: 'Gene_Name | Gene_ID | Number_of_transcripts_in_gene | Percent_of_transcripts_affected'">
+##INFO=<ID=NMD,Number=.,Type=String,Description="Predicted nonsense mediated decay effects for this variant. Format: 'Gene_Name | Gene_ID | Number_of_transcripts_in_gene | Percent_of_transcripts_affected'">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\bam\EXAMPLE.sorted.bam
+GU111969.1	175	.	CAAAA	CAAAAA	46.2093	PASS	INDEL;IDV=16;IMF=0.727273;DP=22;AD=2,16;VDB=0.00366243;SGB=-0.689466;RPBZ=-1.06986;MQBZ=2.34503;MQSBZ=-1.02621;BQBZ=0.93652;SCBZ=-0.812538;MQ0F=0.227273;AC=2;AN=2;DP4=1,1,7,9;MQ=8;ANN=CAAAAA|frameshift_variant&splice_region_variant|HIGH|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding|1/1|c.423_*1insT|p.Ter141fs|423/423|423/423|141/140||	GT:PL:DP:AD	1/1:73,32,0:18:2,16
+GU111969.1	357	.	G	A	140.845	PASS	DP=39;AD=8,30;VDB=0.00045292;SGB=-0.693097;RPBZ=-0.627287;MQBZ=1.72283;MQSBZ=-0.782511;BQBZ=0.415178;SCBZ=-0.459353;MQ0F=0.0512821;AC=2;AN=2;DP4=8,0,24,6;MQ=16;ANN=A|synonymous_variant|LOW|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding|1/1|c.246C>T|p.Asn82Asn|246/423|246/423|82/140||	GT:PL:DP:AD	1/1:168,15,0:38:8,30
+GU111969.1	454	.	T	A	221.313	PASS	DP=37;AD=3,29;VDB=0.691433;SGB=-0.693079;RPBZ=-0.388332;MQBZ=2.20318;MQSBZ=-0.59015;BQBZ=0.138812;SCBZ=0.675158;MQ0F=0.0540541;AC=2;AN=2;DP4=3,0,15,14;MQ=18;ANN=A|missense_variant|MODERATE|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding|1/1|c.149A>T|p.Gln50Leu|149/423|149/423|50/140||	GT:PL:DP:AD	1/1:248,59,0:32:3,29
+GU111969.1	484	.	T	C	204.417	PASS	DP=50;AD=0,39;VDB=0.776084;SGB=-0.693144;MQSBZ=2.33862;MQ0F=0.02;AC=2;AN=2;DP4=0,0,20,19;MQ=15;ANN=C|missense_variant|MODERATE|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding|1/1|c.119A>G|p.Lys40Arg|119/423|119/423|40/140||	GT:PL:DP:AD	1/1:234,117,0:39:0,39
+GU111969.1	528	.	C	T	225.417	PASS	DP=65;AD=0,58;VDB=5.98214e-05;SGB=-0.693147;MQSBZ=0.195183;MQ0F=0.0153846;AC=2;AN=2;DP4=0,0,27,31;MQ=17;ANN=T|synonymous_variant|LOW|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding|1/1|c.75G>A|p.Arg25Arg|75/423|75/423|25/140||	GT:PL:DP:AD	1/1:255,175,0:58:0,58
+GU111969.1	537	.	T	G	116.399	PASS	DP=67;AD=29,34;VDB=0.00232679;SGB=-0.693132;RPBZ=-4.236;MQBZ=-1.46404;MQSBZ=0.801077;BQBZ=-0.634527;SCBZ=-1.62918;MQ0F=0.0149254;AC=1;AN=2;DP4=2,27,27,7;MQ=17;ANN=G|missense_variant|MODERATE|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding|1/1|c.66A>C|p.Lys22Asn|66/423|66/423|22/140||	GT:PL:DP:AD	0/1:149,0,144:63:29,34
+GU111969.1	558	.	T	A	99.4014	PASS	DP=70;AD=27,36;VDB=0.012775;SGB=-0.693139;RPBZ=-4.50195;MQBZ=-1.17583;MQSBZ=-0.145511;BQBZ=-0.680271;SCBZ=-2.34447;MQ0F=0.0142857;AC=1;AN=2;DP4=1,26,27,9;MQ=17;ANN=A|synonymous_variant|LOW|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding|1/1|c.45A>T|p.Ile15Ile|45/423|45/423|15/140||	GT:PL:DP:AD	0/1:132,0,119:63:27,36
+GU111969.1	567	.	A	G	110.39	PASS	DP=70;AD=27,40;VDB=0.0423957;SGB=-0.693145;RPBZ=-4.2202;MQBZ=-1.44639;MQSBZ=0.0754154;BQBZ=-0.126753;SCBZ=-2.3207;MQ0F=0;AC=1;AN=2;DP4=0,27,32,8;MQ=18;ANN=G|synonymous_variant|LOW|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding|1/1|c.36T>C|p.Thr12Thr|36/423|36/423|12/140||	GT:PL:DP:AD	0/1:143,0,123:67:27,40
+GU111969.1	568	.	G	A	225.417	PASS	DP=71;AD=0,68;VDB=0.00172931;SGB=-0.693147;MQSBZ=-0.288762;MQ0F=0.0140845;AC=2;AN=2;DP4=0,0,33,35;MQ=17;ANN=A|missense_variant|MODERATE|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding|1/1|c.35C>T|p.Thr12Ile|35/423|35/423|12/140||	GT:PL:DP:AD	1/1:255,205,0:68:0,68
+GU111969.1	588	.	T	C	87.3229	PASS	DP=76;AD=24,47;VDB=0.530441;SGB=-0.693147;RPBZ=-4.43907;MQBZ=-2.10093;MQSBZ=0.0808588;BQBZ=0.32188;SCBZ=-2.96618;MQ0F=0.0263158;AC=1;AN=2;DP4=0,24,38,9;MQ=17;ANN=C|missense_variant|MODERATE|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding|1/1|c.15A>G|p.Ile5Met|15/423|15/423|5/140||	GT:PL:DP:AD	0/1:120,0,104:71:24,47
+GU111969.1	604	.	T	G	102.795	PASS	DP=63;AD=16,43;VDB=0.348747;SGB=-0.693146;RPBZ=-5.2223;MQBZ=-1.102;MQSBZ=-0.975756;BQBZ=-1.40824;SCBZ=-4.64054;MQ0F=0.047619;AC=1;AN=2;DP4=0,16,32,11;MQ=15;ANN=G|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-2A>C|||||2|,G|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.604T>G||||||	GT:PL:DP:AD	0/1:136,0,57:59:16,43
+GU111969.1	634	.	C	T	162.255	PASS	DP=57;AD=1,47;VDB=0.946791;SGB=-0.693147;RPBZ=-1.01105;MQBZ=-1.26622;MQSBZ=-1.14557;BQBZ=0.34029;SCBZ=-3.1998;MQ0F=0.0701754;AC=2;AN=2;DP4=0,1,36,11;MQ=14;ANN=T|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-32G>A|||||32|,T|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.634C>T||||||	GT:PL:DP:AD	1/1:189,116,0:48:1,47
+GU111969.1	660	.	A	G	198.416	PASS	DP=59;AD=0,53;VDB=0.824286;SGB=-0.693147;MQSBZ=-0.396163;MQ0F=0.0508475;AC=2;AN=2;DP4=0,0,38,15;MQ=14;ANN=G|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-58T>C|||||58|,G|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.660A>G||||||	GT:PL:DP:AD	1/1:228,160,0:53:0,53
+GU111969.1	667	.	T	C	176.416	PASS	DP=56;AD=0,52;VDB=0.313582;SGB=-0.693147;MQSBZ=0.415514;MQ0F=0.0714286;AC=2;AN=2;DP4=0,0,37,15;MQ=13;ANN=C|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-65A>G|||||65|,C|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.667T>C||||||	GT:PL:DP:AD	1/1:206,157,0:52:0,52
+GU111969.1	676	.	G	C	209.417	PASS	DP=59;AD=0,54;VDB=0.0522463;SGB=-0.693147;MQSBZ=0.827403;MQ0F=0.0677966;AC=2;AN=2;DP4=0,0,38,16;MQ=13;ANN=C|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-74C>G|||||74|,C|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.676G>C||||||	GT:PL:DP:AD	1/1:239,163,0:54:0,54
+GU111969.1	738	.	C	T	228.368	PASS	DP=89;AD=1,81;VDB=0.0359396;SGB=-0.693147;RPBZ=0.866293;MQBZ=-0.317813;MQSBZ=-1.50149;BQBZ=-1.34398;SCBZ=0.392357;MQ0F=0.0561798;AC=2;AN=2;DP4=1,0,51,30;MQ=21;ANN=T|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-136G>A|||||136|,T|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.738C>T||||||	GT:PL:DP:AD	1/1:255,224,0:82:1,81
+GU111969.1	745	.	T	C	225.421	PASS	DP=91;AD=0,83;VDB=0.0561792;SGB=-0.693147;MQSBZ=-1.61506;MQ0F=0.0549451;AC=2;AN=2;DP4=0,0,56,28;MQ=21;ANN=C|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-143A>G|||||143|,C|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.745T>C||||||	GT:PL:DP:AD	1/1:255,250,0:84:0,83
+GU111969.1	759	.	C	G	228.39	PASS	DP=101;AD=1,90;VDB=0.269581;SGB=-0.693147;RPBZ=1.61974;MQBZ=-0.0944321;MQSBZ=-2.69245;BQBZ=1.50729;SCBZ=0.404196;MQ0F=0.0594059;AC=2;AN=2;DP4=0,1,56,35;MQ=22;ANN=G|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-157G>C|||||157|,G|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.759C>G||||||	GT:PL:DP:AD	1/1:255,253,0:92:1,90
+GU111969.1	825	.	A	G	228.128	PASS	DP=98;AD=5,84;VDB=0.0747686;SGB=-0.693147;RPBZ=-0.276264;MQBZ=-1.10149;MQSBZ=-6.42456;BQBZ=-1.54485;SCBZ=-0.812099;MQ0F=0.0510204;AC=2;AN=2;DP4=3,2,49,35;MQ=27;ANN=G|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-223T>C|||||223|,G|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.825A>G||||||	GT:PL:DP:AD	1/1:255,132,0:89:5,84
+GU111969.1	827	.	T	A	228.287	PASS	DP=95;AD=3,75;VDB=0.0651115;SGB=-0.693147;RPBZ=-1.83253;MQBZ=0.38028;MQSBZ=-5.64824;BQBZ=-0.176256;SCBZ=0.917459;MQ0F=0.0526316;AC=2;AN=2;DP4=1,2,42,33;MQ=25;ANN=A|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-225A>T|||||225|,A|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.827T>A||||||	GT:PL:DP:AD	1/1:255,174,0:78:3,75
+GU111969.1	833	.	T	G	228.371	PASS	DP=100;AD=2,87;VDB=0.135602;SGB=-0.693147;RPBZ=-1.21838;MQBZ=0.924444;MQSBZ=-6.23419;BQBZ=-0.417278;SCBZ=0.941679;MQ0F=0.04;AC=2;AN=2;DP4=0,2,50,37;MQ=27;ANN=G|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-231A>C|||||231|,G|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.833T>G||||||	GT:PL:DP:AD	1/1:255,231,0:89:2,87
+GU111969.1	842	.	A	C	228.392	PASS	DP=101;AD=1,83;VDB=0.233226;SGB=-0.693147;RPBZ=-0.214143;MQBZ=0.453599;MQSBZ=-6.29956;BQBZ=-1.31726;SCBZ=0.693925;MQ0F=0.049505;AC=2;AN=2;DP4=0,1,51,37;MQ=28;ANN=C|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-240T>G|||||240|,C|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.842A>C||||||	GT:PL:DP:AD	1/1:255,232,0:89:1,83
+GU111969.1	878	.	G	T	225.417	PASS	DP=98;AD=0,87;VDB=0.626782;SGB=-0.693147;MQSBZ=-4.93861;MQ0F=0.0408163;AC=2;AN=2;DP4=0,0,37,50;MQ=29;ANN=T|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-276C>A|||||276|,T|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.878G>T||||||	GT:PL:DP:AD	1/1:255,255,0:87:0,87
+GU111969.1	903	.	G	A	225.421	PASS	DP=76;AD=0,66;VDB=0.0229858;SGB=-0.693147;MQSBZ=-1.76631;MQ0F=0.0394737;AC=2;AN=2;DP4=0,0,24,44;MQ=28;ANN=A|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-301C>T|||||301|,A|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.903G>A||||||	GT:PL:DP:AD	1/1:255,199,0:68:0,66
+GU111969.1	905	.	A	T	220.45	PASS	DP=75;AD=9,61;VDB=0.00212184;SGB=-0.693147;RPBZ=-1.00919;MQBZ=-0.935729;MQSBZ=-2.33102;BQBZ=-0.191173;SCBZ=-2.23035;MQ0F=0.04;AC=1;AN=2;DP4=6,3,21,40;MQ=29;ANN=T|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-303T>A|||||303|,T|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.905A>T||||||	GT:PL:DP:AD	0/1:255,0,13:70:9,61
+GU111969.1	911	.	G	A	225.417	PASS	DP=74;AD=0,68;VDB=0.00165293;SGB=-0.693147;MQSBZ=-3.02595;MQ0F=0.0405405;AC=2;AN=2;DP4=0,0,28,40;MQ=30;ANN=A|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-309C>T|||||309|,A|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.911G>A||||||	GT:PL:DP:AD	1/1:255,205,0:68:0,68
+GU111969.1	917	.	C	A	223.0	PASS	DP=71;AD=7,53;VDB=5.36807e-07;SGB=-0.693147;RPBZ=-0.181147;MQBZ=-2.01093;MQSBZ=-1.87015;BQBZ=0.401366;SCBZ=-2.82067;MQ0F=0.0422535;AC=1;AN=2;DP4=5,2,17,37;MQ=31;ANN=A|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-315G>T|||||315|,A|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.917C>A||||||	GT:PL:DP:AD	0/1:255,0,7:61:7,53
+GU111969.1	919	.	C	A	214.068	PASS	DP=71;AD=7,58;VDB=5.10702e-05;SGB=-0.693147;RPBZ=-0.0211696;MQBZ=-1.99256;MQSBZ=-2.2587;BQBZ=-0.312263;SCBZ=-2.73959;MQ0F=0.0422535;AC=2;AN=2;DP4=5,2,21,37;MQ=32;ANN=A|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-317G>T|||||317|,A|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.919C>A||||||	GT:PL:DP:AD	1/1:244,0,4:65:7,58
+GU111969.1	921	.	A	T	221.347	PASS	DP=72;AD=8,58;VDB=8.74081e-05;SGB=-0.693147;RPBZ=-0.108105;MQBZ=-1.36347;MQSBZ=-2.36766;BQBZ=-0.443287;SCBZ=-2.64597;MQ0F=0.0416667;AC=1;AN=2;DP4=5,3,22,36;MQ=32;ANN=T|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-319T>A|||||319|,T|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.921A>T||||||	GT:PL:DP:AD	0/1:255,0,10:66:8,58
+GU111969.1	939	.	G	A	228.319	PASS	DP=74;AD=2,69;VDB=0.685871;SGB=-0.693147;RPBZ=1.14721;MQBZ=-2.23272;MQSBZ=-0.468699;BQBZ=2.21667;SCBZ=-2.5664;MQ0F=0.027027;AC=2;AN=2;DP4=0,2,23,46;MQ=36;ANN=A|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-337C>T|||||337|,A|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.939G>A||||||	GT:PL:DP:AD	1/1:255,165,0:71:2,69
+GU111969.1	978	.	A	G	228.067	PASS	DP=99;AD=7,78;VDB=0.938325;SGB=-0.693147;RPBZ=-2.86219;MQBZ=-1.25509;MQSBZ=-0.827778;BQBZ=0.421126;SCBZ=-3.36697;MQ0F=0.020202;AC=2;AN=2;DP4=1,6,30,48;MQ=45;ANN=G|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-376T>C|||||376|,G|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.978A>G||||||	GT:PL:DP:AD	1/1:255,12,0:85:7,78
+GU111969.1	986	.	A	T	228.1	PASS	DP=100;AD=7,84;VDB=0.783613;SGB=-0.693147;RPBZ=-3.96256;MQBZ=-1.1628;MQSBZ=-0.773587;BQBZ=-0.334232;SCBZ=-3.44027;MQ0F=0.01;AC=2;AN=2;DP4=1,6,33,51;MQ=46;ANN=T|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-384T>A|||||384|,T|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.986A>T||||||	GT:PL:DP:AD	1/1:255,45,0:91:7,84
+GU111969.1	1002	.	T	G	225.417	PASS	DP=86;AD=0,78;VDB=0.106235;SGB=-0.693147;MQSBZ=-0.745307;MQ0F=0.0116279;AC=2;AN=2;DP4=0,0,32,46;MQ=46;ANN=G|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-400A>C|||||400|,G|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.1002T>G||||||	GT:PL:DP:AD	1/1:255,235,0:78:0,78
+GU111969.1	1018	.	G	T	225.417	PASS	DP=74;AD=0,67;VDB=3.71748e-09;SGB=-0.693147;MQSBZ=0.162446;MQ0F=0.0135135;AC=2;AN=2;DP4=0,0,27,40;MQ=46;ANN=T|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-416C>A|||||416|,T|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.1018G>T||||||	GT:PL:DP:AD	1/1:255,202,0:67:0,67
+GU111969.1	1021	.	T	C	225.417	PASS	DP=74;AD=0,64;VDB=1.13594e-09;SGB=-0.693147;MQSBZ=-0.0413462;MQ0F=0.0135135;AC=2;AN=2;DP4=0,0,29,35;MQ=47;ANN=C|upstream_gene_variant|MODIFIER|C1|Gene_179_601|transcript|ADQ55866.1|protein_coding||c.-419A>G|||||419|,C|intergenic_region|MODIFIER|C1-CHR_END|Gene_179_601-CHR_END|intergenic_region|Gene_179_601-CHR_END|||n.1021T>C||||||	GT:PL:DP:AD	1/1:255,193,0:64:0,64

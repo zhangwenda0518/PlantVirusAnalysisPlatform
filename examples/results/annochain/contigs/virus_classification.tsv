@@ -1,0 +1,3 @@
+contig	taxid	taxon	realm	kingdom	phylum	class	order	family	genus	species	length	genus_avg_len	ratio	near_complete	score	kmer_support	kmer_total
+example_contig_1	698400	Pepper yellows virus	Riboviria	Orthornavirae	Pisuviricota	Pisoniviricetes	Sobelivirales	Solemoviridae	Polerovirus	Polerovirus PEVYV6	6096	4432.6	1.375	False	0.396	800	2020
+example_contig_2	1471299	Grapevine Roditis leaf discoloration-associated virus	Riboviria	Pararnavirae	Artverviricota	Revtraviricetes	Ortervirales	Caulimoviridae	Badnavirus	Badnavirus decoloratiovitis	6988	3878.6	1.802	False	0.993	2252	2269

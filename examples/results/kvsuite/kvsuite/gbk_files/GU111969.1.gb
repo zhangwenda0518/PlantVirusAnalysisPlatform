@@ -1,0 +1,72 @@
+LOCUS       GU111969                1356 bp    DNA     circular VRL 18-MAY-2012
+DEFINITION  Bhendi yellow vein mosaic betasatellite [India:Guntur:OY112:2006],
+            complete sequence.
+ACCESSION   GU111969
+VERSION     GU111969.1
+KEYWORDS    .
+SOURCE      Bhendi yellow vein mosaic betasatellite [India:Guntur:OY112:2006]
+  ORGANISM  Bhendi yellow vein mosaic betasatellite [India:Guntur:OY112:2006]
+            Viruses; Tolecusatellitidae; Betasatellite; Betasatellite
+            abelmoschusmusiviflavi.
+REFERENCE   1  (bases 1 to 1356)
+  AUTHORS   Venkataravanappa,V., Reddy,C.N., Swaranalatha,P., Jalali,S.,
+            Briddon,R.W. and Reddy,M.K.
+  TITLE     Diversity and phylogeography of Begomovirus-associated beta
+            satellites of Okra in India
+  JOURNAL   Virol. J. 8, 555 (2011)
+   PUBMED   22188644
+REFERENCE   2  (bases 1 to 1356)
+  AUTHORS   Venkataravanappa,V., Lakshiminarayanareddy,C.N., Jalali,S.,
+            Swaranalatha,P. and Krishnareddy,M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (25-SEP-2009) Division of Plant Pathology, Indian
+            Institute of Horticultural Research, Hessaraghatta Lake PO,
+            Bangalore, Karnataka 560089, India
+FEATURES             Location/Qualifiers
+     source          1..1356
+                     /organism="Bhendi yellow vein mosaic betasatellite
+                     [India:Guntur:OY112:2006]"
+                     /mol_type="genomic DNA"
+                     /isolate="OY112"
+                     /isolation_source="leaf"
+                     /host="Abelmoschus esculentus (okra)"
+                     /db_xref="taxon:908073"
+                     /geo_loc_name="India: Guntur, Andhra Pradesh"
+                     /collection_date="2006"
+                     /collected_by="M.Krishnareddy"
+     gene            complement(180..602)
+                     /gene="C1"
+     CDS             complement(180..602)
+                     /gene="C1"
+                     /codon_start=1
+                     /product="C1 protein"
+                     /protein_id="ADQ55866.1"
+                     /translation="MKISIHFIYIFTSNIYIRRTIKMTRFSKNREGIVFKVDVKLMQQ
+                     QRISVQMQISSTRSPAISTKTFIIDYTYQQLHIPFDFNGLEGTITSTSKFHYWGSKAE
+                     EILEEDIIHMVDIIIIENPEIMGMDVNEPVTIDNKIII"
+ORIGIN      
+        1 accgtgggcg agcggaacct gagccgttgt gggacccact tatgaatgaa gttcatgggt
+       61 gatttcaagt atatggagga aattgtggat gagaaaaatg aatcatgttt gtttttgcaa
+      121 attattttac ataacagtct cctaataata attaatatgc aaacatatta ctaacaaaat
+      181 taaattatta tcttattatc aatagttact ggttcgttta catccattcc cataatttct
+      241 gggttttcaa taataataat atccaccata tgaatgatgt cttcttctaa tatttcttct
+      301 gcttttgaac cccagtagtg aaacttggag gttgatgtga tcgttccttc taaaccgttg
+      361 aagtcgaatg gaatgtgtaa ttgttggtat gtgtagtcga tgatgaatgt ttttgttgat
+      421 attgctggag atcttgttga actgatctgc atctggactg atatcctttg ttgttgcatg
+      481 agcttgacat ctactttgaa gacgatcccc tccctgtttt tgctgaacct tgtcattttg
+      541 attgtgcgtc taatgtatat gtttgaagtg aatatataga tgaaatgtat agatattttc
+      601 atataatgtg tggatgaaat gtatagatat tttcatataa tgtgtggata tcatttcata
+      661 aaattctatc ctgatgcaaa gaaaagtcat gagaaattcc cttattgagc tcagaaatac
+      721 gggaacgaca taaagttcag ccaataaact accatcttca aataaactca gccgataaga
+      781 aaaacaaaag aggaaataga ggaaaaatga aaccagaaag aaagaatata tatataaact
+      841 aagaaaaaag aaaagggagc gcagcgagaa aaaaaaagcg gagagaaaga aataacaaaa
+      901 tcgaataaaa gaaattcaca aagaaaaaga aaaaagaaga aatccgaggt caaaacgaag
+      961 ccgttttgag gaggaagagg aaagaaaatg gtcaatttat attttttacc atttaccgcg
+     1021 tagtaaatgg taaatagtaa atgaatgggt aaaatagaga gactccaata ggtaaattga
+     1081 gtcaccgata tattggtact acaattgggt cctctggagt attaggaagt gcttctttac
+     1141 cattttgccc ttacttttta gttatatcgc gcgtcgtagt gcgcttaaaa agttatcgtc
+     1201 tctctcttca gttccgataa aaacctaatt tcccgatgat cggagtcgaa ttttccgaca
+     1261 cgcgcggcgg tgtgtacccc tgggagggta gggtaccact acgctacgca gcagccttag
+     1321 ctacgccgga gcttagctcg cccacgttct aatatt
+//
+

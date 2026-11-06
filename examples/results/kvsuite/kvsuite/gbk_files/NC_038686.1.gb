@@ -1,0 +1,86 @@
+LOCUS       NC_038686               1342 bp    DNA     circular VRL 24-AUG-2018
+DEFINITION  Tomato leaf curl Malaysia betasatellite, complete sequence.
+ACCESSION   NC_038686
+VERSION     NC_038686.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Tomato leaf curl Malaysia betasatellite
+  ORGANISM  Tomato leaf curl Malaysia betasatellite
+            Viruses; Tolecusatellitidae; Betasatellite; Betasatellite
+            solanimalaysiaense.
+REFERENCE   1  (bases 1 to 1342)
+  AUTHORS   Mahmoudieh,M.K., Mohamad Roff,M.N., Harikrishna,J.A. and
+            Othman,R.Y.
+  TITLE     Ageratum yellow vein virus-Malaysia [Malaysia-Tomato Leaf
+            curl-2011] genome has a betasatellite and is a begomovirus
+            infecting Solanum lycopersicum in Malaysia
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 1342)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (24-AUG-2018) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 1342)
+  AUTHORS   Mahmoudieh,M.K.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (24-JUN-2014) Centre for Research in Biotechnology for
+            Agriculture, Institute of Biological Sciences, Faculty of Science,
+            University of Malaya, Kuala Lumpur, Selangor 50603, Malaysia
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to KM051528.
+            
+            ##Assembly-Data-START##
+            Assembly Method       :: Spades v. 3.1
+            Sequencing Technology :: Illumina
+            ##Assembly-Data-END##
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..1342
+                     /organism="Tomato leaf curl Malaysia betasatellite"
+                     /mol_type="genomic DNA"
+                     /isolate="Malaysia"
+                     /host="tomato"
+                     /db_xref="taxon:2049892"
+                     /geo_loc_name="Malaysia"
+                     /collection_date="2013"
+     gene            complement(263..619)
+                     /gene="C1"
+                     /locus_tag="D1S16_gp1"
+                     /db_xref="GeneID:37618925"
+     CDS             complement(263..619)
+                     /gene="C1"
+                     /locus_tag="D1S16_gp1"
+                     /note="C1 protein"
+                     /codon_start=1
+                     /product="C1"
+                     /protein_id="YP_009507816.1"
+                     /db_xref="GeneID:37618925"
+                     /translation="MTITYNNKKGMQFIINVRLRDDNSILVQVDLFSTKSAALSKKRF
+                     LIPYNHHGIIPPFDFNSLEERISTMLKDMYNESTIGDFKQEDMIEMIDIILMAEAPVM
+                     AIDLGEDYHVFNGVIV"
+ORIGIN      
+        1 actacgctac gcagcagcct tagctacgcc ggagcttagc tcgccaccgt tataatatta
+       61 ccggtggcga gcggttcctc tggtgttcag ttggtgggac ccactcacgg gggaagaaaa
+      121 aagagttgat gggcctggca caggcccatc cgtattggtg ggcttggtta aataagtcag
+      181 gcggccttta ataattagca ctgtattgac gtgacttgaa acatacagac atccaagtta
+      241 tgcatacagg agaaacactt atttatacaa tgaccccatt aaatacatgg tagtcctccc
+      301 ctaaatctat agccatcact ggagcctctg ccatcaggat tatatcgatc atctctatca
+      361 tatcttcctg cttgaaatcc ccaatggtag attcgttgta catatctttg agcatagtgg
+      421 atatcctctc ctccagactg ttgaaatcga atggtgggat gatcccgtgg tggttgtatg
+      481 ggatgaggaa cctcttcttg gatagtgctg ctgacttggt ggagaacagg tcaacctgca
+      541 caagaattga attatcatcc ctcaatctga cgttgatgat gaactgcatc cccttcttgt
+      601 tgttgtacgt gatcgtcatt gttgttgttg tgctcttggc tctctcatgt tgttcgttta
+      661 aataatgtaa ttgcatgatg atatgtggac atgaattata tacgcgttca attgtagttc
+      721 cagtatttct agttggtgga gatatttatg tttgatagtg atatcactat taaacatgta
+      781 attaagagaa agaaaagtca attatcataa tcatcaccat gattatgaag ataaaacaaa
+      841 aaagaagcaa aaaccacata aaactgaaga aaacaaagaa ctagaatgga gagatttata
+      901 ctcagaaaga aaagggagcg cagcgacaaa actgacagac ctagcgtgaa aaaattaacg
+      961 ttgaatgaaa aatctaaatc acaaaaaaga aaagaaatgg gccccctgta aaaatctgca
+     1021 agtccgtact ccacttatta tttactgagt taccacacgg taattcagta actgctattt
+     1081 acccttggta aatagcatag aggtaacttt gtccccaata ggtaaattgt ccccaatata
+     1141 ttgggtacca atcggggaca ggaaagagaa ataaataaga cagacaaaaa tacccttaaa
+     1201 aatgtgtcta ttaggcgcgt gtgagtgcgc tgaaaaagta gactttctct ctccaaaact
+     1261 caccggagaa gacgatacag gctgatcccg acatcaattt gcgacacgcg cggcggtgtg
+     1321 tccccctggg agggtagaaa cc
+//
+

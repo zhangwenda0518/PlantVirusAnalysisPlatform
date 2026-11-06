@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="VirusPlatform module_page">
+<title>工具箱 · dsRNA 设计（dsrna_20261106_002740_70475f） · 模块结果 · 植物病毒分析平台</title>
+<style>
+:root{--green:#17513c;--blue:#23415c;--ink:#1c2430;--mut:#6b7683;
+--line:#dfe3e8;--bg:#f4f5f3;--card:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+font:15px/1.65 "Microsoft YaHei","PingFang SC","Segoe UI",Arial,sans-serif}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+.mp-top{background:linear-gradient(135deg,#0f3d2e,#17513c 60%,#23415c);
+color:#fff;padding:26px 28px 18px}
+.mp-top h1{margin:6px 0 4px;font-size:24px}
+.mp-kicker{font-size:12px;letter-spacing:2px;opacity:.75;text-transform:uppercase}
+.mp-purpose{margin:4px 0 10px;opacity:.92;max-width:920px}
+.mp-meta{font-size:12.5px;opacity:.8;display:flex;gap:22px;flex-wrap:wrap}
+.mp-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.mp-nav a{color:#fff;background:rgba(255,255,255,.14);border:1px solid
+rgba(255,255,255,.28);padding:3px 11px;border-radius:999px;font-size:12.5px}
+.mp-nav a:hover{background:rgba(255,255,255,.26);text-decoration:none}
+.mp-nav a.self{background:rgba(255,255,255,.34);font-weight:600}
+.mp-nav a.ghost{opacity:.55}
+main{max-width:1280px;margin:0 auto;padding:18px 20px 40px}
+section{margin:20px 0}
+section>h2{font-size:18px;margin:0 0 10px;color:var(--green);
+border-left:4px solid var(--green);padding-left:10px}
+section>h2 small{color:var(--mut);font-weight:400;margin-left:8px}
+.mp-card{background:var(--card);border:1px solid var(--line);
+border-radius:10px;padding:14px 16px;margin:10px 0;
+box-shadow:0 1px 3px rgba(20,40,30,.06)}
+.mp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:14px}
+.mp-fig{background:#fff;border:1px solid var(--line);border-radius:10px;
+padding:10px 12px;margin:0;overflow:hidden}
+.mp-imgbox{background:#fbfbfa;border:1px solid var(--line);border-radius:6px;
+padding:6px;text-align:center;cursor:zoom-in;min-height:120px;
+display:flex;align-items:center;justify-content:center}
+.mp-imgbox img{max-width:100%;height:auto}
+.mp-fig figcaption{margin-top:8px;font-size:13px}
+.mp-fig figcaption b{font-size:14px;color:var(--green)}
+.mp-fig figcaption .mp-read{display:block;color:var(--mut);font-size:12.5px;margin-top:3px}
+.mp-figbar{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.mp-fmt,.mp-act{font-size:12px;border:1px solid var(--line);background:#fff;
+color:var(--ink);padding:2px 10px;border-radius:999px;cursor:pointer}
+.mp-fmt.active{background:var(--green);color:#fff;border-color:var(--green)}
+.mp-act:hover,.mp-fmt:hover{border-color:var(--green)}
+.mp-path{font-size:11.5px;color:var(--mut);margin-left:auto;
+white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46%}
+.mp-sub{margin:14px 0 6px;font-size:14px;color:var(--blue);font-weight:600}
+table.mp-tbl{border-collapse:collapse;width:100%;font-size:12.5px;background:#fff}
+table.mp-tbl th,table.mp-tbl td{border:1px solid var(--line);padding:4px 8px;
+text-align:left;max-width:340px;overflow:hidden;text-overflow:ellipsis;
+white-space:nowrap}
+table.mp-tbl th{background:#eef4f0;color:var(--green);position:sticky;top:0}
+.mp-tbl-wrap{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:8px}
+.mp-chip{display:inline-block;background:#fff;border:1px solid var(--line);
+border-radius:999px;padding:3px 12px;margin:3px 6px 3px 0;font-size:12.5px}
+.mp-chip:hover{border-color:var(--green);text-decoration:none}
+.mp-chip .mp-size{color:var(--mut);font-size:11px;margin-left:6px}
+.mp-note{color:var(--mut);font-size:13px}
+details.mp-prev{margin:8px 0 0}
+details.mp-prev summary{cursor:pointer;color:var(--blue);font-size:12.5px}
+details.mp-prev pre{background:#f7f7f5;border:1px solid var(--line);
+border-radius:8px;padding:10px;font-size:12px;line-height:1.5;
+max-height:360px;overflow:auto;white-space:pre;word-break:break-all}
+.mp-load iframe{width:100%;height:560px;border:1px solid var(--line);
+border-radius:8px;margin-top:8px;background:#fff}
+/* ---- 统一文件预览弹层：默认本页预览，不跳转；弹层头再给跳转/下载 ---- */
+#mp-preview{position:fixed;inset:0;background:rgba(12,18,14,.72);display:none;
+z-index:98;align-items:center;justify-content:center;padding:18px}
+#mp-preview.show{display:flex}
+.mp-pv-box{background:#fff;border-radius:10px;width:min(1200px,96vw);
+height:min(88vh,900px);display:flex;flex-direction:column;overflow:hidden;
+box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.mp-pv-head{display:flex;align-items:center;gap:10px;padding:9px 14px;
+border-bottom:1px solid var(--line);background:#f7f9f7}
+.mp-pv-head b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+white-space:nowrap;font-size:13.5px}
+.mp-pv-head .mp-pv-tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.mp-pv-body{flex:1;overflow:auto;padding:12px 14px;background:#fff;min-height:0}
+.mp-pv-body img{max-width:100%;display:block;margin:0 auto;background:#fff}
+.mp-pv-body iframe.mp-pv-frame{width:100%;height:100%;border:0;background:#fff}
+.mp-pv-body pre{background:#f7f7f5;border:1px solid var(--line);border-radius:8px;
+padding:10px;font-size:12px;line-height:1.5;max-height:none;overflow:auto;
+white-space:pre;word-break:break-all;margin:0}
+.mp-pv-note{color:var(--mut);font-size:13px}
+#mp-lightbox .mp-lb-tools{margin-top:12px;display:flex;gap:10px}
+#mp-lightbox .mp-lb-tools a{color:#fff;border:1px solid rgba(255,255,255,.45);
+border-radius:999px;padding:4px 14px;font-size:13px;background:rgba(255,255,255,.12)}
+#mp-lightbox .mp-lb-tools a:hover{background:rgba(255,255,255,.26);text-decoration:none}
+.mp-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:4px 18px}
+.mp-file{font-size:13px;padding:2px 0;border-bottom:1px dashed #edf0ee}
+.mp-file .mp-size{color:var(--mut);font-size:11.5px;margin-left:8px}
+.mp-file .mp-desc{color:var(--mut);font-size:12px;margin-left:8px}
+#mp-lightbox{position:fixed;inset:0;background:rgba(12,18,14,.92);display:none;
+z-index:99;align-items:center;justify-content:center;flex-direction:column;padding:24px}
+#mp-lightbox.show{display:flex}
+#mp-lightbox img{max-width:96vw;max-height:88vh;background:#fff;padding:8px;border-radius:6px}
+#mp-lightbox .mp-lb-cap{color:#dfe3e8;font-size:13px;margin-top:10px;max-width:90vw;text-align:center}
+#mp-lightbox .mp-lb-close{position:fixed;top:14px;right:20px;color:#fff;
+font-size:30px;cursor:pointer;line-height:1}
+@media (max-width:760px){.mp-grid{grid-template-columns:1fr}}
+/* ---- 页内目录（左栏 sticky；移动端折叠成横向 chips）---- */
+.mp-wrap{display:grid;grid-template-columns:216px minmax(0,1fr);
+max-width:1440px;margin:0 auto;align-items:start}
+.mp-toc{position:sticky;top:0;max-height:100vh;overflow:auto;
+padding:16px 10px 24px 18px;border-right:1px solid var(--line);
+background:#fbfaf8;min-height:calc(100vh - 40px)}
+.mp-toc h3{font-size:11.5px;color:var(--mut);letter-spacing:2px;
+margin:0 0 6px;text-transform:uppercase}
+.mp-toc a{display:flex;justify-content:space-between;align-items:center;
+gap:6px;padding:4px 9px;border-radius:6px;font-size:13px;color:var(--ink)}
+.mp-toc a:hover{background:#eef2ee;text-decoration:none}
+.mp-toc a.active{background:#e3efe8;color:var(--green);font-weight:600}
+.mp-toc a .n{color:var(--mut);font-size:11px;font-weight:400}
+.mp-toc .mp-toc-sub{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+.mp-toc .mp-toc-sub a{font-size:12px;color:var(--blue)}
+.mp-main{padding:18px 22px 40px;min-width:0}
+@media (max-width:900px){.mp-wrap{grid-template-columns:1fr}
+.mp-toc{position:static;min-height:0;max-height:none;border-right:none;
+border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:2px 6px;
+padding:10px 14px}
+.mp-toc h3{width:100%}
+.mp-toc a{padding:3px 9px}
+.mp-toc .mp-toc-sub{border-top:none;padding-top:2px;margin-top:4px}}
+</style>
+</head>
+<body>
+<header class="mp-top"><div class="mp-kicker">VirusPlatform · 模块结果页</div><h1>工具箱 · dsRNA 设计（dsrna_20261106_002740_70475f）</h1><p class="mp-purpose">dsRNA 检测靶标与臂序列设计。本页整理该次运行的全部产物：输入/参数见 run.log，图配读法，文件全部可点开。</p><div class="mp-meta"><span>运行目录　<b>dsrna_20261106_002740_70475f</b></span><span>生成时间　<b>2026-11-06 00:27</b></span><span>产物规模　<b>图表 0 · 表格 5 · 数据/序列 2 · 交互页 0 · 文件总数 11</b></span></div></header>
+<div class="mp-wrap"><nav class="mp-toc"><h3>本页目录</h3><a href="#sec-tables" data-sec="sec-tables">表格<span class="n">5</span></a><a href="#sec-data" data-sec="sec-data">数据与序列<span class="n">2</span></a><a href="#sec-files" data-sec="sec-files">各类文件<span class="n">4</span></a></nav><main class="mp-main">
+<section id="sec-tables"><h2>表格 <small>5 张 · 前 30 行内嵌预览</small></h2><div class="mp-card"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b>cand_w0_c0.csv</b><span class="mp-note">540 B</span><span class="mp-path">dsrnamax/cand_w0_c0.csv</span></div><div><span class="mp-desc">CSV 表格</span></div><div class="mp-tbl-wrap"><table class="mp-tbl"><thead><tr><th>Target sequence header</th><th>21nt matches</th><th>SWG similarity (%)</th><th>Kmer mean GC (%)</th><th>5&#x27;U (%)</th><th>5&#x27;A (%)</th><th>5&#x27;C (%)</th></tr></thead><tbody><tr><td>NC_002034</td><td>221</td><td>95.0</td><td>51.9</td><td>18.1</td><td>29.0</td><td>26.2</td></tr><tr><td>NC_002035</td><td>170</td><td>71.7</td><td>50.3</td><td>21.8</td><td>27.6</td><td>24.1</td></tr><tr><td>NC_001440</td><td>76</td><td>59.0</td><td>51.1</td><td>17.1</td><td>26.3</td><td>30.3</td></tr><tr><td></td></tr><tr><td>dsRNA sense-arm sequence:</td></tr><tr><td>TATTGAACGGCGATTTAATCGCCGAATGTGTTGCTCGTGCTTAGCGGTCTCCCTCTTCGGGCGGGATCTGAGTTGGCGGT</td></tr></tbody></table></div><div class="mp-figbar"><a class="mp-act" data-rel="dsrnamax/cand_w0_c0.csv" href="dsrnamax/cand_w0_c0.csv" target="_blank">打开完整表格 ↗</a></div></div><div class="mp-card"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b>cand_w0_c1.csv</b><span class="mp-note">540 B</span><span class="mp-path">dsrnamax/cand_w0_c1.csv</span></div><div><span class="mp-desc">CSV 表格</span></div><div class="mp-tbl-wrap"><table class="mp-tbl"><thead><tr><th>Target sequence header</th><th>21nt matches</th><th>SWG similarity (%)</th><th>Kmer mean GC (%)</th><th>5&#x27;U (%)</th><th>5&#x27;A (%)</th><th>5&#x27;C (%)</th></tr></thead><tbody><tr><td>NC_002034</td><td>221</td><td>95.0</td><td>51.9</td><td>18.1</td><td>29.0</td><td>26.2</td></tr><tr><td>NC_002035</td><td>170</td><td>71.7</td><td>50.3</td><td>21.8</td><td>27.6</td><td>24.1</td></tr><tr><td>NC_001440</td><td>76</td><td>59.0</td><td>51.1</td><td>17.1</td><td>26.3</td><td>30.3</td></tr><tr><td></td></tr><tr><td>dsRNA sense-arm sequence:</td></tr><tr><td>TATTGAACGGCGATTTAATCGCCGAATGTGTTGCTCGTGCTTAGCGGTCTCCCTCTTCGGGCGGGATCTGAGTTGGCGGT</td></tr></tbody></table></div><div class="mp-figbar"><a class="mp-act" data-rel="dsrnamax/cand_w0_c1.csv" href="dsrnamax/cand_w0_c1.csv" target="_blank">打开完整表格 ↗</a></div></div><div class="mp-card"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b>cand_w0_c2.csv</b><span class="mp-note">540 B</span><span class="mp-path">dsrnamax/cand_w0_c2.csv</span></div><div><span class="mp-desc">CSV 表格</span></div><div class="mp-tbl-wrap"><table class="mp-tbl"><thead><tr><th>Target sequence header</th><th>21nt matches</th><th>SWG similarity (%)</th><th>Kmer mean GC (%)</th><th>5&#x27;U (%)</th><th>5&#x27;A (%)</th><th>5&#x27;C (%)</th></tr></thead><tbody><tr><td>NC_002034</td><td>221</td><td>95.0</td><td>51.9</td><td>18.1</td><td>29.0</td><td>26.2</td></tr><tr><td>NC_002035</td><td>170</td><td>71.7</td><td>50.3</td><td>21.8</td><td>27.6</td><td>24.1</td></tr><tr><td>NC_001440</td><td>76</td><td>59.0</td><td>51.1</td><td>17.1</td><td>26.3</td><td>30.3</td></tr><tr><td></td></tr><tr><td>dsRNA sense-arm sequence:</td></tr><tr><td>TATTGAACGGCGATTTAATCGCCGAATGTGTTGCTCGTGCTTAGCGGTCTCCCTCTTCGGGCGGGATCTGAGTTGGCGGT</td></tr></tbody></table></div><div class="mp-figbar"><a class="mp-act" data-rel="dsrnamax/cand_w0_c2.csv" href="dsrnamax/cand_w0_c2.csv" target="_blank">打开完整表格 ↗</a></div></div><div class="mp-card"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b>primers.tsv</b><span class="mp-note">1.1 KB</span><span class="mp-path">dsrnamax/primers.tsv</span></div><div class="mp-tbl-wrap"><table class="mp-tbl"><thead><tr><th>arm</th><th>idx</th><th>forward_T7</th><th>reverse_T7</th><th>product_bp</th><th>f_tm</th><th>r_tm</th><th>amp_start</th><th>amp_end</th><th>amplicon</th></tr></thead><tbody><tr><td>arm_1</td><td>1</td><td>TAATACGACTCACTATAGGGGCTTAGCGGTCTCCCTCTTC</td><td>TAATACGACTCACTATAGGGTGCTAGAAGTACACGGACCG</td><td>224</td><td>59.9</td><td>59.2</td><td>39</td><td>262</td><td>GCTTAGCGGTCTCCCTCTTCGGGCGGGATCTGAGTTGGCGGTAATCTGCAAACCGTCTGAAGTCACTAAACACATTGTGT</td></tr><tr><td>arm_1</td><td>2</td><td>TAATACGACTCACTATAGGGGCTTAGCGGTCTCCCTCTTC</td><td>TAATACGACTCACTATAGGGGACCGAAGTCCTTCCGAAGA</td><td>209</td><td>59.9</td><td>59.1</td><td>39</td><td>247</td><td>GCTTAGCGGTCTCCCTCTTCGGGCGGGATCTGAGTTGGCGGTAATCTGCAAACCGTCTGAAGTCACTAAACACATTGTGT</td></tr><tr><td>arm_1</td><td>3</td><td>TAATACGACTCACTATAGGGCGAATGTGTTGCTCGTGCTT</td><td>TAATACGACTCACTATAGGGTGCTAGAAGTACACGGACCG</td><td>240</td><td>59.8</td><td>59.2</td><td>23</td><td>262</td><td>CGAATGTGTTGCTCGTGCTTAGCGGTCTCCCTCTTCGGGCGGGATCTGAGTTGGCGGTAATCTGCAAACCGTCTGAAGTC</td></tr></tbody></table></div><div class="mp-figbar"><a class="mp-act" data-rel="dsrnamax/primers.tsv" href="dsrnamax/primers.tsv" target="_blank">打开完整表格 ↗</a></div></div><div class="mp-card"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b>result.csv</b><span class="mp-note">540 B</span><span class="mp-path">dsrnamax/result.csv</span></div><div><span class="mp-desc">CSV 表格</span></div><div class="mp-tbl-wrap"><table class="mp-tbl"><thead><tr><th>Target sequence header</th><th>21nt matches</th><th>SWG similarity (%)</th><th>Kmer mean GC (%)</th><th>5&#x27;U (%)</th><th>5&#x27;A (%)</th><th>5&#x27;C (%)</th></tr></thead><tbody><tr><td>NC_002034</td><td>221</td><td>95.0</td><td>51.9</td><td>18.1</td><td>29.0</td><td>26.2</td></tr><tr><td>NC_002035</td><td>170</td><td>71.7</td><td>50.3</td><td>21.8</td><td>27.6</td><td>24.1</td></tr><tr><td>NC_001440</td><td>76</td><td>59.0</td><td>51.1</td><td>17.1</td><td>26.3</td><td>30.3</td></tr><tr><td></td></tr><tr><td>dsRNA sense-arm sequence:</td></tr><tr><td>TATTGAACGGCGATTTAATCGCCGAATGTGTTGCTCGTGCTTAGCGGTCTCCCTCTTCGGGCGGGATCTGAGTTGGCGGT</td></tr></tbody></table></div><div class="mp-figbar"><a class="mp-act" data-rel="dsrnamax/result.csv" href="dsrnamax/result.csv" target="_blank">打开完整表格 ↗</a></div></div></section><section id="sec-data"><h2>数据与序列 <small>2 个 · 折叠预览</small></h2><div class="mp-card"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b>report.json</b><span class="mp-note">16.6 KB · 2026-11-06 00:27</span><span class="mp-path">dsrnamax/report.json</span></div><div><span class="mp-desc">JSON 数据</span></div><details class="mp-prev"><summary>预览 JSON（前 120 行）</summary><pre>{
+ &quot;tool&quot;: &quot;dsrna&quot;,
+ &quot;exe&quot;: {
+  &quot;path&quot;: &quot;D:\\桌面\\植物病毒分析平台\\3rd\\tools\\dsrnamax\\dsRNAmax_det.exe&quot;,
+  &quot;version&quot;: &quot;1.1.15&quot;,
+  &quot;has_seed&quot;: true
+ },
+ &quot;params&quot;: {
+  &quot;construct_len&quot;: 300,
+  &quot;kmer_len&quot;: 21,
+  &quot;iterations&quot;: 100,
+  &quot;seed&quot;: 42,
+  &quot;candidates&quot;: 3,
+  &quot;n_windows&quot;: 1,
+  &quot;off_targets&quot;: &quot;&quot;,
+  &quot;panel&quot;: &quot;&quot;,
+  &quot;max_mm&quot;: 1,
+  &quot;efficiency_priority&quot;: 50,
+  &quot;safety_priority&quot;: 50,
+  &quot;safety_essential_coeff&quot;: null,
+  &quot;primer_scope&quot;: &quot;best_window&quot;,
+  &quot;primer_product_min&quot;: 200,
+  &quot;primer_product_max&quot;: 300,
+  &quot;primer_num_return&quot;: null,
+  &quot;isolates&quot;: &quot;&quot;
+ },
+ &quot;memory&quot;: {
+  &quot;distinct_kmers&quot;: 8342,
+  &quot;predicted_gb&quot;: 0.65,
+  &quot;cap_gb&quot;: 9.6566808576
+ },
+ &quot;logs&quot;: [
+  &quot;第 1 窗：3 个候选按最差目标重排，保留最优 min 76/med 170；min 76/med 170；min 76/med 170&quot;,
+  &quot;第 1 窗：300 nt · 0.3s · 目标数 3&quot;
+ ],
+ &quot;arms&quot;: [
+  {
+   &quot;name&quot;: &quot;arm_1&quot;,
+   &quot;seq&quot;: &quot;TATTGAACGGCGATTTAATCGCCGAATGTGTTGCTCGTGCTTAGCGGTCTCCCTCTTCGGGCGGGATCTGAGTTGGCGGTAATCTGCAAACCGTCTGAAGTCACTAAACACATTGTGTGGTGAACGGGTTGTCCATCCAGCTTACGGCTAAAATGGTCAGTCGTAGAGGAATCTACGCCAGCAGACTTACAAGTCTCTGAGGCACCTTT
+   &quot;length&quot;: 300,
+   &quot;gc&quot;: 51.0,
+   &quot;seed&quot;: 42,
+   &quot;runtime_s&quot;: 0.3,
+   &quot;candidates_tried&quot;: 3,
+   &quot;target_stats&quot;: [
+    {
+     &quot;target&quot;: &quot;NC_002034&quot;,
+     &quot;kmer_matches&quot;: &quot;221&quot;,
+     &quot;swg&quot;: &quot;95.0&quot;,
+     &quot;gc&quot;: &quot;51.9&quot;
+    },
+    {
+     &quot;target&quot;: &quot;NC_002035&quot;,
+     &quot;kmer_matches&quot;: &quot;170&quot;,
+     &quot;swg&quot;: &quot;71.7&quot;,
+     &quot;gc&quot;: &quot;50.3&quot;
+    },
+    {
+     &quot;target&quot;: &quot;NC_001440&quot;,
+     &quot;kmer_matches&quot;: &quot;76&quot;,
+     &quot;swg&quot;: &quot;59.0&quot;,
+     &quot;gc&quot;: &quot;51.1&quot;
+    }
+   ],
+   &quot;candidate_keys&quot;: [
+    {
+     &quot;min&quot;: 76.0,
+     &quot;median&quot;: 170.0,
+     &quot;sum&quot;: 467.0
+    },
+    {
+     &quot;min&quot;: 76.0,
+     &quot;median&quot;: 170.0,
+     &quot;sum&quot;: 467.0
+    },
+    {
+     &quot;min&quot;: 76.0,
+     &quot;median&quot;: 170.0,
+     &quot;sum&quot;: 467.0
+    }
+   ],
+   &quot;best_window&quot;: {
+    &quot;mean_combined&quot;: 87.08340000000003,
+    &quot;start_siRNA&quot;: &quot;sirna16_36&quot;,
+    &quot;end_siRNA&quot;: &quot;sirna265_285&quot;,
+    &quot;nt_start&quot;: 16,
+    &quot;nt_end&quot;: 285,
+    &quot;sense_nt_start&quot;: 16,
+    &quot;sense_nt_end&quot;: 285,
+    &quot;frame&quot;: &quot;nt_start/nt_end = guide(反义链) 帧；sense_nt_* = 臂(正义链) 帧&quot;,
+    &quot;window_efficiency_mean&quot;: 74.16680000000002,
+    &quot;window_safety_mean&quot;: 100.0,
+    &quot;window_raw_offtarget_sum&quot;: 0,
+    &quot;note&quot;: &quot;&quot;,
+    &quot;efficacy_best_window&quot;: {
+     &quot;nt_start&quot;: 16,
+     &quot;nt_end&quot;: 285,
+     &quot;sense_nt_start&quot;: 16,
+     &quot;sense_nt_end&quot;: 285,
+     &quot;mean_score&quot;: 74.16679999999991
+    }
+   }
+  }
+ ],
+ &quot;scoring&quot;: {
+  &quot;arm_1&quot;: {
+   &quot;name&quot;: &quot;arm_1&quot;,
+   &quot;length&quot;: 300,
+   &quot;n_siRNAs&quot;: 280,
+   &quot;median_score&quot;: 73.05,
+   &quot;mean_score&quot;: 72.73,
+   &quot;best_window&quot;: {
+    &quot;mean_combined&quot;: 87.08340000000003,
+    &quot;start_siRNA&quot;: &quot;sirna16_36&quot;,
+    &quot;end_siRNA&quot;: &quot;sirna265_285&quot;,
+    &quot;nt_start&quot;: 16,
+    &quot;nt_end&quot;: 285,
+    &quot;sense_nt_start&quot;: 16,
+    &quot;sense_nt_end&quot;: 285,
+    &quot;frame&quot;: &quot;nt_start/nt_end = guide(反义链) 帧；sense_nt_* = 臂(正义链) 帧&quot;,
+…（仅前 120 行）</pre></details><div class="mp-figbar"><a class="mp-act" data-rel="dsrnamax/report.json" href="dsrnamax/report.json" target="_blank">打开原文件 ↗</a></div></div><div class="mp-card"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b>summary.json</b><span class="mp-note">586 B · 2026-11-06 00:27</span><span class="mp-path">dsrnamax/summary.json</span></div><div><span class="mp-desc">JSON 数据</span></div><details class="mp-prev"><summary>预览 JSON（前 120 行）</summary><pre>{
+ &quot;tool&quot;: &quot;dsrna&quot;,
+ &quot;csv&quot;: &quot;D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\dsrna_20261106_002740_70475f\\dsrnamax\\result.csv&quot;,
+ &quot;n_targets&quot;: 3,
+ &quot;construct_len&quot;: 300,
+ &quot;kmer_len&quot;: 21,
+ &quot;iterations&quot;: 100,
+ &quot;seed&quot;: 42,
+ &quot;off_targets&quot;: &quot;(无)&quot;,
+ &quot;out_dir&quot;: &quot;D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\dsrna_20261106_002740_70475f\\dsrnamax&quot;,
+ &quot;exe_version&quot;: &quot;1.1.15&quot;,
+ &quot;n_arms&quot;: 1,
+ &quot;panel_species&quot;: 0,
+ &quot;red_lines&quot;: [],
+ &quot;n_primer_pairs&quot;: 3,
+ &quot;report&quot;: &quot;dsrnamax/report.json&quot;,
+ &quot;primers_tsv&quot;: &quot;dsrnamax/primers.tsv&quot;,
+ &quot;arms_fa&quot;: &quot;dsrnamax/arms.fa&quot;,
+ &quot;elapsed_s&quot;: 1.4
+}</pre></details><div class="mp-figbar"><a class="mp-act" data-rel="dsrnamax/summary.json" href="dsrnamax/summary.json" target="_blank">打开原文件 ↗</a></div></div></section><section id="sec-files"><h2>各类文件 <small>4 个 · 全部可点开</small></h2><div class="mp-sub">.fa <span class="mp-note">（3 个）</span></div><div class="mp-files"><div class="mp-file"><a data-rel="dsrnamax/amplicons.fa" href="dsrnamax/amplicons.fa">amplicons.fa</a><span class="mp-size">714 B</span><span class="mp-desc">FASTA 序列</span></div><div class="mp-file"><a data-rel="dsrnamax/arms.fa" href="dsrnamax/arms.fa">arms.fa</a><span class="mp-size">312 B</span><span class="mp-desc">FASTA 序列</span></div><div class="mp-file"><a data-rel="dsrnamax/targets_w0.fa" href="dsrnamax/targets_w0.fa">targets_w0.fa</a><span class="mp-size">8.6 KB</span><span class="mp-desc">FASTA 序列</span></div></div><div class="mp-sub">.log <span class="mp-note">（1 个）</span></div><div class="mp-files"><div class="mp-file"><a data-rel="run.log" href="run.log">run.log</a><span class="mp-size">704 B</span></div></div></section>
+<footer class="mp-note" style="margin-top:30px">由 module_page 自 <b>D:\桌面\植物病毒分析平台\run\tool_runs\dsrna_20261106_002740_70475f</b> 的落盘产物自动生成，2026-11-06 00:27。产物均为相对链接，磁盘双击与平台内预览均可打开。</footer>
+</main></div>
+<div id="mp-lightbox"><span class="mp-lb-close">×</span><img src="" alt=""><div class="mp-lb-cap"></div></div>
+<script>var __VP_BASE__="D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\dsrna_20261106_002740_70475f";
+(function(){
+var BASE=__VP_BASE__;
+function inRaw(){return location.protocol.indexOf('http')===0&&
+location.pathname.indexOf('/api/fs/raw')>=0}
+function rawUrl(rel){return '/api/fs/raw?path='+encodeURIComponent(BASE+'/'+rel)}
+if(inRaw()){
+  document.querySelectorAll('[data-rel]').forEach(function(el){
+    var rel=el.getAttribute('data-rel');
+    if(el.tagName==='IMG'){el.setAttribute('src',rawUrl(rel));}
+    else{el.setAttribute('href',rawUrl(rel));}
+  });
+}
+function curSrc(img){var r=img.getAttribute('data-rel');
+  return inRaw()?rawUrl(r):img.getAttribute('src')||r;}
+document.querySelectorAll('.mp-fmt').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var box=btn.closest('.mp-fig');if(!box)return;
+    var img=box.querySelector('.mp-imgbox img');if(!img)return;
+    var src=btn.getAttribute('data-src');
+    img.setAttribute('src',inRaw()?rawUrl(src):src);
+    img.setAttribute('data-rel',src);
+    box.querySelectorAll('.mp-fmt').forEach(function(b){b.classList.remove('active')});
+    btn.classList.add('active');
+  });
+});
+document.querySelectorAll('.mp-imgbox').forEach(function(box){
+  box.addEventListener('click',function(){
+    var img=box.querySelector('img');if(!img)return;
+    var fig=box.closest('.mp-fig');
+    var cap=fig?(fig.querySelector('figcaption b')||{}).textContent||'':'';
+    var lb=document.getElementById('mp-lightbox');if(!lb)return;
+    lb.querySelector('img').setAttribute('src',curSrc(img));
+    lb.querySelector('.mp-lb-cap').textContent=cap;
+    lb.classList.add('show');
+    return false;
+  });
+});
+var lb=document.getElementById('mp-lightbox');
+if(lb){lb.addEventListener('click',function(){lb.classList.remove('show')});}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&lb)lb.classList.remove('show')});
+document.querySelectorAll('.mp-load button').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var w=btn.parentNode;var old=w.querySelector('iframe');
+    if(old){old.remove();btn.textContent='预览';return;}
+    var src=btn.getAttribute('data-src');
+    var fr=document.createElement('iframe');
+    fr.setAttribute('src',inRaw()?rawUrl(src):src);
+    fr.setAttribute('loading','lazy');
+    w.appendChild(fr);
+    btn.textContent='收起预览';
+  });
+});
+/* --- 目录滚动高亮 --- */
+var tocLinks=[].slice.call(document.querySelectorAll('.mp-toc a[data-sec]'));
+function tocSpy(){
+  var cur='';
+  tocLinks.forEach(function(a){
+    var el=document.getElementById(a.getAttribute('data-sec'));
+    if(el&&el.getBoundingClientRect().top<130)cur=a.getAttribute('data-sec');
+  });
+  if(!cur&&tocLinks.length)cur=tocLinks[0].getAttribute('data-sec');
+  tocLinks.forEach(function(a){
+    a.classList.toggle('active',a.getAttribute('data-sec')===cur)});
+}
+if(tocLinks.length){
+  window.addEventListener('scroll',tocSpy,{passive:true});
+  tocSpy();
+}
+})();
+</script>
+</body>
+</html>

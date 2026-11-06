@@ -1,0 +1,82 @@
+LOCUS       NC_043085                560 bp    RNA     linear   VRL 28-JUN-2019
+DEFINITION  Verbena latent virus isolate NZ 25 KDa protein (TGB1) and 12 KDa
+            protein (TGB2) genes, partial cds.
+ACCESSION   NC_043085
+VERSION     NC_043085.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Verbena latent virus
+  ORGANISM  Verbena latent virus
+            Viruses; Riboviria; Orthornavirae; Kitrinoviricota; Alsuviricetes;
+            Tymovirales; Betaflexiviridae; Quinvirinae; Carlavirus; Carlavirus
+            latensverbenae.
+REFERENCE   1  (bases 1 to 560)
+  AUTHORS   Ochoa-Corona,F.M., Tang,J., Lebas,B.S., Rubio,L. and Gera,A.
+  TITLE     Diagnosis of Broad bean wilt virus 1 and Verbena latent virus in
+            Tropaeolum majus in New Zealand
+  JOURNAL   Australas. Plant Pathol. (2009) In press
+REFERENCE   2  (bases 1 to 560)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (28-JUN-2019) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 560)
+  AUTHORS   Tang,J.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (16-FEB-2009) Ministry of Agriculture and Forestry,
+            Investigation and Diagnostic Centre, 231 Morrin Road, St Johns,
+            Auckland 1140, New Zealand
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to FJ754643.
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..560
+                     /organism="Verbena latent virus"
+                     /mol_type="genomic RNA"
+                     /isolate="NZ"
+                     /host="Tropaeolum majus"
+                     /db_xref="taxon:134374"
+                     /geo_loc_name="New Zealand"
+                     /collection_date="Sep-2004"
+     gene            <1..344
+                     /gene="TGB1"
+                     /locus_tag="FK831_gp1"
+                     /db_xref="GeneID:40524836"
+     CDS             <1..344
+                     /gene="TGB1"
+                     /locus_tag="FK831_gp1"
+                     /note="triple gene block 1"
+                     /codon_start=3
+                     /product="25 KDa protein"
+                     /protein_id="YP_009664749.1"
+                     /db_xref="GeneID:40524836"
+                     /translation="ESRRFGKATAQLLQHFGFDVHSSGDDVVNITDALTVDPKGVIVY
+                     YEDEVKCLLDYNRVEAKHVREIRGKTFEEVTFITASNDLGPDPVAAFQCLTRHKVALN
+                     IFCPNATYRPA"
+     gene            322..>560
+                     /gene="TGB2"
+                     /locus_tag="FK831_gp2"
+                     /db_xref="GeneID:40524835"
+     CDS             322..>560
+                     /gene="TGB2"
+                     /locus_tag="FK831_gp2"
+                     /note="triple gene block 2"
+                     /codon_start=1
+                     /product="12 KDa protein"
+                     /protein_id="YP_009664750.1"
+                     /db_xref="GeneID:40524835"
+                     /translation="MPLIAPPDNTRTFLCLAVGISLSLFIGLYTRNTLPHVGDLHHSL
+                     PHGGFYRDGTKTISYLKPNKLNSVEGHQKHFATQP"
+ORIGIN      
+        1 aagagagccg taggtttggc aaagcaactg cgcaattgtt gcagcatttt ggtttcgacg
+       61 tgcattcttc tggtgacgac gtggtgaata ttacagacgc tcttaccgtt gatccgaaag
+      121 gtgttatagt gtattacgag gacgaagtga agtgcttgct ggattacaat cgagtagaag
+      181 cgaaacacgt gcgtgagatt cgaggcaaaa cctttgagga ggtgaccttc atcactgcct
+      241 caaacgatct gggacctgac ccggtggcag ctttccagtg tctcacgagg cacaaggttg
+      301 cattgaacat attctgtccc aatgccactt atcgccccgc ctgataacac acgaaccttt
+      361 ctgtgtttag ccgttggtat aagcttatcg ttgttcatcg ggttgtacac gaggaatact
+      421 ttgccacacg ttggggactt gcatcattca ttgccacacg ggggtttcta cagagacggc
+      481 actaagacaa ttagttacct caagccaaac aagttgaact ccgtggaggg gcatcaaaag
+      541 cacttcgcta ctcaaccctg
+//
+

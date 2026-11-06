@@ -1,22 +1,31 @@
 {
   "chain": "kvchain",
-  "run": "kvchain_20261006_162559_c17ad4",
+  "run": "kvchain_20261103_123633_b9e023",
   "label": "病毒定量与共识 一键流程",
-  "created": "2026-10-06 16:25:59",
+  "mode": "single",
+  "input_dir": "",
+  "n_samples": 1,
+  "params": {},
+  "created": "2026-11-03 12:36:33",
   "steps": [
     {
       "key": "kvsuite",
-      "run": "kvsuite_20261006_162559_6a6f",
+      "run": "kvsuite_20261103_123633_2744",
       "title": "已知病毒识别与定量（全流程）",
       "summary": {
         "stage": "all",
         "engine": "salmon",
-        "out": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261006_162559_6a6f\\kvsuite",
+        "out": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_123633_2744\\kvsuite",
         "reference": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\reference.fasta",
-        "filtered_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261006_162559_6a6f\\kvsuite\\filter\\filtered.tsv",
-        "n_confirmed": 3
+        "filtered_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_123633_2744\\kvsuite\\filter\\filtered.tsv",
+        "n_confirmed": 98,
+        "variant_summary": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_123633_2744\\kvsuite\\variant_summary.json",
+        "n_variant_genomes": 17,
+        "n_variants": 581,
+        "n_variant_skipped": 7
       }
     }
   ],
+  "samples": [],
   "done": true
 }

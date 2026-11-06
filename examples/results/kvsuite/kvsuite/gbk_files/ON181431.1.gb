@@ -1,0 +1,93 @@
+LOCUS       ON181431                2252 bp    RNA     linear   VRL 24-MAY-2022
+DEFINITION  Pueraria lobata-associated emaravirus isolate XF segment RNA2,
+            complete sequence.
+ACCESSION   ON181431
+VERSION     ON181431.1
+KEYWORDS    .
+SOURCE      Pueraria lobata-associated emaravirus
+  ORGANISM  Pueraria lobata-associated emaravirus
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Elliovirales; Fimoviridae;
+            Emaravirus; Emaravirus kudzu.
+REFERENCE   1  (bases 1 to 2252)
+  AUTHORS   Liang,X.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (28-MAR-2022) National Citrus Engineering and Technology
+            Research Center, Citrus Research Institute, No. 15, Citrus Village,
+            Xiema Town, Beibei District, Chongqing 400712, China
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: CLC Genomics workbench v. 11.0
+            Sequencing Technology :: Illumina; Sanger dideoxy sequencing
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..2252
+                     /organism="Pueraria lobata-associated emaravirus"
+                     /mol_type="genomic RNA"
+                     /isolate="XF"
+                     /isolation_source="plant"
+                     /host="Pueraria montana var. lobata"
+                     /db_xref="taxon:2944626"
+                     /segment="RNA2"
+                     /geo_loc_name="China"
+                     /lat_lon="29.780000 N 106.390000 E"
+                     /altitude="228 m"
+                     /collection_date="18-Sep-2020"
+                     /collected_by="X. Liang"
+     CDS             complement(256..2205)
+                     /note="p2"
+                     /codon_start=1
+                     /product="glycoprotein precursor"
+                     /protein_id="UQV97406.1"
+                     /translation="MKLISVFNCVIALVIILMSSKAVYNSVSDTTVTCVCKPDIKKMG
+                     KEYLVCFEGCPITPVNAKLYNVTCSYMEDITIIVCKNERYIATRPSIVIQGDYIWSTI
+                     VNRAWKLIAAIIVWLVMILMKLPSLCFFSLFNNILNRAVAKNLRTCSTCRTRYLFSHI
+                     DCPTPGFRHRTDYNLFFYILLVIIVSTTLVKADDNLYNYYKHGNSTEIQVVDKEHYEQ
+                     DFDVGGYLYTITITNSHLEVDVVNVSEILMPVTHRLTHEHFSCDGEEGCKKECYARTG
+                     RNPMYTIRKAHDGFSCVMTNAVLCGLCESEMRSIGYKVTTTNIRPYIDITVKHGNKTE
+                     EIKIREFSHYIHEPYYVKPIEPFILESIDYFINGPNVYRGQICNMPSYGCFGPNYKKD
+                     GKSYALMVPKVLDPMTFDREIVLVHCIDPGNSDINSLEKTEFVYQNGVMIRPYEFGLI
+                     SIGIPLVGKLIGDFCERPVIITDIAIQGCYDCQSGIEVKIYYTNPERCGQVKCKIGRV
+                     AYEYFVDVDSDHMTIHSFYDKEDVKITCNDYSKEAKLSHSKDTDYYKTNNEVHGSAPY
+                     EFNLLKHFPNIFMNFRTMSTTVILLLCTLYMVYNIFKHVHKHYSIIKYDRVLRMYKKK
+                     DTYDDLNDPIDEYTTSFTVETGEAQ"
+ORIGIN      
+        1 agtagtgaac tcctcttaag caaaaacagt taaaaataat cttgcaaaat gtataatgtt
+       61 agagtcaata accctgtcca gcagctgtaa tttgtattga aacagattac agactgggtt
+      121 acatgtaaag taacatgcac cacttgcagg cccttatcca tgtacgacca tgcagcttgc
+      181 tggacaaaga attgaagacc tttggatatg tgggaactct ataaagaatt tttggatatt
+      241 aggggaatga tccactcatt gtgcttcacc agtctcaaca gtgaaactag tagtatactc
+      301 atctattgga tcatttaggt catcataggt atctttcttt ttatacattc tcaaaacacg
+      361 atcatatttt ataatagagt aatgtttatg tacatgttta aatatattgt acaccatata
+      421 taatgtgcat aatagtaata taacagtggt agacatagtt ctaaagttca taaagatatt
+      481 tgggaagtgc ttcaacaagt taaactcata tggtgctgag ccatgaacct cattattggt
+      541 tttataataa tctgtgtctt tactgtggct tagtttggct tccttagaat aatcattaca
+      601 agttatctta acatcttcct tatcataaaa tgaatggatg gtcatatgat cgctatctac
+      661 atccacaaaa tattcataag ctaccctgcc tatcttacat ttgacctggc cacatctctc
+      721 tgggtttgtg taataaattt tcacttctat gccagactga caatcatagc aaccttgtat
+      781 agcaatatct gttatgatca ctggtctttc acaaaaatca ccaatcagct tgcccaccaa
+      841 gggtatgcct atggatatca agccaaattc atatggtcta atcatcacac cattctgata
+      901 aacaaattca gtcttctcca ggctgtttat atcactattg ccaggatcga tacaatgaac
+      961 tagcacaatc tcacgatcaa atgtcattgg gtctaaaact ttaggcacca ttagtgcata
+     1021 agattttcca tcctttttat aatttggacc aaaacaacca tagcttggca tgttacagat
+     1081 ttgacctcta tatacgtttg gaccattgat aaaatagtca attgactcca agataaaggg
+     1141 ttcaattggt ttaacataat aaggctcatg gatgtagtgt gagaattctc taatcttgat
+     1201 ttcttctgtt ttgttaccat gtttaacagt tatatcaata tatggtctaa tattagtggt
+     1261 ggttacttta tagccaatac ttctcatctc actttcacat aaaccacaca atacagcatt
+     1321 tgtcataaca catgagaaac catcgtgtgc tttcctaatt gtgtacatag gatttcttcc
+     1381 agtccttgca taacattctt tcttacagcc ttcttcacca tcacaactaa agtgctcatg
+     1441 tgttaacctg tgtgtaactg gcattagtat ttcagataca ttgacaacat caacctcgag
+     1501 gtgtgaatta gttatggtta tggtgtatag atagccaccc acatcaaaat cctgttcata
+     1561 atgctcctta tcaacgacct gtatttcagt ggaattacca tgcttgtaat aattgtaaag
+     1621 attgtcatca gctttaacta aagtggtgga gacaatgatt accagcaata tgtagaagaa
+     1681 tagattataa tcagttctat gcctgaatcc tggtgtagga caatcaatat ggctgaatag
+     1741 atatcttgtt ctgcatgtgc tgcaggttct taagttttta gcaacagctc gattaaggat
+     1801 gttattgaag agggaaaaga agcacaagct gggtaatttc atcaaaatca tcacaagcca
+     1861 gactataata gcagctatta gtttccaagc tctattaaca attgttgacc aaatgtaatc
+     1921 accttggata actatgcttg gtctagttgc tatatatctt tcattcttgc agacaataat
+     1981 ggttatgtct tccatgtaac tacaagttac attgtatagt ttggcattga caggtgttat
+     2041 aggacaacct tcaaagcaaa caaggtattc ctttcccatc ttttttatat caggtttgca
+     2101 tacacaggtc acagtagtat cactgacact gttgtagaca gccttagaag acattaggat
+     2161 aatcaccaac gctatgacgc agttaaacac acttattagc ttcatttttt aaacttgtat
+     2221 tgattgttca atgttaagag gagttcacta ct
+//
+

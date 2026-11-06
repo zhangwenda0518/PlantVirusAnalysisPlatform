@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="276" viewBox="0 0 1160 276" font-family="Arial,sans-serif">
+<text x="20.0" y="26" font-size="14" font-weight="bold">example_contig_1</text>
+<text x="20.0" y="44" font-size="11" fill="#555">长度 6,096 nt · 4 个 ORF</text>
+<line x1="20.0" y1="118.0" x2="920.0" y2="118.0" stroke="#333" stroke-width="1.5"/>
+<line x1="20.0" y1="84.0" x2="920.0" y2="84.0" stroke="#333"/>
+<line x1="20.0" y1="84.0" x2="20.0" y2="77.0" stroke="#333"/>
+<line x1="93.8" y1="84.0" x2="93.8" y2="80.0" stroke="#333"/>
+<line x1="167.6" y1="84.0" x2="167.6" y2="77.0" stroke="#333"/>
+<text x="167.6" y="74.0" font-size="9" text-anchor="middle" fill="#333">1,000</text>
+<line x1="241.5" y1="84.0" x2="241.5" y2="80.0" stroke="#333"/>
+<line x1="315.3" y1="84.0" x2="315.3" y2="77.0" stroke="#333"/>
+<text x="315.3" y="74.0" font-size="9" text-anchor="middle" fill="#333">2,000</text>
+<line x1="389.1" y1="84.0" x2="389.1" y2="80.0" stroke="#333"/>
+<line x1="462.9" y1="84.0" x2="462.9" y2="77.0" stroke="#333"/>
+<text x="462.9" y="74.0" font-size="9" text-anchor="middle" fill="#333">3,000</text>
+<line x1="536.7" y1="84.0" x2="536.7" y2="80.0" stroke="#333"/>
+<line x1="610.6" y1="84.0" x2="610.6" y2="77.0" stroke="#333"/>
+<text x="610.6" y="74.0" font-size="9" text-anchor="middle" fill="#333">4,000</text>
+<line x1="684.4" y1="84.0" x2="684.4" y2="80.0" stroke="#333"/>
+<line x1="758.2" y1="84.0" x2="758.2" y2="77.0" stroke="#333"/>
+<text x="758.2" y="74.0" font-size="9" text-anchor="middle" fill="#333">5,000</text>
+<line x1="832.0" y1="84.0" x2="832.0" y2="80.0" stroke="#333"/>
+<line x1="905.8" y1="84.0" x2="905.8" y2="77.0" stroke="#333"/>
+<text x="905.8" y="74.0" font-size="9" text-anchor="middle" fill="#333">6,000</text>
+<polygon points="45.7,98.0 323.8,98.0 335.8,108.0 323.8,118.0 45.7,118.0" fill="#2b6cb8" fill-opacity="0.92" stroke="#2c3e50" stroke-width="0.6"><title>P1 protein · 同源比对 seq · 其他功能蛋白 · 175-2139(+)
+PF02122.18:Peptidase_S39(2e-76,cov1.0)|VFAM43498(2e-22,cov0.57)
+A0A1B4Z269:Putative P1 protein(5e-263,cov0.65)|A0A1Y5NX63:p1(2e-133,cov0.36)|A0A125S6M3:Putative P1 protein(1e-97,cov0.24)</title></polygon>
+<text x="190.7" y="111.4" font-size="8.5" text-anchor="middle" fill="#ffffff">P1 protein</text>
+<polygon points="386.6,98.0 514.5,98.0 526.5,108.0 514.5,118.0 386.6,118.0" fill="#2b6cb8" fill-opacity="0.92" stroke="#2c3e50" stroke-width="0.6"><title>RNA-directed RNA polymerase · 同源比对 seq · 聚合酶/复制相关 · 2484-3431(+)
+PF02123.19:RdRP_4(1e-59,cov0.59)
+A0A1B4Z1Z0:Putative P1-P2 fusion protein(7e-208,cov1.0)|A0A385L367:Putative fusion protein P1-P2(5e-155,cov1.0)|A0A0P1CZE0:RNA-directed RNA polymerase (4e-116,cov0.84)</title></polygon>
+<text x="456.6" y="111.4" font-size="8.5" text-anchor="middle" fill="#ffffff">RNA-directed RNA polymer…</text>
+<polygon points="555.8,98.0 635.5,98.0 647.5,108.0 635.5,118.0 555.8,118.0" fill="#2b6cb8" fill-opacity="0.92" stroke="#2c3e50" stroke-width="0.6"><title>P3-CP · 同源比对 seq · 其他功能蛋白 · 3630-4250(+)
+PF00894.21:Luteo_coat(5e-51,cov1.0)
+A0A1U9RXZ0:Readthrough protein(1e-60,cov0.94)|Q0ZA08:Coat protein(4e-59,cov0.94)|A0A2H5CS10:Readthrough protein(8e-56,cov1.0)</title></polygon>
+<text x="601.6" y="111.4" font-size="8.5" text-anchor="middle" fill="#ffffff">P3-CP</text>
+<polygon points="674.0,98.0 868.4,98.0 880.4,108.0 868.4,118.0 674.0,118.0" fill="#2b6cb8" fill-opacity="0.92" stroke="#2c3e50" stroke-width="0.6"><title>read through protein P5 · 同源比对 seq · 其他功能蛋白 · 4431-5828(+)
+PF01690.20:PLRV_ORF5(8e-79,cov0.88)|VFAM43703(1e-69,cov0.7)|VFAM23684(1e-59,cov0.69)
+A0A1Y5P124:p5(3e-135,cov0.49)|K9LHK2:Aphid transmission protein(1e-73,cov0.29)|A0A1U9RXZ0:Readthrough protein(3e-71,cov0.4)</title></polygon>
+<text x="777.2" y="111.4" font-size="8.5" text-anchor="middle" fill="#ffffff">read through protein P5</text>
+<rect x="45.7" y="81.0" width="290.1" height="7.0" fill="#0072B2" stroke="#1a5276" stroke-width="0.4"><title>PF02122.18:Peptidase_S39(2e-76,cov1.0)|VFAM43498(2e-22,cov0.57)</title></rect>
+<rect x="386.6" y="148.0" width="140.0" height="7.0" fill="#27B1FF" stroke="#1a5276" stroke-width="0.4"><title>PF02123.19:RdRP_4(1e-59,cov0.59)</title></rect>
+<rect x="555.8" y="81.0" width="91.7" height="7.0" fill="#0072B2" stroke="#1a5276" stroke-width="0.4"><title>PF00894.21:Luteo_coat(5e-51,cov1.0)</title></rect>
+<rect x="674.0" y="148.0" width="206.4" height="7.0" fill="#27B1FF" stroke="#1a5276" stroke-width="0.4"><title>PF01690.20:PLRV_ORF5(8e-79,cov0.88)|VFAM43703(1e-69,cov0.7)|VFAM23684(1e-59,cov0.69)</title></rect>
+<circle cx="26.0" cy="167.0" r="4.5" fill="#2b6cb8"/>
+<text x="34.0" y="170.5" font-size="9" fill="#333">同源比对 seq</text>
+<circle cx="122.0" cy="167.0" r="4.5" fill="#7a3ff2"/>
+<text x="130.0" y="170.5" font-size="9" fill="#333">HMM 结构域</text>
+<circle cx="218.0" cy="167.0" r="4.5" fill="#0f9d58"/>
+<text x="226.0" y="170.5" font-size="9" fill="#333">CDD 结构域</text>
+<circle cx="314.0" cy="167.0" r="4.5" fill="#e8710a"/>
+<text x="322.0" y="170.5" font-size="9" fill="#333">蛋白结构 BFVD</text>
+<circle cx="410.0" cy="167.0" r="4.5" fill="#bdbdbd"/>
+<text x="418.0" y="170.5" font-size="9" fill="#333">无证据</text>
+<rect x="20.0" y="181.0" width="16" height="7.0" fill="#0072B2" stroke="#1a5276" stroke-width="0.4"/>
+<rect x="44.0" y="181.0" width="16" height="7.0" fill="#27B1FF" stroke="#1a5276" stroke-width="0.4"/>
+<text x="68.0" y="187.0" font-size="9" fill="#333">结构域命中（Pfam HMM / BFVD；深浅交替为相邻 ORF 分道防叠；SVG 交互版悬停可看域名）</text>
+</svg>

@@ -1,0 +1,41 @@
+{
+  "stage": "host_analysis",
+  "n_contigs": 2,
+  "n_host_warn": 0,
+  "min_confidence": null,
+  "n_low_confidence": 0,
+  "categories": {
+    "Plant": 2
+  },
+  "decision_methods": {
+    "ICTV_Meta_Agree": 2
+  },
+  "class_source": {
+    "kunpeng": 2,
+    "kunpeng_lineage": 0,
+    "blast": 0,
+    "none": 0
+  },
+  "tsv": "host_prediction.tsv",
+  "summary_tsv": "host_summary.tsv",
+  "rows_preview": [
+    {
+      "contig": "example_contig_1",
+      "species": "Polerovirus PEVYV6",
+      "family": "Solemoviridae",
+      "final_host": "Plant",
+      "confidence": "High",
+      "host_check": "OK",
+      "method": "ICTV_Meta_Agree"
+    },
+    {
+      "contig": "example_contig_2",
+      "species": "Badnavirus decoloratiovitis",
+      "family": "Caulimoviridae",
+      "final_host": "Plant",
+      "confidence": "High",
+      "host_check": "OK",
+      "method": "ICTV_Meta_Agree"
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##bcftoolsVersion=1.24+htslib-1.24
+##bcftoolsCommand=mpileup -f D:\桌面\植物病毒分析平台\databases\virusref_db\plant_ref\reference.fasta -d 100000 -q 0 -Q 13 -B -a FORMAT/AD,FORMAT/DP,INFO/AD -Ob -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.pileup.bcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\bam\EXAMPLE.sorted.bam
+##reference=file://D:\桌面\植物病毒分析平台\databases\virusref_db\plant_ref\reference.fasta
+##contig=<ID=NC_079073.1,length=1447>
+##contig=<ID=NC_079074.1,length=966>
+##contig=<ID=NC_079075.1,length=1739>
+##contig=<ID=NC_079076.1,length=7112>
+##contig=<ID=NC_079077.1,length=2177>
+##contig=<ID=NC_076119.1,length=1352>
+##contig=<ID=NC_076977.1,length=12193>
+##contig=<ID=NC_077068.1,length=8845>
+##contig=<ID=NC_055562.1,length=7592>
+##contig=<ID=NC_043085.1,length=560>
+##contig=<ID=NC_043145.1,length=1720>
+##contig=<ID=NC_043150.1,length=1140>
+##contig=<ID=NC_040712.1,length=8139>
+##contig=<ID=NC_038422.1,length=14817>
+##contig=<ID=NC_038686.1,length=1342>
+##contig=<ID=NC_035070.1,length=3420>
+##contig=<ID=NC_034252.1,length=7326>
+##contig=<ID=NC_031448.1,length=2632>
+##contig=<ID=NC_028949.1,length=14243>
+##contig=<ID=NC_028237.2,length=14494>
+##contig=<ID=NC_028132.1,length=434>
+##contig=<ID=NC_028044.1,length=3956>
+##contig=<ID=NC_026241.1,length=2776>
+##contig=<ID=NC_023641.1,length=15088>
+##contig=<ID=NC_018519.1,length=17798>
+##contig=<ID=NC_014846.1,length=1385>
+##contig=<ID=NC_008728.1,length=1931>
+##contig=<ID=NC_008716.1,length=6794>
+##contig=<ID=NC_007679.1,length=6582>
+##contig=<ID=NC_004359.1,length=330>
+##contig=<ID=NC_003405.1,length=1353>
+##contig=<ID=NC_003608.1,length=3911>
+##contig=<ID=NC_001658.1,length=6376>
+##contig=<ID=NC_001478.1,length=2701>
+##contig=<ID=NC_001445.1,length=9741>
+##contig=<ID=NC_002030.1,length=359>
+##contig=<ID=PQ587056.1,length=13930>
+##contig=<ID=PQ490803.1,length=6339>
+##contig=<ID=PQ490804.1,length=1042>
+##contig=<ID=PQ490805.1,length=1357>
+##contig=<ID=PQ490806.1,length=1288>
+##contig=<ID=PQ434707.1,length=2690>
+##contig=<ID=PQ434746.1,length=2690>
+##contig=<ID=PQ434757.1,length=2696>
+##contig=<ID=PQ434765.1,length=2690>
+##contig=<ID=PP777177.1,length=5895>
+##contig=<ID=PP770489.1,length=6795>
+##contig=<ID=OR489165.1,length=14812>
+##contig=<ID=ON602044.1,length=6660>
+##contig=<ID=ON602045.1,length=2861>
+##contig=<ID=OL471982.1,length=902>
+##contig=<ID=OP441764.1,length=999>
+##contig=<ID=OL471978.1,length=7249>
+##contig=<ID=OL471979.1,length=2057>
+##contig=<ID=OL471980.1,length=1088>
+##contig=<ID=OL471981.1,length=1325>
+##contig=<ID=ON181430.1,length=7068>
+##contig=<ID=ON181431.1,length=2252>
+##contig=<ID=ON181432.1,length=1521>
+##contig=<ID=ON181433.1,length=1520>
+##contig=<ID=ON181434.1,length=1710>
+##contig=<ID=MZ703097.1,length=8959>
+##contig=<ID=MZ703098.1,length=3522>
+##contig=<ID=MZ703099.1,length=2256>
+##contig=<ID=MZ703100.1,length=1864>
+##contig=<ID=MZ703101.1,length=1447>
+##contig=<ID=MW698813.1,length=2753>
+##contig=<ID=MK159261.1,length=14159>
+##contig=<ID=MH049330.1,length=433>
+##contig=<ID=MG662372.1,length=433>
+##contig=<ID=LC333552.1,length=9426>
+##contig=<ID=MF372923.1,length=444>
+##contig=<ID=KR094115.1,length=8902>
+##contig=<ID=KR094116.1,length=1675>
+##contig=<ID=KR094117.1,length=1574>
+##contig=<ID=KR094118.1,length=1377>
+##contig=<ID=KR094119.1,length=1201>
+##contig=<ID=KR698381.1,length=1583>
+##contig=<ID=KF515615.1,length=1346>
+##contig=<ID=HF585098.1,length=9784>
+##contig=<ID=HM590504.1,length=1351>
+##contig=<ID=HM590506.1,length=1360>
+##contig=<ID=JN676151.1,length=2593>
+##contig=<ID=GU111966.1,length=1364>
+##contig=<ID=GU111968.1,length=1370>
+##contig=<ID=GU111969.1,length=1356>
+##contig=<ID=GU111971.1,length=1352>
+##contig=<ID=GU111979.1,length=1372>
+##contig=<ID=AJ316029.1,length=1361>
+##contig=<ID=AJ420316.1,length=2730>
+##contig=<ID=AF329886.1,length=2683>
+##contig=<ID=PZ000445.1,length=8052>
+##contig=<ID=NC_116680.1,length=4714>
+##contig=<ID=NC_139378.1,length=14152>
+##contig=<ID=NC_117321.1,length=12913>
+##contig=<ID=NC_116799.1,length=5881>
+##contig=<ID=NC_139271.1,length=5523>
+##contig=<ID=NC_040543.1,length=2730>
+##ALT=<ID=*,Description="Represents allele(s) other than observed.">
+##INFO=<ID=INDEL,Number=0,Type=Flag,Description="Indicates that the variant is an INDEL.">
+##INFO=<ID=IDV,Number=1,Type=Integer,Description="Maximum number of raw reads supporting an indel">
+##INFO=<ID=IMF,Number=1,Type=Float,Description="Maximum fraction of raw reads supporting an indel">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Raw read depth">
+##INFO=<ID=VDB,Number=1,Type=Float,Description="Variant Distance Bias for filtering splice-site artefacts in RNA-seq data (bigger is better)",Version="3">
+##INFO=<ID=RPBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Read Position Bias (closer to 0 is better)">
+##INFO=<ID=MQBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Mapping Quality Bias (closer to 0 is better)">
+##INFO=<ID=BQBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Base Quality Bias (closer to 0 is better)">
+##INFO=<ID=MQSBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Mapping Quality vs Strand Bias (closer to 0 is better)">
+##INFO=<ID=SCBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Soft-Clip Length Bias (closer to 0 is better)">
+##INFO=<ID=SGB,Number=1,Type=Float,Description="Segregation based metric, http://samtools.github.io/bcftools/rd-SegBias.pdf">
+##INFO=<ID=MQ0F,Number=1,Type=Float,Description="Fraction of MQ0 reads (smaller is better)">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="List of Phred-scaled genotype likelihoods">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Number of high-quality bases">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths (high-quality bases)">
+##INFO=<ID=AD,Number=R,Type=Integer,Description="Total allelic depths (high-quality bases)">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes for each ALT allele, in the same order as listed">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
+##INFO=<ID=DP4,Number=4,Type=Integer,Description="Number of high-quality ref-forward , ref-reverse, alt-forward and alt-reverse bases">
+##INFO=<ID=MQ,Number=1,Type=Integer,Description="Average mapping quality">
+##bcftools_callVersion=1.24+htslib-1.24
+##bcftools_callCommand=call -mv -Ob -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.call.bcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.pileup.bcf; Date=Tue Nov 03 12:58:23 2026
+##bcftools_viewVersion=1.24+htslib-1.24
+##bcftools_viewCommand=view -Ov -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.raw.vcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.call.bcf; Date=Tue Nov 03 12:58:23 2026
+##FILTER=<ID=FAIL,Description="Set if not true: QUAL>=3.5 && INFO/DP>=20 && INFO/AD[1]/INFO/DP>=0.05 && INFO/DP4[2]>=3 && INFO/DP4[3]>=3">
+##bcftools_filterVersion=1.24+htslib-1.24
+##bcftools_filterCommand=filter -s FAIL -i 'QUAL>=3.5 && INFO/DP>=20 && INFO/AD[1]/INFO/DP>=0.05 && INFO/DP4[2]>=3 && INFO/DP4[3]>=3' -Ov -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.soft.vcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.raw.vcf; Date=Tue Nov 03 12:58:24 2026
+##bcftools_filterCommand=filter -i FILTER=="PASS" -Ov -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.vcf.filtered D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\all.variants.soft.vcf; Date=Tue Nov 03 12:58:24 2026
+##SnpEffVersion="5.4c (build 2026-02-23 07:25), by Pablo Cingolani"
+##SnpEffCmd="SnpEff  GU111966 D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125819_8bef12\kvsuite\vcf\GU111966.vcf "
+##INFO=<ID=ANN,Number=.,Type=String,Description="Functional annotations: 'Allele | Annotation | Annotation_Impact | Gene_Name | Gene_ID | Feature_Type | Feature_ID | Transcript_BioType | Rank | HGVS.c | HGVS.p | cDNA.pos / cDNA.length | CDS.pos / CDS.length | AA.pos / AA.length | Distance | ERRORS / WARNINGS / INFO' ">
+##INFO=<ID=LOF,Number=.,Type=String,Description="Predicted loss of function effects for this variant. Format: 'Gene_Name | Gene_ID | Number_of_transcripts_in_gene | Percent_of_transcripts_affected'">
+##INFO=<ID=NMD,Number=.,Type=String,Description="Predicted nonsense mediated decay effects for this variant. Format: 'Gene_Name | Gene_ID | Number_of_transcripts_in_gene | Percent_of_transcripts_affected'">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\bam\EXAMPLE.sorted.bam
+GU111966.1	411	.	C	T	117.415	PASS	DP=35;AD=0,24;VDB=0.0348235;SGB=-0.692831;MQSBZ=0.527056;MQ0F=0;AC=2;AN=2;DP4=0,0,3,21;MQ=15;ANN=T|synonymous_variant|LOW|C1|Gene_179_535|transcript|ADQ55863.1|protein_coding|1/1|c.126G>A|p.Lys42Lys|126/357|126/357|42/118||	GT:PL:DP:AD	1/1:147,72,0:24:0,24

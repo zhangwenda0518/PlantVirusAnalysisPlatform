@@ -1,0 +1,3 @@
+contig	length	kunpeng_flag	kunpeng_taxid	kunpeng_species	blast_top_hit	blast_identity(%)	blast_coverage_hsp(%)	blast_aln_len	blast_species	blast_family
+example_contig_1	6096	C	698400	Pepper yellows virus	NC_077216.1	100.0	100.0	6096	Polerovirus PEVYV6	Solemoviridae
+example_contig_2	6988	C	1471299	Grapevine Roditis leaf discoloration-associated virus	NC_027131.1	100.0	100.0	6988	Badnavirus decoloratiovitis	Caulimoviridae

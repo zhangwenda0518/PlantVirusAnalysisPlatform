@@ -1,0 +1,115 @@
+LOCUS       ON602045                2861 bp    RNA     linear   VRL 08-NOV-2022
+DEFINITION  Edgeworthia chrysantha mosaic-associated virus isolate SWU-D
+            segment RNA2, complete sequence.
+ACCESSION   ON602045
+VERSION     ON602045.1
+KEYWORDS    .
+SOURCE      Edgeworthia chrysantha mosaic-associated virus
+  ORGANISM  Edgeworthia chrysantha mosaic-associated virus
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Hareavirales; Phenuiviridae;
+            Coguvirus; Coguvirus chrysanthae.
+REFERENCE   1  (bases 1 to 2861)
+  AUTHORS   Wang,X., Liao,R., Yang,X., Liu,Q., Zhang,S. and Cao,M.
+  TITLE     Complete genome sequence of Edgeworthia chrysantha
+            mosaic-associated virus, a tentative new member of the genus
+            Coguvirus (family Phenuiviridae)
+  JOURNAL   Arch Virol (2022) In press
+   PUBMED   36175794
+  REMARK    Publication Status: Available-Online prior to print
+REFERENCE   2  (bases 1 to 2861)
+  AUTHORS   Wang,X.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (25-MAY-2022) Citrus Research Institute, Southwest
+            University, No. 15, Citrus Village, Xiema Street, Chongqing,
+            Chongqing 400712, China
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: Lasergene v. 7.0
+            Sequencing Technology :: Illumina; Sanger dideoxy sequencing
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..2861
+                     /organism="Edgeworthia chrysantha mosaic-associated virus"
+                     /mol_type="genomic RNA"
+                     /isolate="SWU-D"
+                     /host="Edgeworthia chrysantha"
+                     /db_xref="taxon:2992856"
+                     /segment="RNA2"
+                     /geo_loc_name="China"
+                     /collection_date="2018"
+     CDS             50..1261
+                     /note="MP"
+                     /codon_start=1
+                     /product="movement protein"
+                     /protein_id="UZA34088.1"
+                     /translation="MFKKIFSRSSSSKTNIPSSVPANKPSSSDNQNQKEQKNEKVAMD
+                     SMNKAKRQLYKFDMPTTDMGFQDLLKSYEEGNRFQYVALSGGTEESYESRVRKMVTLH
+                     IKTDKKGEPKVNVPLIKLTENNIQYHLGQVVSVKKGPSYIRLASMLAVYTPLVSSFSE
+                     FSTVSLTLHDTRKISNTAIQTAKFNSNLQNKVELSLDFCVPRASAGKIILDVSLEQAT
+                     LMQGEEWGTLSLIIVMESSEAPYVTNLKDVVSVVAMPPALLGSYTNNPNYIDTTITES
+                     HRKNVRDMYESGDIADETEPMKEELKAVTYARSSVAPKKKGPKSGKSFGKGWEHLDGF
+                     RKPVTGIDEASYDPEGSVDLKVDTAAAREKMKMKEIASESGSDLSENFLENHPASGKA
+                     VKGVKFNELEV"
+     CDS             complement(1728..2804)
+                     /note="NP"
+                     /codon_start=1
+                     /product="nucleocapsid protein"
+                     /protein_id="UZA34089.1"
+                     /translation="MVPPPRKSNKKLKEELKAQHGKSEEEYGNWYSKLSKEEAAHVDS
+                     LIKTAEKAKAAKEGNPSREDPEKEESDDDEEAEVSSQVRQSAKLPSEITDVEISTMWT
+                     IVDAADVNSMDQEFLRIFEYQGFNPRKIFAALYAAKKKNQVSDASFVTDILTLCSISI
+                     IKGSVNSNNIKKISEEGQQEIARLETLYGIKRGSGRKEKPEVVTISRIGATFPGKIIQ
+                     LICAGKVEGRTFIGPFSSSSLPVFMRHQAFAAVIPRSLRQKSRDFLLGLITAFSVDQS
+                     LQINPNKKEKQDPVILFATQSNFISVTHNGQYPPEHTKIAIFKTLIINYEDLLPTSRK
+                     IASIMGEFSIPSKDEFRSELALLE"
+ORIGIN      
+        1 acacaaagat ctctcaacac tttgtgttat ctaaactaca ttctatacca tgtttaagaa
+       61 gatattttca cgttcttcaa gttccaagac taatatacca agttctgtgc ctgcgaataa
+      121 accctcatca tcagataacc aaaatcaaaa agagcagaaa aatgaaaaag tggctatgga
+      181 ttcaatgaat aaagctaaaa gacagcttta taaatttgat atgccaacaa cagatatggg
+      241 atttcaagat ctgctgaaaa gttatgaaga gggaaatagg ttccaatatg tagccttatc
+      301 aggaggcaca gaagagtcat atgaatccag agttagaaag atggtcactc tgcacatcaa
+      361 gacggacaaa aagggagaac caaaagttaa cgttcctttg atcaagctca ctgaaaacaa
+      421 cattcagtac catttaggtc aggttgtgag tgttaagaaa ggtccatctt acataaggct
+      481 tgcatctatg ttggcagtgt ataccccttt ggtatcatct ttctctgagt tttcaactgt
+      541 ctccttaact cttcatgaca ctaggaaaat ctcaaacact gctatacaga cagcaaaatt
+      601 caactctaat cttcagaata aagttgaatt gtctttagat ttttgtgttc ctagagcttc
+      661 tgcagggaag attatcctgg atgtgagctt agaacaagct actcttatgc aaggagaaga
+      721 atggggaact ctgtctttga tcatagtgat ggaatcatct gaagcaccat atgtgaccaa
+      781 tcttaaagat gttgtgtcag tggttgccat gccaccagct cttttgggaa gttatacaaa
+      841 caatcccaat tatatagaca ccactataac tgagagtcac aggaaaaatg tccgagacat
+      901 gtatgagagt ggtgacatag cagatgaaac tgagcctatg aaggaagagc tcaaagctgt
+      961 cacatatgca agatcttctg ttgctccaaa aaagaaagga cccaaatctg ggaaatcatt
+     1021 tggtaaaggc tgggagcatc tagacgggtt tagaaaacct gtcactggca tagatgaagc
+     1081 ttcatatgat cctgagggta gtgtggatct taaggttgac acagctgcag ccagagagaa
+     1141 gatgaagatg aaagagatag cctctgaatc tggctctgat ttgtcagaga actttctaga
+     1201 gaaccaccct gcttctggaa aagctgtcaa aggggtgaag ttcaatgaat tagaggttta
+     1261 gaatttattt aaatattttg gtggattgta ttgtatttta agattgtaca ataagagtgt
+     1321 atttataggt tttaattatg tgtaatttta tgcttttgga attttatatt tgaaggtttt
+     1381 aaaataaaac aaaaaaacaa aaaaatcaaa aaattaagat taaaatcaag tcttaagata
+     1441 aaaaaactca aaacaatcaa aaaattcaaa aatcaaaaaa tcaaaaaatc gggtcctagc
+     1501 ctagcaaaac caatggtttt gctaggctag gatccttatt attttttgat ttttgatttt
+     1561 tttgtttttt cttttgtttt ttgttttttg atttttattt atttttgatc tttttttgtt
+     1621 tttttatttt gtttttgatt tttttatctt actcaaacat ttaaaataaa ggaactcaaa
+     1681 acataaaaag aaataaacac aaatttaaag tacaacattt tacagtatca ttccagaaga
+     1741 gccaactcac tcctgaattc atcctttgaa gggatagaga actcacccat gattgatgca
+     1801 attttccttg aagttggaag aagatcctca tagttaatta tgagagtctt gaaaattgca
+     1861 atctttgtgt gctcaggtgg gtactgccca ttgtgagtca cgctgataaa gttggattga
+     1921 gtagcaaata ggataacagg atcctgtttc tccttcttgt ttgggttgat ttgaagggac
+     1981 tgatctacag agaaagcagt aatcagcccc aacaagaaat ctctgctctt ctgtctcaaa
+     2041 cttctaggaa tcacagcagc aaatgcttgg tgcctcatga atacaggaag acttgaagat
+     2101 gaaaagggcc ctatgaaagt cctcccttca actttcccag cacaaatgag ttgaattatc
+     2161 tttcctggga aagttgcacc aattctagag attgtaacaa cctcaggctt ttctttcctt
+     2221 ccgctgcctc tcttgattcc gtataaagtt tccaatctag caatctcctg ttgtccttct
+     2281 tcagaaatct tctttatgtt attggaattt acagaaccct taatgatgga gatagaacag
+     2341 agtgtcaaaa tatcagtcac aaaagaagca tcagaaactt gatttttctt ctttgcagca
+     2401 tacagagcag caaaaatctt tctgggatta aatccttgat actcaaaaat tcttaagaat
+     2461 tcttggtcca tgctatttac atcagcagca tcaactatgg tccacattgt ggaaatttca
+     2521 acatcagtga tttcagaagg caattttgca gactgtctca cctgagatga cacctcagct
+     2581 tcttcatcat catcagattc ttctttctca ggatcttccc tactaggatt gccttccttt
+     2641 gcagcttttg ctttttcagc tgtcttaatt agactatcaa catgggcagc ttcttctttg
+     2701 gataactttg agtaccaatt accatattct tcctcgcttt tcccgtgttg tgctttcaat
+     2761 tcttccttca atttcttatt gctctttcta ggtggtggta ccatggttaa tatttttaaa
+     2821 ttttgagttt agacaacagt aacgttgaga gatctgtgtg t
+//
+

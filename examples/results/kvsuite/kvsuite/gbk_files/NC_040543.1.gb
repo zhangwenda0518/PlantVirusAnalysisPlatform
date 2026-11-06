@@ -1,0 +1,117 @@
+LOCUS       NC_040543               2730 bp    RNA     linear   VRL 12-SEP-2019
+DEFINITION  Chenopodium quinoa mitovirus 1 isolate Che1, complete genome.
+ACCESSION   NC_040543
+VERSION     NC_040543.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Chenopodium quinoa mitovirus 1
+  ORGANISM  Chenopodium quinoa mitovirus 1
+            Viruses; Riboviria; Orthornavirae; Lenarviricota; Howeltoviricetes;
+            Cryppavirales; Mitoviridae; Duamitovirus; Duamitovirus chqu1.
+REFERENCE   1  (bases 1 to 2730)
+  AUTHORS   Nerva,L., Turina,M. and Ciuffo,M.
+  TITLE     Chenopodium quinoa mitovirus 1 (CqMV1): a new group of plant
+            cryptoviruses
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 2730)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (12-FEB-2019) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 2730)
+  AUTHORS   Nerva,L., Turina,M. and Ciuffo,M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (22-JUN-2017) Istituto per la Protezione Sostenibile
+            Delle Piante, CNR Torino, Strada delle Cacce 73, Torino, TO 10135,
+            Italy
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to MF375475.
+            
+            ##Assembly-Data-START##
+            Assembly Method       :: Trinity v. 2.0.2
+            Sequencing Technology :: Illumina
+            ##Assembly-Data-END##
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..2730
+                     /organism="Chenopodium quinoa mitovirus 1"
+                     /mol_type="genomic RNA"
+                     /isolate="Che1"
+                     /host="Chenopodium quinoa"
+                     /db_xref="taxon:2185087"
+                     /geo_loc_name="Italy"
+                     /collection_date="2016"
+     gene            344..2644
+                     /locus_tag="EXI96_gp1"
+                     /db_xref="GeneID:41702131"
+     CDS             344..2644
+                     /locus_tag="EXI96_gp1"
+                     /note="RdRP"
+                     /codon_start=1
+                     /transl_table=4
+                     /product="RNA dependent RNA polymerase"
+                     /protein_id="YP_009551903.1"
+                     /db_xref="GeneID:41702131"
+                     /translation="MIKNLFLNAERVPILSWRSIFEGTRRLKGLCLRASLIVSLRLHK
+                     ETGLAAVAFARVVFRLVRKSGLLFTSLYLKQCGVSLQRYYAGSYSKQDSLSVPVSLTR
+                     TGLPKIIPVYIRRVIRKNDDRADKWVRTYLSWFSASRLVELAPSVTSSTFASIHEPIK
+                     DIGSVKEVLSVLKMRGRRLVSTYLPFARSIPVYQGLKWEPTWKSTPMTTKFVSRYRSL
+                     TPEELSTLDDTNIFSNLKHELASFMYNINKIHSLPEGFFSPGCLWPEWIIYPFDFKRT
+                     TEIANWSLEWFERRIGPHMSSIVSAYQIHPPVPLFTGKLAQTLPGAGKRRIFAICNYV
+                     KQMLLKPIHSWAMKILSSIPMDGTFNQVAPLLRLAKIKRTHVYSFDLKSATDRWPLPI
+                     IYTCVASFFGETYASSVVNSTLGLNTFRVDKPIVSRMSEIAFRCGQPLGYYGSWSLFA
+                     LSHHLVVWLAADLAYPSRETPFRDYAVLGDDVLIADTNVALEYKSLLSRLGVSISESK
+                     SIISETGAIEFAKKYWVKGMQVDLSPVSLKSLLGARHTIGLCQIGAKYDLDFNTLLRI
+                     GGAGYRVRSRQLSTLNRKWEKIRAVQVKLTGQRAQLPIEFWIGRGCPLDPYLKGKIIV
+                     YLRKEFKPKELRLTPEGLLFDGEVEIAERTVIHNWMKQWLKWIYWYYSVAMSPDVKLD
+                     QFFDAPICATSWKRNQIDLNLKRFSALWRCYDMAVGWPKNYPWVLPATTVLKIDELIK
+                     GGFSGTDFLMKPVELIVQQNKGRKYI"
+ORIGIN      
+        1 tccgaatctc attttcggag tgggtagacg tctttcagtc tacgcacgat aggtctgagc
+       61 atgtaacgat tgttattgtt tagaatacta agtgttgcta gcgcaacaat gtaggttgat
+      121 cactatgtga caatattaca ttgtaatcgc tgttccgtta ctagggaact aacacagtct
+      181 tgactgtgtt atccttggtt ccaggaatcc tgtgtgaata gcaggcgcct tcccatgctt
+      241 ccacttgatg gttagcaaaa aggagagtgg actattcgaa catcccaatt cggcgtttaa
+      301 ataaattggt ataaatgatt ataaatataa tacaaattac accatgatta aaaatctttt
+      361 tttaaatgct gaacgggtgc cgattttgtc ttggcggagt atttttgaag gtactcgacg
+      421 attaaagggg ctctgcttac gagcttcttt aatcgtatcc ttgcgtcttc ataaggaaac
+      481 cggtctagcg gcggttgcat ttgcaagagt agtgtttaga ctggtacgaa agtcgggatt
+      541 gttatttaca tcactgtatt tgaagcagtg tggcgtaagt cttcagcgtt attatgctgg
+      601 ttcttactcc aaacaagact ctctttctgt acctgtgtct ttgactcgaa cagggctccc
+      661 taaaattatt cccgtataca ttagacgtgt tatacgtaag aatgatgata gggcagataa
+      721 gtgggtcaga acttatcttt catggtttag tgcatctagg cttgttgaat tagcaccttc
+      781 tgtgacttct tcaacatttg cttcgataca tgaacctata aaagatatcg gttctgtaaa
+      841 agaggtattg tctgtgctta aaatgcgcgg acgaaggctc gtatccactt atcttccgtt
+      901 cgcccgctca atccctgttt atcaaggatt aaagtgggaa ccaacctgga agtctactcc
+      961 tatgacaacg aagtttgtat caagatatag gagcttaact cccgaagaat tatctacact
+     1021 agatgatact aacatattca gtaatctgaa gcatgaatta gcatcattta tgtataacat
+     1081 caacaagata cattcgttgc cagaggggtt cttctctcct ggttgcttat ggccagaatg
+     1141 gataatttat ccttttgact ttaagcgtac cacggagata gctaattggt cattagagtg
+     1201 gtttgagcgg aggattgggc cgcatatgag ctcaatcgta tctgcttatc aaattcaccc
+     1261 tcctgtccca ttatttacag gtaagttagc tcaaacactt ccaggagccg gtaaaagaag
+     1321 aatatttgca atatgtaatt acgtaaagca aatgcttctt aaacctattc atagttgggc
+     1381 aatgaaaata ctatccagta tacctatgga tggtactttc aaccaagtag cccctctact
+     1441 tcgcttggct aagattaaac gaacacatgt gtattcattt gatctaaagt ctgcgactga
+     1501 tagatggccg ttgccgatta tctacacctg tgtagctagt ttctttggtg aaacttatgc
+     1561 ttccagtgtt gtaaattcaa cgttgggtct caacacattt cgggttgaca aacctattgt
+     1621 ctctcgtatg tctgagatag ccttccgctg tgggcaacca ctcggttatt atggatcctg
+     1681 gtcactattc gcgctatcac accatctggt tgtgtggtta gcggctgatt tagcctaccc
+     1741 tagcagagaa actccgttta gggactatgc tgtgttgggt gatgatgttc tcatcgctga
+     1801 cactaatgta gcacttgaat acaagagcct tctttctcga ttaggtgtct ccatctctga
+     1861 atctaaatcg attatatcgg agactggggc catcgaattc gctaagaagt attgggttaa
+     1921 agggatgcag gttgatttat cacccgtttc tcttaaatct ctcttgggcg ctcggcacac
+     1981 tatcggccta tgtcagattg gggcaaagta cgatcttgat tttaatactt tgcttcgtat
+     2041 cggtggtgca ggttatcgtg ttcgatcgcg gcaactatca actctcaatc gaaaatggga
+     2101 gaagattaga gctgttcaag ttaaactaac agggcaaaga gcgcaattac caatagagtt
+     2161 ttggattgga agaggctgtc ctctcgatcc atatctaaag ggtaagataa ttgtgtatct
+     2221 ccgtaaggaa tttaaaccca aggagctaag gttaactccg gaaggtttac tctttgatgg
+     2281 tgaagtagag atcgctgagc gtactgttat ccataattgg atgaaacagt ggcttaagtg
+     2341 gatttactgg tactactctg ttgctatgtc tcctgatgtt aagcttgatc aattcttcga
+     2401 cgcgcccatc tgtgcgacgt catggaaaag aaatcaaata gacttaaatc taaaacgatt
+     2461 ttctgctctg tggcgttgtt atgacatggc ggttggttgg ccgaagaact atccttgggt
+     2521 tcttccggca actacagttt tgaaaattga tgaacttata aagggaggtt tctcaggtac
+     2581 tgatttcctt atgaaacctg ttgaattgat tgttcagcag aacaaaggac gcaagtatat
+     2641 ataagacttt aggtgcacct gagcatgtag cctcgtgggc aaattagagg aaactctggg
+     2701 tggctcacga gtatttagta gcagagatcg
+//
+

@@ -1,0 +1,45 @@
+{
+ "tool": "cricon",
+ "ok": true,
+ "engine_version": "1.0.0",
+ "target": "example_acmv.fasta",
+ "n_input_records": 1,
+ "n_segments": 1,
+ "routes": "both",
+ "failed_routes": [],
+ "warnings": [
+  "输入仅 1 条序列：群体覆盖率平凡（n=1，覆盖率恒 100%），真实设计建议 >=5-10 条分离物。",
+  "CONAN 路线未提供负组（near_fasta）：负组同源位点双重失配判据缺位，本轮仅通用 Cas3 设计，无近缘区分能力。"
+ ],
+ "crispr": {
+  "n_sets_total": 89,
+  "n_sets_output": 20,
+  "best_score": 79.3,
+  "nuclease": "LbCas12a",
+  "amp_mode": "RPA",
+  "profile": "strict"
+ },
+ "conan": {
+  "n_candidates": 20,
+  "negative_applied": false
+ },
+ "convergence": [],
+ "conv_skipped": [
+  "main"
+ ],
+ "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\cricon_20261105_021218_ec5a26\\cricon",
+ "elapsed_sec": 44.8,
+ "evidence_note": "证据边界（ACS Sensors 2026 综述口径，双路线同一口径）：本结果为序列级候选优先级排序，不构成 crRNA 活性、错配区分度、扩增兼容性或基质性能的证据；实验结论须按 cricon/validation_checklist.md 的 L1-L5 逐级建立。",
+ "semantic_notes": [
+  "near_fasta 双喂语义：crispr 路线当排除库（k-mer/BLAST 序列级筛查）；conan 路线当负组（进合并 MSA 做同源位点双重失配判定）。同一文件两条语义、两套独立判定，不合并成单一\"特异性\"数字。",
+  "CONAN 向导宿主筛查未做（判据是负组双重失配）；tier0 补筛查命中可能即同源位点，非必然 veto"
+ ],
+ "files": {
+  "matrix": "cricon\\coverage_matrix.tsv",
+  "order": "cricon\\order_all.xlsx",
+  "checklist": "cricon\\validation_checklist.md",
+  "report": "cricon\\report.md",
+  "crispr_out": "crispr",
+  "conan_out": "conan"
+ }
+}

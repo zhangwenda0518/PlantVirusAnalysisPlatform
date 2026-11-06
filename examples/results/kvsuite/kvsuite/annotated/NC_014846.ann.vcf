@@ -1,0 +1,152 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##bcftoolsVersion=1.24+htslib-1.24
+##bcftoolsCommand=mpileup -f D:\桌面\植物病毒分析平台\databases\virusref_db\plant_ref\reference.fasta -d 100000 -q 0 -Q 13 -B -a FORMAT/AD,FORMAT/DP,INFO/AD -Ob -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\vcf\all.variants.pileup.bcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\bam\EXAMPLE.sorted.bam
+##reference=file://D:\桌面\植物病毒分析平台\databases\virusref_db\plant_ref\reference.fasta
+##contig=<ID=NC_079073.1,length=1447>
+##contig=<ID=NC_079074.1,length=966>
+##contig=<ID=NC_079075.1,length=1739>
+##contig=<ID=NC_079076.1,length=7112>
+##contig=<ID=NC_079077.1,length=2177>
+##contig=<ID=NC_076119.1,length=1352>
+##contig=<ID=NC_076977.1,length=12193>
+##contig=<ID=NC_077068.1,length=8845>
+##contig=<ID=NC_055562.1,length=7592>
+##contig=<ID=NC_043085.1,length=560>
+##contig=<ID=NC_043145.1,length=1720>
+##contig=<ID=NC_043150.1,length=1140>
+##contig=<ID=NC_040712.1,length=8139>
+##contig=<ID=NC_038422.1,length=14817>
+##contig=<ID=NC_038686.1,length=1342>
+##contig=<ID=NC_035070.1,length=3420>
+##contig=<ID=NC_034252.1,length=7326>
+##contig=<ID=NC_031448.1,length=2632>
+##contig=<ID=NC_028949.1,length=14243>
+##contig=<ID=NC_028237.2,length=14494>
+##contig=<ID=NC_028132.1,length=434>
+##contig=<ID=NC_028044.1,length=3956>
+##contig=<ID=NC_026241.1,length=2776>
+##contig=<ID=NC_023641.1,length=15088>
+##contig=<ID=NC_018519.1,length=17798>
+##contig=<ID=NC_014846.1,length=1385>
+##contig=<ID=NC_008728.1,length=1931>
+##contig=<ID=NC_008716.1,length=6794>
+##contig=<ID=NC_007679.1,length=6582>
+##contig=<ID=NC_004359.1,length=330>
+##contig=<ID=NC_003405.1,length=1353>
+##contig=<ID=NC_003608.1,length=3911>
+##contig=<ID=NC_001658.1,length=6376>
+##contig=<ID=NC_001478.1,length=2701>
+##contig=<ID=NC_001445.1,length=9741>
+##contig=<ID=NC_002030.1,length=359>
+##contig=<ID=PQ587056.1,length=13930>
+##contig=<ID=PQ490803.1,length=6339>
+##contig=<ID=PQ490804.1,length=1042>
+##contig=<ID=PQ490805.1,length=1357>
+##contig=<ID=PQ490806.1,length=1288>
+##contig=<ID=PQ434707.1,length=2690>
+##contig=<ID=PQ434746.1,length=2690>
+##contig=<ID=PQ434757.1,length=2696>
+##contig=<ID=PQ434765.1,length=2690>
+##contig=<ID=PP777177.1,length=5895>
+##contig=<ID=PP770489.1,length=6795>
+##contig=<ID=OR489165.1,length=14812>
+##contig=<ID=ON602044.1,length=6660>
+##contig=<ID=ON602045.1,length=2861>
+##contig=<ID=OL471982.1,length=902>
+##contig=<ID=OP441764.1,length=999>
+##contig=<ID=OL471978.1,length=7249>
+##contig=<ID=OL471979.1,length=2057>
+##contig=<ID=OL471980.1,length=1088>
+##contig=<ID=OL471981.1,length=1325>
+##contig=<ID=ON181430.1,length=7068>
+##contig=<ID=ON181431.1,length=2252>
+##contig=<ID=ON181432.1,length=1521>
+##contig=<ID=ON181433.1,length=1520>
+##contig=<ID=ON181434.1,length=1710>
+##contig=<ID=MZ703097.1,length=8959>
+##contig=<ID=MZ703098.1,length=3522>
+##contig=<ID=MZ703099.1,length=2256>
+##contig=<ID=MZ703100.1,length=1864>
+##contig=<ID=MZ703101.1,length=1447>
+##contig=<ID=MW698813.1,length=2753>
+##contig=<ID=MK159261.1,length=14159>
+##contig=<ID=MH049330.1,length=433>
+##contig=<ID=MG662372.1,length=433>
+##contig=<ID=LC333552.1,length=9426>
+##contig=<ID=MF372923.1,length=444>
+##contig=<ID=KR094115.1,length=8902>
+##contig=<ID=KR094116.1,length=1675>
+##contig=<ID=KR094117.1,length=1574>
+##contig=<ID=KR094118.1,length=1377>
+##contig=<ID=KR094119.1,length=1201>
+##contig=<ID=KR698381.1,length=1583>
+##contig=<ID=KF515615.1,length=1346>
+##contig=<ID=HF585098.1,length=9784>
+##contig=<ID=HM590504.1,length=1351>
+##contig=<ID=HM590506.1,length=1360>
+##contig=<ID=JN676151.1,length=2593>
+##contig=<ID=GU111966.1,length=1364>
+##contig=<ID=GU111968.1,length=1370>
+##contig=<ID=GU111969.1,length=1356>
+##contig=<ID=GU111971.1,length=1352>
+##contig=<ID=GU111979.1,length=1372>
+##contig=<ID=AJ316029.1,length=1361>
+##contig=<ID=AJ420316.1,length=2730>
+##contig=<ID=AF329886.1,length=2683>
+##contig=<ID=PZ000445.1,length=8052>
+##contig=<ID=NC_116680.1,length=4714>
+##contig=<ID=NC_139378.1,length=14152>
+##contig=<ID=NC_117321.1,length=12913>
+##contig=<ID=NC_116799.1,length=5881>
+##contig=<ID=NC_139271.1,length=5523>
+##contig=<ID=NC_040543.1,length=2730>
+##ALT=<ID=*,Description="Represents allele(s) other than observed.">
+##INFO=<ID=INDEL,Number=0,Type=Flag,Description="Indicates that the variant is an INDEL.">
+##INFO=<ID=IDV,Number=1,Type=Integer,Description="Maximum number of raw reads supporting an indel">
+##INFO=<ID=IMF,Number=1,Type=Float,Description="Maximum fraction of raw reads supporting an indel">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Raw read depth">
+##INFO=<ID=VDB,Number=1,Type=Float,Description="Variant Distance Bias for filtering splice-site artefacts in RNA-seq data (bigger is better)",Version="3">
+##INFO=<ID=RPBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Read Position Bias (closer to 0 is better)">
+##INFO=<ID=MQBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Mapping Quality Bias (closer to 0 is better)">
+##INFO=<ID=BQBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Base Quality Bias (closer to 0 is better)">
+##INFO=<ID=MQSBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Mapping Quality vs Strand Bias (closer to 0 is better)">
+##INFO=<ID=SCBZ,Number=1,Type=Float,Description="Mann-Whitney U-z test of Soft-Clip Length Bias (closer to 0 is better)">
+##INFO=<ID=SGB,Number=1,Type=Float,Description="Segregation based metric, http://samtools.github.io/bcftools/rd-SegBias.pdf">
+##INFO=<ID=MQ0F,Number=1,Type=Float,Description="Fraction of MQ0 reads (smaller is better)">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="List of Phred-scaled genotype likelihoods">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Number of high-quality bases">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths (high-quality bases)">
+##INFO=<ID=AD,Number=R,Type=Integer,Description="Total allelic depths (high-quality bases)">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes for each ALT allele, in the same order as listed">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
+##INFO=<ID=DP4,Number=4,Type=Integer,Description="Number of high-quality ref-forward , ref-reverse, alt-forward and alt-reverse bases">
+##INFO=<ID=MQ,Number=1,Type=Integer,Description="Average mapping quality">
+##bcftools_callVersion=1.24+htslib-1.24
+##bcftools_callCommand=call -mv -Ob -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\vcf\all.variants.call.bcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\vcf\all.variants.pileup.bcf; Date=Tue Nov 03 12:55:29 2026
+##bcftools_viewVersion=1.24+htslib-1.24
+##bcftools_viewCommand=view -Ov -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\vcf\all.variants.raw.vcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\vcf\all.variants.call.bcf; Date=Tue Nov 03 12:55:29 2026
+##FILTER=<ID=FAIL,Description="Set if not true: ((QUAL>=3.5 && INFO/DP>=10 && INFO/AD[1]/INFO/DP>=0.05 && INFO/DP4[2]>=2 && INFO/DP4[3]>=2) && (CHROM!=\"AJ316029\" && CHROM!=\"AJ316029.1\" && CHROM!=\"AJ420316\" && CHROM!=\"AJ420316.1\" && CHROM!=\"JN676151\" && CHROM!=\"JN676151.1\" && CHROM!=\"KR094115\" && CHROM!=\"KR094115.1\" && CHROM!=\"KR094116\" && CHROM!=\"KR094116.1\" && CHROM!=\"KR094117\" && CHROM!=\"KR094117.1\" && CHROM!=\"KR094118\" && CHROM!=\"KR094118.1\" && CHROM!=\"KR094119\" && CHROM!=\"KR094119.1\" && CHROM!=\"KR698381\" && CHROM!=\"KR698381.1\" && CHROM!=\"MF372923\" && CHROM!=\"MF372923.1\" && CHROM!=\"MH049330\" && CHROM!=\"MH049330.1\" && CHROM!=\"MK159261\" && CHROM!=\"MK159261.1\" && CHROM!=\"MW698813\" && CHROM!=\"MW698813.1\" && CHROM!=\"MZ703097\" && CHROM!=\"MZ703097.1\" && CHROM!=\"MZ703098\" && CHROM!=\"MZ703098.1\" && CHROM!=\"MZ703099\" && CHROM!=\"MZ703099.1\" && CHROM!=\"MZ703100\" && CHROM!=\"MZ703100.1\" && CHROM!=\"MZ703101\" && CHROM!=\"MZ703101.1\" && CHROM!=\"NC_001445\" && CHROM!=\"NC_001445.1\" && CHROM!=\"NC_001478\" && CHROM!=\"NC_001478.1\" && CHROM!=\"NC_001658\" && CHROM!=\"NC_001658.1\" && CHROM!=\"NC_002030\" && CHROM!=\"NC_002030.1\" && CHROM!=\"NC_003608\" && CHROM!=\"NC_003608.1\" && CHROM!=\"NC_004359\" && CHROM!=\"NC_004359.1\" && CHROM!=\"NC_007679\" && CHROM!=\"NC_007679.1\" && CHROM!=\"NC_008716\" && CHROM!=\"NC_008716.1\" && CHROM!=\"NC_008728\" && CHROM!=\"NC_008728.1\" && CHROM!=\"NC_018519\" && CHROM!=\"NC_018519.1\" && CHROM!=\"NC_023641\" && CHROM!=\"NC_023641.1\" && CHROM!=\"NC_026241\" && CHROM!=\"NC_026241.1\" && CHROM!=\"NC_028044\" && CHROM!=\"NC_028044.1\" && CHROM!=\"NC_028237\" && CHROM!=\"NC_028237.2\" && CHROM!=\"NC_028949\" && CHROM!=\"NC_028949.1\" && CHROM!=\"NC_031448\" && CHROM!=\"NC_031448.1\" && CHROM!=\"NC_034252\" && CHROM!=\"NC_034252.1\" && CHROM!=\"NC_035070\" && CHROM!=\"NC_035070.1\" && CHROM!=\"NC_038422\" && CHROM!=\"NC_038422.1\" && CHROM!=\"NC_038686\" && CHROM!=\"NC_038686.1\" && CHROM!=\"NC_040543\" && CHROM!=\"NC_040543.1\" && CHROM!=\"NC_040712\" && CHROM!=\"NC_040712.1\" && CHROM!=\"NC_043085\" && CHROM!=\"NC_043085.1\" && CHROM!=\"NC_043145\" && CHROM!=\"NC_043145.1\" && CHROM!=\"NC_043150\" && CHROM!=\"NC_043150.1\" && CHROM!=\"NC_055562\" && CHROM!=\"NC_055562.1\" && CHROM!=\"NC_076977\" && CHROM!=\"NC_076977.1\" && CHROM!=\"NC_077068\" && CHROM!=\"NC_077068.1\" && CHROM!=\"NC_079073\" && CHROM!=\"NC_079073.1\" && CHROM!=\"NC_079074\" && CHROM!=\"NC_079074.1\" && CHROM!=\"NC_079075\" && CHROM!=\"NC_079075.1\" && CHROM!=\"NC_079076\" && CHROM!=\"NC_079076.1\" && CHROM!=\"NC_079077\" && CHROM!=\"NC_079077.1\" && CHROM!=\"NC_116680\" && CHROM!=\"NC_116680.1\" && CHROM!=\"NC_116799\" && CHROM!=\"NC_116799.1\" && CHROM!=\"NC_117321\" && CHROM!=\"NC_117321.1\" && CHROM!=\"NC_139271\" && CHROM!=\"NC_139271.1\" && CHROM!=\"NC_139378\" && CHROM!=\"NC_139378.1\" && CHROM!=\"OL471978\" && CHROM!=\"OL471978.1\" && CHROM!=\"OL471979\" && CHROM!=\"OL471979.1\" && CHROM!=\"OL471980\" && CHROM!=\"OL471980.1\" && CHROM!=\"OL471981\" && CHROM!=\"OL471981.1\" && CHROM!=\"OL471982\" && CHROM!=\"OL471982.1\" && CHROM!=\"ON181430\" && CHROM!=\"ON181430.1\" && CHROM!=\"ON181431\" && CHROM!=\"ON181431.1\" && CHROM!=\"ON181432\" && CHROM!=\"ON181432.1\" && CHROM!=\"ON181433\" && CHROM!=\"ON181433.1\" && CHROM!=\"ON181434\" && CHROM!=\"ON181434.1\" && CHROM!=\"ON602044\" && CHROM!=\"ON602044.1\" && CHROM!=\"ON602045\" && CHROM!=\"ON602045.1\" && CHROM!=\"OP441764\" && CHROM!=\"OP441764.1\" && CHROM!=\"OR489165\" && CHROM!=\"OR489165.1\" && CHROM!=\"PP770489\" && CHROM!=\"PP770489.1\" && CHROM!=\"PP777177\" && CHROM!=\"PP777177.1\" && CHROM!=\"PQ490803\" && CHROM!=\"PQ490803.1\" && CHROM!=\"PQ490804\" && CHROM!=\"PQ490804.1\" && CHROM!=\"PQ490805\" && CHROM!=\"PQ490805.1\" && CHROM!=\"PQ490806\" && CHROM!=\"PQ490806.1\" && CHROM!=\"PQ587056\" && CHROM!=\"PQ587056.1\" && CHROM!=\"PZ000445\" && CHROM!=\"PZ000445.1\")) || ((QUAL>=3.5 && INFO/DP>=20 && INFO/AD[1]/INFO/DP>=0.05 && INFO/DP4[2]>=3 && INFO/DP4[3]>=3) && (CHROM==\"AJ316029\" || CHROM==\"AJ316029.1\" || CHROM==\"AJ420316\" || CHROM==\"AJ420316.1\" || CHROM==\"JN676151\" || CHROM==\"JN676151.1\" || CHROM==\"KR094115\" || CHROM==\"KR094115.1\" || CHROM==\"KR094116\" || CHROM==\"KR094116.1\" || CHROM==\"KR094117\" || CHROM==\"KR094117.1\" || CHROM==\"KR094118\" || CHROM==\"KR094118.1\" || CHROM==\"KR094119\" || CHROM==\"KR094119.1\" || CHROM==\"KR698381\" || CHROM==\"KR698381.1\" || CHROM==\"MF372923\" || CHROM==\"MF372923.1\" || CHROM==\"MH049330\" || CHROM==\"MH049330.1\" || CHROM==\"MK159261\" || CHROM==\"MK159261.1\" || CHROM==\"MW698813\" || CHROM==\"MW698813.1\" || CHROM==\"MZ703097\" || CHROM==\"MZ703097.1\" || CHROM==\"MZ703098\" || CHROM==\"MZ703098.1\" || CHROM==\"MZ703099\" || CHROM==\"MZ703099.1\" || CHROM==\"MZ703100\" || CHROM==\"MZ703100.1\" || CHROM==\"MZ703101\" || CHROM==\"MZ703101.1\" || CHROM==\"NC_001445\" || CHROM==\"NC_001445.1\" || CHROM==\"NC_001478\" || CHROM==\"NC_001478.1\" || CHROM==\"NC_001658\" || CHROM==\"NC_001658.1\" || CHROM==\"NC_002030\" || CHROM==\"NC_002030.1\" || CHROM==\"NC_003608\" || CHROM==\"NC_003608.1\" || CHROM==\"NC_004359\" || CHROM==\"NC_004359.1\" || CHROM==\"NC_007679\" || CHROM==\"NC_007679.1\" || CHROM==\"NC_008716\" || CHROM==\"NC_008716.1\" || CHROM==\"NC_008728\" || CHROM==\"NC_008728.1\" || CHROM==\"NC_018519\" || CHROM==\"NC_018519.1\" || CHROM==\"NC_023641\" || CHROM==\"NC_023641.1\" || CHROM==\"NC_026241\" || CHROM==\"NC_026241.1\" || CHROM==\"NC_028044\" || CHROM==\"NC_028044.1\" || CHROM==\"NC_028237\" || CHROM==\"NC_028237.2\" || CHROM==\"NC_028949\" || CHROM==\"NC_028949.1\" || CHROM==\"NC_031448\" || CHROM==\"NC_031448.1\" || CHROM==\"NC_034252\" || CHROM==\"NC_034252.1\" || CHROM==\"NC_035070\" || CHROM==\"NC_035070.1\" || CHROM==\"NC_038422\" || CHROM==\"NC_038422.1\" || CHROM==\"NC_038686\" || CHROM==\"NC_038686.1\" || CHROM==\"NC_040543\" || CHROM==\"NC_040543.1\" || CHROM==\"NC_040712\" || CHROM==\"NC_040712.1\" || CHROM==\"NC_043085\" || CHROM==\"NC_043085.1\" || CHROM==\"NC_043145\" || CHROM==\"NC_043145.1\" || CHROM==\"NC_043150\" || CHROM==\"NC_043150.1\" || CHROM==\"NC_055562\" || CHROM==\"NC_055562.1\" || CHROM==\"NC_076977\" || CHROM==\"NC_076977.1\" || CHROM==\"NC_077068\" || CHROM==\"NC_077068.1\" || CHROM==\"NC_079073\" || CHROM==\"NC_079073.1\" || CHROM==\"NC_079074\" || CHROM==\"NC_079074.1\" || CHROM==\"NC_079075\" || CHROM==\"NC_079075.1\" || CHROM==\"NC_079076\" || CHROM==\"NC_079076.1\" || CHROM==\"NC_079077\" || CHROM==\"NC_079077.1\" || CHROM==\"NC_116680\" || CHROM==\"NC_116680.1\" || CHROM==\"NC_116799\" || CHROM==\"NC_116799.1\" || CHROM==\"NC_117321\" || CHROM==\"NC_117321.1\" || CHROM==\"NC_139271\" || CHROM==\"NC_139271.1\" || CHROM==\"NC_139378\" || CHROM==\"NC_139378.1\" || CHROM==\"OL471978\" || CHROM==\"OL471978.1\" || CHROM==\"OL471979\" || CHROM==\"OL471979.1\" || CHROM==\"OL471980\" || CHROM==\"OL471980.1\" || CHROM==\"OL471981\" || CHROM==\"OL471981.1\" || CHROM==\"OL471982\" || CHROM==\"OL471982.1\" || CHROM==\"ON181430\" || CHROM==\"ON181430.1\" || CHROM==\"ON181431\" || CHROM==\"ON181431.1\" || CHROM==\"ON181432\" || CHROM==\"ON181432.1\" || CHROM==\"ON181433\" || CHROM==\"ON181433.1\" || CHROM==\"ON181434\" || CHROM==\"ON181434.1\" || CHROM==\"ON602044\" || CHROM==\"ON602044.1\" || CHROM==\"ON602045\" || CHROM==\"ON602045.1\" || CHROM==\"OP441764\" || CHROM==\"OP441764.1\" || CHROM==\"OR489165\" || CHROM==\"OR489165.1\" || CHROM==\"PP770489\" || CHROM==\"PP770489.1\" || CHROM==\"PP777177\" || CHROM==\"PP777177.1\" || CHROM==\"PQ490803\" || CHROM==\"PQ490803.1\" || CHROM==\"PQ490804\" || CHROM==\"PQ490804.1\" || CHROM==\"PQ490805\" || CHROM==\"PQ490805.1\" || CHROM==\"PQ490806\" || CHROM==\"PQ490806.1\" || CHROM==\"PQ587056\" || CHROM==\"PQ587056.1\" || CHROM==\"PZ000445\" || CHROM==\"PZ000445.1\"))">
+##bcftools_filterVersion=1.24+htslib-1.24
+##bcftools_filterCommand=filter -s FAIL -i '((QUAL>=3.5 && INFO/DP>=10 && INFO/AD[1]/INFO/DP>=0.05 && INFO/DP4[2]>=2 && INFO/DP4[3]>=2) && (CHROM!="AJ316029" && CHROM!="AJ316029.1" && CHROM!="AJ420316" && CHROM!="AJ420316.1" && CHROM!="JN676151" && CHROM!="JN676151.1" && CHROM!="KR094115" && CHROM!="KR094115.1" && CHROM!="KR094116" && CHROM!="KR094116.1" && CHROM!="KR094117" && CHROM!="KR094117.1" && CHROM!="KR094118" && CHROM!="KR094118.1" && CHROM!="KR094119" && CHROM!="KR094119.1" && CHROM!="KR698381" && CHROM!="KR698381.1" && CHROM!="MF372923" && CHROM!="MF372923.1" && CHROM!="MH049330" && CHROM!="MH049330.1" && CHROM!="MK159261" && CHROM!="MK159261.1" && CHROM!="MW698813" && CHROM!="MW698813.1" && CHROM!="MZ703097" && CHROM!="MZ703097.1" && CHROM!="MZ703098" && CHROM!="MZ703098.1" && CHROM!="MZ703099" && CHROM!="MZ703099.1" && CHROM!="MZ703100" && CHROM!="MZ703100.1" && CHROM!="MZ703101" && CHROM!="MZ703101.1" && CHROM!="NC_001445" && CHROM!="NC_001445.1" && CHROM!="NC_001478" && CHROM!="NC_001478.1" && CHROM!="NC_001658" && CHROM!="NC_001658.1" && CHROM!="NC_002030" && CHROM!="NC_002030.1" && CHROM!="NC_003608" && CHROM!="NC_003608.1" && CHROM!="NC_004359" && CHROM!="NC_004359.1" && CHROM!="NC_007679" && CHROM!="NC_007679.1" && CHROM!="NC_008716" && CHROM!="NC_008716.1" && CHROM!="NC_008728" && CHROM!="NC_008728.1" && CHROM!="NC_018519" && CHROM!="NC_018519.1" && CHROM!="NC_023641" && CHROM!="NC_023641.1" && CHROM!="NC_026241" && CHROM!="NC_026241.1" && CHROM!="NC_028044" && CHROM!="NC_028044.1" && CHROM!="NC_028237" && CHROM!="NC_028237.2" && CHROM!="NC_028949" && CHROM!="NC_028949.1" && CHROM!="NC_031448" && CHROM!="NC_031448.1" && CHROM!="NC_034252" && CHROM!="NC_034252.1" && CHROM!="NC_035070" && CHROM!="NC_035070.1" && CHROM!="NC_038422" && CHROM!="NC_038422.1" && CHROM!="NC_038686" && CHROM!="NC_038686.1" && CHROM!="NC_040543" && CHROM!="NC_040543.1" && CHROM!="NC_040712" && CHROM!="NC_040712.1" && CHROM!="NC_043085" && CHROM!="NC_043085.1" && CHROM!="NC_043145" && CHROM!="NC_043145.1" && CHROM!="NC_043150" && CHROM!="NC_043150.1" && CHROM!="NC_055562" && CHROM!="NC_055562.1" && CHROM!="NC_076977" && CHROM!="NC_076977.1" && CHROM!="NC_077068" && CHROM!="NC_077068.1" && CHROM!="NC_079073" && CHROM!="NC_079073.1" && CHROM!="NC_079074" && CHROM!="NC_079074.1" && CHROM!="NC_079075" && CHROM!="NC_079075.1" && CHROM!="NC_079076" && CHROM!="NC_079076.1" && CHROM!="NC_079077" && CHROM!="NC_079077.1" && CHROM!="NC_116680" && CHROM!="NC_116680.1" && CHROM!="NC_116799" && CHROM!="NC_116799.1" && CHROM!="NC_117321" && CHROM!="NC_117321.1" && CHROM!="NC_139271" && CHROM!="NC_139271.1" && CHROM!="NC_139378" && CHROM!="NC_139378.1" && CHROM!="OL471978" && CHROM!="OL471978.1" && CHROM!="OL471979" && CHROM!="OL471979.1" && CHROM!="OL471980" && CHROM!="OL471980.1" && CHROM!="OL471981" && CHROM!="OL471981.1" && CHROM!="OL471982" && CHROM!="OL471982.1" && CHROM!="ON181430" && CHROM!="ON181430.1" && CHROM!="ON181431" && CHROM!="ON181431.1" && CHROM!="ON181432" && CHROM!="ON181432.1" && CHROM!="ON181433" && CHROM!="ON181433.1" && CHROM!="ON181434" && CHROM!="ON181434.1" && CHROM!="ON602044" && CHROM!="ON602044.1" && CHROM!="ON602045" && CHROM!="ON602045.1" && CHROM!="OP441764" && CHROM!="OP441764.1" && CHROM!="OR489165" && CHROM!="OR489165.1" && CHROM!="PP770489" && CHROM!="PP770489.1" && CHROM!="PP777177" && CHROM!="PP777177.1" && CHROM!="PQ490803" && CHROM!="PQ490803.1" && CHROM!="PQ490804" && CHROM!="PQ490804.1" && CHROM!="PQ490805" && CHROM!="PQ490805.1" && CHROM!="PQ490806" && CHROM!="PQ490806.1" && CHROM!="PQ587056" && CHROM!="PQ587056.1" && CHROM!="PZ000445" && CHROM!="PZ000445.1")) || ((QUAL>=3.5 && INFO/DP>=20 && INFO/AD[1]/INFO/DP>=0.05 && INFO/DP4[2]>=3 && INFO/DP4[3]>=3) && (CHROM=="AJ316029" || CHROM=="AJ316029.1" || CHROM=="AJ420316" || CHROM=="AJ420316.1" || CHROM=="JN676151" || CHROM=="JN676151.1" || CHROM=="KR094115" || CHROM=="KR094115.1" || CHROM=="KR094116" || CHROM=="KR094116.1" || CHROM=="KR094117" || CHROM=="KR094117.1" || CHROM=="KR094118" || CHROM=="KR094118.1" || CHROM=="KR094119" || CHROM=="KR094119.1" || CHROM=="KR698381" || CHROM=="KR698381.1" || CHROM=="MF372923" || CHROM=="MF372923.1" || CHROM=="MH049330" || CHROM=="MH049330.1" || CHROM=="MK159261" || CHROM=="MK159261.1" || CHROM=="MW698813" || CHROM=="MW698813.1" || CHROM=="MZ703097" || CHROM=="MZ703097.1" || CHROM=="MZ703098" || CHROM=="MZ703098.1" || CHROM=="MZ703099" || CHROM=="MZ703099.1" || CHROM=="MZ703100" || CHROM=="MZ703100.1" || CHROM=="MZ703101" || CHROM=="MZ703101.1" || CHROM=="NC_001445" || CHROM=="NC_001445.1" || CHROM=="NC_001478" || CHROM=="NC_001478.1" || CHROM=="NC_001658" || CHROM=="NC_001658.1" || CHROM=="NC_002030" || CHROM=="NC_002030.1" || CHROM=="NC_003608" || CHROM=="NC_003608.1" || CHROM=="NC_004359" || CHROM=="NC_004359.1" || CHROM=="NC_007679" || CHROM=="NC_007679.1" || CHROM=="NC_008716" || CHROM=="NC_008716.1" || CHROM=="NC_008728" || CHROM=="NC_008728.1" || CHROM=="NC_018519" || CHROM=="NC_018519.1" || CHROM=="NC_023641" || CHROM=="NC_023641.1" || CHROM=="NC_026241" || CHROM=="NC_026241.1" || CHROM=="NC_028044" || CHROM=="NC_028044.1" || CHROM=="NC_028237" || CHROM=="NC_028237.2" || CHROM=="NC_028949" || CHROM=="NC_028949.1" || CHROM=="NC_031448" || CHROM=="NC_031448.1" || CHROM=="NC_034252" || CHROM=="NC_034252.1" || CHROM=="NC_035070" || CHROM=="NC_035070.1" || CHROM=="NC_038422" || CHROM=="NC_038422.1" || CHROM=="NC_038686" || CHROM=="NC_038686.1" || CHROM=="NC_040543" || CHROM=="NC_040543.1" || CHROM=="NC_040712" || CHROM=="NC_040712.1" || CHROM=="NC_043085" || CHROM=="NC_043085.1" || CHROM=="NC_043145" || CHROM=="NC_043145.1" || CHROM=="NC_043150" || CHROM=="NC_043150.1" || CHROM=="NC_055562" || CHROM=="NC_055562.1" || CHROM=="NC_076977" || CHROM=="NC_076977.1" || CHROM=="NC_077068" || CHROM=="NC_077068.1" || CHROM=="NC_079073" || CHROM=="NC_079073.1" || CHROM=="NC_079074" || CHROM=="NC_079074.1" || CHROM=="NC_079075" || CHROM=="NC_079075.1" || CHROM=="NC_079076" || CHROM=="NC_079076.1" || CHROM=="NC_079077" || CHROM=="NC_079077.1" || CHROM=="NC_116680" || CHROM=="NC_116680.1" || CHROM=="NC_116799" || CHROM=="NC_116799.1" || CHROM=="NC_117321" || CHROM=="NC_117321.1" || CHROM=="NC_139271" || CHROM=="NC_139271.1" || CHROM=="NC_139378" || CHROM=="NC_139378.1" || CHROM=="OL471978" || CHROM=="OL471978.1" || CHROM=="OL471979" || CHROM=="OL471979.1" || CHROM=="OL471980" || CHROM=="OL471980.1" || CHROM=="OL471981" || CHROM=="OL471981.1" || CHROM=="OL471982" || CHROM=="OL471982.1" || CHROM=="ON181430" || CHROM=="ON181430.1" || CHROM=="ON181431" || CHROM=="ON181431.1" || CHROM=="ON181432" || CHROM=="ON181432.1" || CHROM=="ON181433" || CHROM=="ON181433.1" || CHROM=="ON181434" || CHROM=="ON181434.1" || CHROM=="ON602044" || CHROM=="ON602044.1" || CHROM=="ON602045" || CHROM=="ON602045.1" || CHROM=="OP441764" || CHROM=="OP441764.1" || CHROM=="OR489165" || CHROM=="OR489165.1" || CHROM=="PP770489" || CHROM=="PP770489.1" || CHROM=="PP777177" || CHROM=="PP777177.1" || CHROM=="PQ490803" || CHROM=="PQ490803.1" || CHROM=="PQ490804" || CHROM=="PQ490804.1" || CHROM=="PQ490805" || CHROM=="PQ490805.1" || CHROM=="PQ490806" || CHROM=="PQ490806.1" || CHROM=="PQ587056" || CHROM=="PQ587056.1" || CHROM=="PZ000445" || CHROM=="PZ000445.1"))' -Ov -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\vcf\all.variants.soft.vcf D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\vcf\all.variants.raw.vcf; Date=Tue Nov 03 12:55:29 2026
+##bcftools_filterCommand=filter -i FILTER=="PASS" -Ov -o D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\vcf\all.variants.vcf.filtered D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\vcf\all.variants.soft.vcf; Date=Tue Nov 03 12:55:29 2026
+##SnpEffVersion="5.4c (build 2026-02-23 07:25), by Pablo Cingolani"
+##SnpEffCmd="SnpEff  NC_014846 D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\vcf\NC_014846.vcf "
+##INFO=<ID=ANN,Number=.,Type=String,Description="Functional annotations: 'Allele | Annotation | Annotation_Impact | Gene_Name | Gene_ID | Feature_Type | Feature_ID | Transcript_BioType | Rank | HGVS.c | HGVS.p | cDNA.pos / cDNA.length | CDS.pos / CDS.length | AA.pos / AA.length | Distance | ERRORS / WARNINGS / INFO' ">
+##INFO=<ID=LOF,Number=.,Type=String,Description="Predicted loss of function effects for this variant. Format: 'Gene_Name | Gene_ID | Number_of_transcripts_in_gene | Percent_of_transcripts_affected'">
+##INFO=<ID=NMD,Number=.,Type=String,Description="Predicted nonsense mediated decay effects for this variant. Format: 'Gene_Name | Gene_ID | Number_of_transcripts_in_gene | Percent_of_transcripts_affected'">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	D:\桌面\植物病毒分析平台\run\tool_runs\kvsuite_20261103_125005_bf8af6\kvsuite\bam\EXAMPLE.sorted.bam
+NC_014846.1	175	.	CAAAA	CAAAAA	63.7949	PASS	INDEL;IDV=21;IMF=0.525;DP=40;AD=15,18;VDB=0.000535134;SGB=-0.691153;RPBZ=-2.60079;MQBZ=3.22096;MQSBZ=0.838807;SCBZ=0.95119;MQ0F=0.425;AC=2;AN=2;DP4=11,4,15,3;MQ=8;ANN=CAAAAA|frameshift_variant&splice_region_variant|HIGH|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding|1/1|c.423_*1insT|p.Ter141fs|423/423|423/423|141/140||	GT:PL:DP:AD	1/1:91,5,0:33:15,18
+NC_014846.1	297	.	C	T	115.415	PASS	DP=54;AD=0,47;VDB=0.114527;SGB=-0.693147;MQSBZ=-2.35654;MQ0F=0.259259;AC=2;AN=2;DP4=0,0,36,11;MQ=10;ANN=T|synonymous_variant|LOW|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding|1/1|c.306G>A|p.Glu102Glu|306/423|306/423|102/140||	GT:PL:DP:AD	1/1:145,141,0:47:0,47
+NC_014846.1	324	.	C	T	214.163	PASS	DP=65;AD=9,46;VDB=0.939427;SGB=-0.693147;RPBZ=0.19342;MQBZ=3.38609;MQSBZ=-0.979423;BQBZ=-0.167709;SCBZ=-2.45669;MQ0F=0.184615;AC=2;AN=2;DP4=3,6,28,18;MQ=13;ANN=T|synonymous_variant|LOW|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding|1/1|c.279G>A|p.Lys93Lys|279/423|279/423|93/140||	GT:PL:DP:AD	1/1:241,65,0:55:9,46
+NC_014846.1	357	.	G	A	186.117	PASS	DP=62;AD=9,42;VDB=0.598034;SGB=-0.693146;RPBZ=0.0617848;MQBZ=3.35189;MQSBZ=-0.847174;BQBZ=0.642753;SCBZ=-1.74885;MQ0F=0.177419;AC=2;AN=2;DP4=1,8,21,21;MQ=12;ANN=A|synonymous_variant|LOW|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding|1/1|c.246C>T|p.Asn82Asn|246/423|246/423|82/140||	GT:PL:DP:AD	1/1:213,56,0:51:9,42
+NC_014846.1	375	.	A	G	182.4	PASS	DP=59;AD=1,47;VDB=0.103732;SGB=-0.693147;RPBZ=0.613718;MQBZ=1.32105;MQSBZ=-1.09543;BQBZ=1.7695;SCBZ=0.258199;MQ0F=0.20339;AC=2;AN=2;DP4=0,1,14,33;MQ=12;ANN=G|synonymous_variant|LOW|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding|1/1|c.228T>C|p.His76His|228/423|228/423|76/140||	GT:PL:DP:AD	1/1:209,128,0:48:1,47
+NC_014846.1	1049	.	A	T	225.417	PASS	DP=20;AD=0,18;VDB=0.00221744;SGB=-0.691153;MQSBZ=0.46124;MQ0F=0;AC=2;AN=2;DP4=0,0,11,7;MQ=42;ANN=T|upstream_gene_variant|MODIFIER|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding||c.-447T>A|||||447|,T|intergenic_region|MODIFIER|C1-CHR_END|BhYVIVb_gp1-CHR_END|intergenic_region|BhYVIVb_gp1-CHR_END|||n.1049A>T||||||	GT:PL:DP:AD	1/1:255,54,0:18:0,18
+NC_014846.1	1063	.	G	A	225.417	PASS	DP=29;AD=0,29;VDB=8.45491e-09;SGB=-0.693079;MQSBZ=0.763165;MQ0F=0;AC=2;AN=2;DP4=0,0,18,11;MQ=47;ANN=A|upstream_gene_variant|MODIFIER|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding||c.-461C>T|||||461|,A|intergenic_region|MODIFIER|C1-CHR_END|BhYVIVb_gp1-CHR_END|intergenic_region|BhYVIVb_gp1-CHR_END|||n.1063G>A||||||	GT:PL:DP:AD	1/1:255,87,0:29:0,29
+NC_014846.1	1072	.	T	A	225.417	PASS	DP=35;AD=0,31;VDB=1.35104e-09;SGB=-0.69311;MQSBZ=0.0211301;MQ0F=0;AC=2;AN=2;DP4=0,0,20,11;MQ=46;ANN=A|upstream_gene_variant|MODIFIER|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding||c.-470A>T|||||470|,A|intergenic_region|MODIFIER|C1-CHR_END|BhYVIVb_gp1-CHR_END|intergenic_region|BhYVIVb_gp1-CHR_END|||n.1072T>A||||||	GT:PL:DP:AD	1/1:255,93,0:31:0,31
+NC_014846.1	1077	.	C	G	225.417	PASS	DP=35;AD=0,32;VDB=1.31046e-08;SGB=-0.69312;MQSBZ=1.01593;MQ0F=0;AC=2;AN=2;DP4=0,0,21,11;MQ=48;ANN=G|upstream_gene_variant|MODIFIER|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding||c.-475G>C|||||475|,G|intergenic_region|MODIFIER|C1-CHR_END|BhYVIVb_gp1-CHR_END|intergenic_region|BhYVIVb_gp1-CHR_END|||n.1077C>G||||||	GT:PL:DP:AD	1/1:255,96,0:32:0,32
+NC_014846.1	1109	.	C	G	225.421	PASS	DP=46;AD=0,40;VDB=0.000418454;SGB=-0.693145;MQSBZ=1.45173;MQ0F=0.0217391;AC=2;AN=2;DP4=0,0,22,19;MQ=46;ANN=G|upstream_gene_variant|MODIFIER|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding||c.-507G>C|||||507|,G|intergenic_region|MODIFIER|C1-CHR_END|BhYVIVb_gp1-CHR_END|intergenic_region|BhYVIVb_gp1-CHR_END|||n.1109C>G||||||	GT:PL:DP:AD	1/1:255,120,0:41:0,40
+NC_014846.1	1147	.	C	T	225.417	PASS	DP=57;AD=0,48;VDB=0.283485;SGB=-0.693147;MQSBZ=1.73018;MQ0F=0;AC=2;AN=2;DP4=0,0,24,24;MQ=47;ANN=T|upstream_gene_variant|MODIFIER|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding||c.-545G>A|||||545|,T|intergenic_region|MODIFIER|C1-CHR_END|BhYVIVb_gp1-CHR_END|intergenic_region|BhYVIVb_gp1-CHR_END|||n.1147C>T||||||	GT:PL:DP:AD	1/1:255,144,0:48:0,48
+NC_014846.1	1195	.	G	A	225.417	PASS	DP=41;AD=0,35;VDB=0.00471901;SGB=-0.693136;MQSBZ=-0.171898;MQ0F=0.0243902;AC=2;AN=2;DP4=0,0,14,21;MQ=43;ANN=A|upstream_gene_variant|MODIFIER|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding||c.-593C>T|||||593|,A|intergenic_region|MODIFIER|C1-CHR_END|BhYVIVb_gp1-CHR_END|intergenic_region|BhYVIVb_gp1-CHR_END|||n.1195G>A||||||	GT:PL:DP:AD	1/1:255,105,0:35:0,35
+NC_014846.1	1233	.	T	G	225.417	PASS	DP=38;AD=0,31;VDB=0.956707;SGB=-0.69311;MQSBZ=-0.861686;MQ0F=0.0263158;AC=2;AN=2;DP4=0,0,5,26;MQ=39;ANN=G|upstream_gene_variant|MODIFIER|C1|BhYVIVb_gp1|transcript|BhYVIVb_gp1|protein_coding||c.-631A>C|||||631|,G|intergenic_region|MODIFIER|C1-CHR_END|BhYVIVb_gp1-CHR_END|intergenic_region|BhYVIVb_gp1-CHR_END|||n.1233T>G||||||	GT:PL:DP:AD	1/1:255,93,0:31:0,31

@@ -1,6 +1,6 @@
 # Architecture · 平台架构与目录结构
 
-> 返回 [Home](Home) ｜ 上一页：[Quick-Start](Quick-Start) ｜ 下一页：[Pipeline-Overview](Pipeline-Overview)
+> 返回 [Home](Home) ｜ 上一页：[Pipeline-Overview](Pipeline-Overview) ｜ 下一页：[Public-Data](Public-Data)
 
 ---
 

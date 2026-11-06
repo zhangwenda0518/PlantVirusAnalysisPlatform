@@ -1,6 +1,6 @@
 # CLI-Reference · 命令行完整参考
 
-> 返回 [Home](Home) ｜ 上一页：[Settings-Ops](Settings-Ops) ｜ 下一页：[FAQ](FAQ)
+> 返回 [Home](Home) ｜ 上一页：[AI-Assistant](AI-Assistant) ｜ 下一页：[Settings-Ops](Settings-Ops)
 
 入口：`python main.py <子命令> [参数]`。GUI 能做的 CLI 都能做（共用同一引擎）。
 
@@ -72,7 +72,7 @@ python main.py host-analysis --sample NAME [--force]
 ### `orfa` — ⑥b ORF 功能注释
 
 ```bat
-python main.py orfa --sample NAME [--threads N] [--libs prot,pfam,bfvd] [--force]
+python main.py orfa --sample NAME [--threads N] [--libs pvdb,hmm,cdd,bfvd] [--profile strict|balanced|recall] [--force]
 ```
 
 ## CRISPR 检测设计

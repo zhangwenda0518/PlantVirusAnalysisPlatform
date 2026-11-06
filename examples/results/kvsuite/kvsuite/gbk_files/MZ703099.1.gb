@@ -1,0 +1,97 @@
+LOCUS       MZ703099                2256 bp    RNA     linear   VRL 07-SEP-2021
+DEFINITION  Wheat white spike virus isolate BR:PG10:18 segment RNA 3, complete
+            sequence.
+ACCESSION   MZ703099
+VERSION     MZ703099.1
+KEYWORDS    .
+SOURCE      Wheat white spike virus
+  ORGANISM  Wheat white spike virus
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Hareavirales; Phenuiviridae;
+            Tenuivirus; Tenuivirus pontaense.
+REFERENCE   1  (bases 1 to 2256)
+  AUTHORS   Pereira,F.S., Stempkowski,L.A., Fajardo,T.M., Junior,A.N., Lau,D.,
+            Mar,T.B., Nascimento,S.C., Bogo,A., Casa,R.T. and Silva,F.N.
+  TITLE     A novel tenuivirus infecting wheat in Brazil
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 2256)
+  AUTHORS   Pereira,F.S., Stempkowski,L.A., Fajardo,T.M., Junior,A.N., Lau,D.,
+            Mar,T.B., Nascimento,S.C., Bogo,A., Casa,R.T. and Silva,F.N.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (03-AUG-2021) Agronomy, Universidade do Estado de Santa
+            Catarina, Avenida Luiz de Camoes, Lages, SC 88520-000, Brazil
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: Geneious v. v. R11
+            Sequencing Technology :: Illumina
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..2256
+                     /organism="Wheat white spike virus"
+                     /mol_type="genomic RNA"
+                     /isolate="BR:PG10:18"
+                     /host="Triticum aestivum"
+                     /db_xref="taxon:2871179"
+                     /segment="RNA 3"
+                     /geo_loc_name="Brazil"
+                     /collection_date="2018"
+     CDS             86..685
+                     /note="putative silencing suppressor protein"
+                     /codon_start=1
+                     /product="NS3"
+                     /protein_id="QZU27241.1"
+                     /translation="MNISLYSSGSPSSDHSLLSRNGLTNIVLTCRDVTIPLDLLTAFF
+                     DVMNDRHPSFDEHMFLQMLKKPDDSENLSMFLKSAMWMLSHKRDFPDHLRLPLSCLLS
+                     TYSEFFIELKPRAPSTKCWFCRIAKDDFPFKVDEIHGFPSDATLYIVPSKDHSTEKFE
+                     ILSGKKLYRSPSKKRHSYLIASDKAPLTSKFVEYSPPQG"
+     CDS             complement(1168..2115)
+                     /note="nucleoprotein"
+                     /codon_start=1
+                     /product="NSvc3"
+                     /protein_id="QZU27242.1"
+                     /translation="MSMSVAEIQSEIERVSQLAIKYITDNKDTLIAFVGQIEYNGYDA
+                     GKLLKILETKSKGRDFGKDLCYLLVMRYTRGTGFVRDVRKKIKVAAGGDIAHEIVTHY
+                     GIVQSVGDNVDAITLGRLASLFPAVSMSIVKNVSTGAKLAVDSSDLGSSGIDLLLWDF
+                     VPQFIEIDSITAPHCTRKHVNNLLFALHVLQGAMTTKKTMPDQKKKARNLTTDYDLLK
+                     YTTELLVITCSSKNITEEKKQAYRGNLIAPFKEADGGFKETFWVSLGKVATGVVKKLK
+                     PEAQAFLKERCTFLKLMVENSKGSVEDAAAALRAYIMDA"
+ORIGIN      
+        1 tgtaggtgga attacagctg ggtcctgggt ataaaaaaac aatcaaaata aatctgcaat
+       61 tagactttct tgacttccta tcaaaatgaa tatatcttta tattctagtg gtagtccttc
+      121 atctgatcat agccttctga gtaggaatgg cctcaccaac attgtgctca cttgcaggga
+      181 tgttacaatc cctttagatc ttcttacggc cttctttgat gttatgaatg atagacaccc
+      241 tagctttgat gagcacatgt ttctgcaaat gctaaagaag cctgatgatt ctgaaaatct
+      301 gtctatgttc cttaagagcg ctatgtggat gttgtctcac aaaagagact ttcctgatca
+      361 tttgaggttg ccactatctt gtctattatc aacatacagt gagttcttca ttgagctcaa
+      421 accgagagcc ccatcaacta aatgctggtt ctgcaggatt gctaaagatg atttcccatt
+      481 caaggttgat gaaattcatg gctttccttc tgatgcgact ttatatatag tcccatctaa
+      541 ggaccattcc actgagaaat ttgaaatact cagtggaaag aaactatatc gttcacctag
+      601 caagaagcga catagttatc tgatagcttc tgataaggct cctctcacat caaaatttgt
+      661 ggagtattct cctccacaag gttaaatagc tatatatttt aagttctttt ccactcgttc
+      721 cgggatcgaa taagtcgatc aggtctgtaa cttaagtagg cttcatggta accccacttt
+      781 agaacagagt tctcagttgt taggtctaag accaaagaca aaaaaactaa aaatcgttgt
+      841 gctaagcaca acatccggat atacataatc ggatggtttt tttcctaacc taattttttt
+      901 gcatttttat aaattttatc atttttttgt ttttttgagt attaagaata catataacat
+      961 atacaatacc tatttacaaa ctaatcacca tattataaag cactaatatc aaagacaatg
+     1021 agcaaaccac acaccagtat tcaagaaaac gaacatagaa tataagatac tataataaac
+     1081 ttaaaatata caaacaaata tatagataaa agaacatata gaagactaaa catacatgca
+     1141 taaagaacaa cctttgtcct tttagattta tgcatccatt atgtaggctc ttagagcagc
+     1201 agctgcatcc tctacagacc ctttgctgtt ttcaaccata agcttaagga aagtgcacct
+     1261 ttctttcaag aaagcttgag cttctggctt aagcttcttc accactcctg ttgccacttt
+     1321 tccaagagac acccagaaag tctctttaaa cccaccatct gcttctttga aaggagctat
+     1381 tagattgcct ctgtaggcct gcttcttctc ctcagttatg ttcttagagg aacacgtgat
+     1441 gacaagcaac tcggtagtgt atttcaggag atcatagtca gtggtcaaat ttctagcctt
+     1501 cttcttctga tcaggcatgg tctttttggt ggtcatggcc ccttgtagta catgtagagc
+     1561 aaacagcaag ttgtttacat gcttgcgggt gcagtgagga gctgtgatcg aatcaatttc
+     1621 tatgaactgg ggcacaaaat cccagagaag aagatctatg cctgaagacc ccaaatctga
+     1681 tgagtccaca gccaatttag caccggttga aacgttcttc acgatgctca tggagacagc
+     1741 cggaaagaga gaagctagcc tccctagagt gattgcatcc acattgtctc caactgactg
+     1801 cactattcca tagtgtgtca caatttcgtg agctatgtca cctccagcag ccaccttgat
+     1861 cttcttcctc acatctcgga caaaaccagt ccctctggtg tatctcatca caagcaggta
+     1921 gcagagatcc ttgccaaaat ctctgccctt tgacttggtc tccaagattt tcagtagttt
+     1981 tccagcatca tagccattgt attctatctg accaacaaat gctataagag tgtctttgtt
+     2041 gtcagttatg tacttgatgg ctagctgaga gactctctca atctcactct ggatctcagc
+     2101 tactgacata gacatgttct ctggctcctg tgtccttgac tgtatgggtg ctattgttaa
+     2161 tcaaagtgaa agttcttttc agttgacttt cttgcttgat gattttcaca attttaccca
+     2221 gactttgtgt gtgtgtgtgt gtgtgtgtgt gtgtgt
+//
+

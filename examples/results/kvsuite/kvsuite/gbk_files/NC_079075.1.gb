@@ -1,0 +1,93 @@
+LOCUS       NC_079075               1739 bp ss-RNA     linear   VRL 06-MAY-2023
+DEFINITION  Arceuthobium sichuanense virus 1 isolate China segment RNA 4,
+            complete sequence.
+ACCESSION   NC_079075
+VERSION     NC_079075.1
+DBLINK      BioProject: PRJNA485481
+            Sequence Read Archive: SRR3081483, SRR3081484
+KEYWORDS    RefSeq.
+SOURCE      Arceuthobium sichuanense virus 1
+  ORGANISM  Arceuthobium sichuanense virus 1
+            Viruses; Riboviria.
+REFERENCE   1  (bases 1 to 1739)
+  AUTHORS   Sidharthan,V.K., Chaturvedi,K.K. and Baranwal,V.K.
+  TITLE     Diverse RNA viruses in a parasitic flowering plant (spruce dwarf
+            mistletoe) revealed through RNA-seq data mining
+  JOURNAL   J Gen Plant Pathol 88 (2), 138-144 (2022)
+  REMARK    DOI: 10.1007/s10327-021-01049-y
+REFERENCE   2  (bases 1 to 1739)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (05-MAY-2023) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 1739)
+  AUTHORS   Sidharthan,V.K. and Baranwal,V.K.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (14-JUN-2021) Division of Plant Pathology, Indian
+            Agricultural Research Institute, Pusa, New Delhi, Delhi 110012,
+            India
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to BK059266.
+            
+            ##Assembly-Data-START##
+            Assembly Method :: SPAdes v. 3.13.1
+            ##Assembly-Data-END##
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..1739
+                     /organism="Arceuthobium sichuanense virus 1"
+                     /mol_type="genomic RNA"
+                     /isolate="China"
+                     /host="Arceuthobium sichuanense"
+                     /db_xref="taxon:2873234"
+                     /segment="RNA 4"
+     gene            80..1189
+                     /gene="ORF4"
+                     /locus_tag="QK868_s4gp1"
+                     /db_xref="GeneID:80554542"
+     CDS             80..1189
+                     /gene="ORF4"
+                     /locus_tag="QK868_s4gp1"
+                     /codon_start=1
+                     /product="movement protein"
+                     /protein_id="YP_010840856.1"
+                     /db_xref="GeneID:80554542"
+                     /translation="MKAFNFYYSLISFAFFSSVVPLENGKMELDLSEMDTKVENHDIS
+                     SWESGSRNTELSNAIVSGLASTRIKTNLVVQPRTTVLNFKFYKYITQYIKTIQGLDTV
+                     RLANIIIHYQPYSDDCKGTVSYALVDTRFNDMMDAESHAVRDNKKNVAKVIGKVKHLV
+                     TVDCAKEAFIQFSMNHQVATSDINKMQLCQIVSNIDMIKGKFAKVNLGWLTVPGDSTI
+                     YETFPAQLYYFPRKTLPELQGKSSAYSYRQFVRMAKAKYDKEVAMLNKLQQLVDSQNV
+                     ITNNLESDVINEISKTESEIKKIQGELETMEKVLPNKSKLNEMKKHLAELEKIKQENM
+                     KQILNEKNEFINEITNEDKFYINDNNSVDFSKIND"
+ORIGIN      
+        1 atggaactag tagtgaactc ccataaaaac tattatctac aaaaatcttt tacataatct
+       61 aaacattggt attctcaaaa tgaaggcatt caatttctat tactcattaa tctcatttgc
+      121 tttctttagc agtgtagtac ctctggaaaa cggtaaaatg gaactagatt tatcagaaat
+      181 ggatactaag gttgaaaatc atgatatttc atcatgggaa tcaggttcta gaaatactga
+      241 attaagtaat gctatagtaa gtggtttggc tagtacaaga attaaaacaa atttagttgt
+      301 tcaacctaga accactgtat taaattttaa attttataaa tatataacac aatatataaa
+      361 aactattcaa ggcttggaca ctgttaggtt ggcaaatatc ataatacatt atcaaccata
+      421 ttctgatgat tgtaaaggga ctgtatcata tgctttagta gacactagat ttaatgatat
+      481 gatggatgct gaatcacatg ctgtcagaga caacaagaaa aatgttgcta aagtgattgg
+      541 caaggttaaa catcttgtaa cagtagattg tgctaaagaa gcattcatac aatttagtat
+      601 gaatcatcaa gtggctacaa gtgatataaa taaaatgcaa ttatgccaaa ttgttagtaa
+      661 tattgacatg ataaagggta aatttgcaaa agttaactta ggttggctca cagttcctgg
+      721 tgattcaact atatatgaga cttttccagc acaactttat tatttcccta gaaaaacttt
+      781 acctgaatta caaggaaaat catcagcata ttcttacaga caatttgtta ggatggcaaa
+      841 ggctaaatat gataaagaag tggcaatgct aaataaacta caacaattag ttgatagtca
+      901 gaatgttata acaaataatt tggaaagtga tgtcattaat gaaatatcta aaacagaaag
+      961 tgaaattaag aaaattcaag gtgaattgga aactatggag aaagttttac ctaataaaag
+     1021 taaattgaat gagatgaaga agcacttagc agagttagaa aaaataaaac aagagaatat
+     1081 gaaacaaata ttaaatgaaa aaaatgaatt tataaatgaa ataactaatg aagataaatt
+     1141 ttatataaat gataataatt cagttgattt ctcaaaaata aatgattaat aataacaatt
+     1201 ataatttaag ataaataata ataataataa aaataataaa aaataaaata ataaaaaaga
+     1261 taaaaaaata aataaaaaat taaaaaaata aataataata aataataaat aataaaaata
+     1321 ataaaataat aaaaaaatcc aagtaaaaaa ataaaataaa atgataaaat taaaaatata
+     1381 tatatatatg tataataata tatacatgta catatatata tatcaaatat attaaataat
+     1441 catggttaaa atccttacca tggtatataa ggtaaaaatt cgataaagct tatagatata
+     1501 taaaaaataa aaataggtaa gttcaataat ataaaatgga aatgaacata aacaataata
+     1561 aaatataatt attgagatgg tatatatagt gtatatttta aaatatagat aaacttaaat
+     1621 aaaatatgat taataataac tatgagtttt atatttttaa attaaatttc acaagtttag
+     1681 ccaaataaat accattgttt caaatttaga agatttttgt tatattgtca gtttcatgg
+//
+

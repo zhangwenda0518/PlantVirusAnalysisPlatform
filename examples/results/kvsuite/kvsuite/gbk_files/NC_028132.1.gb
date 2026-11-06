@@ -1,0 +1,55 @@
+LOCUS       NC_028132                434 bp    RNA     circular VRL 13-AUG-2018
+DEFINITION  Apple hammerhead viroid-like circular RNA, complete genome.
+ACCESSION   NC_028132
+VERSION     NC_028132.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Apple hammerhead viroid-like circular RNA
+  ORGANISM  Apple hammerhead viroid-like circular RNA
+            Viruses; Avsunviroidae; Pelamoviroid; Pelamoviroid malleusmali.
+REFERENCE   1  (bases 1 to 434)
+  AUTHORS   Zhang,Z., Qi,S., Tang,N., Zhang,X., Chen,S., Zhu,P., Ma,L.,
+            Cheng,J., Xu,Y., Lu,M., Wang,H., Ding,S.W., Li,S. and Wu,Q.
+  TITLE     Discovery of replicating circular RNAs by RNA-seq and computational
+            algorithms
+  JOURNAL   PLoS Pathog. 10 (12), E1004553 (2014)
+   PUBMED   25503469
+REFERENCE   2  (bases 1 to 434)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (27-OCT-2015) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 434)
+  AUTHORS   Zhang,Z., Chen,S., Qi,S., Wu,Q. and Li,S.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (06-MAY-2015) Department of Plant disease, Institute of
+            Plant Protection, Chinese Academy of Agricultural Sciences, 2
+            Yuanmingyuan West Road, Beijing 100193, China
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to KR605506.
+            
+            ##Assembly-Data-START##
+            Sequencing Technology :: Sanger dideoxy sequencing
+            ##Assembly-Data-END##
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..434
+                     /organism="Apple hammerhead viroid-like circular RNA"
+                     /mol_type="genomic RNA"
+                     /host="Malus domestica cv. Fuji"
+                     /db_xref="taxon:1737346"
+                     /clone="1-9"
+                     /tissue_type="leaf"
+                     /geo_loc_name="China"
+                     /collection_date="2012"
+ORIGIN      
+        1 gaaggctatt agccttcctg atgagtccat tccaaggacg aaaccgtctc tcctgactcc
+       61 cagtttccgt aggttaatta tcctcacgga ttacttctgg taactaggag tttgtagtga
+      121 tgtaagtttc gtcctaagag gactcatcag gtagcctaat agactacgac ttacacggta
+      181 ggtcgtgaac aagcccggag tacattccca attggaacta gggaacccct ccggtcttgt
+      241 ccaacctctg tttcggcaga ggataccgtg ctccacagct gtaaggctgt gggcccgaga
+      301 gaagtcgctc tctctcgccc ttcacatccc tctcggcatt gagatgacca taggccaggg
+      361 gtgagtcctt aagtggacac agctgatcta aggcggtgtg taggggcacg ggttttaaca
+      421 cccccgtgac ggtc
+//
+

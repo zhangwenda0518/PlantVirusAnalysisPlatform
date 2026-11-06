@@ -1,0 +1,106 @@
+LOCUS       OL471979                2057 bp    cRNA    linear   ENV 27-JUN-2022
+DEFINITION  MAG: Artemisia fimovirus 1 isolate MIR20SW segment RNA2, complete
+            sequence.
+ACCESSION   OL471979
+VERSION     OL471979.1
+DBLINK      BioProject: PRJNA772045
+            BioSample: SAMN22357975
+            Sequence Read Archive: SRR16552259
+KEYWORDS    ENV; Metagenome Assembled Genome; MAG.
+SOURCE      Artemisia fimovirus 1 (plant metagenome)
+  ORGANISM  Artemisia fimovirus 1
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Elliovirales; Fimoviridae;
+            Emaravirus; Emaravirus artemisiae.
+REFERENCE   1  (bases 1 to 2057)
+  AUTHORS   Rivarez,M.P.S., Bacnik,K., Kogej,Z., Lengar,Z., Maksimovic Carvalho
+            Ferreira,O., Pecman,A., Seljak,G., Vucurovic,A., Mehle,N.,
+            Gutierrez-Aguirre,I., Ravnikar,M. and Kutnjak,D.
+  TITLE     Diversity, phylogenetic relationships and infectivity of viruses
+            from tomato and surrounding weeds agroecosystems
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 2057)
+  AUTHORS   Rivarez,M.P.S., Bacnik,K., Kogej,Z., Lengar,Z., Maksimovic Carvalho
+            Ferreira,O., Pecman,A., Seljak,G., Vucurovic,A., Mehle,N.,
+            Gutierrez-Aguirre,I., Ravnikar,M. and Kutnjak,D.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (08-NOV-2021) Department of Biotechnology and Systems
+            Biology, National Institute of Biology, Vecna pot 111, Ljubljana
+            1000, Slovenia
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: SPAdes v. 3.14; CLC Genomic Workbench v.
+                                     20.0
+            Sequencing Technology :: HiSeq 2500 (151 paired-end reads);
+                                     Illumina
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..2057
+                     /organism="Artemisia fimovirus 1"
+                     /mol_type="viral cRNA"
+                     /isolate="MIR20SW"
+                     /isolation_source="pooled weed plants gathered at the
+                     immediate surroundings of tomato farms"
+                     /host="Artemisia verlotiorum"
+                     /db_xref="taxon:2950836"
+                     /segment="RNA2"
+                     /environmental_sample
+                     /geo_loc_name="Slovenia"
+                     /collection_date="Aug-2020"
+                     /collected_by="MPS Rivarez et al."
+                     /metagenome_source="plant metagenome"
+                     /note="metagenomic"
+     CDS             81..1970
+                     /note="G"
+                     /codon_start=1
+                     /product="glycoprotein"
+                     /protein_id="USL90373.1"
+                     /translation="MTYQNIVITLIILSILAYILMGNSTIRGNFEKETGICDPVYNTA
+                     THELCFIKGELVEYLDSNIKNGCYYIKEPITVYKCDGKLKFFEKPEENCHYASRSVCA
+                     NLNLIYMLLKFLIVSLIMRVLQNPIMIFIHLLMDFFTKRKSKTCQKCSKKYLLSHSSC
+                     IQDHKSSENHVVYYILFLMLMYLPYANSARIDLKDTLTRNYKGTSTMRVMDRENTIQE
+                     FLVEGHKFEIKVEHSLVKMSLQHSHNILDIVHENIVERDYFCFNKLEKCRQKYGDKKG
+                     YFQIEKAHDRFSCPFSQAVVCGYCDVKFKRKGKVFLVVDETPLIKFTIRYENNTKAFD
+                     VTKFNEHVVMDDFILNPIFYNSRYVKEKVYVEDHKMYSGNICETSDQYCFGDIKEFND
+                     TTVYVSYDPKIEDTPDTGLSIALRQCVKHNGYSINNLNLIQQKYIDLDKDKYNVFDYE
+                     FGYFEIEIKADSKILALKCENDRRVTEINAKGCHDCMQGAEIMVKMSEGDCGKVSCTL
+                     EGRTRTMKSSKSELSFTFHTINKIVPIQCNGFKTKIELNDSKNYGNFITHEKTVYDIE
+                     PSVDLSFHWFSNVRRYVTIGITAVLGLVMIIIIYEVKAYTRHMHNLIKRRKDGYNEIS
+                     ITLPD"
+ORIGIN      
+        1 gcttgattta ccattaaagc tatcaaaaga aaaacaaaca agaagataaa caaacaaaaa
+       61 aagataaatc tctaagaaag atgacgtacc aaaatattgt tataacatta attattttgt
+      121 caatattggc atatatactt atgggcaaca gtaccataag ggggaacttt gagaaagaaa
+      181 ctggtatttg tgatcctgtc tataatacag caacacatga attatgtttc ataaagggtg
+      241 agcttgtgga atatctagat tccaacatca aaaatggttg ttattatatc aaagagccta
+      301 taactgtata caagtgtgac ggaaaactaa aattctttga aaagcctgaa gaaaactgtc
+      361 attatgcttc gaggtctgtt tgtgcaaact tgaaccttat ttacatgtta ttaaaattct
+      421 taattgtttc tcttataatg agagttcttc aaaacccaat tatgatcttt attcacctat
+      481 tgatggattt cttcacaaaa aggaaaagta agacttgtca aaaatgttca aagaagtact
+      541 tgttatctca tagttcttgc atacaagacc acaaatcgtc tgaaaatcat gttgtgtatt
+      601 acattttgtt cttgatgttg atgtatttac catatgctaa ctctgctaga attgatttga
+      661 aagatacttt gacaaggaat tataaaggga catcaacaat gagggttatg gacagagaga
+      721 acacaataca ggaattcctt gttgaaggcc acaaatttga gataaaggtt gagcacagtc
+      781 ttgtcaaaat gtctctacaa cattctcaca acattttaga tattgttcat gaaaacattg
+      841 ttgaaaggga ttatttttgt ttcaacaaat tagaaaaatg tagacaaaaa tatggagata
+      901 agaaaggtta ctttcaaata gagaaggcac atgatagatt ttcttgtccc tttagccaag
+      961 ctgtggtttg tggttattgt gatgtaaagt ttaagaggaa aggcaaagtg tttttggttg
+     1021 ttgatgaaac tcctttgata aagtttacaa ttagatatga aaacaataca aaagcttttg
+     1081 atgtcacaaa attcaatgaa catgttgtca tggacgattt tatactcaat ccaatattct
+     1141 ataattcaag atatgttaaa gagaaagtct atgttgaaga ccacaaaatg tactctggta
+     1201 atatttgtga aacatcagat caatattgtt ttggagatat aaaagaattt aatgacacga
+     1261 ctgtttatgt cagttatgat cctaagatag aagacacacc tgacacaggt ctgagcatag
+     1321 ctttgagaca atgtgttaaa cacaatgggt acagtataaa caatcttaac ctcatccagc
+     1381 aaaaatatat agatctagat aaagataaat ataatgtttt tgattatgag tttgggtatt
+     1441 ttgaaatcga gataaaagca gattcaaaga ttttagcctt gaaatgtgaa aatgatcgac
+     1501 gtgtgacaga aattaatgct aaaggctgtc atgattgtat gcaaggtgca gaaataatgg
+     1561 tgaaaatgtc agaaggtgat tgtggtaaag tttcatgcac attagaaggc aggacaagaa
+     1621 caatgaagtc ttctaaatca gaactttcat tcacattcca tacaataaat aagattgtgc
+     1681 caatacaatg taatggattt aagacaaaga ttgaattaaa tgacagcaaa aattatggaa
+     1741 atttcattac tcatgaaaag acagtatacg atatagagcc atcagttgat ttaagtttcc
+     1801 attggttttc aaatgtcaga aggtatgtga caataggtat aacggctgtt ttaggtttag
+     1861 ttatgataat aataatctat gaagttaaag cttatacaag acacatgcat aacttgataa
+     1921 aaagaaggaa agatggttat aatgaaatat caataacact tccagattga acgtttcttg
+     1981 gtagttacca gatttgtttg ctttgataga ttcttctttt ttgtttttct tttaggttat
+     2041 gttgtggata aatcaag
+//
+

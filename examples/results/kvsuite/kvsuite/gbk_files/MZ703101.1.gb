@@ -1,0 +1,75 @@
+LOCUS       MZ703101                1447 bp    RNA     linear   VRL 07-SEP-2021
+DEFINITION  Wheat white spike virus isolate BR:PG10:18 segment RNA 5, complete
+            sequence.
+ACCESSION   MZ703101
+VERSION     MZ703101.1
+KEYWORDS    .
+SOURCE      Wheat white spike virus
+  ORGANISM  Wheat white spike virus
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Hareavirales; Phenuiviridae;
+            Tenuivirus; Tenuivirus pontaense.
+REFERENCE   1  (bases 1 to 1447)
+  AUTHORS   Pereira,F.S., Stempkowski,L.A., Fajardo,T.M., Junior,A.N., Lau,D.,
+            Mar,T.B., Nascimento,S.C., Bogo,A., Casa,R.T. and Silva,F.N.
+  TITLE     A novel tenuivirus infecting wheat in Brazil
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 1447)
+  AUTHORS   Pereira,F.S., Stempkowski,L.A., Fajardo,T.M., Junior,A.N., Lau,D.,
+            Mar,T.B., Nascimento,S.C., Bogo,A., Casa,R.T. and Silva,F.N.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (03-AUG-2021) Agronomy, Universidade do Estado de Santa
+            Catarina, Avenida Luiz de Camoes, Lages, SC 88520-000, Brazil
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: Geneious v. v. R11
+            Sequencing Technology :: Illumina
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..1447
+                     /organism="Wheat white spike virus"
+                     /mol_type="genomic RNA"
+                     /isolate="BR:PG10:18"
+                     /host="Triticum aestivum"
+                     /db_xref="taxon:2871179"
+                     /segment="RNA 5"
+                     /geo_loc_name="Brazil"
+                     /collection_date="2018"
+     CDS             complement(278..1321)
+                     /codon_start=1
+                     /product="hydrophilic protein"
+                     /protein_id="QZU27245.1"
+                     /translation="MSKGEGKSWSGPIIGRFVGMVPRGCLNSEAGNRKAIDSENMKYH
+                     RFRALFREGASKSPFETCCKNHKRFAARAMIKGVVVKTIVAKTRNSGARHSSNEKVFS
+                     VKRLFRQVLPNSPSRIVPVKNSGCRWKKVLYHRATFEELPKSFKDLPRAFPRFSDLVR
+                     RYGYGKAIRRITCYADGISVKKNELARTIRSKFARKAFLTSRKQELPFPDRNDYGTWN
+                     DYRQALKENQTIWYLCRQHYKQAFTELYNREFRYWKGWCSFDTVKPRLQCGDCAEPLD
+                     NLVALKAPPEHLVCHVKKSLSQELTSTLVLPWYEGFNMKDTKWIKYHDDKVKRIRREL
+                     EEEIKGFKMDKVS"
+ORIGIN      
+        1 acacaaagtc cttggcacca caaaccctga aaagaaagaa atcctaatag aagaacttct
+       61 tcactcccaa agattgtagt tctttgtgcc cgataaatcg gcccgatccg caggtcagaa
+      121 attcggtcct cttggagcca cattctttcc caacacaact atccgtctgg tattcgtgtc
+      181 tatatccttt cttctcttag cctctctgtt aataccatat ctgtctttct tattgatctt
+      241 ttcctccagt tctcgtcttt tcttttttac tttgtcatca tgatacttta tccattttga
+      301 atcccttgat ctcttcctcc agttctcgtc ttatcctttt aactttgtca tcatggtact
+      361 ttatccattt tgtatctttc atattgaagc cctcgtacca tgggagaact agagtgctag
+      421 tcagctcctg agacagactc ttcttcacat gacagactaa gtgctctggt ggagctttca
+      481 gcgcaaccaa attatctaaa ggctcagcac aatctccaca ctgaagtcta ggcttaacag
+      541 tgtcaaaact gcaccaaccc ttccaatatc taaattctcg gttgtatagc tctgtgaagg
+      601 cttgcttata gtgttgcctg catagatacc aaattgtctg gttttctttc aaagcctgac
+      661 gataatcatt ccacgttcca taatcatttc tatctgggaa tggtaattct tgttttctcg
+      721 acgtcaagaa ggctttcctt gcgaatttgg atctaattgt tctagcaagc tcattctttt
+      781 tgacacttat accatctgca tagcatgtta tcctccttat tgctttgcca taaccatacc
+      841 tacggaccag atcgctaaat ctgggaaatg ccctaggaag atctttgaat gacttaggca
+      901 actcttcaaa agttgctctg tgatacaaaa ctttcttcca tctacagcca gagtttttaa
+      961 cagggacaat cctcgaggga ctgtttggca aaacctgcct gaagagtctc ttgaccgaaa
+     1021 acaccttctc atttgaagaa tgtctcgctc cagagtttcg ggtcttggcc acgatagttt
+     1081 tgacaacaac acccttgatc atagcacgtg ctgcaaatct cttgtgattt ttgcaacatg
+     1141 tctcgaaagg actcttagag gctccctcgc gaaacagtgc cctgaatcta tgatacttca
+     1201 tattttctga gtcaatagct ttccggttac cagcttcact gttgaggcac cccctaggga
+     1261 ccatgccaac aaatcttccg ataatcggac cgctccaact tttcccttca cctttagaca
+     1321 tgtctaaagt ttcttgtgga attattggaa tatcgtatca catttccagt ttagatctca
+     1381 gatgatggaa taacgtatca catctccagt ttagatctca gaatatgttg ttgccaagac
+     1441 tatgtgt
+//
+

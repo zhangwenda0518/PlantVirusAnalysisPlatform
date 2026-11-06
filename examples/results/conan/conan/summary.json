@@ -1,0 +1,610 @@
+{
+ "engine": "VirusPlatform conan_design 1.0.0",
+ "ts": "2026-11-05 02:12:17",
+ "params": {
+  "pam": "AAG",
+  "spacer_len": 32,
+  "seed_len": 8,
+  "ignored_text": "6",
+  "max_nonseed_mm": 4,
+  "terminal_margin": 150,
+  "exclude_terminal": true,
+  "select_gc": true,
+  "gc_min": 35.0,
+  "gc_max": 65.0,
+  "exclude_homopolymer": true,
+  "homopolymer": 3,
+  "group_by_segment": true,
+  "top_n": 20,
+  "negative": null,
+  "threads": 8
+ },
+ "params_snapshot": {
+  "pam": "AAG",
+  "spacer_len": 32,
+  "seed_len": 8,
+  "ignored": [
+   6
+  ],
+  "max_nonseed_mm": 4,
+  "terminal_margin": 150,
+  "gc": [
+   35.0,
+   65.0
+  ],
+  "homopolymer": 3
+ },
+ "segments": [
+  {
+   "segment": "main",
+   "n_targets": 5,
+   "n_negatives": null,
+   "negative_applied": null,
+   "n_raw": 305,
+   "n_kept": 137,
+   "all_targets_pass": 86,
+   "background_clear": 0
+  }
+ ],
+ "n_candidates": 20,
+ "top": [
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00003",
+   "strand": "+",
+   "cons_start": 202,
+   "cons_end": 236,
+   "guide": "TGTTCCTGAGAAATGACCTTGGAAAAGTTAAC",
+   "pam_len": 3,
+   "gc": 37.5,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00005",
+   "strand": "+",
+   "cons_start": 245,
+   "cons_end": 279,
+   "guide": "GGTGATTTCAAACTCAGGGTACGCATTAGTAG",
+   "pam_len": 3,
+   "gc": 43.75,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00006",
+   "strand": "+",
+   "cons_start": 416,
+   "cons_end": 450,
+   "guide": "ATTAGGCATACAGCAATGGACGTAATCTCGTC",
+   "pam_len": 3,
+   "gc": 43.75,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00031",
+   "strand": "+",
+   "cons_start": 1371,
+   "cons_end": 1405,
+   "guide": "GTAACACAGACTTGTCTACATCCCACTCAGAT",
+   "pam_len": 3,
+   "gc": 43.75,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00032",
+   "strand": "+",
+   "cons_start": 1393,
+   "cons_end": 1427,
+   "guide": "AGAAAAGTCATAGATAACGCCTGTAACACAGA",
+   "pam_len": 3,
+   "gc": 37.5,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00033",
+   "strand": "+",
+   "cons_start": 1438,
+   "cons_end": 1472,
+   "guide": "TTAAGTACGACTTGATCTTTTGCTTCAGCCAA",
+   "pam_len": 3,
+   "gc": 37.5,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00038",
+   "strand": "+",
+   "cons_start": 1563,
+   "cons_end": 1597,
+   "guide": "CAGCAACTTTTACAAACCCACCGCTAATGAGC",
+   "pam_len": 3,
+   "gc": 46.88,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00047",
+   "strand": "+",
+   "cons_start": 1838,
+   "cons_end": 1872,
+   "guide": "TGTGAGTTCGTTCTTCATGATGGCGACGATCA",
+   "pam_len": 3,
+   "gc": 46.88,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00048",
+   "strand": "+",
+   "cons_start": 1858,
+   "cons_end": 1892,
+   "guide": "GTTGGATTTTTAAAAGGCAGTGTGAGTTCGTT",
+   "pam_len": 3,
+   "gc": 37.5,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00049",
+   "strand": "+",
+   "cons_start": 1898,
+   "cons_end": 1932,
+   "guide": "TTTGGGTAACGGTGAAAGAGCATCCGATAATG",
+   "pam_len": 3,
+   "gc": 43.75,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00065",
+   "strand": "+",
+   "cons_start": 2363,
+   "cons_end": 2397,
+   "guide": "GAATCCATCAGCCCATTCGAGTAATACGATGA",
+   "pam_len": 3,
+   "gc": 43.75,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00066",
+   "strand": "+",
+   "cons_start": 2481,
+   "cons_end": 2515,
+   "guide": "CCGAAGGTACGGGCTCACCGTCCTTTAAGCAG",
+   "pam_len": 3,
+   "gc": 59.38,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00067",
+   "strand": "+",
+   "cons_start": 2491,
+   "cons_end": 2525,
+   "guide": "ACTTTCGCATCCGAAGGTACGGGCTCACCGTC",
+   "pam_len": 3,
+   "gc": 59.38,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00068",
+   "strand": "+",
+   "cons_start": 2522,
+   "cons_end": 2556,
+   "guide": "TCCACAACCAGGAACGCCATCTACTAACGTGA",
+   "pam_len": 3,
+   "gc": 50.0,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00072",
+   "strand": "+",
+   "cons_start": 2641,
+   "cons_end": 2675,
+   "guide": "GTCGCTCTTACATGTCCAGACTTATTAGCTCT",
+   "pam_len": 3,
+   "gc": 43.75,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00073",
+   "strand": "+",
+   "cons_start": 2653,
+   "cons_end": 2687,
+   "guide": "ACATTATCCTTTGTCGCTCTTACATGTCCAGA",
+   "pam_len": 3,
+   "gc": 40.62,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00074",
+   "strand": "+",
+   "cons_start": 2667,
+   "cons_end": 2701,
+   "guide": "AATCCACAGTTCTTACATTATCCTTTGTCGCT",
+   "pam_len": 3,
+   "gc": 37.5,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00076",
+   "strand": "+",
+   "cons_start": 2688,
+   "cons_end": 2722,
+   "guide": "GCTTCAAATGCATTAAGAACGAATCCACAGTT",
+   "pam_len": 3,
+   "gc": 37.5,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00082",
+   "strand": "+",
+   "cons_start": 3026,
+   "cons_end": 3060,
+   "guide": "TTTCGGGTTAAAAACCCCTTTCCCTCTAACCA",
+   "pam_len": 3,
+   "gc": 43.75,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  },
+  {
+   "segment": "main",
+   "candidate_id": "CNmain_00087",
+   "strand": "+",
+   "cons_start": 3107,
+   "cons_end": 3141,
+   "guide": "AACTTCTTCATAACCACGCTCCTTCAGTTCGG",
+   "pam_len": 3,
+   "gc": 46.88,
+   "coverage": 100.0,
+   "leak": null,
+   "score": 200.0,
+   "all_targets_pass": true,
+   "all_negatives_locus_pass": null
+  }
+ ],
+ "matrices": [
+  {
+   "segment": "main",
+   "cols": [
+    {
+     "kind": "T",
+     "name": "PZ530881.1|Odontoglossum_ringspot_virus"
+    },
+    {
+     "kind": "T",
+     "name": "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f"
+    },
+    {
+     "kind": "T",
+     "name": "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f"
+    },
+    {
+     "kind": "T",
+     "name": "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f"
+    },
+    {
+     "kind": "T",
+     "name": "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f"
+    }
+   ],
+   "rows": [
+    {
+     "candidate_id": "CNmain_00003",
+     "rank": 1,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00005",
+     "rank": 2,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00006",
+     "rank": 3,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00031",
+     "rank": 4,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00032",
+     "rank": 5,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00033",
+     "rank": 6,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00038",
+     "rank": 7,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00047",
+     "rank": 8,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00048",
+     "rank": 9,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00049",
+     "rank": 10,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00065",
+     "rank": 11,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00066",
+     "rank": 12,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00067",
+     "rank": 13,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00068",
+     "rank": 14,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00072",
+     "rank": 15,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00073",
+     "rank": 16,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00074",
+     "rank": 17,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00076",
+     "rank": 18,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00082",
+     "rank": 19,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    },
+    {
+     "candidate_id": "CNmain_00087",
+     "rank": 20,
+     "cells": {
+      "PZ530881.1|Odontoglossum_ringspot_virus": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f": "ok",
+      "PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f": "ok"
+     }
+    }
+   ]
+  }
+ ],
+ "elapsed_sec": 17.3,
+ "files": {
+  "candidates": "conan/candidates.tsv",
+  "report": "conan/report.md",
+  "summary": "conan/summary.json",
+  "target_checks": "conan/target_checks.tsv",
+  "top_plot": "conan/top_candidates.png",
+  "locus_plot": "conan/locus_overview.png"
+ }
+}

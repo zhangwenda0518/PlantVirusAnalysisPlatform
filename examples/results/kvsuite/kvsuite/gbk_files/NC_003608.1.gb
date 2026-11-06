@@ -1,0 +1,227 @@
+LOCUS       NC_003608               3911 bp    RNA     linear   VRL 13-AUG-2018
+DEFINITION  Hibiscus chlorotic ringspot virus, complete genome.
+ACCESSION   NC_003608
+VERSION     NC_003608.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq; coat protein; RNA-dependent RNA polymerase.
+SOURCE      Hibiscus chlorotic ringspot virus
+  ORGANISM  Hibiscus chlorotic ringspot virus
+            Viruses; Riboviria; Orthornavirae; Kitrinoviricota;
+            Tolucaviricetes; Tolivirales; Tombusviridae; Procedovirinae;
+            Betacarmovirus; Betacarmovirus hibisci.
+REFERENCE   1
+  AUTHORS   Huang,M., Koh,D.C., Weng,L.J., Chang,M.L., Yap,Y.K., Zhang,L. and
+            Wong,S.M.
+  TITLE     Complete nucleotide sequence and genome organization of hibiscus
+            chlorotic ringspot virus, a new member of the genus Carmovirus:
+            evidence for the presence and expression of two novel open reading
+            frames
+  JOURNAL   J. Virol. 74 (7), 3149-3155 (2000)
+   PUBMED   10708431
+REFERENCE   2  (bases 1 to 3911)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (16-APR-2002) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 3911)
+  AUTHORS   Weng,L.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (21-APR-1995) L. Weng, National University of Singapore,
+            Dept. of Botany, Kent Ridge, Singapore 0511, SINGAPORE
+  REMARK    Sequence revised by Dr. Wong S.K. (04-JUN-1999)
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to X86448.
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..3911
+                     /organism="Hibiscus chlorotic ringspot virus"
+                     /mol_type="genomic RNA"
+                     /cultivar="Hibiscus sp."
+                     /db_xref="taxon:53181"
+                     /clone="pHCRV-220"
+     gene            31..2238
+                     /locus_tag="HCRSVgp1"
+                     /db_xref="GeneID:1725563"
+     CDS             31..2238
+                     /locus_tag="HCRSVgp1"
+                     /note="amber stop-codon"
+                     /codon_start=1
+                     /transl_except=(pos:673..675,aa:OTHER)
+                     /product="RNA-dependent RNA polymerase"
+                     /protein_id="NP_619671.1"
+                     /db_xref="GOA:Q9IR83"
+                     /db_xref="InterPro:IPR002166"
+                     /db_xref="InterPro:IPR007094"
+                     /db_xref="UniProtKB/TrEMBL:Q9IR83"
+                     /db_xref="GeneID:1725563"
+                     /translation="MLSHAFSIAFETASLGAALCVAPFAAAVEIITHPRIAPRDPCIA
+                     EELCMRDELEVADPTDEEPEACLENISGTSSDKKVSKIKRRHRGKFALHAAIAAKLHF
+                     GGTPTPTRSNELAVRRWLASYCKERRLVDTHAIQAIALATPLVLTPGAAEITERAILN
+                     SAVFGMRRAALAEASKPTSLTYQMVFEPHRPRTWLRAWRKVVGLPDFQGYSPVKXGCL
+                     REIAGVDTKIVRGEHQSMAVFPREGISKPRRIFQVCGMGNGTTFGVHNNSLTNLRRGL
+                     VERVFYVEDACKNLVPTPQPLPGKFQELKYLARRVARIAGHHTPIPREHYPGLYKGRR
+                     YQIYADAVNSLASNPVHRRDSFLKTFVKAEKINFSAKPDPAPRVIQPRDPRYNVEVGR
+                     YLKPYEHHLYRALDVVWKGPTVLKGYTVSEIGSIMHSHWSQFQKPCAVGFDMKRFDQH
+                     VSVDALRFEHSVYGRSFCSKELDRLLEWQLLNSGVGHANDGYIRYKVDGCRMSGDVNT
+                     AMGNCLLACLITKHLLKGIRCRLINNGDDCVLFFNTPDLAAVTERLAHWLDFGFQCVV
+                     EEPVYELEEVEFCQMKPVFDGEEWVCVRNVHVSVAKDTYSINPWNNECDAGRWIRAIG
+                     ECGEALTGGIPVLNAYYKVFKRAYKAPGRVKESLAFDSGMYRLSQRCSRSFHEPTEEA
+                     RVSFFKAFGVDPMAQMAIEEFYDSMDIELEFAPEGKLDDISLLWLLRNRMIAS"
+     gene            31..675
+                     /gene="p28"
+                     /locus_tag="HCRSVgp2"
+                     /db_xref="GeneID:940204"
+     CDS             31..675
+                     /gene="p28"
+                     /locus_tag="HCRSVgp2"
+                     /codon_start=1
+                     /product="P28 protein"
+                     /protein_id="NP_619672.1"
+                     /db_xref="UniProtKB/TrEMBL:Q9IR84"
+                     /db_xref="GeneID:940204"
+                     /translation="MLSHAFSIAFETASLGAALCVAPFAAAVEIITHPRIAPRDPCIA
+                     EELCMRDELEVADPTDEEPEACLENISGTSSDKKVSKIKRRHRGKFALHAAIAAKLHF
+                     GGTPTPTRSNELAVRRWLASYCKERRLVDTHAIQAIALATPLVLTPGAAEITERAILN
+                     SAVFGMRRAALAEASKPTSLTYQMVFEPHRPRTWLRAWRKVVGLPDFQGYSPVK"
+     CDS             41..670
+                     /gene="p28"
+                     /locus_tag="HCRSVgp2"
+                     /codon_start=1
+                     /product="hypothetical protein"
+                     /protein_id="NP_619673.1"
+                     /db_xref="UniProtKB/TrEMBL:Q9IR82"
+                     /db_xref="GeneID:940204"
+                     /translation="MLSQLLSKLLLSVRHYVSHLSPQLLKLSRTPVSLHEILASLKSS
+                     VCAMSLRLLIPLMRNLKLVWKIFPVLQAIRKCLKSKGDTGVSLLSMRQSQQSYILGAL
+                     QPQRARMSLLCGGGLQVIARKGGWLIHTLYKRSLWPLLWYLRQGPLKSLSERSSIALF
+                     SVCGGRLSLRPLNRLVSHTKWYLSLIGRGLGSEPGGKWWVSLIFRGTRP"
+     gene            2205..2417
+                     /locus_tag="HCRSVgp3"
+                     /db_xref="GeneID:1725565"
+     CDS             2205..2417
+                     /locus_tag="HCRSVgp3"
+                     /codon_start=1
+                     /product="putative movement protein P8"
+                     /protein_id="NP_619674.1"
+                     /db_xref="GOA:Q9IR81"
+                     /db_xref="InterPro:IPR007982"
+                     /db_xref="UniProtKB/TrEMBL:Q9IR81"
+                     /db_xref="GeneID:1725565"
+                     /translation="MASPQSNDSFIELNPHNTGDSKGAGKGNRQAKKEVALQAVHKAN
+                     KHDEAVSGGSFVFVADKVEVTININF"
+     gene            2344..2580
+                     /locus_tag="HCRSVgp4"
+                     /db_xref="GeneID:1725562"
+     CDS             2344..2580
+                     /locus_tag="HCRSVgp4"
+                     /codon_start=1
+                     /product="putative movement protein P9"
+                     /protein_id="NP_619675.1"
+                     /db_xref="UniProtKB/TrEMBL:Q9IR80"
+                     /db_xref="GeneID:1725562"
+                     /translation="MKLFLGVLSFLLLIKLRLPLTLTFDVDLRTLRENCFIITTLSLF
+                     GFFITVLIKAESEHFHFHTHDSSKTQNIVVNTGK"
+     gene            2590..3627
+                     /locus_tag="HCRSVgp5"
+                     /db_xref="GeneID:1725561"
+     CDS             2590..3627
+                     /locus_tag="HCRSVgp5"
+                     /codon_start=1
+                     /product="coat protein"
+                     /protein_id="NP_619676.1"
+                     /db_xref="GOA:Q9IR78"
+                     /db_xref="HSSP:2TBV"
+                     /db_xref="InterPro:IPR000937"
+                     /db_xref="UniProtKB/TrEMBL:Q9IR78"
+                     /db_xref="GeneID:1725561"
+                     /translation="MLQKNDPAVQRAFNAHLPWAIKLKNDGWAALSKGQKRAANRYAG
+                     GTRPVTSQIKLSTLKVTAPVAASMRTRNPGANIRTAGKSVTVVHCEFVGNIARQTGSG
+                     LLVVERTINPSNVLSFPWLSVLAAGYEKYRVSSLSLRYSPTCATTTEGKVILAFDKDA
+                     ADASPTSKSDMYNHDGAVGVSPWDSAMLQIPCDNVDRFINDSSSSDPKLVDFGKVVVA
+                     NYGQSEGDVDVIGELFLQYSITLKIPQGMATPTQSGVGISSVGPSLFRVQLRDDTHVF
+                     TCNGTGRFLFFFNSTVDATSTIAGMEVKQKSSTDDKGETTIMELLATESGGTIAILAA
+                     TGTLTWWACRN"
+     gene            2603..3277
+                     /locus_tag="HCRSVgp6"
+                     /db_xref="GeneID:1725564"
+     CDS             2603..3277
+                     /locus_tag="HCRSVgp6"
+                     /codon_start=1
+                     /product="hypothetical protein"
+                     /protein_id="NP_619677.1"
+                     /db_xref="UniProtKB/TrEMBL:Q9IR79"
+                     /db_xref="GeneID:1725564"
+                     /translation="MTQPFNVRLMPIYLGQSNLRTMGGLLFLRVKREQPIDTRVEPVL
+                     LLLKLSCQHLRLQLRWPPRCGLETLEQTLGRLENRSLSSIASLWAISPGRLVVGYWWS
+                     RGQSTPATYSASPGFLYLLPDMRSTACHHYLFDILQLAPQQRRARSSWHLIKMLQMLP
+                     LPPRATCITMMEQLESRPGIVPCCKYLAIMWIGLLMIPVVPTLSLLTLVRWLLPIMAN
+                     LKGMWM"
+ORIGIN      
+        1 gggaaaccgt ggcaagtttc cgaattctct atgctctcac atgctttctc aattgctttc
+       61 gaaactgctt ctctcggtgc ggcactatgt gtcgcacctt tcgccgcagc tgttgaaatt
+      121 atcacgcacc cccgtatcgc tccacgagat ccttgcatcg ctgaagagct ctgtatgcgc
+      181 gatgagcttg aggttgctga tcccactgat gaggaacctg aagcttgtct ggaaaatatt
+      241 tccggtactt caagcgataa gaaagtgtct aaaatcaaaa ggcgacacag gggtaagttt
+      301 gctctccatg cggcaatcgc agcaaagcta cattttgggg gcactccaac cccaacgcgc
+      361 tcgaatgagc ttgctgtgcg gcggtggctt gcaagttatt gcaaggaaag gaggttggtt
+      421 gatacacacg ctatacaagc gatcgctctg gccactcctc tggtacttac gccaggggcc
+      481 gctgaaatca ctgagcgagc gatcctcaat agcgctgttt tcggtatgcg gagggcggct
+      541 ctcgctgagg cctctaaacc gactagtctc acataccaaa tggtatttga gcctcatcgg
+      601 ccgaggactt ggctcagagc ctggcggaaa gtggtgggtc tccctgattt tcaggggtac
+      661 tcgcccgtga aataggggtg ccttagggaa atagctggtg tggacaccaa aattgtccgt
+      721 ggagagcacc agtctatggc cgtattccct agggaaggaa tctccaaacc ccggcgcatc
+      781 ttccaagtct gtggaatggg taatgggacc actttcggag ttcacaacaa ttccttaact
+      841 aatttaagga gaggtcttgt tgagagagtg ttctacgtgg aagatgcctg caaaaattta
+      901 gtcccgaccc ctcagcccct acctgggaag ttccaggagc tgaagtatct ggctcgacgt
+      961 gtcgcgcgca ttgctggtca tcatacccct atccccaggg aacactaccc tgggttgtat
+     1021 aagggcagga ggtaccaaat ttacgccgat gcggtcaaca gtttggcatc taatccggtt
+     1081 caccggagag attcctttct gaagactttc gtgaaagctg agaagattaa cttttcagcg
+     1141 aaaccagacc cggctcctag agttatccag cctagggatc cgagatataa tgtagaggta
+     1201 ggtagatatc ttaagcccta cgaacaccat ctatatagag ctctagatgt tgtttggaaa
+     1261 gggcctaccg tgcttaaggg atatactgtc agcgagattg gaagtattat gcactcgcat
+     1321 tggtcacaat tccagaaacc atgtgctgtg ggttttgaca tgaaacgatt tgatcagcac
+     1381 gtttctgtgg atgcgttgcg attcgagcat tctgtgtatg gaaggagttt ttgctctaag
+     1441 gagcttgaca gattgctcga gtggcaactc ctcaattccg gggttggaca cgccaatgac
+     1501 gggtacatta ggtacaaggt tgatggatgt aggatgagtg gggacgtgaa cactgctatg
+     1561 ggtaactgtc tactcgcttg tctcatcacc aaacacttat taaaaggcat cagatgtaga
+     1621 ctcatcaaca atggagacga ctgtgtcctc ttcttcaaca ctcctgatct agctgcggtc
+     1681 actgaaaggt tggctcactg gcttgatttt gggttccagt gtgttgtcga ggaaccagtc
+     1741 tatgaactgg aagaagttga gttttgccaa atgaagcccg tgtttgatgg tgaagagtgg
+     1801 gtgtgtgtgc gtaatgttca cgtgtcggta gcgaaggata cctactctat caacccttgg
+     1861 aataatgagt gtgacgctgg taggtggata cgggctattg gggaatgcgg tgaggcactc
+     1921 accgggggca tcccagtgct gaatgcatat tacaaggtgt tcaaaagagc gtacaaagca
+     1981 ccaggtaggg tgaaggagag ccttgcgttc gattccggta tgtaccggct ctcccaacga
+     2041 tgttctagaa gctttcatga accaacagaa gaagccaggg tgagtttctt caaagccttt
+     2101 ggggtggacc ctatggctca aatggccatt gaggagtttt atgactccat ggacattgag
+     2161 cttgagtttg ccccggaggg aaaacttgat gatatctctc tcttatggct tctccgcaat
+     2221 cgaatgatag cttcatagaa cttaatcctc acaatactgg tgatagtaag ggcgcaggta
+     2281 aagggaacag acaggcaaag aaagaagttg cacttcaagc agtgcacaaa gctaataagc
+     2341 acgatgaagc tgtttctggg ggttctttcg tttttgttgc tgataaagtt gaggttacca
+     2401 ttaacattaa cttttgacgt ggacttgaga accctccggg aaaattgctt tatcataacc
+     2461 acgcttagct tgtttgggtt ctttatcact gtcctgatta aggctgaatc agaacacttt
+     2521 cacttccaca cacacgacag tagtaagaca caaaatatag tagttaacac tggaaagtaa
+     2581 ccaaccacaa tgctgcagaa gaatgaccca gccgttcaac gtgcgtttaa tgcccattta
+     2641 ccttgggcaa tcaaacttaa gaacgatggg tgggctgctc tttctaaggg tcaaaagaga
+     2701 gcagccaata gatacgcggg tggaacccgt cctgttactt ctcaaattaa gctgtcaaca
+     2761 cttaaggtta cagctccggt ggccgcctcg atgcggactc gaaaccctgg agcaaacatt
+     2821 aggacggctg gaaaatcggt cactgtcgtc cattgcgagt ttgtgggcaa tatcgcccgg
+     2881 cagactggta gtgggctact ggtggtcgag aggacaatca accccagcaa cgtactcagc
+     2941 ttcccctggc tttctgtact tgctgccgga tatgagaagt accgcgtgtc atcactatct
+     3001 cttcgatatt ctccaacttg cgccacaaca acggagggca aggtcatctt ggcatttgat
+     3061 aaagatgctg cagatgcttc ccctacctcc aagagcgaca tgtataacca tgatggagca
+     3121 gttggagtct cgccctggga tagtgccatg ctgcaaatac cttgcgataa tgtggatagg
+     3181 tttattaatg attccagtag ttccgaccct aagcttgttg actttggtaa ggtggttgtt
+     3241 gccaattatg gccaatctga aggggatgtg gatgtgattg gagagctgtt cctgcaatac
+     3301 tccatcaccc tcaaaatccc ccaaggtatg gcgacaccta cacagtccgg ggtaggcatc
+     3361 tcatcggttg gcccctccct cttccgggtc caacttagag atgacacaca tgtgtttacc
+     3421 tgcaacggga ctggtcgctt cttgttcttc ttcaactcaa ccgttgatgc aacctccacc
+     3481 atcgctggga tggaggtgaa gcagaagagt tcaaccgacg acaaaggaga aacaacgata
+     3541 atggaactac tcgctactga atcaggtggt acgatagcaa tattggcggc cacaggcaca
+     3601 ctcacttggt gggcctgtag gaactaggtg tgtattgtat gggcctccgt gctgttaggg
+     3661 gcagtggaaa cgtcggtcta gccagccgtc ccctgggtag tgtgctccgt ctaagtacac
+     3721 cactactcgg tttccacaaa cgatcggact cccaaaatag tgtacattat gttgattgct
+     3781 tctttcctcc cttgtaatat ctcctctccc ctctcctcta cgcttggaat ccataaaatc
+     3841 cttcgggtgg gcttggattt cgggtacttg tttgaaatac cctcacaacc gccatagttg
+     3901 tgaggcagcc c
+//
+

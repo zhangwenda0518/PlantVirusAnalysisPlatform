@@ -59,6 +59,7 @@ mindmap
       Public Data Search
       Virus Sample Prescreen
       Open-Virome
+      LOGAN Tracing
       Bulk Data Download
       Genome Query & Download
       Database Builder
@@ -76,15 +77,14 @@ mindmap
     🦠 Identification & Classification
       One-click ②→③→④
       Virus ID & Extraction
-      Contig Assembly
-      Assembly Re-ID
+      Virus Assembly
+      Virus Identification
       Candidate Verification
     🔬 Annotation
-      Annotation Trio
-      ORF Prediction
-      Functional Annotation
-      Homology BLASTN·BLASTX
+      Functional Annotation incl. ORF Prediction
       Genome Plot
+    📤 Data Submission
+      NCBI Submission Prep
     💊 Detection & Control
       Primer Design
       CRISPR Assay Designer
@@ -105,9 +105,6 @@ mindmap
     📊 Results Center
       Sample & Special Results
       Tree·SDT·MSA Viewers
-    🔍 Provenance & Submission
-      LOGAN Provenance
-      NCBI Submission Prep
     ✨ Platform Capabilities
       AI Assistant
       Task Center
@@ -129,7 +126,7 @@ mindmap
 | ① Host removal | same page | kunpeng (host DB) | kept_R1/R2, host fraction |
 | ②b Known-virus ID & quant | [Kvsuite](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Kvsuite.md) | salmon (EM quant) / minibwa | ID table, filtered quant table, BAM+depth, viral reads |
 | ③ Assembly & classification | [Assembly](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Assembly.md) | SPAdes metaviral/rna + BLAST | contigs, viral-contig annotation table |
-| ③b Candidate verification | same page | host filter → length split → blastx/BFVD/viroid | verified candidate set |
+| ③b Candidate verification | same page | host filter → length split → blastx/BFVD/CDD/viroid | verified candidate set |
 | ③c Consensus & variants | same page | reads re-mapped to reference → per-position counts | consensus sequences, variant table |
 | ④ Host prediction | [Host-Prediction](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Host-Prediction.md) | kunpeng + ICTV host-probability cascade | host_prediction.tsv, sankey/sunburst |
 | ⑥ ORF calling | [ORF](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/ORF.md) | pyrodigal + pyrodigal-rv | faa/ffn/gff |
@@ -147,9 +144,9 @@ mindmap
 | BEAST interface | [BEAST](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/BEAST.md) | server job package generation/read-back verification, Markov-jump (MJRM) XML injection & log parsing, MCC state parsing |
 | Phylogeography | [Phylogeography](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Phylogeography.md) | metadata-driven migration reconstruction + migration-arc GIF animation; RDP5 recombination; pre-recombination sequence pre-filtering |
 | Public data search & download | [Public-Data](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Public-Data.md) | SRA+GSA dual-engine search, unified metadata (Core14/Full), publication-grade metadata figures, aria2c bulk download + built-in sracha for GSA .sra, host-genome download via NCBI taxon / accession (chromosome filter) / gget (Ensembl Plants), full NCBI datasets CLI wrapper (genome/gene/taxonomy/virus with host filter, virus feeds DB building directly) |
-| Toolbox | [Toolbox](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Toolbox.md) | end-to-end dsRNA design (windowing → efficacy → off-target → primers), miRNA target prediction (5 engines), NCBI reference download, GenBank collections & CDS/PEP export, MSA viewer, contig depth annotation, one-step tools |
+| Toolbox | [Toolbox](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Toolbox.md) | end-to-end dsRNA design (windowing → efficacy → off-target → primers), miRNA target prediction (5 engines), NCBI reference download, GenBank collections & CDS/PEP export, MSA viewer, contig depth annotation, LOGAN data download (pull public pre-assembled contigs by accession and feed host removal / viral extraction / ORF / tracing directly), one-step tools |
 | NCBI submission prep | [Submission](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/NCBI-Submission.md) | one unified_metadata.csv table drives it all: online editing → validation → source.src / miuvig / assembly / BioSample / template.sbt |
-| LOGAN tracing | [Logan](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Logan.md) | submit viral contigs to Logan-Search (~23.4M public SRA samples), batch submission + SSE live progress + tracing report |
+| LOGAN tracing | [Logan](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Logan.md) | paste a sequence or pick sample contigs → auto-split into ≤2500 bp fragments (configurable adjacent overlap) → copy per fragment / export FASTA / package all → submit through the embedded Logan-Search dashboard on the same page; the task-based batch API remains available in CLI/MCP |
 
 ### Platform infrastructure
 
@@ -167,7 +164,7 @@ mindmap
 
 ```bat
 git clone https://github.com/zhangwenda0518/PlantVirusPlatform.git
-cd VirusPlatform
+cd PlantVirusPlatform
 python -m pip install -r requirements.txt   :: install dependencies (no longer bundled since 2026-10-11, saves ~700MB of clone size)
 :: No Python on this machine? Skip line 3 and just run 环境自检.bat —
 :: it uses the bundled interpreter (3rd/python/) to detect missing packages
@@ -175,6 +172,7 @@ python -m pip install -r requirements.txt   :: install dependencies (no longer b
 ```
 
 - Requires **Windows 10+ and Python 3.12+**. **The platform is released as source code (decided 2026-10-11) — modify and customize it to your needs.** External tools come pre-provisioned in `3rd/` (~1.2GB: single-file tools + tool suites + a bundled Python interpreter), clone and go — **no self-building needed or supported** (the source-build route was retired on 2026-10-11; the historical test log lives in `docs/归档记录_源码构建路线_20261011.md`).
+- **A slim clone without `3rd/`** (e.g. the [Gitee mirror](https://gitee.com/zhang-wenda/plant-virus-analysis-platform), 861 files / 28 MB): open **Settings → Plugins → Plugin source**, click *Detect* to list the missing tools, then *Fill missing* to download and unpack them from the domestic mirror (32 tool packages, each verified by sha256). Sources are tried in order with automatic fallback (self-hosted mirror → Gitee Release → GitHub Release).
 - gbdraw is the preferred genome-plot engine: `pip install git+https://github.com/satoshikawato/gbdraw.git` (falls back automatically to the pure-Python dna_features_viewer).
 - Only one file exceeds GitHub's 100MB per-file hard limit and is served from the [Release (external-tools)](https://github.com/zhangwenda0518/PlantVirusPlatform/releases/tag/external-tools) instead — download and put it back in place:
   `3rd/tools/rdp5/3seqTable` (105MB). Python dependencies are installed via pip only (since 2026-10-11, including the former `_polars_runtime.pyd` at 168MB — no manual downloads needed).
@@ -184,15 +182,21 @@ python -m pip install -r requirements.txt   :: install dependencies (no longer b
 
 | Mode | Command | Notes |
 |---|---|---|
-| Desktop window | `python app.py --gui` | pywebview/WebView2 shell around the local UI; no address bar; auto-falls back to browser |
-| Web mode | `python app.py --web` | opens in the default browser; the URL is printed to the console |
+| Desktop window | `python app.py --gui` | pywebview/WebView2 shell around the local UI; no address bar |
+| Web mode | `python app.py --web` | opens in the default browser; the printed URL can be copied to another device's browser |
 | Auto (default) | `python app.py` | prefers the desktop window, falls back to browser |
 
 Port probing starts at **8765** and increments automatically — **use the URL printed in the console**. Binds to `127.0.0.1` only; never exposed to the network.
 
+### 2.5 Auto-update (packaged builds, since 2026-11-05)
+
+- A packaged `VirusPlatform.exe` checks for a new version at startup: when one is found it **downloads and verifies the package (mandatory sha256 + resumable HTTP ranges + multi-source fallback), then swaps and restarts by itself once running/queued tasks finish**; `platform.json`, `run/` (results and API keys), the `3rd/` tools and the databases are all preserved as-is, and a failed swap **rolls back automatically**. The swap is performed by a background script after the main process exits (a ~400 MB zip package).
+- To opt out: turn off *auto check* / *auto install* in the **Settings → Software update** card, or check manually with `VirusPlatform.exe --cli update --check`. For intranet deployments, point `update_manifest_url` in `platform.json` at your internal server (an explicitly configured source host is exempt from the private-network check).
+- Source-code users are unaffected: a git checkout never self-updates (just `git pull`).
+
 ### 3. First-time setup (once)
 
-1. **Databases page** → download NCBI Taxonomy (~57MB);
+1. **NCBI Taxonomy**: the database package already ships the official archive (155 MB); the platform extracts it in the background on first launch (about a minute, no network needed). Standalone deployments can also download it with one click from the Databases page;
 2. **Databases page** → pick a host genome FASTA + the host TaxID (e.g. 4081 for tomato) → build the host DB (the virus DB ships prebuilt — nothing to do);
 3. **Settings page** → threads, e-mail, and 19 analysis defaults as needed (defaults work out of the box).
 
@@ -208,22 +212,23 @@ python main.py selfcheck                                   :: environment self-c
 python main.py init-taxonomy                               :: download taxonomy
 python main.py build-host-db --genome host-db\genome.fa --taxid 4081
 python main.py analyze --r1 R1.fastq.gz --r2 R2.fastq.gz --sample NX-5
-py## 🧰 External Tools
+python main.py report --sample NX-5                        :: regenerate the report
+```
+
+## 🧰 External Tools
 
 The `3rd/` prebuilt tree ships with the repository — clone and go (decided 2026-10-11: **the source-build route is retired**;
 see `docs/归档记录_源码构建路线_20261011.md` for the historical test log). To swap an individual tool, drop the new build into
 its `3rd/` path and it is picked up automatically, or register a custom path under the `tools` section of `platform.json`
 (takes effect on save); `python main.py tools` reports detection status and `python main.py selfcheck` runs the full checkup.
 A missing tool only affects its own step — optional steps (fastp / fq2fa / gbdraw) grey out and skip automatically, while
-required steps report exactly which tool is missing.
-
-) gray out and get skipped automatically; required steps clearly name what's missing.
+required steps clearly name what is missing.
 
 ## 🖥️ UI Tour
 
 The top navigation follows the workflow (🌐 switches CN/EN; the task-center entry carries a running-tasks badge):
 
-**Overview** (cover + DB status + workflow entries) · **Pipeline** (14 cascaded step cards) · **Results** (reports / extended results / tree·MSA·SDT viewers) · **Toolbox** (one-step tools + reference data) · **Downloads** (SRR/CRR/URL bulk) · **Public Data Search** · **Databases** (Taxonomy / host DB) · **Public Virome** · **LOGAN Tracing** · **Submission Prep** · **Task Center** · **Settings** · **Manual**
+**Overview** (cover + DB status + workflow entries) · **Pipeline** (15 cascaded step cards, ⓪ → ⑩) · **Results** (reports / extended results / tree·MSA·SDT viewers) · **Toolbox** (one-step tools + reference data) · **Downloads** (SRR/CRR/URL bulk) · **Public Data Search** · **Databases** (Taxonomy / host DB) · **Public Virome** · **LOGAN Tracing** · **Submission Prep** · **Task Center** · **Settings** · **Manual**
 
 Highlights:
 - Every finished task auto-expands a **result-preview panel** (key numbers + product list + open report); system notifications when the page is in the background;
@@ -249,9 +254,10 @@ VirusPlatform/
 ├─ docs/                     development docs & module inventories
 ├─ wiki/                     source Markdown of this repo's Wiki (kept in sync)
 ├─ examples/                 built-in example data (✨Example buttons, ~9MB)
-├─ 3rd/                      external dependencies (bin/ tools/ python/ open-virome/,
-│                            all tracked in git; only the two >100MB files come from
-│                            the Release)
+├─ 3rd/                      external dependencies (bin/ tools/ python/ open-virome/;
+│                            python/ ships the interpreter only, dependencies are
+│                            installed from requirements.lock; only 3seqTable (>100MB)
+│                            comes from the Release)
 ├─ databases/                virus classification/reference/annotation/tree DBs (~3.4GB, not in git)
 ├─ host-db/                  host genomes & host classification DBs (one DB per species)
 ├─ platform.json             tool paths / language / analysis defaults
@@ -260,17 +266,46 @@ VirusPlatform/
 
 Legacy path compatibility: platform-relative paths like `tool_runs/`, `results/` are auto-redirected into `run/`; `tools/`, `bin/` → `3rd/`. No old calls need rewriting.
 
-## 📤 Distribution Form (decided 2026-10-11)
+## 📤 Distribution Form (decided 2026-10-24: three tiers split along `3rd/` contents)
 
-**No more packaged distribution** (the `VirusPlatform.exe` installer route is retired): this repository's source code is the single distribution form — clone, read, modify, and customize directly in the source, which also fits the agent-driven way of working.
+**Three official tiers** (all produced by `dev_tools/package.py`; program, databases and examples are separated; the output lands in `PVAP/` next to the repository):
 
-- Database migration is unchanged: `python main.py db-migrate --to D:\dbdir` (robocopy + byte verification before switching config), or set the path in Settings → Database directory;
-- `dev_tools/package.py` stays in the repo for users with their own distribution needs; the platform no longer ships official installers.
+| Tier | Toolchain | Command |
+|---|---|---|
+| ① Standalone platform | **Main pipeline + verification/data acquisition built in** (QC fastp / host removal minibwa+blast / assembly spades / identification kunpeng / alignment mafft+trimal / trees fasttree / quant+consensus minimap2+samtools+bcftools+salmon / candidate verification diamond+mmseqs / datasets CLI + bin helpers): ⓪–⑩ and the *Data Resources* / *Virus identification and classification* groups run offline out of the box; **specialized tools — recombination (RDP5), phylodynamics (iqtree/raxml/lsd2), NCBI submission (table2asn) — are installed as plugins on demand** (one-click fill / module self-heal / offline zip) | `python dev_tools/package.py --minimal-tools --verify` |
+| ② Platform + databases | Same as ① plus the database package (`--with-built-virusdb` adds the prebuilt kunpeng plant/ref classification DBs, ready to use) | `python dev_tools/package.py --minimal-tools --with-db --with-built-virusdb --verify` |
+| ③ Full | **All 26 tools built in** (ready out of the box) plus the database package | `python dev_tools/package.py --with-db --with-built-virusdb --verify` |
+
+- All three tiers share the same exe/_internal; only the contents of `3rd/tools` differ — switching tiers is a `--no-exe` copy, no PyInstaller rerun needed;
+- Plugin packages (32, per-package sha256, domestic mirror preferred) serve three purposes: filling tools in a slim clone, adding the large components to a standalone build, and repairing damaged installs; `--with-plugins` now only means "pre-install into `plugins/` for offline repair" (non-default);
+- A source package is still available via `--with-source` (overlay it on the program directory to run from source); **cloning the repository remains fully supported** — read, modify and customize in the source, which also suits agent-driven workflows;
+- Database migration is unchanged: `python main.py db-migrate --to D:\dbdir` (robocopy + byte verification before switching config), or set the path directly in Settings → Database directory;
+- The third-party license index is [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) (generated by scanning with `dev_tools/third_party_notices.py`); runtime files of third-party tools (e.g. RDP5 session snapshots) are shipped neither in the repository nor in packages.
 
 ## 📚 Documentation
 
 - **[Wiki home](https://github.com/zhangwenda0518/PlantVirusPlatform/tree/main/wiki)** — 25 pages, one per module (quick start / pipeline stages / phylodynamics / BEAST / phylogeography / public data / toolbox / submission / LOGAN / databases / CLI / FAQ). Pages are written in Chinese.
 - Wiki sources are kept in the [`wiki/`](wiki/) folder of this repository.
+- **[MCP server](docs/mcp_server.md)** — exposes the toolbox / pipeline / task management as 22 `vp_*` tools (toolbox + pipeline + task management + full CLI + virus prescreen + OpenVirome cloud search), so MCP clients such as Claude Desktop and ZCode can drive the platform directly (stdio and streamable-HTTP modes, per-parameter schemas and invocation models).
+
+  <a id="mcp-external"></a>
+  **External agent configuration** (add the block below to your client's MCP config; replace the paths with your local install):
+
+  ```json
+  {
+    "mcpServers": {
+      "virusplatform": {
+        "command": "D:\\PVAP\\PlantVirusPlatform\\VirusPlatform\\VirusPlatform.exe",
+        "args": ["--mcp-stdio"],
+        "cwd": "D:\\PVAP\\PlantVirusPlatform\\VirusPlatform"
+      }
+    }
+  }
+  ```
+
+  For a source checkout (not packaged), use `"command": "python"`, `"args": ["mcp_server.py"]`, `"cwd": "<repository root>"`.
+  Once connected, the client can call every `vp_*` tool; the web **MCP Console** (`/mcp`) is a debug panel over the same contract — it connects and lists the tools automatically, with no manual selection.
+  Note: destructive tools (e.g. `vp_delete_tool_run`) are not exposed in the web console or the built-in chat dock; whether an external agent is similarly restricted depends on its own permission policy.
 - Development notes: [`docs/DEVELOPMENT_NOTES.md`](docs/DEVELOPMENT_NOTES.md) (Chinese).
 
 ## ❓ FAQ (quick picks)
@@ -313,5 +348,6 @@ The platform integrates many excellent open-source tools and data resources, inc
 - **BEAST 1.x** (Markov-jump counting semantics; no local MCMC), **Logan-Search** (Chikhi et al. 2025, bioRxiv 10.1101/2024.07.30.605881)
 - **ICTV VMR / MSL** (taxonomy metadata), NCBI **Taxonomy / SRA / GenBank / BioSample**, NGDC **GSA**
 - **primer3** (primers), **gbdraw / dna_features_viewer** (genome plots), **plotly / pycirclize / matplotlib** (visualization)
+- **snipit** (cross-sample SNP plots; O'Toole et al., 2024, Bioinformatics btae510; GPL-3.0, invoked as a separate process)
 - **RDP5** (recombination detection), **sracha** (GSA .sra conversion, pure Rust)
 - Methodological alignment: VirPhyKit (Yin et al., 2025, Ecol Evol; code fully re-implemented, only input/output contracts aligned), MMPV-RNA pipelines (host-prediction C9 cascade / SDT semantics / submission prep)

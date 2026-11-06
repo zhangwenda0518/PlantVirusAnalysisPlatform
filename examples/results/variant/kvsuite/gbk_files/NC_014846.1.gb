@@ -1,0 +1,88 @@
+LOCUS       NC_014846               1385 bp    DNA     circular VRL 13-AUG-2018
+DEFINITION  Bhendi yellow vein India betasatellite
+            [India:Aurangabad:OY164:2006], complete genome.
+ACCESSION   NC_014846
+VERSION     NC_014846.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Bhendi yellow vein India betasatellite
+            [India:Aurangabad:OY164:2006]
+  ORGANISM  Bhendi yellow vein India betasatellite
+            [India:Aurangabad:OY164:2006]
+            Viruses; Tolecusatellitidae; Betasatellite; Bhendi yellow vein
+            India betasatellite.
+REFERENCE   1  (bases 1 to 1385)
+  AUTHORS   Venkataravanappa,V., Reddy,C.N., Swaranalatha,P., Jalali,S.,
+            Briddon,R.W. and Reddy,M.K.
+  TITLE     Diversity and phylogeography of Begomovirus-associated beta
+            satellites of Okra in India
+  JOURNAL   Virol. J. 8, 555 (2011)
+   PUBMED   22188644
+REFERENCE   2  (bases 1 to 1385)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (07-JAN-2011) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 1385)
+  AUTHORS   Venkataravanappa,V., Lakshiminarayanareddy,C.N., Jalali,S.,
+            Swaranalatha,P. and Krishnareddy,M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (25-SEP-2009) Division of Plant Pathology, Indian
+            Institute of Horticultural Research, Hessaraghatta Lake PO,
+            Bangalore, Karnataka 560089, India
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to GU111988.
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..1385
+                     /organism="Bhendi yellow vein India betasatellite
+                     [India:Aurangabad:OY164:2006]"
+                     /mol_type="genomic DNA"
+                     /isolate="OY164"
+                     /isolation_source="leaf"
+                     /host="Abelmoschus esculentus (okra)"
+                     /db_xref="taxon:908010"
+                     /geo_loc_name="India: Aurangabad, Maharashtra"
+                     /collection_date="2006"
+                     /collected_by="M.Krishnareddy"
+     gene            complement(180..602)
+                     /gene="C1"
+                     /locus_tag="BhYVIVb_gp1"
+                     /db_xref="GeneID:10067329"
+     CDS             complement(180..602)
+                     /gene="C1"
+                     /locus_tag="BhYVIVb_gp1"
+                     /codon_start=1
+                     /product="C1 protein"
+                     /protein_id="YP_004123087.1"
+                     /db_xref="GeneID:10067329"
+                     /translation="MKISNHFIHIFISSIYIRRTIKMTRFSKNREGIVFKVDVRLMQQ
+                     QRISVQMQISSTRSPAISTKTFIIDYTYQQLHIPFDFNGLEGTITSTFKFHYWGSKAE
+                     EILEEDIIHMVDIIIIENPEIMGMDVNEPVTIDNKIII"
+ORIGIN      
+        1 accgtgggcg agcggagcct gagccgttgt gggacccaca gatgaatgaa gttcatgggt
+       61 gatttcaagt atatggagga aattgtggat gagaaaaatg aatcatgttt gtttttgcaa
+      121 atcattttag ataacagtct cctaataata attaatatgc aaacatatta ctaacaaaat
+      181 taaattatta tcttattatc aatagttact ggttcgttta catccattcc cataatttct
+      241 gggttttcaa taataataat atccaccata tgtatgatgt cttcttctaa tatttcctct
+      301 gcttttgaac cccagtaatg aaacttgaag gttgatgtga tcgttccttc taaaccgttg
+      361 aagtcgaatg gaatatgtaa ttgttggtat gtgtagtcga tgatgaatgt ttttgttgat
+      421 attgctggag atcttgttga actgatctgc atctggactg atatcctttg ttgttgcatg
+      481 agcctgacat ctactttgaa gacgatcccc tccctgtttt tgctgaacct tgtcattttg
+      541 attgtgcgtc taatgtatat gcttgaaatg aatatatgga tgaaatggtt agatattttc
+      601 atataatgtg tggatgaaat ttatagatat tttcatataa tgtgtgggat atcattttca
+      661 taaaactccc tcctggatcc aaactccatc ctgatccgaa gaaaagtcat gagaaattcc
+      721 cttattgagc tcagaaatac gggaacgaca taaagatcag cgaacaaact accatcttca
+      781 agtaaactca gccgataaga aaaacaaaag aggaaataga ggaaaaatga aaccagaaag
+      841 aaagaatata tatataaact aagaaaaaat aaaagggagc gcagcgataa aaaaaagctg
+      901 agaggaagaa ataacaaaat tcaaaaaaaa gaaattcaca aagaaaagaa aaagaaaaaa
+      961 tccgaggtca aaacgaagcc gttttgagga ggaagaggaa agagaacgtt caattttcat
+     1021 tttttaccat ttactgcgtg gtaaatggaa aatagtaaat gagtgggtaa attagacaga
+     1081 ctccaatagg taaattgagt accgatagct aaattgagta ccgatatatc ggtgacatat
+     1141 tgggtcctct ggagtcttag gaagtgcttc tttaccattt tgcccctact tttaggttat
+     1201 atcgcgcgtc gtagtgcgct taaaaagtta tcttctctct cttcagttcc gataaaaacc
+     1261 taatttcccg atgatcggaa ttttccgaca cgcgcggcgg tgtgtacccc tgggagggta
+     1321 ggtaccacta cgctacgcag cagccttagc tacgccggag cttagctcgc ccacgttcta
+     1381 atatt
+//
+

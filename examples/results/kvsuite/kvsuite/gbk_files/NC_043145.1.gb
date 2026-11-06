@@ -1,0 +1,89 @@
+LOCUS       NC_043145               1720 bp    RNA     linear   VRL 28-JUN-2019
+DEFINITION  Clitoria virus Y polyprotein gene, partial cds.
+ACCESSION   NC_043145
+VERSION     NC_043145.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Clitoria virus Y
+  ORGANISM  Clitoria virus Y
+            Viruses; Riboviria; Orthornavirae; Pisuviricota; Stelpaviricetes;
+            Patatavirales; Potyviridae; Potyvirus; Potyvirus clitoriae.
+REFERENCE   1  (bases 1 to 1720)
+  AUTHORS   Mackenzie,A.M., Gibbs,A.J. and Wei,K.-J.
+  TITLE     Potyviruses in Australia
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 1720)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (28-JUN-2019) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 1720)
+  AUTHORS   Mackenzie,A.M., Gibbs,A.J. and Wei,K.-J.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (24-JAN-2000) Research School of Biological Sciences,
+            Australian National University, Biology Place, Canberra, ACT 2601,
+            Australia
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to AF228515.
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..1720
+                     /organism="Clitoria virus Y"
+                     /mol_type="genomic RNA"
+                     /host="Clitoria ternatea"
+                     /db_xref="taxon:114891"
+                     /geo_loc_name="Australia: Queensland"
+                     /note="CliVY"
+     gene            1..1470
+                     /locus_tag="FK889_gp1"
+                     /db_xref="GeneID:40525281"
+     CDS             <1..1470
+                     /locus_tag="FK889_gp1"
+                     /note="contains partial NIb polymerase and complete coat
+                     protein sequence"
+                     /codon_start=1
+                     /product="polyprotein"
+                     /protein_id="YP_009665129.1"
+                     /db_xref="GeneID:40525281"
+                     /translation="GNNSGQPSTVVDNTFMVVISVYYACIKLRWSREDIQNNLVFFAN
+                     GDDIILAVPPSFSTLLDSMTKSFSELGLNYDFSERTMKREDLWFMSHQAKLVDGLYIP
+                     KLEMERIVSILEWDRSNELMHRTETICAAMIEAWGYTDLLLEIRKFYMWMLQKPEFRE
+                     LAGVGKTPYIAETALKKLYTDKDATQEEIENYMRVLCAQHIDGCCESVSLQFGQQQAG
+                     NLDAGADGKKKTTDKSSKSDETKGNEGENRGEQRDKDVNAGSRGSVVPRLQKITKRMN
+                     LPMVKGTMILDLDHLIEYKPDQTKLFNTRATDAQFAAWYEGVQSEYELNDAPMGSVMN
+                     GFMVWCIDNGTSPDINGVWVMMDGDEQVEYPLKPMVENAKPTLRQIMHHFSDAAEAYI
+                     EMRCASGPYMPRYGLLRNLRDKNLARYAFDFYEVNAKTSDRAREAVAQMKAAALSNVN
+                     NKLFGLDGNVATSIEDTERHTARDVNQNMHTLLGVVPVQ"
+     3'UTR           1471..1720
+ORIGIN      
+        1 gggaacaaca gtggacaacc atcaactgtt gttgacaaca cattcatggt tgtgatttct
+       61 gtgtactatg cgtgtattaa gctcagatgg tcacgtgaag acattcagaa caatcttgta
+      121 ttcttcgcta atggtgatga tataatactt gcagttccac cttccttttc cactcttctt
+      181 gattcaatga cgaagtcttt ctcagagttg ggcttgaact atgatttcag tgaaagaacg
+      241 atgaaacggg aagatctgtg gtttatgtcg catcaggcaa agctggtcga tggtttgtac
+      301 ataccaaagc tcgaaatgga gcgcattgtt tcaattcttg aatgggatag aagtaatgag
+      361 ctaatgcacc gaactgaaac tatatgtgct gcaatgattg aagcatgggg ctatacagat
+      421 ttgttacttg agattagaaa gttttacatg tggatgcttc aaaagccaga gtttcgagaa
+      481 cttgctggcg ttggaaaaac accttacatt gcagaaacag ctctgaagaa attatacaca
+      541 gataaagacg caacacagga agagatagag aattatatgc gtgttctgtg tgctcagcac
+      601 attgatggtt gttgtgaatc cgtatcattg caatttggtc agcaacaagc tggaaatctg
+      661 gatgctggtg ctgatgggaa gaagaaaaca acagacaagt caagcaagag tgatgaaaca
+      721 aagggtaatg aaggagagaa cagaggggag cagagagaca aggatgttaa cgctggctca
+      781 agaggtagtg tcgtaccacg cttgcagaag attaccaaga gaatgaatct cccaatggtc
+      841 aaaggtacta tgatcctcga tcttgatcat ctaatagagt acaagcctga ccagacaaag
+      901 ctgttcaata caagagcaac tgacgcacaa tttgcagcat ggtatgaggg agtccaatct
+      961 gagtatgaac ttaatgatgc tcccatgggg tccgttatga atggatttat ggtttggtgt
+     1021 atagacaatg gcacatcccc cgatataaat ggagtttggg taatgatgga tggtgatgag
+     1081 caagttgaat atccattgaa gcctatggtt gaaaatgcta aacctacact ccgacaaata
+     1141 atgcaccatt tctcagatgc agctgaagca tatattgaga tgagatgtgc aagtggacca
+     1201 tacatgccta ggtatggact cttgcgcaat ttgagggaca agaatttagc gcggtatgca
+     1261 tttgatttct atgaagtcaa tgctaagact tctgatcgtg ctcgagaagc agtggcacag
+     1321 atgaaggctg cagccctcag caatgtgaac aacaagttgt ttggacttga tgggaacgtt
+     1381 gcaacaagta ttgaagatac tgaaaggcac actgcacggg acgtcaatca gaacatgcac
+     1441 actttgttag gtgttgttcc ggtgcagtaa aggattggta aactttccac agttgttact
+     1501 tcgctgtcgc ttttgtttta tagattatgt tcgtaattct atgtagccag agtggttgaa
+     1561 ccacctaact agtagtgagt gtgattgaat caccaattat ggaatatttc tatattagta
+     1621 agaaaagcag ggaggatttt tgcagtggtg gagcgtccag agtgattata tcacgcgtgt
+     1681 tgtccgaccc ttggcaaagt ttattgtcct aaaaaaaaaa
+//
+

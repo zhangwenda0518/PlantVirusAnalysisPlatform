@@ -1,0 +1,105 @@
+{
+  "chain": "annochain",
+  "run": "annochain_20261105_021735_530e1f",
+  "label": "病毒注释分析 一键：注释→图谱→NCBI 提交准备",
+  "params": {
+    "min_aa": 100,
+    "classify": true,
+    "input": "example_viral_contigs.fasta"
+  },
+  "created": "2026-11-05 02:17:35",
+  "steps": [
+    {
+      "key": "contigs",
+      "run": "contigs_20261105_021735_a18a",
+      "title": "① kunpeng 病毒库分类",
+      "summary": {
+        "n_contigs": 2,
+        "n_viral": 2,
+        "kreport": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\contigs_20261105_021735_a18a\\classify\\output_1.kreport2",
+        "classification": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\contigs_20261105_021735_a18a\\virus_classification.tsv",
+        "viral_fasta": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\contigs_20261105_021735_a18a\\viral_contigs.fasta",
+        "n_host_pred": 2,
+        "host_warn": 0
+      }
+    },
+    {
+      "key": "orf",
+      "run": "orf_20261105_021741_95f0",
+      "title": "② ORF 预测",
+      "summary": {
+        "stage": "orf",
+        "input": "viral_contigs.fasta",
+        "n_contigs": 2,
+        "min_aa": 100
+      }
+    },
+    {
+      "key": "orfa",
+      "run": "orfa_20261105_021742_a4a9",
+      "title": "③ ORF 功能注释",
+      "target_run": "orf_20261105_021741_95f0",
+      "output": [
+        "orf_annotation.tsv"
+      ],
+      "summary": {
+        "stage": "orfa",
+        "model": "pyrodigal_rv",
+        "engine": "",
+        "n_orfs": 7,
+        "n_annotated": 7,
+        "n_families": 2,
+        "gff_annotated": 7,
+        "n_hmm_only": 6,
+        "n_bfvd_only": 1,
+        "n_pvdb_named": 7,
+        "n_pvdb_segments": 0,
+        "tsv": "orf_annotation.tsv",
+        "run": "orf_20261105_021741_95f0"
+      }
+    },
+    {
+      "key": "genoplot",
+      "run": "genoplot_20261105_021754_ed21",
+      "title": "④ 基因组图谱",
+      "output": [
+        "example_contig_2.circular.svg",
+        "example_contig_2.linear.svg",
+        "example_contig_1.circular.svg",
+        "example_contig_1.linear.svg"
+      ],
+      "summary": {
+        "stage": "gbdraw",
+        "standalone": true,
+        "input": "example_viral_contigs.fasta",
+        "n_seqs": 2,
+        "run": "genoplot_20261105_021754_ed21"
+      }
+    },
+    {
+      "key": "submit",
+      "run": null,
+      "title": "⑤ NCBI 提交准备",
+      "output": [
+        "unified_metadata.csv",
+        "sequences.fsa",
+        "featuretable.tbl",
+        "submission_package.zip"
+      ],
+      "summary": {
+        "project": "annochain_20261105_021735_530e1f",
+        "rows": 2,
+        "n_cds": 7,
+        "missing_contigs": 0,
+        "package_files": 5
+      },
+      "submission": {
+        "project": "annochain_20261105_021735_530e1f",
+        "dir": "D:\\桌面\\植物病毒分析平台\\run\\submissions\\annochain_20261105_021735_530e1f",
+        "featuretable": true,
+        "missing": []
+      }
+    }
+  ],
+  "done": true
+}

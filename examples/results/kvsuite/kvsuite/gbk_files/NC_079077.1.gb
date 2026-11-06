@@ -1,0 +1,106 @@
+LOCUS       NC_079077               2177 bp ss-RNA     linear   VRL 06-MAY-2023
+DEFINITION  Arceuthobium sichuanense virus 1 isolate China segment RNA 2,
+            complete sequence.
+ACCESSION   NC_079077
+VERSION     NC_079077.1
+DBLINK      BioProject: PRJNA485481
+            Sequence Read Archive: SRR3081483, SRR3081484
+KEYWORDS    RefSeq.
+SOURCE      Arceuthobium sichuanense virus 1
+  ORGANISM  Arceuthobium sichuanense virus 1
+            Viruses; Riboviria.
+REFERENCE   1  (bases 1 to 2177)
+  AUTHORS   Sidharthan,V.K., Chaturvedi,K.K. and Baranwal,V.K.
+  TITLE     Diverse RNA viruses in a parasitic flowering plant (spruce dwarf
+            mistletoe) revealed through RNA-seq data mining
+  JOURNAL   J Gen Plant Pathol 88 (2), 138-144 (2022)
+  REMARK    DOI: 10.1007/s10327-021-01049-y
+REFERENCE   2  (bases 1 to 2177)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (05-MAY-2023) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 2177)
+  AUTHORS   Sidharthan,V.K. and Baranwal,V.K.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (14-JUN-2021) Division of Plant Pathology, Indian
+            Agricultural Research Institute, Pusa, New Delhi, Delhi 110012,
+            India
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to BK059264.
+            
+            ##Assembly-Data-START##
+            Assembly Method :: SPAdes v. 3.13.1
+            ##Assembly-Data-END##
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..2177
+                     /organism="Arceuthobium sichuanense virus 1"
+                     /mol_type="genomic RNA"
+                     /isolate="China"
+                     /host="Arceuthobium sichuanense"
+                     /db_xref="taxon:2873234"
+                     /segment="RNA 2"
+     gene            38..1984
+                     /gene="ORF2"
+                     /locus_tag="QK868_s2gp1"
+                     /db_xref="GeneID:80554546"
+     CDS             38..1984
+                     /gene="ORF2"
+                     /locus_tag="QK868_s2gp1"
+                     /codon_start=1
+                     /product="glycoprotein precursor"
+                     /protein_id="YP_010840858.1"
+                     /db_xref="GeneID:80554546"
+                     /translation="MAFLVSLLIFMLFNYGTCEENDVEIYQESIKRHQEIDNHNFDCG
+                     LTVQRLDNVQLACKKSNECIYYTNAIKYNDTCWKLSEVSTHFNCCNKYEAVIYKIKDE
+                     NKSICHNIFSHSWCVFLTNLYNIIIAIAIWVLMALLRIPLLYVFKIFDITTSKLFKEK
+                     NKCLKCDDTYKFIHLDCEKMTRNRTDYNILYYMLIIILILFNPVYADDNKFNTYDHEG
+                     YTEFIIKDVEHEINEFYTKTNHIKIVVEKSYIQYDISYLHEVLEKTSDEIRDHNYSCD
+                     SKEDCLKSLNGDKKTFRSLKKNHDGLACIFSDAIVCASCLFKYKKHSKVYIVSDHRPV
+                     IILSVVINNNEKYNLTIDSYNDYIDDNFYIRSLNAIDNNYDLILIKNVTAYRGKICNV
+                     PALDCYGRHIYKNENSLAIYNPTIIDNNHHDTTVNLVKCTEDENLDLLRLNKIGVISK
+                     GFPLRVHEDRSFGHFSIGVRNKMLLNSKICEKKALVTGITTKGCHSCKYGFDVTVNYK
+                     LYNKCGKIECKTDIYKSDTYVDRGDTANLKLYSDDKNLMLECNNKKMNIILDDENLNS
+                     YYHSGLYTSSNSDIKDRLKNTFKLAIFDKLKMIVLIIIIILFVYMFTSIIFKIKEITK
+                     RSINKKIINSAYTVDMSMLRDLDD"
+ORIGIN      
+        1 aactacaaac ctaaaacaat ctgacttaaa ttgagaaatg gcatttttag tttcactttt
+       61 aatattcatg ttattcaatt atggaacttg tgaggaaaat gatgttgaaa tataccaaga
+      121 gtctattaaa agacatcaag aaattgacaa tcataatttt gattgtggat taacagttca
+      181 aaggcttgat aatgttcaat tggcttgtaa aaaaagtaat gaatgtatat attacactaa
+      241 tgcaatcaaa tataatgaca cttgttggaa attaagtgaa gtttctacac attttaactg
+      301 ttgcaacaaa tatgaagctg taatatataa aataaaagat gaaaacaaga gtatttgtca
+      361 taatattttc tctcattctt ggtgtgtgtt cttaacaaat ttatataata ttataatagc
+      421 tattgcaata tgggtattaa tggctttact taggattcct ttattgtatg tttttaaaat
+      481 ctttgatata accacttcaa agttatttaa agaaaaaaat aaatgtctaa agtgtgatga
+      541 tacatataaa tttattcatt tagattgtga aaaaatgacg aggaatagaa ctgattataa
+      601 tatattatat tatatgttaa ttataatatt aatattattt aaccctgtat atgctgatga
+      661 taataaattt aatacttatg atcatgaagg ttacactgaa tttataatta aagatgtaga
+      721 acatgaaata aatgaatttt atactaaaac taatcatata aaaatagtag tagaaaaaag
+      781 ttatatacaa tatgacatta gttatcttca tgaagtatta gaaaagacat ctgatgagat
+      841 tagagatcat aactattctt gtgatagtaa ggaagattgt ttaaaatcat taaatggtga
+      901 taaaaaaaca tttagatcac tgaagaaaaa tcatgatggt ttagcttgta tatttagtga
+      961 tgcaatagta tgtgcttcat gtttatttaa atataaaaaa cattcaaaag tatatatagt
+     1021 aagtgatcat agacctgtaa taattttgag tgtagttata aataataatg aaaaatacaa
+     1081 tttaacaata gactcttata atgattatat tgatgataat ttttatataa gatcattaaa
+     1141 tgcaatagat aacaattatg atcttatatt aataaaaaat gttacagctt atagaggtaa
+     1201 aatatgtaat gtgccagcat tagattgcta tggaaggcat atatataaaa atgagaattc
+     1261 actagcaata tataacccaa ctataattga taataatcat catgatacta ctgttaacct
+     1321 tgttaagtgc acagaagatg aaaatttaga tttgttaaga ttaaataaaa taggagtaat
+     1381 tagcaaaggt ttcccattga gagttcatga agatagatca ttcggacatt tttcaatagg
+     1441 tgttagaaat aaaatgctat tgaacagcaa aatatgtgag aagaaagcat tagttacagg
+     1501 aataacaaca aaaggttgtc atagttgtaa atatggtttt gatgtaacag ttaactataa
+     1561 attatataat aaatgtggca aaattgaatg taaaacagat atatataaat cagatactta
+     1621 tgtagataga ggagatactg caaatcttaa actatattct gatgataaaa acttaatgct
+     1681 ggaatgtaat aacaagaaaa tgaatattat actagatgat gaaaatttaa attcatatta
+     1741 tcattcagga ttatacacat caagtaattc agatattaaa gatagactta aaaatacctt
+     1801 taaattagca atatttgata aattaaaaat gatagtttta attataataa taatattatt
+     1861 tgtatatatg tttactagta taatatttaa gattaaagag ataactaaga gaagtataaa
+     1921 caaaaaaata attaattcag catacactgt agatatgtca atgttaaggg atcttgatga
+     1981 ttaatttatt atatatataa attaaattaa atataaaaaa taaaaaaata aattttataa
+     2041 agctatcttg tttcacatga tggccacaat gtcggttata tccattattt tataatttat
+     2101 aagcattttt tgtcatcttg tcagtttaat gggagaacac tacgaaattt aatttaaaaa
+     2161 tataaaactc atagtta
+//
+

@@ -1,0 +1,72 @@
+LOCUS       GU111966                1364 bp    DNA     circular VRL 18-MAY-2012
+DEFINITION  Bhendi yellow vein mosaic betasatellite [India:Raichur:OY54:2005],
+            complete sequence.
+ACCESSION   GU111966
+VERSION     GU111966.1
+KEYWORDS    .
+SOURCE      Bhendi yellow vein mosaic betasatellite [India:Raichur:OY54:2005]
+  ORGANISM  Bhendi yellow vein mosaic betasatellite [India:Raichur:OY54:2005]
+            Viruses; Tolecusatellitidae; Betasatellite; Betasatellite
+            abelmoschusmusiviflavi.
+REFERENCE   1  (bases 1 to 1364)
+  AUTHORS   Venkataravanappa,V., Reddy,C.N., Swaranalatha,P., Jalali,S.,
+            Briddon,R.W. and Reddy,M.K.
+  TITLE     Diversity and phylogeography of Begomovirus-associated beta
+            satellites of Okra in India
+  JOURNAL   Virol. J. 8, 555 (2011)
+   PUBMED   22188644
+REFERENCE   2  (bases 1 to 1364)
+  AUTHORS   Venkataravanappa,V., Lakshiminarayanareddy,C.N., Jalali,S.,
+            Swaranalatha,P. and Krishnareddy,M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (25-SEP-2009) Division of Plant Pathology, Indian
+            Institute of Horticultural Research, Hessaraghatta Lake PO,
+            Bangalore, Karnataka 560089, India
+FEATURES             Location/Qualifiers
+     source          1..1364
+                     /organism="Bhendi yellow vein mosaic betasatellite
+                     [India:Raichur:OY54:2005]"
+                     /mol_type="genomic DNA"
+                     /isolate="OY54"
+                     /isolation_source="leaf"
+                     /host="Abelmoschus esculentus (okra)"
+                     /db_xref="taxon:908080"
+                     /geo_loc_name="India: Raichur, Karnataka"
+                     /collection_date="2005"
+                     /collected_by="M.Krishnareddy"
+     gene            complement(180..536)
+                     /gene="C1"
+     CDS             complement(180..536)
+                     /gene="C1"
+                     /codon_start=1
+                     /product="C1 protein"
+                     /protein_id="ADQ55863.1"
+                     /translation="MTRFSKNREGIVFKVDVRLMQQQRISVHMQISSTKSPAISTKTF
+                     IIDYTYQQLHIPFDFNGLEGTITSTFKFHYWGSKAEEILEEDIIHMVDIIIIENPDIM
+                     GMDVNEPVTIDNKIII"
+ORIGIN      
+        1 accgtgggcg agcggagtct gagtcgttgt gggacccact tatgaatgaa gttcatgggt
+       61 gatttcaagt atatggagga aattgtggat gagaaaaatg aatcatgttt gtttttgcaa
+      121 attattttag ataacagtct cctaataata attaatatgc aaacatatta ctaacaaaat
+      181 taaattatta tcttattatc aatagttact ggttcgttta catccattcc catgatatct
+      241 gggttttcaa taataataat atccaccata tgtatgatgt cttcttctaa tatttcttct
+      301 gcttttgaac cccagtaatg aaatttgaag gttgatgtga tcgttccttc tagaccgttg
+      361 aagtcgaatg gaatgtgtaa ttgttggtat gtgtagtcga tgatgaatgt ctttgttgat
+      421 atggctggag attttgttga actgatctgc atatggaccg atatcctttg ttgttgcatg
+      481 agcctgacat ctactttgaa gacgatcccc tccctgtttt tgctgaacct tgtcatcttg
+      541 attgtgcgtc taaggtatat gttcgaagtg gatatataga tgaaaggtat agatatttta
+      601 tagatgtggg atgaaaagta tagaattttc aataatgtgg gatatctttc ataaaactcc
+      661 atcctgatcc aaagaaaagt catgagaaat tcccttattg agctcagaaa tacgggaacg
+      721 acataaattt cagcgaacaa actagcatct tcaagtaaac tcagccgata agaaaaacaa
+      781 aagaggaaat agaggaaaaa tgaaaccaga aagaaagaat atatatataa actaagaaaa
+      841 aagaaaaggg agcgcagcga taaaaaaaag cggagagaaa gaaataacaa aatccaaaaa
+      901 aaaataaatt cagaaagaaa agaaaaagaa aaaatccgaa gtcaaaacga agccgttttg
+      961 aggaggaaga ggaaagagaa cgttcaattt acatttttta ccatttactg cgtggtaaat
+     1021 ggtaaatagt aaatgagtgg gtaaattaga cagacaccga taggtaaatg agacaccgat
+     1081 aggtaaatga gacaccgata tatcggtact caattggtac ctctggagtc ttataaagtg
+     1141 cttgtttacc attttgcccc tactgttaag ggatgtccgc gcggcgtagt gcgcttaaaa
+     1201 agttatcttc tctctcttca gttccgataa aaacctaatt tcccgatgat cggagtcgaa
+     1261 ttttccgaca cgcgcggcgg tgtgtacccc tgggagggta ggtaccacac gctacgcagc
+     1321 agccttagct acgccggagc ttagctcgcc cacgttctaa tatt
+//
+

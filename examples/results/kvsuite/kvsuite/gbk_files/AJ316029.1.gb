@@ -1,0 +1,71 @@
+LOCUS       AJ316029                1361 bp    DNA     circular VRL 06-AUG-2003
+DEFINITION  Okra leaf curl disease associated sequence putative C1 gene, clone
+            NIB1-4.
+ACCESSION   AJ316029
+VERSION     AJ316029.1
+KEYWORDS    c1 protein.
+SOURCE      Okra leaf curl disease associated sequence
+  ORGANISM  Okra leaf curl disease associated sequence
+            Viruses; Tolecusatellitidae; Betasatellite; Betasatellite
+            abelmoschusinvolutionis.
+REFERENCE   1
+  AUTHORS   Briddon,R.W., Bull,S.E., Amin,I., Idris,A.M., Mansoor,S.,
+            Bedford,I.D., Dhawan,P., Rishi,N., Siwatch,S.S., Abdel-Salam,A.M.,
+            Brown,J.K., Zafar,Y. and Markham,P.G.
+  TITLE     Diversity of DNA beta, a satellite molecule associated with some
+            monopartite begomoviruses
+  JOURNAL   Virology 312 (1), 106-121 (2003)
+   PUBMED   12890625
+REFERENCE   2  (bases 1 to 1361)
+  AUTHORS   Briddon,R.W.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (16-AUG-2001) Briddon R.W., Disease and Stress Biology,
+            John Innes Centre, Colney Lane, Norwich, NR4 7UH, UNITED KINGDOM
+FEATURES             Location/Qualifiers
+     source          1..1361
+                     /organism="Okra leaf curl disease associated sequence"
+                     /mol_type="genomic DNA"
+                     /host="Hibiscus esculentis"
+                     /db_xref="taxon:169689"
+                     /clone="NIB1-4"
+                     /geo_loc_name="Pakistan"
+                     /note="DNA beta, satellite molecule associated with a
+                     begomovirus"
+     gene            complement(192..632)
+                     /gene="C1"
+     CDS             complement(192..632)
+                     /gene="C1"
+                     /codon_start=1
+                     /product="putative C1 protein"
+                     /protein_id="CAC87055.1"
+                     /db_xref="InterPro:IPR018583"
+                     /db_xref="UniProtKB/TrEMBL:Q7T479"
+                     /translation="MISTHYLKISIHFIYIFISNIHIRRTIKMTRFSRNREGIVFKVD
+                     VRLMQQQRISVHMQISSTKSPAISTRKFIIDYTYQQLHIPFDFNGLEGTITSTFKFHY
+                     WGSKAEEILDEDIIHMVDIIIIENPDIMGMDVNEPVTIDNKIII"
+ORIGIN      
+        1 accgtgggcg agcggaacct gagccgttgt gggacccaca gatgaatgaa gttcatgggt
+       61 gatttcaagt atatggagga aattgtggat gagaaaaatg aatcatgttt gtttttgcaa
+      121 cagattttgg tccagttcat atgcctgctc tgcttgcaca gcaatcgtct tctctcctct
+      181 tcttttaaac actaaattat tatcttatta tcaatagtta ctggttcgtt tacatccatt
+      241 cccatgatat ctgggttttc aataataata atatccacca tatgtatgat gtcttcgtcg
+      301 agtatttctt ctgcttttga accccagtaa tgaaacttga atgttgatgt gatcgttcct
+      361 tctaaaccgt tgaagtcgaa tggaatgtgt aattgttggt atgtgtagtc gatgatgaat
+      421 tttcttgttg aaatggctgg agattttgtt gaactgatct gcatatggac cgatatcctt
+      481 tgttgttgca tgagcctgac atctactttg aagacgatcc cctccctgtt tctgctgaac
+      541 cttgtcatct tgattgtgcg tcgaatgtgt atgtttgaaa tgaatatata gatgaaatgt
+      601 atagatattt tcaaataatg tgtggatatc attttaaatg atatatgtgg ttcttgtttg
+      661 ttggtacata atatcctttt actaatggag aataaggtag tatatatgta tatgtaggtg
+      721 tatgtataat ttgaagaaag aaaaatacta tgctacagat atacgggtat atttgtagga
+      781 taagaaaaag aaaagaggaa atagaggaaa aatgaaacca gaaagaaagg aaatatatat
+      841 aaactaaaaa aagaaaaggg agcgcagcga taaaaaaaat aatcggaaaa agaaaaaaat
+      901 aagaaaatca aataaagaaa attcacaaag aaaaataaag aagaaaaaat ccgaggtcaa
+      961 aacgaagccg ttttgaggag gaaaaggaaa gaaaacggtc aatttatatt ttttaccatt
+     1021 tactgaacgg taaatggtaa ataagttaaa aggagttaaa aaatggagac accgataggt
+     1081 aaatgagacc ccaatatatt ggggactcaa tcggggacag gaaagagaaa taattcctcc
+     1141 cttcctaaaa taccctcgct tttgtttctt ataggcgcgt cggagtgcgc cgataaagtt
+     1201 aacattctct ctcctatttt aggatctaat gcaatttcac ggtgatcgga gtcgaatttt
+     1261 ccgacacgcg cggcggtgtg tacccctggg agggtaggta ccactacgct acgcagcagc
+     1321 cttagctacg ccggagctta gctcgcccac gttctaatat t
+//
+

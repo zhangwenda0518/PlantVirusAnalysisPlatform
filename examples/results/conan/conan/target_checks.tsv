@@ -1,0 +1,686 @@
+segment	candidate_id	rank	target_record	observed_PAM	PAM_match	observed_seed	seed_match	effective_seed_mm	effective_spacer_mm	effective_nonseed_mm_count	target_pass	observed_window
+main	CNmain_00003	1	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTTAACTT	是			0	是	AAGGTTAACTTTTCCAAGGTCATTTCTCAGGAACA
+main	CNmain_00003	1	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTTAACTT	是			0	是	AAGGTTAACTTTTCCAAGGTCATTTCTCAGGAACA
+main	CNmain_00003	1	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GTTAACTT	是			0	是	AAGGTTAACTTTTCCAAGGTCATTTCTCAGGAACA
+main	CNmain_00003	1	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTTAACTT	是			0	是	AAGGTTAACTTTTCCAAGGTCATTTCTCAGGAACA
+main	CNmain_00003	1	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTTAACTT	是			0	是	AAGGTTAACTTTTCCAAGGTCATTTCTCAGGAACA
+main	CNmain_00005	2	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CTACTAAT	是			0	是	AAGCTACTAATGCGTACCCTGAGTTTGAAATCACC
+main	CNmain_00005	2	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CTACTAAT	是			0	是	AAGCTACTAATGCGTACCCTGAGTTTGAAATCACC
+main	CNmain_00005	2	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CTACTAAT	是			0	是	AAGCTACTAATGCGTACCCTGAGTTTGAAATCACC
+main	CNmain_00005	2	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CTACTAAT	是			0	是	AAGCTACTAATGCGTACCCTGAGTTTGAAATCACC
+main	CNmain_00005	2	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CTACTAAT	是			0	是	AAGCTACTAATGCGTACCCTGAGTTTGAAATCACC
+main	CNmain_00006	3	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GACGAGAT	是			0	是	AAGGACGAGATTACGTCCATTGCTGTATGCCTAAT
+main	CNmain_00006	3	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GACGAGAT	是			0	是	AAGGACGAGATTACGTCCATTGCTGTATGCCTAAT
+main	CNmain_00006	3	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GACGAGAT	是			0	是	AAGGACGAGATTACGTCCATTGCTGTATGCCTAAT
+main	CNmain_00006	3	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GACGAGAT	是			0	是	AAGGACGAGATTACGTCCATTGCTGTATGCCTAAT
+main	CNmain_00006	3	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GACGAGAT	是			0	是	AAGGACGAGATTACGTCCATTGCTGTATGCCTAAT
+main	CNmain_00007		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ATACTGTT	是			0	是	AAGATACTGTTTCTACTTATCTGGCTAGGCTCGAG
+main	CNmain_00007		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ATACTGTT	是			0	是	AAGATACTGTTTCTACTTATCTGGCTAGGCTCGAG
+main	CNmain_00007		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ATACTGTT	是			0	是	AAGATACTGTTTCTACTTATCTGGCTAGGCTCGAG
+main	CNmain_00007		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ATACTGTT	是			0	是	AAGATACTGTTTCTACTTATCTGGCTAGGCTCGAG
+main	CNmain_00007		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	TAG	否	ATACTGTT	是		12,13,19,23	4	否	TAGATACTGTTTCTGATTATCCGGCGAGGCTCGAG
+main	CNmain_00011		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ACTGTTCT	是			0	是	AAGACTGTTCTTACTCCGTTGATCTTCCGGGAAAA
+main	CNmain_00011		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ACTGTTCT	是			0	是	AAGACTGTTCTTACTCCGTTGATCTTCCGGGAAAA
+main	CNmain_00011		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ACTGTTCT	是		24,30	2	是	AAGACTGTTCTTACTCCGTTGATCTTACGGGATAA
+main	CNmain_00011		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ACTGTTCT	是			0	是	AAGACTGTTCTTACTCCGTTGATCTTCCGGGAAAA
+main	CNmain_00011		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAC	否	ACAGTTCT	否	3	3,25	1	否	AACACAGTTCTTACTCCGTTGATCTTCTGGGAAAA
+main	CNmain_00016		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TTCACCAA	是			0	是	AAGTTCACCAAGGTAGATACTTATTTCCTTTTCCG
+main	CNmain_00016		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTCACCAA	是		14,15,20,28	4	是	AAGTTCACCAAGGTAGTAACTTGTTTCCTTCTCCG
+main	CNmain_00016		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TTCACCAA	是			0	是	AAGTTCACCAAGGTAGATACTTATTTCCTTTTCCG
+main	CNmain_00016		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TTCACCAA	是			0	是	AAGTTCACCAAGGTAGATACTTATTTCCTTTTCCG
+main	CNmain_00016		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTCACCAA	是			0	是	AAGTTCACCAAGGTAGATACTTATTTCCTTTTCCG
+main	CNmain_00017		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTAGATAC	是			0	是	AAGGTAGATACTTATTTCCTTTTCCGAGGAGTGTA
+main	CNmain_00017		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTAGTAAC	否	5	5,11,19	2	否	AAGGTAGTAACTTGTTTCCTTCTCCGAGGAGTGTA
+main	CNmain_00017		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GTAGATAC	是			0	是	AAGGTAGATACTTATTTCCTTTTCCGAGGAGTGTA
+main	CNmain_00017		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTAGATAC	是			0	是	AAGGTAGATACTTATTTCCTTTTCCGAGGAGTGTA
+main	CNmain_00017		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTAGATAC	是			0	是	AAGGTAGATACTTATTTCCTTTTCCGAGGAGTGTA
+main	CNmain_00021		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GACGATCT	是			0	是	AAGGACGATCTTTCGCGATCGCGCTGCGGTTAACT
+main	CNmain_00021		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GACGTTCT	否	5	5,24	1	否	AAGGACGTTCTTTCGCGATCGCGCTGTGGTTAACT
+main	CNmain_00021		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GACGATCT	是			0	是	AAGGACGATCTTTCGCGATCGCGCTGCGGTTAACT
+main	CNmain_00021		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GACGATCT	是		32	1	是	AAGGACGATCTTTCGCGATCGCGCTGCGGTTAACG
+main	CNmain_00021		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GACGATCT	是			0	是	AAGGACGATCTTTCGCGATCGCGCTGCGGTTAACT
+main	CNmain_00022		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TTAAGGAT	是			0	是	AAGTTAAGGATATGGTTATCGTGCCGCTTTTTGAT
+main	CNmain_00022		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTAAGGAT	是			0	是	AAGTTAAGGATATGGTTATCGTGCCGCTTTTTGAT
+main	CNmain_00022		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TTAAGGAT	是			0	是	AAGTTAAGGATATGGTTATCGTGCCGCTTTTTGAT
+main	CNmain_00022		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TTAAGAAT	是		15,19,30	3	是	AAGTTAAGAATATGGTTTTCGAGCCGCTTTTTTAT
+main	CNmain_00022		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTAAGGAT	是			0	是	AAGTTAAGGATATGGTTATCGTGCCGCTTTTTGAT
+main	CNmain_00023		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GATATGGT	是			0	是	AAGGATATGGTTATCGTGCCGCTTTTTGATGGTTC
+main	CNmain_00023		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GATATGGT	是			0	是	AAGGATATGGTTATCGTGCCGCTTTTTGATGGTTC
+main	CNmain_00023		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GATATGGT	是			0	是	AAGGATATGGTTATCGTGCCGCTTTTTGATGGTTC
+main	CNmain_00023		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AATATGGT	否	1	1,10,14,25	3	否	AAGAATATGGTTTTCGAGCCGCTTTTTTATGGTTC
+main	CNmain_00023		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GATATGGT	是			0	是	AAGGATATGGTTATCGTGCCGCTTTTTGATGGTTC
+main	CNmain_00030		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CCTTGACG	是			0	是	AAGCCTTGACGTATAAAAACGTTCTTTCCTTTGTC
+main	CNmain_00030		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CCTTGACG	是			0	是	AAGCCTTGACGTATAAAAACGTTCTTTCCTTTGTC
+main	CNmain_00030		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CCTTGACG	是			0	是	AAGCCTTGACGTATAAAAACGTTCTTTCCTTTGTC
+main	CNmain_00030		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	ACG	否	CCTTGACG	是		13	1	否	ACGCCTTGACGTATACAAACGTTCTTTCCTTTGTC
+main	CNmain_00030		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CCTTGACG	是			0	是	AAGCCTTGACGTATAAAAACGTTCTTTCCTTTGTC
+main	CNmain_00031	4	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ATCTGAGT	是			0	是	AAGATCTGAGTGGGATGTAGACAAGTCTGTGTTAC
+main	CNmain_00031	4	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ATCTGAGT	是			0	是	AAGATCTGAGTGGGATGTAGACAAGTCTGTGTTAC
+main	CNmain_00031	4	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ATCTGAGT	是			0	是	AAGATCTGAGTGGGATGTAGACAAGTCTGTGTTAC
+main	CNmain_00031	4	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ATCTGAGT	是			0	是	AAGATCTGAGTGGGATGTAGACAAGTCTGTGTTAC
+main	CNmain_00031	4	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ATCTGAGT	是			0	是	AAGATCTGAGTGGGATGTAGACAAGTCTGTGTTAC
+main	CNmain_00032	5	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TCTGTGTT	是			0	是	AAGTCTGTGTTACAGGCGTTATCTATGACTTTTCT
+main	CNmain_00032	5	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TCTGTGTT	是			0	是	AAGTCTGTGTTACAGGCGTTATCTATGACTTTTCT
+main	CNmain_00032	5	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TCTGTGTT	是			0	是	AAGTCTGTGTTACAGGCGTTATCTATGACTTTTCT
+main	CNmain_00032	5	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TCTGTGTT	是			0	是	AAGTCTGTGTTACAGGCGTTATCTATGACTTTTCT
+main	CNmain_00032	5	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TCTGTGTT	是			0	是	AAGTCTGTGTTACAGGCGTTATCTATGACTTTTCT
+main	CNmain_00033	6	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TTGGCTGA	是			0	是	AAGTTGGCTGAAGCAAAAGATCAAGTCGTACTTAA
+main	CNmain_00033	6	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTGGCTGA	是			0	是	AAGTTGGCTGAAGCAAAAGATCAAGTCGTACTTAA
+main	CNmain_00033	6	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TTGGCTGA	是			0	是	AAGTTGGCTGAAGCAAAAGATCAAGTCGTACTTAA
+main	CNmain_00033	6	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TTGGCTGA	是			0	是	AAGTTGGCTGAAGCAAAAGATCAAGTCGTACTTAA
+main	CNmain_00033	6	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTGGCTGA	是			0	是	AAGTTGGCTGAAGCAAAAGATCAAGTCGTACTTAA
+main	CNmain_00038	7	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GCTCATTA	是			0	是	AAGGCTCATTAGCGGTGGGTTTGTAAAAGTTGCTG
+main	CNmain_00038	7	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GCTCATTA	是			0	是	AAGGCTCATTAGCGGTGGGTTTGTAAAAGTTGCTG
+main	CNmain_00038	7	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GCTCATTA	是			0	是	AAGGCTCATTAGCGGTGGGTTTGTAAAAGTTGCTG
+main	CNmain_00038	7	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GCTCATTA	是			0	是	AAGGCTCATTAGCGGTGGGTTTGTAAAAGTTGCTG
+main	CNmain_00038	7	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GCTCATTA	是			0	是	AAGGCTCATTAGCGGTGGGTTTGTAAAAGTTGCTG
+main	CNmain_00040		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CAACTGAA	是			0	是	AAGCAACTGAAGAGCTTCAACATCTAGACATTAGT
+main	CNmain_00040		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CAACTGAA	是			0	是	AAGCAACTGAAGAGCTTCAACATCTAGACATTAGT
+main	CNmain_00040		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CAACTGAA	是			0	是	AAGCAACTGAAGAGCTTCAACATCTAGACATTAGT
+main	CNmain_00040		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CAACGGAA	否	5	5,9,24	2	否	AAGCAACGGAATAGCTTCAACATCTACACATTAGT
+main	CNmain_00040		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CAACTGAA	是			0	是	AAGCAACTGAAGAGCTTCAACATCTAGACATTAGT
+main	CNmain_00041		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGCTTCAA	是			0	是	AAGAGCTTCAACATCTAGACATTAGTAAGCCTCTT
+main	CNmain_00041		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGCTTCAA	是			0	是	AAGAGCTTCAACATCTAGACATTAGTAAGCCTCTT
+main	CNmain_00041		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGCTTCAA	是			0	是	AAGAGCTTCAACATCTAGACATTAGTAAGCCTCTT
+main	CNmain_00041		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAT	否	AGCTTCAA	是		15,28	2	否	AATAGCTTCAACATCTACACATTAGTAAGCGTCTT
+main	CNmain_00041		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGCTTCAA	是			0	是	AAGAGCTTCAACATCTAGACATTAGTAAGCCTCTT
+main	CNmain_00042		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CCTCTTGA	是			0	是	AAGCCTCTTGAGAGAGCCGAGAAATATTATAATGC
+main	CNmain_00042		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CCTCTTGA	是			0	是	AAGCCTCTTGAGAGAGCCGAGAAATATTATAATGC
+main	CNmain_00042		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CCTCTTGA	是			0	是	AAGCCTCTTGAGAGAGCCGAGAAATATTATAATGC
+main	CNmain_00042		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CGTCTTCA	否	2,7	2,7,19,25,26	3	否	AAGCGTCTTCAGAGAGCCGAGGAATATGTTAATGC
+main	CNmain_00042		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CCTCTTGA	是			0	是	AAGCCTCTTGAGAGAGCCGAGAAATATTATAATGC
+main	CNmain_00046		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GACATTGA	是			0	是	AAGGACATTGATCCAGACGTCGTGGCGAAAGTGAT
+main	CNmain_00046		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GACATTGA	是			0	是	AAGGACATTGATCCAGACGTCGTGGCGAAAGTGAT
+main	CNmain_00046		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GACATTGA	是			0	是	AAGGACATTGATCCAGACGTCGTGGCGAAAGTGAT
+main	CNmain_00046		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GACCTTGA	否	4	4	0	否	AAGGACCTTGATCCAGACGTCGTGGCGAAAGTGAT
+main	CNmain_00046		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GACATTGA	是			0	是	AAGGACATTGATCCAGACGTCGTGGCGAAAGTGAT
+main	CNmain_00047	8	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TGATCGTC	是			0	是	AAGTGATCGTCGCCATCATGAAGAACGAACTCACA
+main	CNmain_00047	8	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TGATCGTC	是			0	是	AAGTGATCGTCGCCATCATGAAGAACGAACTCACA
+main	CNmain_00047	8	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TGATCGTC	是			0	是	AAGTGATCGTCGCCATCATGAAGAACGAACTCACA
+main	CNmain_00047	8	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TGATCGTC	是			0	是	AAGTGATCGTCGCCATCATGAAGAACGAACTCACA
+main	CNmain_00047	8	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TGATCGTC	是			0	是	AAGTGATCGTCGCCATCATGAAGAACGAACTCACA
+main	CNmain_00048	9	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AACGAACT	是			0	是	AAGAACGAACTCACACTGCCTTTTAAAAATCCAAC
+main	CNmain_00048	9	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AACGAACT	是			0	是	AAGAACGAACTCACACTGCCTTTTAAAAATCCAAC
+main	CNmain_00048	9	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AACGAACT	是			0	是	AAGAACGAACTCACACTGCCTTTTAAAAATCCAAC
+main	CNmain_00048	9	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AACGAACT	是			0	是	AAGAACGAACTCACACTGCCTTTTAAAAATCCAAC
+main	CNmain_00048	9	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AACGAACT	是			0	是	AAGAACGAACTCACACTGCCTTTTAAAAATCCAAC
+main	CNmain_00049	10	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CATTATCG	是			0	是	AAGCATTATCGGATGCTCTTTCACCGTTACCCAAA
+main	CNmain_00049	10	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CATTATCG	是			0	是	AAGCATTATCGGATGCTCTTTCACCGTTACCCAAA
+main	CNmain_00049	10	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CATTATCG	是			0	是	AAGCATTATCGGATGCTCTTTCACCGTTACCCAAA
+main	CNmain_00049	10	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CATTATCG	是			0	是	AAGCATTATCGGATGCTCTTTCACCGTTACCCAAA
+main	CNmain_00049	10	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CATTATCG	是			0	是	AAGCATTATCGGATGCTCTTTCACCGTTACCCAAA
+main	CNmain_00051		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TACGTGTG	是			0	是	AAGTACGTGTGCACCCTTTCCAAGCGTTAAAACTT
+main	CNmain_00051		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TACGTGTG	是			0	是	AAGTACGTGTGCACCCTTTCCAAGCGTTAAAACTT
+main	CNmain_00051		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TACGTGTG	是			0	是	AAGTACGTGTGCACCCTTTCCAAGCGTTAAAACTT
+main	CNmain_00051		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TACGTGTG	是			0	是	AAGTACGTGTGCACCCTTTCCAAGCGTTAAAACTT
+main	CNmain_00051		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TACGTGTG	是		28	1	是	AAGTACGTGTGCACCCTTTCCAAGCGTTAAGACTT
+main	CNmain_00054		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CTACGGTG	是			0	是	AAGCTACGGTGACGAAAGACAATTTGAGAGTCAAT
+main	CNmain_00054		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CTACGGTG	是			0	是	AAGCTACGGTGACGAAAGACAATTTGAGAGTCAAT
+main	CNmain_00054		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CTACGGTG	是			0	是	AAGCTACGGTGACGAAAGACAATTTGAGAGTCAAT
+main	CNmain_00054		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CTACGGTG	是			0	是	AAGCTACGGTGACGAAAGACAATTTGAGAGTCAAT
+main	CNmain_00054		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CTACGGTA	否	8	8,19,21,22,32	4	否	AAGCTACGGTAACGAAAGACATTCCGAGAGTCAAG
+main	CNmain_00056		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGCGTCGA	是			0	是	AAGAGCGTCGAGTCAGTAAAAATGAAAAGCATGTC
+main	CNmain_00056		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGCGTCGA	是			0	是	AAGAGCGTCGAGTCAGTAAAAATGAAAAGCATGTC
+main	CNmain_00056		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGCGTCGA	是			0	是	AAGAGCGTCGAGTCAGTAAAAATGAAAAGCATGTC
+main	CNmain_00056		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGCGTCGA	是			0	是	AAGAGCGTCGAGTCAGTAAAAATGAAAAGCATGTC
+main	CNmain_00056		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGCGTCGG	否	8	8,22,28,30,31	4	否	AAGAGCGTCGGGTCAGTAAAAATGCAAAGCCTACC
+main	CNmain_00057		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CATGTCGT	是			0	是	AAGCATGTCGTCAGCGGTCTACACAGGTCCCCTCA
+main	CNmain_00057		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CATGTCGT	是			0	是	AAGCATGTCGTCAGCGGTCTACACAGGTCCCCTCA
+main	CNmain_00057		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CATGTCGT	是			0	是	AAGCATGTCGTCAGCGGTCTACACAGGTCCCCTCA
+main	CNmain_00057		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CATGTCGT	是			0	是	AAGCATGTCGTCAGCGGTCTACACAGGTCCCCTCA
+main	CNmain_00057		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CCTACCGT	否	2,4,5	2,4,5,15,24,25,26	4	否	AAGCCTACCGTCAGCGGGCTACACAGAAGCCCTCA
+main	CNmain_00059		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AACTATAT	是			0	是	AAGAACTATATGGATTACCTGTCCGCATCGATTTC
+main	CNmain_00059		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AACTATAT	是			0	是	AAGAACTATATGGATTACCTGTCCGCATCGATTTC
+main	CNmain_00059		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AACTATAT	是			0	是	AAGAACTATATGGATTACCTGTCCGCATCGATTTC
+main	CNmain_00059		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AACTATAT	是			0	是	AAGAACTATATGGATTACCTGTCCGCATCGATTTC
+main	CNmain_00059		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AACTATAT	是		15,20,30	3	是	AAGAACTATATGGATTATCTGTGCGCATCGATGTC
+main	CNmain_00061		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GATGTCTA	是			0	是	AAGGATGTCTATGGTGCCGACCCAGAGTCTGCAGA
+main	CNmain_00061		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GATGTCTA	是			0	是	AAGGATGTCTATGGTGCCGACCCAGAGTCTGCAGA
+main	CNmain_00061		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GATGTCTA	是			0	是	AAGGATGTCTATGGTGCCGACCCAGAGTCTGCAGA
+main	CNmain_00061		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GATGTCTA	是			0	是	AAGGATGTCTATGGTGCCGACCCAGAGTCTGCAGA
+main	CNmain_00061		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAA	否	GATTTCTA	否	4	4,17,22	2	否	AAAGATTTCTATGGTGCCGTCCCATAGTCTGCAGA
+main	CNmain_00062		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TCTGGAGT	是			0	是	AAGTCTGGAGTCTACGATGTAGTGAAAGGCAAATG
+main	CNmain_00062		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TCTGGAGT	是			0	是	AAGTCTGGAGTCTACGATGTAGTGAAAGGCAAATG
+main	CNmain_00062		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TCTGGAGT	是			0	是	AAGTCTGGAGTCTACGATGTAGTGAAAGGCAAATG
+main	CNmain_00062		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TCTGGAGT	是			0	是	AAGTCTGGAGTCTACGATGTAGTGAAAGGCAAATG
+main	CNmain_00062		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TCTGGAGT	是		17	1	是	AAGTCTGGAGTCTACGATGGAGTGAAAGGCAAATG
+main	CNmain_00065	11	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TCATCGTA	是			0	是	AAGTCATCGTATTACTCGAATGGGCTGATGGATTC
+main	CNmain_00065	11	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TCATCGTA	是			0	是	AAGTCATCGTATTACTCGAATGGGCTGATGGATTC
+main	CNmain_00065	11	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TCATCGTA	是			0	是	AAGTCATCGTATTACTCGAATGGGCTGATGGATTC
+main	CNmain_00065	11	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TCATCGTA	是			0	是	AAGTCATCGTATTACTCGAATGGGCTGATGGATTC
+main	CNmain_00065	11	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TCATCGTA	是			0	是	AAGTCATCGTATTACTCGAATGGGCTGATGGATTC
+main	CNmain_00066	12	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CTGCTTAA	是			0	是	AAGCTGCTTAAAGGACGGTGAGCCCGTACCTTCGG
+main	CNmain_00066	12	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CTGCTTAA	是			0	是	AAGCTGCTTAAAGGACGGTGAGCCCGTACCTTCGG
+main	CNmain_00066	12	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CTGCTTAA	是			0	是	AAGCTGCTTAAAGGACGGTGAGCCCGTACCTTCGG
+main	CNmain_00066	12	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CTGCTTAA	是			0	是	AAGCTGCTTAAAGGACGGTGAGCCCGTACCTTCGG
+main	CNmain_00066	12	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CTGCTTAA	是			0	是	AAGCTGCTTAAAGGACGGTGAGCCCGTACCTTCGG
+main	CNmain_00067	13	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GACGGTGA	是			0	是	AAGGACGGTGAGCCCGTACCTTCGGATGCGAAAGT
+main	CNmain_00067	13	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GACGGTGA	是			0	是	AAGGACGGTGAGCCCGTACCTTCGGATGCGAAAGT
+main	CNmain_00067	13	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GACGGTGA	是			0	是	AAGGACGGTGAGCCCGTACCTTCGGATGCGAAAGT
+main	CNmain_00067	13	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GACGGTGA	是			0	是	AAGGACGGTGAGCCCGTACCTTCGGATGCGAAAGT
+main	CNmain_00067	13	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GACGGTGA	是			0	是	AAGGACGGTGAGCCCGTACCTTCGGATGCGAAAGT
+main	CNmain_00068	14	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TCACGTTA	是			0	是	AAGTCACGTTAGTAGATGGCGTTCCTGGTTGTGGA
+main	CNmain_00068	14	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TCACGTTA	是			0	是	AAGTCACGTTAGTAGATGGCGTTCCTGGTTGTGGA
+main	CNmain_00068	14	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TCACGTTA	是			0	是	AAGTCACGTTAGTAGATGGCGTTCCTGGTTGTGGA
+main	CNmain_00068	14	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TCACGTTA	是			0	是	AAGTCACGTTAGTAGATGGCGTTCCTGGTTGTGGA
+main	CNmain_00068	14	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TCACGTTA	是			0	是	AAGTCACGTTAGTAGATGGCGTTCCTGGTTGTGGA
+main	CNmain_00072	15	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGAGCTAA	是			0	是	AAGAGAGCTAATAAGTCTGGACATGTAAGAGCGAC
+main	CNmain_00072	15	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGAGCTAA	是			0	是	AAGAGAGCTAATAAGTCTGGACATGTAAGAGCGAC
+main	CNmain_00072	15	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGAGCTAA	是			0	是	AAGAGAGCTAATAAGTCTGGACATGTAAGAGCGAC
+main	CNmain_00072	15	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGAGCTAA	是			0	是	AAGAGAGCTAATAAGTCTGGACATGTAAGAGCGAC
+main	CNmain_00072	15	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGAGCTAA	是			0	是	AAGAGAGCTAATAAGTCTGGACATGTAAGAGCGAC
+main	CNmain_00073	16	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TCTGGACA	是			0	是	AAGTCTGGACATGTAAGAGCGACAAAGGATAATGT
+main	CNmain_00073	16	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TCTGGACA	是			0	是	AAGTCTGGACATGTAAGAGCGACAAAGGATAATGT
+main	CNmain_00073	16	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TCTGGACA	是			0	是	AAGTCTGGACATGTAAGAGCGACAAAGGATAATGT
+main	CNmain_00073	16	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TCTGGACA	是			0	是	AAGTCTGGACATGTAAGAGCGACAAAGGATAATGT
+main	CNmain_00073	16	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TCTGGACA	是			0	是	AAGTCTGGACATGTAAGAGCGACAAAGGATAATGT
+main	CNmain_00074	17	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGCGACAA	是			0	是	AAGAGCGACAAAGGATAATGTAAGAACTGTGGATT
+main	CNmain_00074	17	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGCGACAA	是			0	是	AAGAGCGACAAAGGATAATGTAAGAACTGTGGATT
+main	CNmain_00074	17	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGCGACAA	是			0	是	AAGAGCGACAAAGGATAATGTAAGAACTGTGGATT
+main	CNmain_00074	17	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGCGACAA	是			0	是	AAGAGCGACAAAGGATAATGTAAGAACTGTGGATT
+main	CNmain_00074	17	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGCGACAA	是			0	是	AAGAGCGACAAAGGATAATGTAAGAACTGTGGATT
+main	CNmain_00076	18	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AACTGTGG	是			0	是	AAGAACTGTGGATTCGTTCTTAATGCATTTGAAGC
+main	CNmain_00076	18	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AACTGTGG	是			0	是	AAGAACTGTGGATTCGTTCTTAATGCATTTGAAGC
+main	CNmain_00076	18	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AACTGTGG	是			0	是	AAGAACTGTGGATTCGTTCTTAATGCATTTGAAGC
+main	CNmain_00076	18	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AACTGTGG	是			0	是	AAGAACTGTGGATTCGTTCTTAATGCATTTGAAGC
+main	CNmain_00076	18	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AACTGTGG	是			0	是	AAGAACTGTGGATTCGTTCTTAATGCATTTGAAGC
+main	CNmain_00080		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CGATGGTT	是			0	是	AAGCGATGGTTTTTGGTGATACTGAACAAATTCCC
+main	CNmain_00080		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CGATGGTT	是			0	是	AAGCGATGGTTTTTGGTGATACTGAACAAATTCCC
+main	CNmain_00080		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CGATGGTT	是			0	是	AAGCGATGGTTTTTGGTGATACTGAACAAATTCCC
+main	CNmain_00080		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CGATGGTT	是			0	是	AAGCGATGGTTTTTGGTGATACTGAACAAATTCCC
+main	CNmain_00080		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CGATGGTT	是		11,27	2	是	AAGCGATGGTTTTCGGTGATACTGAACAATTTCCC
+main	CNmain_00082	19	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TGGTTAGA	是			0	是	AAGTGGTTAGAGGGAAAGGGGTTTTTAACCCGAAA
+main	CNmain_00082	19	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TGGTTAGA	是			0	是	AAGTGGTTAGAGGGAAAGGGGTTTTTAACCCGAAA
+main	CNmain_00082	19	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TGGTTAGA	是			0	是	AAGTGGTTAGAGGGAAAGGGGTTTTTAACCCGAAA
+main	CNmain_00082	19	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TGGTTAGA	是			0	是	AAGTGGTTAGAGGGAAAGGGGTTTTTAACCCGAAA
+main	CNmain_00082	19	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TGGTTAGA	是			0	是	AAGTGGTTAGAGGGAAAGGGGTTTTTAACCCGAAA
+main	CNmain_00087	20	PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CCGAACTG	是			0	是	AAGCCGAACTGAAGGAGCGTGGTTATGAAGAAGTT
+main	CNmain_00087	20	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CCGAACTG	是			0	是	AAGCCGAACTGAAGGAGCGTGGTTATGAAGAAGTT
+main	CNmain_00087	20	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CCGAACTG	是			0	是	AAGCCGAACTGAAGGAGCGTGGTTATGAAGAAGTT
+main	CNmain_00087	20	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CCGAACTG	是			0	是	AAGCCGAACTGAAGGAGCGTGGTTATGAAGAAGTT
+main	CNmain_00087	20	PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CCGAACTG	是			0	是	AAGCCGAACTGAAGGAGCGTGGTTATGAAGAAGTT
+main	CNmain_00088		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GAGCGTGG	是			0	是	AAGGAGCGTGGTTATGAAGAAGTTTCAACTTTTGG
+main	CNmain_00088		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GAGCGTGG	是			0	是	AAGGAGCGTGGTTATGAAGAAGTTTCAACTTTTGG
+main	CNmain_00088		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GAGCGTGG	是			0	是	AAGGAGCGTGGTTATGAAGAAGTTTCAACTTTTGG
+main	CNmain_00088		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GAGCGTGG	是			0	是	AAGGAGCGTGGTTATGAAGAAGTTTCAACTTTTGG
+main	CNmain_00088		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GAGCGTGG	是			0	是	AAGGAGCGTGGTTATGAAGAAGTTTCAACTTTTGG
+main	CNmain_00091		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTGAGACC	是			0	是	AAGGTGAGACCTTTGAAGACGTATCGGTTGTTCGT
+main	CNmain_00091		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTGAGACC	是			0	是	AAGGTGAGACCTTTGAAGACGTATCGGTTGTTCGT
+main	CNmain_00091		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	TAG	否	GTGAGACC	是		18	1	否	TAGGTGAGACCTTTGAAGACATATCGGTTGTTCGT
+main	CNmain_00091		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTGAGACC	是			0	是	AAGGTGAGACCTTTGAAGACGTATCGGTTGTTCGT
+main	CNmain_00091		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTGAGACC	是			0	是	AAGGTGAGACCTTTGAAGACGTATCGGTTGTTCGT
+main	CNmain_00092		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ACGTATCG	是			0	是	AAGACGTATCGGTTGTTCGTTTGACACCAACTCCA
+main	CNmain_00092		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ACGTATCG	是			0	是	AAGACGTATCGGTTGTTCGTTTGACACCAACTCCA
+main	CNmain_00092		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ACATATCG	否	3	3	0	否	AAGACATATCGGTTGTTCGTTTGACACCAACTCCA
+main	CNmain_00092		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ACGTATCG	是		27	1	是	AAGACGTATCGGTTGTTCGTTTGACACCACCTCCA
+main	CNmain_00092		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ACGTATCG	是			0	是	AAGACGTATCGGTTGTTCGTTTGACACCAACTCCA
+main	CNmain_00093		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGTTCACC	是			0	是	AAGAGTTCACCGCACGTTCTTGTTGCATTGACAAG
+main	CNmain_00093		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGTTCACC	是			0	是	AAGAGTTCACCGCACGTTCTTGTTGCATTGACAAG
+main	CNmain_00093		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGTTCACC	是		13,26	2	是	AAGAGTTCACCGCACTTTCTTGTTGCATAGACAAG
+main	CNmain_00093		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGTTTACC	否	5	5,15	1	否	AAGAGTTTACCGCACGTGCTTGTTGCATTGACAAG
+main	CNmain_00093		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGTTCACC	是			0	是	AAGAGTTCACCGCACGTTCTTGTTGCATTGACAAG
+main	CNmain_00099		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTCGATGC	是			0	是	AAGGTCGATGCCGGGATCTTATAGCAATTACAGGT
+main	CNmain_00099		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTCGATGC	是			0	是	AAGGTCGATGCCGGGATCTTATAGCAATTACAGGT
+main	CNmain_00099		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAT	否	GTCGATGC	是			0	否	AATGTCGATGCCGGGATCTTATAGCAATTACAGGT
+main	CNmain_00099		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTCGATGC	是		27	1	是	AAGGTCGATGCCGGGATCTTATAGCAATTCCAGGT
+main	CNmain_00099		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTCGATGC	是			0	是	AAGGTCGATGCCGGGATCTTATAGCAATTACAGGT
+main	CNmain_00100		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GCGAGAAT	是			0	是	AAGGCGAGAATCTATTCGTACCATGTCCTAAATCT
+main	CNmain_00100		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GCGAGAAT	是			0	是	AAGGCGAGAATCTATTCGTACCATGTCCTAAATCT
+main	CNmain_00100		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GCGAGAAT	是			0	是	AAGGCGAGAATCTATTCGTACCATGTCCTAAATCT
+main	CNmain_00100		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GCGCAAAT	否	4,5	4,5	0	否	AAGGCGCAAATCTATTCGTACCATGTCCTAAATCT
+main	CNmain_00100		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GCGAGAAT	是			0	是	AAGGCGAGAATCTATTCGTACCATGTCCTAAATCT
+main	CNmain_00106		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CAGGAGAA	是			0	是	AAGCAGGAGAAAAGTACTATTGGTCAATTAGCTGA
+main	CNmain_00106		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CAGGAGAA	是			0	是	AAGCAGGAGAAAAGTACTATTGGTCAATTAGCTGA
+main	CNmain_00106		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CAGCAGAA	否	4	4,9	1	否	AAGCAGCAGAACAGTACTATTGGTCAATTAGCTGA
+main	CNmain_00106		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CAGGAGAA	是			0	是	AAGCAGGAGAAAAGTACTATTGGTCAATTAGCTGA
+main	CNmain_00106		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CAGGAGAA	是			0	是	AAGCAGGAGAAAAGTACTATTGGTCAATTAGCTGA
+main	CNmain_00108		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GCGCAACC	是			0	是	AAGGCGCAACCTAAACAGAAGCTTGATCTCAGTCC
+main	CNmain_00108		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GCGCAACC	是			0	是	AAGGCGCAACCTAAACAGAAGCTTGATCTCAGTCC
+main	CNmain_00108		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GCGCAACC	是		15	1	是	AAGGCGCAACCTAAACAAAAGCTTGATCTCAGTCC
+main	CNmain_00108		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GCGCAACC	是			0	是	AAGGCGCAACCTAAACAGAAGCTTGATCTCAGTCC
+main	CNmain_00108		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GCGCAACC	是			0	是	AAGGCGCAACCTAAACAGAAGCTTGATCTCAGTCC
+main	CNmain_00109		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CTTGATCT	是			0	是	AAGCTTGATCTCAGTCCTCAAGATGAGTACGCTGC
+main	CNmain_00109		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CTTGATCT	是			0	是	AAGCTTGATCTCAGTCCTCAAGATGAGTACGCTGC
+main	CNmain_00109		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CTTGATCT	是		27	1	是	AAGCTTGATCTCAGTCCTCAAGATGAGTAGGCTGC
+main	CNmain_00109		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CTTGATCT	是			0	是	AAGCTTGATCTCAGTCCTCAAGATGAGTACGCTGC
+main	CNmain_00109		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CTTGATCT	是			0	是	AAGCTTGATCTCAGTCCTCAAGATGAGTACGCTGC
+main	CNmain_00110		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ATGAGTAC	是			0	是	AAGATGAGTACGCTGCACTTCAGACTATTGTTTAT
+main	CNmain_00110		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ATGAGTAC	是			0	是	AAGATGAGTACGCTGCACTTCAGACTATTGTTTAT
+main	CNmain_00110		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ATGAGTAG	否	8	8,17	1	否	AAGATGAGTAGGCTGCACTGCAGACTATTGTTTAT
+main	CNmain_00110		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ATGAGTAC	是			0	是	AAGATGAGTACGCTGCACTTCAGACTATTGTTTAT
+main	CNmain_00110		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ATGAGTAC	是			0	是	AAGATGAGTACGCTGCACTTCAGACTATTGTTTAT
+main	CNmain_00115		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TATGACAA	是			0	是	AAGTATGACAAATCCCAGAACGAATTCCATTGTGC
+main	CNmain_00115		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TATGACAA	是			0	是	AAGTATGACAAATCCCAGAACGAATTCCATTGTGC
+main	CNmain_00115		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TATGACAA	是			0	是	AAGTATGACAAATCCCAGAACGAATTCCATTGTGC
+main	CNmain_00115		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TATGACAA	是			0	是	AAGTATGACAAATCCCAGAACGAATTCCATTGTGC
+main	CNmain_00115		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TATGACAA	是			0	是	AAGTATGACAAATCCCAGAACGAATTCCATTGTGC
+main	CNmain_00118		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ACATCCTT	是			0	是	AAGACATCCTTGAAGGATTACACCGCAGGAATAAA
+main	CNmain_00118		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ACATCCTT	是		10,24,25	3	是	AAGACATCCTTGCAGGATTACACCGCCAGAATAAA
+main	CNmain_00118		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ACATCCTT	是			0	是	AAGACATCCTTGAAGGATTACACCGCAGGAATAAA
+main	CNmain_00118		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ACATCCTT	是			0	是	AAGACATCCTTGAAGGATTACACCGCAGGAATAAA
+main	CNmain_00118		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ACATCCTT	是			0	是	AAGACATCCTTGAAGGATTACACCGCAGGAATAAA
+main	CNmain_00119		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GATTACAC	是			0	是	AAGGATTACACCGCAGGAATAAAGACTTGTTTATG
+main	CNmain_00119		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	CAG	否	GATTACAC	是		12,13,29,31	4	否	CAGGATTACACCGCCAGAATAAAGACTTGTTAAAG
+main	CNmain_00119		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GATTACAC	是			0	是	AAGGATTACACCGCAGGAATAAAGACTTGTTTATG
+main	CNmain_00119		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GATTACAC	是			0	是	AAGGATTACACCGCAGGAATAAAGACTTGTTTATG
+main	CNmain_00119		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GATTACAC	是			0	是	AAGGATTACACCGCAGGAATAAAGACTTGTTTATG
+main	CNmain_00123		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTAATTAA	是			0	是	AAGGTAATTAAAGCTGCGTTTTGTGGAGATGATAG
+main	CNmain_00123		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTAATTAA	是			0	是	AAGGTAATTAAAGCTGCGTTTTGTGGAGATGATAG
+main	CNmain_00123		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GTAATTAA	是			0	是	AAGGTAATTAAAGCTGCGTTTTGTGGAGATGATAG
+main	CNmain_00123		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTAATTAA	是			0	是	AAGGTAATTAAAGCTGCGTTTTGTGGAGATGATAG
+main	CNmain_00123		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTAATTAA	是			0	是	AAGGTAATTAAAGCTGCGTTTTGTGGAGATGATAG
+main	CNmain_00125		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GGACTTGA	是			0	是	AAGGGACTTGATCTTCCTGATATCCAATCTGGAGC
+main	CNmain_00125		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GGACCTGA	否	5	5	0	否	AAGGGACCTGATCTTCCTGATATCCAATCTGGAGC
+main	CNmain_00125		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GGACTTGA	是			0	是	AAGGGACTTGATCTTCCTGATATCCAATCTGGAGC
+main	CNmain_00125		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GGACTTGA	是			0	是	AAGGGACTTGATCTTCCTGATATCCAATCTGGAGC
+main	CNmain_00125		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GGACTTGA	是			0	是	AAGGGACTTGATCTTCCTGATATCCAATCTGGAGC
+main	CNmain_00126		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CGTTACGG	是			0	是	AAGCGTTACGGATATTTTTGCGGGAGGTATATTAT
+main	CNmain_00126		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CGTTACGG	是			0	是	AAGCGTTACGGATATTTTTGCGGGAGGTATATTAT
+main	CNmain_00126		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CGTTACGG	是			0	是	AAGCGTTACGGATATTTTTGCGGGAGGTATATTAT
+main	CNmain_00126		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CGTTACGG	是			0	是	AAGCGTTACGGATATTTTTGCGGGAGGTATATTAT
+main	CNmain_00126		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CGTTACGG	是			0	是	AAGCGTTACGGATATTTTTGCGGGAGGTATATTAT
+main	CNmain_00130		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ACCGCAGT	是			0	是	AAGACCGCAGTAAATGGGTCGTTTGCGTTTTGTAG
+main	CNmain_00130		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ACCGCAGT	是			0	是	AAGACCGCAGTAAATGGGTCGTTTGCGTTTTGTAG
+main	CNmain_00130		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ACCGCAGT	是			0	是	AAGACCGCAGTAAATGGGTCGTTTGCGTTTTGTAG
+main	CNmain_00130		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ACCGCAGT	是			0	是	AAGACCGCAGTAAATGGGTCGTTTGCGTTTTGTAG
+main	CNmain_00130		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ACCGCAGT	是		16,26	2	是	AAGACCGCAGTAAATGGGACGTTTGCGTATTGTAG
+main	CNmain_00136		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTGTGAAG	是			0	是	AAGGTGTGAAGTTAGTAGAGAATGGGTATGTGTGC
+main	CNmain_00136		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTGTGAAG	是			0	是	AAGGTGTGAAGTTAGTAGAGAATGGGTATGTGTGC
+main	CNmain_00136		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GTGTGAAG	是			0	是	AAGGTGTGAAGTTAGTAGAGAATGGGTATGTGTGC
+main	CNmain_00136		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTGTGAAG	是			0	是	AAGGTGTGAAGTTAGTAGAGAATGGGTATGTGTGC
+main	CNmain_00136		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTGTGAAG	是			0	是	AAGGTGTGAAGTTAGTAGAGAATGGGTATGTGTGC
+main	CNmain_00137		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TTAGTAGA	是			0	是	AAGTTAGTAGAGAATGGGTATGTGTGCCTTGCCGG
+main	CNmain_00137		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTAGTAGA	是			0	是	AAGTTAGTAGAGAATGGGTATGTGTGCCTTGCCGG
+main	CNmain_00137		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TTAGTAGA	是			0	是	AAGTTAGTAGAGAATGGGTATGTGTGCCTTGCCGG
+main	CNmain_00137		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TTAGTAGA	是			0	是	AAGTTAGTAGAGAATGGGTATGTGTGCCTTGCCGG
+main	CNmain_00137		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTAGTAGA	是			0	是	AAGTTAGTAGAGAATGGGTATGTGTGCCTTGCCGG
+main	CNmain_00138		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTGGTGTG	是			0	是	AAGGTGGTGTGAGTATCTGTCTTGTAGACAAACGC
+main	CNmain_00138		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTGGTGTG	是			0	是	AAGGTGGTGTGAGTATCTGTCTTGTAGACAAACGC
+main	CNmain_00138		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GTGGTGTG	是			0	是	AAGGTGGTGTGAGTATCTGTCTTGTAGACAAACGC
+main	CNmain_00138		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTGGTGTG	是			0	是	AAGGTGGTGTGAGTATCTGTCTTGTAGACAAACGC
+main	CNmain_00138		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTGGTGTG	是			0	是	AAGGTGGTGTGAGTATCTGTCTTGTAGACAAACGC
+main	CNmain_00139		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGCTAATG	是			0	是	AAGAGCTAATGAAGCAACACTTGGCTCTTATCATA
+main	CNmain_00139		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGCTAATG	是			0	是	AAGAGCTAATGAAGCAACACTTGGCTCTTATCATA
+main	CNmain_00139		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGCTAATG	是			0	是	AAGAGCTAATGAAGCAACACTTGGCTCTTATCATA
+main	CNmain_00139		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGCTAATG	是			0	是	AAGAGCTAATGAAGCAACACTTGGCTCTTATCATA
+main	CNmain_00139		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGCTAATG	是			0	是	AAGAGCTAATGAAGCAACACTTGGCTCTTATCATA
+main	CNmain_00140		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CAACACTT	是			0	是	AAGCAACACTTGGCTCTTATCATACATCTGCTTGC
+main	CNmain_00140		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CAACACTT	是			0	是	AAGCAACACTTGGCTCTTATCATACATCTGCTTGC
+main	CNmain_00140		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CAACACTT	是			0	是	AAGCAACACTTGGCTCTTATCATACATCTGCTTGC
+main	CNmain_00140		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CAACACTT	是			0	是	AAGCAACACTTGGCTCTTATCATACATCTGCTTGC
+main	CNmain_00140		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CAACACTT	是			0	是	AAGCAACACTTGGCTCTTATCATACATCTGCTTGC
+main	CNmain_00148		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CAGTTGTT	是			0	是	AAGCAGTTGTTGATGAGTTCGTGGAGAAAGTTCCT
+main	CNmain_00148		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CAGTTGTT	是			0	是	AAGCAGTTGTTGATGAGTTCGTGGAGAAAGTTCCT
+main	CNmain_00148		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CAGTTGTT	是		16	1	是	AAGCAGTTGTTGATGAGTCCGTGGAGAAAGTTCCT
+main	CNmain_00148		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CACTTGTT	否	3	3,12,20,24	3	否	AAGCACTTGTTGATTAGTTCGTCGAGTAAGTTCCT
+main	CNmain_00148		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CAGTTGTT	是			0	是	AAGCAGTTGTTGATGAGTTCGTGGAGAAAGTTCCT
+main	CNmain_00149		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TTCCTATG	是			0	是	AAGTTCCTATGGCTGCTAGGCTCAAGTCTTTTCGC
+main	CNmain_00149		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTCCTATG	是			0	是	AAGTTCCTATGGCTGCTAGGCTCAAGTCTTTTCGC
+main	CNmain_00149		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TTCCTATG	是			0	是	AAGTTCCTATGGCTGCTAGGCTCAAGTCTTTTCGC
+main	CNmain_00149		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TTCCTATG	是		9,27	2	是	AAGTTCCTATGACTGCTAGGCTCAAGTCTGTTCGC
+main	CNmain_00149		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTCCTATG	是			0	是	AAGTTCCTATGGCTGCTAGGCTCAAGTCTTTTCGC
+main	CNmain_00153		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CTGGCTTA	是			0	是	AAGCTGGCTTATTTAAGCTCGGCTTGGGCTGACCC
+main	CNmain_00153		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CTGGCTTA	是			0	是	AAGCTGGCTTATTTAAGCTCGGCTTGGGCTGACCC
+main	CNmain_00153		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CTGGCTTA	是			0	是	AAGCTGGCTTATTTAAGCTCGGCTTGGGCTGACCC
+main	CNmain_00153		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CTGGCTTA	是			0	是	AAGCTGGCTTATTTAAGCTCGGCTTGGGCTGACCC
+main	CNmain_00153		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CTGGCTTA	是			0	是	AAGCTGGCTTATTTAAGCTCGGCTTGGGCTGACCC
+main	CNmain_00154		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CTCGGCTT	是			0	是	AAGCTCGGCTTGGGCTGACCCCAATTCACTAATCA
+main	CNmain_00154		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CTCGGCTT	是		32	1	是	AAGCTCGGCTTGGGCTGACCCCAATTCACTAATCT
+main	CNmain_00154		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CTCGGCTT	是			0	是	AAGCTCGGCTTGGGCTGACCCCAATTCACTAATCA
+main	CNmain_00154		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CTCGGCTT	是			0	是	AAGCTCGGCTTGGGCTGACCCCAATTCACTAATCA
+main	CNmain_00154		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CTCGGCTT	是			0	是	AAGCTCGGCTTGGGCTGACCCCAATTCACTAATCA
+main	CNmain_00155		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CTCGAACA	是			0	是	AAGCTCGAACAACTGTTCAACAGCAGTTTGCTGAT
+main	CNmain_00155		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CTCGAACA	是		13	1	是	AAGCTCGAACAACTGATCAACAGCAGTTTGCTGAT
+main	CNmain_00155		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CTCGAACA	是			0	是	AAGCTCGAACAACTGTTCAACAGCAGTTTGCTGAT
+main	CNmain_00155		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CTCGAACA	是			0	是	AAGCTCGAACAACTGTTCAACAGCAGTTTGCTGAT
+main	CNmain_00155		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CTCGAACA	是			0	是	AAGCTCGAACAACTGTTCAACAGCAGTTTGCTGAT
+main	CNmain_00165		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTTGACCA	是			0	是	AAGGTTGACCACTCCTTACACGCGTCTGACACAAA
+main	CNmain_00165		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTTGACCA	是			0	是	AAGGTTGACCACTCCTTACACGCGTCTGACACAAA
+main	CNmain_00165		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GTTGACCA	是			0	是	AAGGTTGACCACTCCTTACACGCGTCTGACACAAA
+main	CNmain_00165		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTTGACCA	是			0	是	AAGGTTGACCACTCCTTACACGCGTCTGACACAAA
+main	CNmain_00165		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTTGACCA	是			0	是	AAGGTTGACCACTCCTTACACGCGTCTGACACAAA
+main	CNmain_00169		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGGTCCAA	是			0	是	AAGAGGTCCAAGTAAGTCCAGACATCGTCTCAAAT
+main	CNmain_00169		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGGTCCAA	是			0	是	AAGAGGTCCAAGTAAGTCCAGACATCGTCTCAAAT
+main	CNmain_00169		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGGTCCAA	是			0	是	AAGAGGTCCAAGTAAGTCCAGACATCGTCTCAAAT
+main	CNmain_00169		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GGGTCCAA	否	1	1,20	1	否	AAGGGGTCCAAGTAAGTCCAGAAATCGTCTCAAAT
+main	CNmain_00169		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGGTCCAA	是			0	是	AAGAGGTCCAAGTAAGTCCAGACATCGTCTCAAAT
+main	CNmain_00170		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TAAGTCCA	是			0	是	AAGTAAGTCCAGACATCGTCTCAAATGAGACTTGA
+main	CNmain_00170		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TAAGTCCA	是			0	是	AAGTAAGTCCAGACATCGTCTCAAATGAGACTTGA
+main	CNmain_00170		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TAAGTCCA	是			0	是	AAGTAAGTCCAGACATCGTCTCAAATGAGACTTGA
+main	CNmain_00170		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TAAGTCCA	是		11,31	2	是	AAGTAAGTCCAGAAATCGTCTCAAATGAGACTTCA
+main	CNmain_00170		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TAAGTCCA	是			0	是	AAGTAAGTCCAGACATCGTCTCAAATGAGACTTGA
+main	CNmain_00171		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TCCAGACA	是			0	是	AAGTCCAGACATCGTCTCAAATGAGACTTGATTGT
+main	CNmain_00171		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TCCAGACA	是			0	是	AAGTCCAGACATCGTCTCAAATGAGACTTGATTGT
+main	CNmain_00171		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TCCAGACA	是			0	是	AAGTCCAGACATCGTCTCAAATGAGACTTGATTGT
+main	CNmain_00171		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TCCAGAAA	否	7	7,27	1	否	AAGTCCAGAAATCGTCTCAAATGAGACTTCATTGT
+main	CNmain_00171		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TCCAGACA	是			0	是	AAGTCCAGACATCGTCTCAAATGAGACTTGATTGT
+main	CNmain_00176		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TAACCAGC	是			0	是	AAGTAACCAGCGCCTGCAGGGAACCTACTGGTCAA
+main	CNmain_00176		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CAATCATC	否	1,4,7	1,4,7	0	否	AAGCAATCATCGCCTGCAGGGAACCTACTGGTCAA
+main	CNmain_00176		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TAACCAGC	是			0	是	AAGTAACCAGCGCCTGCAGGGAACCTACTGGTCAA
+main	CNmain_00176		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TAACCAGC	是			0	是	AAGTAACCAGCGCCTGCAGGGAACCTACTGGTCAA
+main	CNmain_00176		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TAACCAGC	是			0	是	AAGTAACCAGCGCCTGCAGGGAACCTACTGGTCAA
+main	CNmain_00177		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TAGGAACC	是			0	是	AAGTAGGAACCGGCTGCCAAACATCAGCAAACTGC
+main	CNmain_00177		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TAGGAACC	是			0	是	AAGTAGGAACCGGCTGCCAAACATCAGCAAACTGC
+main	CNmain_00177		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TAGGAACC	是			0	是	AAGTAGGAACCGGCTGCCAAACATCAGCAAACTGC
+main	CNmain_00177		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TAGGAACC	是			0	是	AAGTAGGAACCGGCTGCCAAACATCAGCAAACTGC
+main	CNmain_00177		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TAGGAACC	是			0	是	AAGTAGGAACCGGCTGCCAAACATCAGCAAACTGC
+main	CNmain_00178		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTTGATTA	是			0	是	AAGGTTGATTAGTGAATTGGGGTCAGCCCAAGCCG
+main	CNmain_00178		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTAGATTA	否	3	3	0	否	AAGGTAGATTAGTGAATTGGGGTCAGCCCAAGCCG
+main	CNmain_00178		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GTTGATTA	是			0	是	AAGGTTGATTAGTGAATTGGGGTCAGCCCAAGCCG
+main	CNmain_00178		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTTGATTA	是			0	是	AAGGTTGATTAGTGAATTGGGGTCAGCCCAAGCCG
+main	CNmain_00178		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTTGATTA	是			0	是	AAGGTTGATTAGTGAATTGGGGTCAGCCCAAGCCG
+main	CNmain_00179		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CCGAGCTT	是			0	是	AAGCCGAGCTTAAATAAGCCAGCTTAGACGGGTCT
+main	CNmain_00179		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CCGAGCTT	是			0	是	AAGCCGAGCTTAAATAAGCCAGCTTAGACGGGTCT
+main	CNmain_00179		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CCGAGCTT	是			0	是	AAGCCGAGCTTAAATAAGCCAGCTTAGACGGGTCT
+main	CNmain_00179		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CCGAGCTT	是			0	是	AAGCCGAGCTTAAATAAGCCAGCTTAGACGGGTCT
+main	CNmain_00179		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CCGAGCTT	是			0	是	AAGCCGAGCTTAAATAAGCCAGCTTAGACGGGTCT
+main	CNmain_00180		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CCAGCTTA	是			0	是	AAGCCAGCTTAGACGGGTCTGTAATAGTGTAAGAC
+main	CNmain_00180		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CCAGCTTA	是			0	是	AAGCCAGCTTAGACGGGTCTGTAATAGTGTAAGAC
+main	CNmain_00180		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CCAGCTTA	是			0	是	AAGCCAGCTTAGACGGGTCTGTAATAGTGTAAGAC
+main	CNmain_00180		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CCAGCTTA	是			0	是	AAGCCAGCTTAGACGGGTCTGTAATAGTGTAAGAC
+main	CNmain_00180		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CCAGCTTA	是			0	是	AAGCCAGCTTAGACGGGTCTGTAATAGTGTAAGAC
+main	CNmain_00183		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ACTTGAGC	是			0	是	AAGACTTGAGCCTAGCAGCCATAGGAACTTTCTCC
+main	CNmain_00183		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ACTTGAGC	是			0	是	AAGACTTGAGCCTAGCAGCCATAGGAACTTTCTCC
+main	CNmain_00183		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ACTTGAGC	是			0	是	AAGACTTGAGCCTAGCAGCCATAGGAACTTTCTCC
+main	CNmain_00183		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	CAG	否	ACTTGAGC	是		16,28,32	3	否	CAGACTTGAGCCTAGCAGTCATAGGAACTTACTCG
+main	CNmain_00183		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ACTTGAGC	是			0	是	AAGACTTGAGCCTAGCAGCCATAGGAACTTTCTCC
+main	CNmain_00184		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TTCGGTGG	是			0	是	AAGTTCGGTGGGCCCTCCTTCTGTTACGTTCAAAA
+main	CNmain_00184		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTCGGTGG	是			0	是	AAGTTCGGTGGGCCCTCCTTCTGTTACGTTCAAAA
+main	CNmain_00184		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TTCGGTGG	是		13	1	是	AAGTTCGGTGGGCCCCCCTTCTGTTACGTTCAAAA
+main	CNmain_00184		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TTCGGGGG	是		17	1	是	AAGTTCGGGGGGCCCTCCTGCTGTTACGTTCAAAA
+main	CNmain_00184		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTCGGTGG	是			0	是	AAGTTCGGTGGGCCCTCCTTCTGTTACGTTCAAAA
+main	CNmain_00186		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGCGTCGG	是			0	是	AAGAGCGTCGGCAGTGGTGACACTGTAATTCGGGA
+main	CNmain_00186		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGCGTCGG	是			0	是	AAGAGCGTCGGCAGTGGTGACACTGTAATTCGGGA
+main	CNmain_00186		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAA	否	AGCGTCGG	是		18,23	2	否	AAAAGCGTCGGCAGTGGTGAAACTGGAATTCGGGA
+main	CNmain_00186		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGCGTCGG	是			0	是	AAGAGCGTCGGCAGTGGTGACACTGTAATTCGGGA
+main	CNmain_00186		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGCGTCGG	是			0	是	AAGAGCGTCGGCAGTGGTGACACTGTAATTCGGGA
+main	CNmain_00187		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTGAATCT	是			0	是	AAGGTGAATCTCTTCTTGCAAGCAGATGTATGATA
+main	CNmain_00187		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTGAATCT	是			0	是	AAGGTGAATCTCTTCTTGCAAGCAGATGTATGATA
+main	CNmain_00187		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GTGAATCT	是			0	是	AAGGTGAATCTCTTCTTGCAAGCAGATGTATGATA
+main	CNmain_00187		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTGAATCT	是			0	是	AAGGTGAATCTCTTCTTGCAAGCAGATGTATGATA
+main	CNmain_00187		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTGAATCT	是			0	是	AAGGTGAATCTCTTCTTGCAAGCAGATGTATGATA
+main	CNmain_00188		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CAGATGTA	是			0	是	AAGCAGATGTATGATAAGAGCCAAGTGTTGCTTCA
+main	CNmain_00188		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CAGATGTA	是			0	是	AAGCAGATGTATGATAAGAGCCAAGTGTTGCTTCA
+main	CNmain_00188		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CAGATGTA	是			0	是	AAGCAGATGTATGATAAGAGCCAAGTGTTGCTTCA
+main	CNmain_00188		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CAGATGTA	是			0	是	AAGCAGATGTATGATAAGAGCCAAGTGTTGCTTCA
+main	CNmain_00188		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CAGATGTA	是			0	是	AAGCAGATGTATGATAAGAGCCAAGTGTTGCTTCA
+main	CNmain_00189		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGCCAAGT	是			0	是	AAGAGCCAAGTGTTGCTTCATTAGCTCTTTTCATG
+main	CNmain_00189		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGCCAAGT	是			0	是	AAGAGCCAAGTGTTGCTTCATTAGCTCTTTTCATG
+main	CNmain_00189		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGCCAAGT	是			0	是	AAGAGCCAAGTGTTGCTTCATTAGCTCTTTTCATG
+main	CNmain_00189		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGCCAAGT	是			0	是	AAGAGCCAAGTGTTGCTTCATTAGCTCTTTTCATG
+main	CNmain_00189		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGCCAAGT	是			0	是	AAGAGCCAAGTGTTGCTTCATTAGCTCTTTTCATG
+main	CNmain_00190		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TGTTGCTT	是			0	是	AAGTGTTGCTTCATTAGCTCTTTTCATGCGTTTGT
+main	CNmain_00190		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TGTTGCTT	是			0	是	AAGTGTTGCTTCATTAGCTCTTTTCATGCGTTTGT
+main	CNmain_00190		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TGTTGCTT	是			0	是	AAGTGTTGCTTCATTAGCTCTTTTCATGCGTTTGT
+main	CNmain_00190		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TGTTGCTT	是			0	是	AAGTGTTGCTTCATTAGCTCTTTTCATGCGTTTGT
+main	CNmain_00190		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TGTTGCTT	是			0	是	AAGTGTTGCTTCATTAGCTCTTTTCATGCGTTTGT
+main	CNmain_00191		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ACAGATAC	是			0	是	AAGACAGATACTCACACCACCTTTGCAATTGTCCG
+main	CNmain_00191		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ACAGATAC	是			0	是	AAGACAGATACTCACACCACCTTTGCAATTGTCCG
+main	CNmain_00191		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ACAGATAC	是			0	是	AAGACAGATACTCACACCACCTTTGCAATTGTCCG
+main	CNmain_00191		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ACAGATAC	是			0	是	AAGACAGATACTCACACCACCTTTGCAATTGTCCG
+main	CNmain_00191		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ACAGATAC	是			0	是	AAGACAGATACTCACACCACCTTTGCAATTGTCCG
+main	CNmain_00192		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GCACACAT	是			0	是	AAGGCACACATACCCATTCTCTACTAACTTCACAC
+main	CNmain_00192		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GCACACAT	是			0	是	AAGGCACACATACCCATTCTCTACTAACTTCACAC
+main	CNmain_00192		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GCACACAT	是			0	是	AAGGCACACATACCCATTCTCTACTAACTTCACAC
+main	CNmain_00192		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GCACACAT	是			0	是	AAGGCACACATACCCATTCTCTACTAACTTCACAC
+main	CNmain_00192		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GCACACAT	是			0	是	AAGGCACACATACCCATTCTCTACTAACTTCACAC
+main	CNmain_00198		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AAGAGCTT	是			0	是	AAGAAGAGCTTACGTCACACAGCGAGATTCTAAAT
+main	CNmain_00198		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AAGAGCTT	是			0	是	AAGAAGAGCTTACGTCACACAGCGAGATTCTAAAT
+main	CNmain_00198		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AAGAGCTT	是			0	是	AAGAAGAGCTTACGTCACACAGCGAGATTCTAAAT
+main	CNmain_00198		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AAGAGCTT	是			0	是	AAGAAGAGCTTACGTCACACAGCGAGATTCTAAAT
+main	CNmain_00198		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AAGTTCTT	否	4,5	4,5,16,20	2	否	AAGAAGTTCTTACGTCACGCAGAGAGATTCTAAAT
+main	CNmain_00199		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGCTTACG	是			0	是	AAGAGCTTACGTCACACAGCGAGATTCTAAATTCT
+main	CNmain_00199		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGCTTACG	是			0	是	AAGAGCTTACGTCACACAGCGAGATTCTAAATTCT
+main	CNmain_00199		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGCTTACG	是			0	是	AAGAGCTTACGTCACACAGCGAGATTCTAAATTCT
+main	CNmain_00199		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGCTTACG	是			0	是	AAGAGCTTACGTCACACAGCGAGATTCTAAATTCT
+main	CNmain_00199		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTCTTACG	否	1,2	1,2,13,17	2	否	AAGTTCTTACGTCACGCAGAGAGATTCTAAATTCT
+main	CNmain_00202		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TTCCACAT	是			0	是	AAGTTCCACATCAAATTCGCTCCAGATTGGATATC
+main	CNmain_00202		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTCCACAT	是			0	是	AAGTTCCACATCAAATTCGCTCCAGATTGGATATC
+main	CNmain_00202		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TTCCACAT	是			0	是	AAGTTCCACATCAAATTCGCTCCAGATTGGATATC
+main	CNmain_00202		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TTCCACAT	是			0	是	AAGTTCCACATCAAATTCGCTCCAGATTGGATATC
+main	CNmain_00202		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTCCACAT	是			0	是	AAGTTCCACATCAAATTCGCTCCAGATTGGATATC
+main	CNmain_00208		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GATGTCTT	是			0	是	AAGGATGTCTTCCTATGTCCCTGTTTCCAAACTTC
+main	CNmain_00208		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GATGTCTT	是			0	是	AAGGATGTCTTCCTATGTCCCTGTTTCCAAACTTC
+main	CNmain_00208		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GATGTCTT	是			0	是	AAGGATGTCTTCCTATGTCCCTGTTTCCAAACTTC
+main	CNmain_00208		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GATGTCTT	是			0	是	AAGGATGTCTTCCTATGTCCCTGTTTCCAAACTTC
+main	CNmain_00208		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GATGTCTT	是			0	是	AAGGATGTCTTCCTATGTCCCTGTTTCCAAACTTC
+main	CNmain_00209		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CCATTAAG	是			0	是	AAGCCATTAAGACCAAGTTTCTCCCAAATCAAGTA
+main	CNmain_00209		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CCATTAAG	是			0	是	AAGCCATTAAGACCAAGTTTCTCCCAAATCAAGTA
+main	CNmain_00209		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CCATTAAG	是			0	是	AAGCCATTAAGACCAAGTTTCTCCCAAATCAAGTA
+main	CNmain_00209		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CCATTAAG	是			0	是	AAGCCATTAAGACCAAGTTTCTCCCAAATCAAGTA
+main	CNmain_00209		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CCATTAAG	是			0	是	AAGCCATTAAGACCAAGTTTCTCCCAAATCAAGTA
+main	CNmain_00210		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ACCAAGTT	是			0	是	AAGACCAAGTTTCTCCCAAATCAAGTACTCAACAG
+main	CNmain_00210		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ACCAAGTT	是			0	是	AAGACCAAGTTTCTCCCAAATCAAGTACTCAACAG
+main	CNmain_00210		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ACCAAGTT	是			0	是	AAGACCAAGTTTCTCCCAAATCAAGTACTCAACAG
+main	CNmain_00210		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ACCAAGTT	是			0	是	AAGACCAAGTTTCTCCCAAATCAAGTACTCAACAG
+main	CNmain_00210		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ACCAAGTT	是			0	是	AAGACCAAGTTTCTCCCAAATCAAGTACTCAACAG
+main	CNmain_00212		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TACTCAAC	是			0	是	AAGTACTCAACAGCACAATGGAATTCGTTCTGGGA
+main	CNmain_00212		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TACTCAAC	是			0	是	AAGTACTCAACAGCACAATGGAATTCGTTCTGGGA
+main	CNmain_00212		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TACTCAAC	是			0	是	AAGTACTCAACAGCACAATGGAATTCGTTCTGGGA
+main	CNmain_00212		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TACTCAAC	是			0	是	AAGTACTCAACAGCACAATGGAATTCGTTCTGGGA
+main	CNmain_00212		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TACTCAAC	是			0	是	AAGTACTCAACAGCACAATGGAATTCGTTCTGGGA
+main	CNmain_00213		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CTGTCTTG	是			0	是	AAGCTGTCTTGTTAATTCGGAAAAAAGAGGACCGA
+main	CNmain_00213		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CTGTCTTG	是			0	是	AAGCTGTCTTGTTAATTCGGAAAAAAGAGGACCGA
+main	CNmain_00213		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CTGTCTTG	是			0	是	AAGCTGTCTTGTTAATTCGGAAAAAAGAGGACCGA
+main	CNmain_00213		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CTGTCTTG	是			0	是	AAGCTGTCTTGTTAATTCGGAAAAAAGAGGACCGA
+main	CNmain_00213		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CTGTCTTG	是			0	是	AAGCTGTCTTGTTAATTCGGAAAAAAGAGGACCGA
+main	CNmain_00214		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGGACCGA	是			0	是	AAGAGGACCGAAAATTGCATTTATCTGCTTTGAGT
+main	CNmain_00214		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGGACCGA	是			0	是	AAGAGGACCGAAAATTGCATTTATCTGCTTTGAGT
+main	CNmain_00214		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGGACCGA	是			0	是	AAGAGGACCGAAAATTGCATTTATCTGCTTTGAGT
+main	CNmain_00214		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGGACCGA	是			0	是	AAGAGGACCGAAAATTGCATTTATCTGCTTTGAGT
+main	CNmain_00214		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGGACCGA	是			0	是	AAGAGGACCGAAAATTGCATTTATCTGCTTTGAGT
+main	CNmain_00215		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TGCAGCGT	是			0	是	AAGTGCAGCGTACTCATCTTGAGGACTGAGATCAA
+main	CNmain_00215		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TGCAGCGT	是			0	是	AAGTGCAGCGTACTCATCTTGAGGACTGAGATCAA
+main	CNmain_00215		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	CAG	否	TGCAGCCT	否	7	7	0	否	CAGTGCAGCCTACTCATCTTGAGGACTGAGATCAA
+main	CNmain_00215		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TGCAGCGT	是			0	是	AAGTGCAGCGTACTCATCTTGAGGACTGAGATCAA
+main	CNmain_00215		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TGCAGCGT	是			0	是	AAGTGCAGCGTACTCATCTTGAGGACTGAGATCAA
+main	CNmain_00216		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CTTCTGTT	是			0	是	AAGCTTCTGTTTAGGTTGCGCCTTAATCATATGTT
+main	CNmain_00216		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CTTCTGTT	是			0	是	AAGCTTCTGTTTAGGTTGCGCCTTAATCATATGTT
+main	CNmain_00216		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CTTTTGTT	否	4	4	0	否	AAGCTTTTGTTTAGGTTGCGCCTTAATCATATGTT
+main	CNmain_00216		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CTTCTGTT	是			0	是	AAGCTTCTGTTTAGGTTGCGCCTTAATCATATGTT
+main	CNmain_00216		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CTTCTGTT	是			0	是	AAGCTTCTGTTTAGGTTGCGCCTTAATCATATGTT
+main	CNmain_00218		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GCATCTGA	是			0	是	AAGGCATCTGAAGTCATCGGTGTAACATTTCCACC
+main	CNmain_00218		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GCATCTGA	是			0	是	AAGGCATCTGAAGTCATCGGTGTAACATTTCCACC
+main	CNmain_00218		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	GAG	否	GCATCTGA	是		22	1	否	GAGGCATCTGAAGTCATCGGTGTACCATTTCCACC
+main	CNmain_00218		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GCATCTGA	是			0	是	AAGGCATCTGAAGTCATCGGTGTAACATTTCCACC
+main	CNmain_00218		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GCATCTGA	是			0	是	AAGGCATCTGAAGTCATCGGTGTAACATTTCCACC
+main	CNmain_00219		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TCATCGGT	是			0	是	AAGTCATCGGTGTAACATTTCCACCAGAAAGTTCG
+main	CNmain_00219		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TCATCGGT	是			0	是	AAGTCATCGGTGTAACATTTCCACCAGAAAGTTCG
+main	CNmain_00219		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TCATCGGT	是		12	1	是	AAGTCATCGGTGTACCATTTCCACCAGAAAGTTCG
+main	CNmain_00219		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TCATCGGT	是			0	是	AAGTCATCGGTGTAACATTTCCACCAGAAAGTTCG
+main	CNmain_00219		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TCATCGGT	是			0	是	AAGTCATCGGTGTAACATTTCCACCAGAAAGTTCG
+main	CNmain_00222		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TTCGGCAG	是			0	是	AAGTTCGGCAGTATCTTCAATATCTAATATACCCG
+main	CNmain_00222		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTCGGCAG	是			0	是	AAGTTCGGCAGTATCTTCAATATCTAATATACCCG
+main	CNmain_00222		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	GAG	否	TTCGGCAG	是			0	否	GAGTTCGGCAGTATCTTCAATATCTAATATACCCG
+main	CNmain_00222		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TTCGGCAG	是			0	是	AAGTTCGGCAGTATCTTCAATATCTAATATACCCG
+main	CNmain_00222		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTCGGCAG	是			0	是	AAGTTCGGCAGTATCTTCAATATCTAATATACCCG
+main	CNmain_00224		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GAGACCAG	是			0	是	AAGGAGACCAGCACTACGTGGACGTTCAGCAGCAG
+main	CNmain_00224		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GAGACCAG	是			0	是	AAGGAGACCAGCACTACGTGGACGTTCAGCAGCAG
+main	CNmain_00224		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GAGACCAG	是			0	是	AAGGAGACCAGCACTACGTGGACGTTCAGCAGCAG
+main	CNmain_00224		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GAGACCAG	是			0	是	AAGGAGACCAGCACTACGTGGACGTTCAGCAGCAG
+main	CNmain_00224		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GAGACCAG	是			0	是	AAGGAGACCAGCACTACGTGGACGTTCAGCAGCAG
+main	CNmain_00230		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TCTGACAC	是			0	是	AAGTCTGACACCTTGCTTAAATCAGAGCAAACTTT
+main	CNmain_00230		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TCTGACAC	是			0	是	AAGTCTGACACCTTGCTTAAATCAGAGCAAACTTT
+main	CNmain_00230		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAT	否	TCTGAGAC	是		16	1	否	AATTCTGAGACCTTGCTTGAATCAGAGCAAACTTT
+main	CNmain_00230		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TGTGACAC	否	2	2,20	1	否	AAGTGTGACACCTTGCTTAAATTAGAGCAAACTTT
+main	CNmain_00230		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TCTGACAC	是			0	是	AAGTCTGACACCTTGCTTAAATCAGAGCAAACTTT
+main	CNmain_00232		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AACGTGCG	是			0	是	AAGAACGTGCGGTGAACTCTTTGATATAAGCTCCA
+main	CNmain_00232		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AACGTGCG	是			0	是	AAGAACGTGCGGTGAACTCTTTGATATAAGCTCCA
+main	CNmain_00232		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AAAGTGCG	否	3	3	0	否	AAGAAAGTGCGGTGAACTCTTTGATATAAGCTCCA
+main	CNmain_00232		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CACGTGCG	否	1	1,11	1	否	AAGCACGTGCGGTAAACTCTTTGATATAAGCTCCA
+main	CNmain_00232		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AACGTGCG	是			0	是	AAGAACGTGCGGTGAACTCTTTGATATAAGCTCCA
+main	CNmain_00233		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CTCCAATG	是			0	是	AAGCTCCAATGGAGTTGGTGTCAAACGAACAACCG
+main	CNmain_00233		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CTCCAATG	是			0	是	AAGCTCCAATGGAGTTGGTGTCAAACGAACAACCG
+main	CNmain_00233		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CTCCAATG	是			0	是	AAGCTCCAATGGAGTTGGTGTCAAACGAACAACCG
+main	CNmain_00233		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CTCCACTG	是		12	1	是	AAGCTCCACTGGAGGTGGTGTCAAACGAACAACCG
+main	CNmain_00233		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CTCCAATG	是			0	是	AAGCTCCAATGGAGTTGGTGTCAAACGAACAACCG
+main	CNmain_00234		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTCTCACC	是			0	是	AAGGTCTCACCTTGGATTTCGTGTACGGTGTTAAT
+main	CNmain_00234		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTCTCACC	是			0	是	AAGGTCTCACCTTGGATTTCGTGTACGGTGTTAAT
+main	CNmain_00234		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GTCTCACC	是		10,18	2	是	AAGGTCTCACCTAGGATTTCTTGTACGGTGTTAAT
+main	CNmain_00234		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTCTCACC	是			0	是	AAGGTCTCACCTTGGATTTCGTGTACGGTGTTAAT
+main	CNmain_00234		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTCTCACC	是			0	是	AAGGTCTCACCTTGGATTTCGTGTACGGTGTTAAT
+main	CNmain_00236		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GTGATAAT	是			0	是	AAGGTGATAATTTTCCCCTTTAGCGGTTTGCTTTT
+main	CNmain_00236		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GTGATAAT	是			0	是	AAGGTGATAATTTTCCCCTTTAGCGGTTTGCTTTT
+main	CNmain_00236		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GTGATAAT	是			0	是	AAGGTGATAATTTTCCCCTTTAGCGGTTTGCTTTT
+main	CNmain_00236		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GTGATAAT	是			0	是	AAGGTGATAATTTTCCCCTTTAGCGGTTTGCTTTT
+main	CNmain_00236		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTGATAAT	是			0	是	AAGGTGATAATTTTCCCCTTTAGCGGTTTGCTTTT
+main	CNmain_00237		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TGATAACC	是			0	是	AAGTGATAACCTCCTAACCTCCCTATGATCATAGA
+main	CNmain_00237		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TGATAACC	是			0	是	AAGTGATAACCTCCTAACCTCCCTATGATCATAGA
+main	CNmain_00237		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TGATAACC	是			0	是	AAGTGATAACCTCCTAACCTCCCTATGATCATAGA
+main	CNmain_00237		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TGATAACC	是			0	是	AAGTGATAACCTCCTAACCTCCCTATGATCATAGA
+main	CNmain_00237		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TGATAACC	是		12	1	是	AAGTGATAACCTCCAAACCTCCCTATGATCATAGA
+main	CNmain_00248		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CAGCTTAA	是			0	是	AAGCAGCTTAACAACGTCTGAAGTTTTCCCATATC
+main	CNmain_00248		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CAGCTTAA	是			0	是	AAGCAGCTTAACAACGTCTGAAGTTTTCCCATATC
+main	CNmain_00248		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CAGCTTAA	是			0	是	AAGCAGCTTAACAACGTCTGAAGTTTTCCCATATC
+main	CNmain_00248		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CAGCTTAA	是			0	是	AAGCAGCTTAACAACGTCTGAAGTTTTCCCATATC
+main	CNmain_00248		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CAGCTTAA	是			0	是	AAGCAGCTTAACAACGTCTGAAGTTTTCCCATATC
+main	CNmain_00250		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GGAATCTG	是			0	是	AAGGGAATCTGAAGAGACGGCCACTCGTCGCCAAT
+main	CNmain_00250		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GGAATCTG	是			0	是	AAGGGAATCTGAAGAGACGGCCACTCGTCGCCAAT
+main	CNmain_00250		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GGAATCTG	是			0	是	AAGGGAATCTGAAGAGACGGCCACTCGTCGCCAAT
+main	CNmain_00250		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GGAATCTG	是			0	是	AAGGGAATCTGAAGAGACGGCCACTCGTCGCCAAT
+main	CNmain_00250		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GGAATCTG	是			0	是	AAGGGAATCTGAAGAGACGGCCACTCGTCGCCAAT
+main	CNmain_00251		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGACGGCC	是			0	是	AAGAGACGGCCACTCGTCGCCAATCACCACAAATA
+main	CNmain_00251		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGACGGCC	是			0	是	AAGAGACGGCCACTCGTCGCCAATCACCACAAATA
+main	CNmain_00251		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGACGGCC	是			0	是	AAGAGACGGCCACTCGTCGCCAATCACCACAAATA
+main	CNmain_00251		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGACGGCC	是			0	是	AAGAGACGGCCACTCGTCGCCAATCACCACAAATA
+main	CNmain_00251		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGACGGCC	是			0	是	AAGAGACGGCCACTCGTCGCCAATCACCACAAATA
+main	CNmain_00252		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TTCGGCAA	是			0	是	AAGTTCGGCAACACCCCAAGCGTGACATTTATCCT
+main	CNmain_00252		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTCGGCAA	是			0	是	AAGTTCGGCAACACCCCAAGCGTGACATTTATCCT
+main	CNmain_00252		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TTCGGCAA	是			0	是	AAGTTCGGCAACACCCCAAGCGTGACATTTATCCT
+main	CNmain_00252		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TTCGGCAA	是			0	是	AAGTTCGGCAACACCCCAAGCGTGACATTTATCCT
+main	CNmain_00252		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTCGGCAA	是			0	是	AAGTTCGGCAACACCCCAAGCGTGACATTTATCCT
+main	CNmain_00256		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GGTGCACA	是			0	是	AAGGGTGCACACGTACTTAATTTAAGCAGATCAAA
+main	CNmain_00256		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GGTGCACA	是			0	是	AAGGGTGCACACGTACTTAATTTAAGCAGATCAAA
+main	CNmain_00256		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GGTGCACA	是			0	是	AAGGGTGCACACGTACTTAATTTAAGCAGATCAAA
+main	CNmain_00256		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GGTGCACA	是			0	是	AAGGGTGCACACGTACTTAATTTAAGCAGATCAAA
+main	CNmain_00256		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GGTGCACA	是			0	是	AAGGGTGCACACGTACTTAATTTAAGCAGATCAAA
+main	CNmain_00257		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CAGATCAA	是			0	是	AAGCAGATCAAATCTCATATCCAAGTCTTTGGGTA
+main	CNmain_00257		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CAGATCAA	是			0	是	AAGCAGATCAAATCTCATATCCAAGTCTTTGGGTA
+main	CNmain_00257		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CAGATCAA	是			0	是	AAGCAGATCAAATCTCATATCCAAGTCTTTGGGTA
+main	CNmain_00257		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CAGATCAA	是			0	是	AAGCAGATCAAATCTCATATCCAAGTCTTTGGGTA
+main	CNmain_00257		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CAGATCAA	是			0	是	AAGCAGATCAAATCTCATATCCAAGTCTTTGGGTA
+main	CNmain_00259		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGCATCCG	是			0	是	AAGAGCATCCGATAATGCTTCAGGCGTTGGATTTT
+main	CNmain_00259		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGCATCCG	是			0	是	AAGAGCATCCGATAATGCTTCAGGCGTTGGATTTT
+main	CNmain_00259		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGCATCCG	是			0	是	AAGAGCATCCGATAATGCTTCAGGCGTTGGATTTT
+main	CNmain_00259		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGCATCCG	是			0	是	AAGAGCATCCGATAATGCTTCAGGCGTTGGATTTT
+main	CNmain_00259		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGCATCCG	是			0	是	AAGAGCATCCGATAATGCTTCAGGCGTTGGATTTT
+main	CNmain_00260		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GCAGTGTG	是			0	是	AAGGCAGTGTGAGTTCGTTCTTCATGATGGCGACG
+main	CNmain_00260		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GCAGTGTG	是			0	是	AAGGCAGTGTGAGTTCGTTCTTCATGATGGCGACG
+main	CNmain_00260		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GCAGTGTG	是			0	是	AAGGCAGTGTGAGTTCGTTCTTCATGATGGCGACG
+main	CNmain_00260		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GCAGTGTG	是			0	是	AAGGCAGTGTGAGTTCGTTCTTCATGATGGCGACG
+main	CNmain_00260		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GCAGTGTG	是			0	是	AAGGCAGTGTGAGTTCGTTCTTCATGATGGCGACG
+main	CNmain_00261		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CATTATAA	是			0	是	AAGCATTATAATATTTCTCGGCTCTCTCAAGAGGC
+main	CNmain_00261		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CATTATAA	是			0	是	AAGCATTATAATATTTCTCGGCTCTCTCAAGAGGC
+main	CNmain_00261		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CATTATAA	是			0	是	AAGCATTATAATATTTCTCGGCTCTCTCAAGAGGC
+main	CNmain_00261		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CATTAACA	否	7	7,13,25,30	3	否	AAGCATTAACATATTCCTCGGCTCTCTGAAGACGC
+main	CNmain_00261		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CATTATAA	是			0	是	AAGCATTATAATATTTCTCGGCTCTCTCAAGAGGC
+main	CNmain_00262		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGGCTTAC	是			0	是	AAGAGGCTTACTAATGTCTAGATGTTGAAGCTCTT
+main	CNmain_00262		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGGCTTAC	是			0	是	AAGAGGCTTACTAATGTCTAGATGTTGAAGCTCTT
+main	CNmain_00262		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGGCTTAC	是			0	是	AAGAGGCTTACTAATGTCTAGATGTTGAAGCTCTT
+main	CNmain_00262		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ACGCTTAC	否	2	2,15,30	2	否	AAGACGCTTACTAATGTGTAGATGTTGAAGCTATT
+main	CNmain_00262		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGGCTTAC	是			0	是	AAGAGGCTTACTAATGTCTAGATGTTGAAGCTCTT
+main	CNmain_00265		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ATTGCTCA	是			0	是	AAGATTGCTCAGCAACTTTTACAAACCCACCGCTA
+main	CNmain_00265		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ATTGCTCA	是			0	是	AAGATTGCTCAGCAACTTTTACAAACCCACCGCTA
+main	CNmain_00265		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ATTGCTCA	是			0	是	AAGATTGCTCAGCAACTTTTACAAACCCACCGCTA
+main	CNmain_00265		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ATTGCTCA	是			0	是	AAGATTGCTCAGCAACTTTTACAAACCCACCGCTA
+main	CNmain_00265		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ATTGCTCA	是			0	是	AAGATTGCTCAGCAACTTTTACAAACCCACCGCTA
+main	CNmain_00266		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AGATCGCC	是			0	是	AAGAGATCGCCTACAGCATCACTAATCTGTTTCCA
+main	CNmain_00266		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AGATCGCC	是			0	是	AAGAGATCGCCTACAGCATCACTAATCTGTTTCCA
+main	CNmain_00266		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AGATCGCC	是			0	是	AAGAGATCGCCTACAGCATCACTAATCTGTTTCCA
+main	CNmain_00266		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AGATCGCC	是			0	是	AAGAGATCGCCTACAGCATCACTAATCTGTTTCCA
+main	CNmain_00266		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AGATCGCC	是			0	是	AAGAGATCGCCTACAGCATCACTAATCTGTTTCCA
+main	CNmain_00268		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TACGACTT	是			0	是	AAGTACGACTTGATCTTTTGCTTCAGCCAACTTCG
+main	CNmain_00268		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TACGACTT	是			0	是	AAGTACGACTTGATCTTTTGCTTCAGCCAACTTCG
+main	CNmain_00268		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TACGACTT	是			0	是	AAGTACGACTTGATCTTTTGCTTCAGCCAACTTCG
+main	CNmain_00268		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TACGACTT	是			0	是	AAGTACGACTTGATCTTTTGCTTCAGCCAACTTCG
+main	CNmain_00268		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TACGACTT	是			0	是	AAGTACGACTTGATCTTTTGCTTCAGCCAACTTCG
+main	CNmain_00270		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TCATAGAT	是			0	是	AAGTCATAGATAACGCCTGTAACACAGACTTGTCT
+main	CNmain_00270		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TCATAGAT	是			0	是	AAGTCATAGATAACGCCTGTAACACAGACTTGTCT
+main	CNmain_00270		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TCATAGAT	是			0	是	AAGTCATAGATAACGCCTGTAACACAGACTTGTCT
+main	CNmain_00270		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TCATAGAT	是			0	是	AAGTCATAGATAACGCCTGTAACACAGACTTGTCT
+main	CNmain_00270		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TCATAGAT	是			0	是	AAGTCATAGATAACGCCTGTAACACAGACTTGTCT
+main	CNmain_00274		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TGACGGAA	是			0	是	AAGTGACGGAACCATCAAAAAGCGGCACGATAACC
+main	CNmain_00274		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TGACGGAA	是			0	是	AAGTGACGGAACCATCAAAAAGCGGCACGATAACC
+main	CNmain_00274		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TGACGGAA	是			0	是	AAGTGACGGAACCATCAAAAAGCGGCACGATAACC
+main	CNmain_00274		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TGACGGAA	是		13,24,28	3	是	AAGTGACGGAACCATAAAAAAGCGGCTCGAAAACC
+main	CNmain_00274		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TGACGGAA	是			0	是	AAGTGACGGAACCATCAAAAAGCGGCACGATAACC
+main	CNmain_00275		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CGGCACGA	是			0	是	AAGCGGCACGATAACCATATCCTTAACTTTAGGAA
+main	CNmain_00275		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CGGCACGA	是		27	1	是	AAGCGGCACGATAACCATATCCTTAACTTGAGGAA
+main	CNmain_00275		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CGGCACGA	是			0	是	AAGCGGCACGATAACCATATCCTTAACTTTAGGAA
+main	CNmain_00275		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CGGCTCGA	否	5	5,9,18	2	否	AAGCGGCTCGAAAACCATATTCTTAACTTTAGGAA
+main	CNmain_00275		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CGGCACGA	是			0	是	AAGCGGCACGATAACCATATCCTTAACTTTAGGAA
+main	CNmain_00276		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TTAACCGC	是			0	是	AAGTTAACCGCAGCGCGATCGCGAAAGATCGTCCT
+main	CNmain_00276		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTAACCAC	否	7	7,26	1	否	AAGTTAACCACAGCGCGATCGCGAAAGAACGTCCT
+main	CNmain_00276		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TTAACCGC	是			0	是	AAGTTAACCGCAGCGCGATCGCGAAAGATCGTCCT
+main	CNmain_00276		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	ACG	否	TTAACCGC	是			0	否	ACGTTAACCGCAGCGCGATCGCGAAAGATCGTCCT
+main	CNmain_00276		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTAACCGC	是			0	是	AAGTTAACCGCAGCGCGATCGCGAAAGATCGTCCT
+main	CNmain_00277		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ATCGTCCT	是			0	是	AAGATCGTCCTTTCGCTATTAAGCATTGCCAAAGT
+main	CNmain_00277		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AACGTCCT	否	2	2,23	1	否	AAGAACGTCCTTTCGCTATTAAGCAATGCCAAAGT
+main	CNmain_00277		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ATCGTCCT	是			0	是	AAGATCGTCCTTTCGCTATTAAGCATTGCCAAAGT
+main	CNmain_00277		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ATCGTCCT	是		19	1	是	AAGATCGTCCTTTCGCTATTACGCATTGCCAAAGT
+main	CNmain_00277		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ATCGTCCT	是			0	是	AAGATCGTCCTTTCGCTATTAAGCATTGCCAAAGT
+main	CNmain_00278		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CATTGCCA	是			0	是	AAGCATTGCCAAAGTTTTCTTATACTCCCATGCTT
+main	CNmain_00278		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CAATGCCA	否	3	3,16	1	否	AAGCAATGCCAAAGTTTTGTTATACTCCCATGCTT
+main	CNmain_00278		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CATTGCCA	是			0	是	AAGCATTGCCAAAGTTTTCTTATACTCCCATGCTT
+main	CNmain_00278		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	ACG	否	CATTGCCA	是		20	1	否	ACGCATTGCCAAAGTTTTCTTACACTCCCATGCTT
+main	CNmain_00278		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	CATTGCCA	是			0	是	AAGCATTGCCAAAGTTTTCTTATACTCCCATGCTT
+main	CNmain_00281		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TATCTACC	是			0	是	AAGTATCTACCTTGGTGAACTTACAAAACCATGTG
+main	CNmain_00281		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTACTACC	否	2,3	2,3	0	否	AAGTTACTACCTTGGTGAACTTACAAAACCATGTG
+main	CNmain_00281		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TATCTACC	是			0	是	AAGTATCTACCTTGGTGAACTTACAAAACCATGTG
+main	CNmain_00281		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TATCTACC	是			0	是	AAGTATCTACCTTGGTGAACTTACAAAACCATGTG
+main	CNmain_00281		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TATCTACC	是			0	是	AAGTATCTACCTTGGTGAACTTACAAAACCATGTG
+main	CNmain_00286		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AAGGATAA	是			0	是	AAGAAGGATAATCTATCCCCTGACTTGTAAAACGT
+main	CNmain_00286		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AAGGATAA	是			0	是	AAGAAGGATAATCTATCCCCTGACTTGTAAAACGT
+main	CNmain_00286		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AAGGTTAA	否	5	5,25	1	否	AAGAAGGTTAATCTATCCCCTGACTTGCAAAACGT
+main	CNmain_00286		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AAGGATAA	是			0	是	AAGAAGGATAATCTATCCCCTGACTTGTAAAACGT
+main	CNmain_00286		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AAGGATAA	是			0	是	AAGAAGGATAATCTATCCCCTGACTTGTAAAACGT
+main	CNmain_00287		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GATAATCT	是			0	是	AAGGATAATCTATCCCCTGACTTGTAAAACGTCGC
+main	CNmain_00287		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GATAATCT	是			0	是	AAGGATAATCTATCCCCTGACTTGTAAAACGTCGC
+main	CNmain_00287		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GTTAATCT	否	2	2,22	1	否	AAGGTTAATCTATCCCCTGACTTGCAAAACGTCGC
+main	CNmain_00287		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GATAATCT	是			0	是	AAGGATAATCTATCCCCTGACTTGTAAAACGTCGC
+main	CNmain_00287		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GATAATCT	是			0	是	AAGGATAATCTATCCCCTGACTTGTAAAACGTCGC
+main	CNmain_00291		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	GCAGCTCC	是			0	是	AAGGCAGCTCCGAACTCATCCGCTGGAATATCATA
+main	CNmain_00291		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	GCAGCTCC	是			0	是	AAGGCAGCTCCGAACTCATCCGCTGGAATATCATA
+main	CNmain_00291		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	GCAGCTCC	是		23,24	2	是	AAGGCAGCTCCGAACTCATCCGCTGCTATATCATA
+main	CNmain_00291		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	GCAGCTCC	是			0	是	AAGGCAGCTCCGAACTCATCCGCTGGAATATCATA
+main	CNmain_00291		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	GTAGCTAT	否	2,7,8	2,7,8,21,27,28,29	4	否	AAGGTAGCTATGAACTCATCCGCGGGAATCGGATA
+main	CNmain_00292		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CGCCACAG	是			0	是	AAGCGCCACAGCGTATGTTTTTCCCGGAAGATCAA
+main	CNmain_00292		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CGCCACAG	是			0	是	AAGCGCCACAGCGTATGTTTTTCCCGGAAGATCAA
+main	CNmain_00292		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AGG	否	CGCCACAG	是		18,24	2	否	AGGCGCCACAGCGTATGTTTATCCCGTAAGATCAA
+main	CNmain_00292		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CGCCACAG	是			0	是	AAGCGCCACAGCGTATGTTTTTCCCGGAAGATCAA
+main	CNmain_00292		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	ATA	否	CGCCTCGG	否	5,7	5,7,13,23	2	否	ATACGCCTCGGCGTAGGTTTTTCCCAGAAGATCAA
+main	CNmain_00293		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ATCAACGG	是			0	是	AAGATCAACGGAGTAAGAACAGTCTTGAAACCTTT
+main	CNmain_00293		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ATCAACGG	是			0	是	AAGATCAACGGAGTAAGAACAGTCTTGAAACCTTT
+main	CNmain_00293		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ATCAACGG	是			0	是	AAGATCAACGGAGTAAGAACAGTCTTGAAACCTTT
+main	CNmain_00293		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ATCAACGG	是			0	是	AAGATCAACGGAGTAAGAACAGTCTTGAAACCTTT
+main	CNmain_00293		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ATCAACGG	是		18,21,31	3	是	AAGATCAACGGAGTAAGAACTGTGTTGAAACCTAT
+main	CNmain_00294		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	AACAGTCT	是			0	是	AAGAACAGTCTTGAAACCTTTTATCGCAGCACACA
+main	CNmain_00294		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	AACAGTCT	是			0	是	AAGAACAGTCTTGAAACCTTTTATCGCAGCACACA
+main	CNmain_00294		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	AACAGTCT	是			0	是	AAGAACAGTCTTGAAACCTTTTATCGCAGCACACA
+main	CNmain_00294		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	AACAGTCT	是			0	是	AAGAACAGTCTTGAAACCTTTTATCGCAGCACACA
+main	CNmain_00294		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	AACTGTGT	否	4,7	4,7,17,20,30	3	否	AAGAACTGTGTTGAAACCTATTCTCGCAGCACCCA
+main	CNmain_00295		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	CTGATTGC	是			0	是	AAGCTGATTGCTGAAAAACCGGAAGACCCCTCTTG
+main	CNmain_00295		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	CTGATTGC	是			0	是	AAGCTGATTGCTGAAAAACCGGAAGACCCCTCTTG
+main	CNmain_00295		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	CTGATTGC	是			0	是	AAGCTGATTGCTGAAAAACCGGAAGACCCCTCTTG
+main	CNmain_00295		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	CTGATTGC	是			0	是	AAGCTGATTGCTGAAAAACCGGAAGACCCCTCTTG
+main	CNmain_00295		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAT	否	CTGATTGC	是		15,16,23,26	4	否	AATCTGATTGCTGAAAACACGGAAGTCCGCTCTTG
+main	CNmain_00298		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ATTAGGCA	是			0	是	AAGATTAGGCATACAGCAATGGACGTAATCTCGTC
+main	CNmain_00298		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ATTAGGCA	是			0	是	AAGATTAGGCATACAGCAATGGACGTAATCTCGTC
+main	CNmain_00298		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ATTAGGCA	是			0	是	AAGATTAGGCATACAGCAATGGACGTAATCTCGTC
+main	CNmain_00298		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ATTAGGCA	是			0	是	AAGATTAGGCATACAGCAATGGACGTAATCTCGTC
+main	CNmain_00298		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ATTAGGCA	是			0	是	AAGATTAGGCATACAGCAATGGACGTAATCTCGTC
+main	CNmain_00299		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TGCGCTGA	是			0	是	AAGTGCGCTGAAAAGTTTCCCCCGATGTCATACGT
+main	CNmain_00299		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TGCGCTGA	是			0	是	AAGTGCGCTGAAAAGTTTCCCCCGATGTCATACGT
+main	CNmain_00299		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TGCGCTGA	是			0	是	AAGTGCGCTGAAAAGTTTCCCCCGATGTCATACGT
+main	CNmain_00299		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TGCGCTGA	是			0	是	AAGTGCGCTGAAAAGTTTCCCCCGATGTCATACGT
+main	CNmain_00299		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TGCGCTGA	是			0	是	AAGTGCGCTGAAAAGTTTCCCCCGATGTCATACGT
+main	CNmain_00301		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	ATACTCGA	是			0	是	AAGATACTCGAGCTCGAGTGCTCGAAGACCTCCCG
+main	CNmain_00301		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	ATACTCGA	是			0	是	AAGATACTCGAGCTCGAGTGCTCGAAGACCTCCCG
+main	CNmain_00301		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	ATACTCGA	是			0	是	AAGATACTCGAGCTCGAGTGCTCGAAGACCTCCCG
+main	CNmain_00301		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	ATACTCGA	是			0	是	AAGATACTCGAGCTCGAGTGCTCGAAGACCTCCCG
+main	CNmain_00301		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	ATACTCGA	是			0	是	AAGATACTCGAGCTCGAGTGCTCGAAGACCTCCCG
+main	CNmain_00304		PZ530881.1|Odontoglossum_ringspot_virus	AAG	是	TTAACCTT	是			0	是	AAGTTAACCTTTGGGCGTCTAGAACGGTGATTTAA
+main	CNmain_00304		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate1 (synthetic isolate derived f	AAG	是	TTAACCTT	是			0	是	AAGTTAACCTTTGGGCGTCTAGAACGGTGATTTAA
+main	CNmain_00304		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate2 (synthetic isolate derived f	AAG	是	TTAACCTT	是			0	是	AAGTTAACCTTTGGGCGTCTAGAACGGTGATTTAA
+main	CNmain_00304		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate3 (synthetic isolate derived f	AAG	是	TTAACCTT	是			0	是	AAGTTAACCTTTGGGCGTCTAGAACGGTGATTTAA
+main	CNmain_00304		PZ530881.1|Odontoglossum_ringspot_virus_SIMisolate4 (synthetic isolate derived f	AAG	是	TTAACCTT	是			0	是	AAGTTAACCTTTGGGCGTCTAGAACGGTGATTTAA

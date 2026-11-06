@@ -1,0 +1,80 @@
+LOCUS       OP441764                 999 bp    cRNA    linear   ENV 19-OCT-2022
+DEFINITION  UNVERIFIED_ORG: Artemisia fimovirus 1 isolate MIR20SW segment RNA7,
+            complete sequence.
+ACCESSION   OP441764
+VERSION     OP441764.1
+DBLINK      BioProject: PRJNA772045
+            BioSample: SAMN22358016
+            Sequence Read Archive: SRR16552259
+KEYWORDS    ENV; UNVERIFIED; UNVERIFIED_ORGANISM.
+SOURCE      Artemisia fimovirus 1
+  ORGANISM  Artemisia fimovirus 1
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Elliovirales; Fimoviridae;
+            Emaravirus; Emaravirus artemisiae.
+REFERENCE   1  (bases 1 to 999)
+  AUTHORS   Rivarez,M.P.S., Pecman,A., Bacnik,K., Maksimovic Carvalho
+            Ferreira,O., Vucurovic,A., Seljak,G., Mehle,N.,
+            Gutierrez-Aguirre,I., Ravnikar,M. and Kutnjak,D.
+  TITLE     In-depth study of tomato and weed viromes reveals undiscovered
+            plant virus diversity in an agroecosystem
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 999)
+  AUTHORS   Rivarez,M.P.S., Pecman,A., Bacnik,K., Maksimovic Carvalho
+            Ferreira,O., Vucurovic,A., Seljak,G., Mehle,N.,
+            Gutierrez-Aguirre,I., Ravnikar,M. and Kutnjak,D.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (29-AUG-2022) Department of Biotechnology and Systems
+            Biology, National Institute of Biology, Vecna pot 111, Ljubljana
+            1000, Slovenia
+COMMENT     GenBank staff is unable to verify source organism and sequence
+            and/or annotation provided by the submitter.
+            
+            ##Assembly-Data-START##
+            Assembly Method       :: CLC Genomics Workbench v. 20; SPAdes v.
+                                     3.14
+            Sequencing Technology :: Illumina
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..999
+                     /organism="Artemisia fimovirus 1"
+                     /mol_type="viral cRNA"
+                     /isolate="MIR20SW"
+                     /isolation_source="pooled weed plants"
+                     /host="Artemisia verlotiorum"
+                     /db_xref="taxon:2950836"
+                     /segment="RNA7"
+                     /environmental_sample
+                     /geo_loc_name="Slovenia"
+                     /collection_date="Sep-2020"
+     CDS             149..883
+                     /note="60 kDa unknown protein with low similarity to RNA7
+                     of Perilla mosaic virus"
+                     /codon_start=1
+                     /product="hypothetical protein"
+                     /protein_id="UYE93355.1"
+                     /translation="MSITDNIESLVKKYSFTQKTVEIDFQLLLFRSFSERYTDYGISS
+                     LETVIWGMNIPEKFYIISETLNIHDYESYYEFLRVILALASKYYKIENMKDILRNIQF
+                     NEKEDKYFHRCEVLCTKYGFYNNCMDFYNYYKVSPEEKLLSKMVTIKNDKSKGKKDAA
+                     YSYLRNDSDLRYLTLDWSGQLDKDLKMFFEENPVENESIYNIRLIHDHGYYSQILHEE
+                     LLKKYNPYVINTIAKSVTLYENVIRL"
+ORIGIN      
+        1 ctaataataa cgcagattgg taattttaag tcttgaattt gtttagatca actgagtttg
+       61 tagctttact tcatattaat tgttaactta gaaagactca gacagattta agaatccaaa
+      121 ttgaattaag aatattatag tatataagat gtcaatcact gataatattg aatcattagt
+      181 gaaaaaatat agttttacac aaaaaactgt tgagattgat tttcaacttt tactttttag
+      241 atccttttca gaaaggtata ctgattatgg tatcagctca ttagaaacag ttatttgggg
+      301 tatgaacata ccagaaaagt tttacatcat atccgagaca cttaacattc atgattatga
+      361 aagttattat gagtttctta gggtgatcct agctttggca tcaaaatact acaaaattga
+      421 aaacatgaaa gacatattaa ggaatataca gtttaatgag aaagaagata aatatttcca
+      481 taggtgtgag gttttgtgca caaaatatgg gttttacaac aattgtatgg atttctataa
+      541 ttattacaaa gtttctcctg aagaaaaatt gctgtctaaa atggtgacta tcaagaatga
+      601 taaatctaaa ggaaagaaag atgcagcata tagttactta aggaatgatt cagatcttag
+      661 gtacttgact ttagattggt ctggtcagtt agataaagat ttaaaaatgt tcttcgaaga
+      721 gaatccagta gaaaatgaat caatctataa tataaggtta atacatgatc atggctatta
+      781 ctctcaaata ttgcatgaag aattgttaaa gaagtataat ccatatgtta taaacacaat
+      841 tgcaaagagt gtaactcttt atgagaatgt cattagatta tagatctcta ttcaagagtt
+      901 tgcaaaagtc catgctgtaa aatggcacga tttatatatc attatttttt cttgtttgtc
+      961 tgtttttgta tgagtttgtc aaagtatttt atttgttta
+//
+

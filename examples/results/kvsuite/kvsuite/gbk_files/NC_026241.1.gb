@@ -1,0 +1,156 @@
+LOCUS       NC_026241               2776 bp ss-DNA     circular VRL 13-AUG-2018
+DEFINITION  Bromus-associated circular DNA virus 1 isolate
+            BasCV-1_NZ-NZG01_Sef-2012, complete genome.
+ACCESSION   NC_026241
+VERSION     NC_026241.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Bromus-associated circular DNA virus 1
+  ORGANISM  Bromus-associated circular DNA virus 1
+            Viruses; Floreoviria; Shotokuvirae; Cressdnaviricota;
+            Repensiviricetes; Geplafuvirales; Geplanaviridae; Alohovirus;
+            Alohovirus bromis.
+REFERENCE   1  (bases 1 to 2776)
+  AUTHORS   Kraberger,S., Farkas,K., Bernardo,P., Booker,C.,
+            Arguello-Astorga,G.R., Mesleard,F., Martin,D.P., Roumagnac,P. and
+            Varsani,A.
+  TITLE     Identification of novel Bromus- and Trifolium-associated circular
+            DNA viruses
+  JOURNAL   Arch. Virol. 160 (5), 1303-1311 (2015)
+   PUBMED   25701210
+REFERENCE   2  (bases 1 to 2776)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (23-JAN-2015) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 2776)
+  AUTHORS   Kraberger,S. and Varsani,A.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (09-SEP-2014) School of Biological Sciences, University
+            of Canterbury, Private bag 4800, Christchurch 8140, New Zealand
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to KM510189.
+            
+            ##Assembly-Data-START##
+            Assembly Method       :: DNA Baser v. V4
+            Sequencing Technology :: Sanger dideoxy sequencing
+            ##Assembly-Data-END##
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..2776
+                     /organism="Bromus-associated circular DNA virus 1"
+                     /mol_type="genomic DNA"
+                     /isolate="BasCV-1_NZ-NZG01_Sef-2012"
+                     /host="Bromus sp."
+                     /db_xref="taxon:1590154"
+                     /geo_loc_name="New Zealand"
+                     /collection_date="2012"
+     gene            137..1435
+                     /locus_tag="TH95_gp1"
+                     /db_xref="GeneID:22921869"
+     CDS             137..1435
+                     /locus_tag="TH95_gp1"
+                     /codon_start=1
+                     /product="capsid protein"
+                     /protein_id="YP_009116644.1"
+                     /db_xref="GeneID:22921869"
+                     /translation="MRAFAFRGAATTLGFIADNLRGAHTAYRMAKGTSYGRSRRIPAR
+                     NAKSLGIGSRSKRTAAVSKFRRVKRVVVKPKRKSFTRTKRRTSYKAGRGGFSSALAKT
+                     GGSSFSIGSGAKLYRGFKWAQQPVTFTSTTTQRVTGAAGKQAVAVLPTYRINPGANDP
+                     TNDTALIGTNTLDSVLLDRAERWLQAYQESTPATAASAQSSPGMYQTNKFVVNHLKYD
+                     QAIRNCEVQDVTLTIYDCVLRPGVAPNIRSPGSVNQSISPINDWHIGLQNEYNPAAPV
+                     AYLSQTFDSPATTPFHSTHFCKLYKIKKTTKVTLAPGAVHHHHVTVKPRNMFDTQTSG
+                     NVNSALYTADRGYLIPGISGFTLITVLGSIGDSAANHLLIGTTKTAVDVVTTTMASFS
+                     QFSRERRMHMAFDGLTQATDLQAVQPDTGTIQMDTTANEA"
+     gene            complement(479..1093)
+                     /locus_tag="TH95_gp2"
+                     /db_xref="GeneID:22921866"
+     CDS             complement(479..1093)
+                     /locus_tag="TH95_gp2"
+                     /codon_start=1
+                     /product="hypothetical protein"
+                     /protein_id="YP_009116645.1"
+                     /db_xref="GeneID:22921866"
+                     /translation="MVVMHRSRCQGDLGGLLDLVQFAKVRTVKGGGSRRIERLTQVGH
+                     RRRRIVLVLKAYMPIVDRADRLVHRTRTADVRSNTRPQNTVVYSQGNVLHLAVSDRLI
+                     VFQVIDHKLVRLVHAGRRLSARRRRRSALLVGLKPSLRAVQQDTVKCVGANQRSVVGG
+                     IVSPGVDTVRRENGDGLFARGSSNSLSSGRSERNGLLCPLEASI"
+     gene            682..1233
+                     /locus_tag="TH95_gp3"
+                     /db_xref="GeneID:22921867"
+     CDS             682..1233
+                     /locus_tag="TH95_gp3"
+                     /codon_start=1
+                     /product="hypothetical protein"
+                     /protein_id="YP_009116646.1"
+                     /db_xref="GeneID:22921867"
+                     /translation="MASGLPGEHSGDGGERSVVARHVPDEQVCGQSPEIRSGDQKLRG
+                     AGRYLDYIRLCFAAWCCSEHPQSGFCEPVYQPDQRLAYRPSERVQSGGACGLPESDVR
+                     FAGYHPLSQYALLQTVQDQEDHQGHPGTGSGASPPCYREAAEHVRHSDVGQCEFCAVY
+                     GGPGLPYPGDFWVYPDYGAGQHW"
+     gene            complement(1580..2710)
+                     /locus_tag="TH95_gp4"
+                     /db_xref="GeneID:22921868"
+     CDS             complement(join(1580..2248,2294..2710))
+                     /locus_tag="TH95_gp4"
+                     /codon_start=1
+                     /product="replication-associated protein"
+                     /protein_id="YP_009116647.1"
+                     /db_xref="GeneID:22921868"
+                     /translation="MAQFVLSEAAVDDTDISDTEAELLLPPATVFDAVLKGFRLSAKR
+                     YLLTYAQCPEDPDDIFRQLDRKRAIARAVGCIELHADGNPHIHIAVEFAKKLNSVDTK
+                     YFDYAYDDTCESYHPNISPAQSWPKCINYCRGKNKTLTDASGIRGPKPDLFVQARACN
+                     GNKELWLQWLFEHNVQPTLGLEVWRSLHAPPAFQTFETLMDIREPIAATFDQRLLYLQ
+                     LPDDFTKSVVIIGPSGSGKTVWAFNRMFERFGPGLSVGDIDDLKLFRPEQHSCIVFDE
+                     VRFGGDFQTGKGRFKLETQIALCDTARSRTIRCRHGNGFIAANTPRVFTCTGTLPFTQ
+                     DYQIERRIHIINLYNDREISDLWPPTF"
+ORIGIN      
+        1 ataaaattcc aaggcagcta tgccccatgg ggcataaccc atccggagga tcgcgtcatt
+       61 gccccgattg ggaatattga cgcgtttcgt ggggtattta gccggcgcgt gccccgcacc
+      121 gccccacccc acgatcatgc gcgcgtttgc ttttcgcggt gcagctacta cactcgggtt
+      181 tatcgcagac aatctccgcg gagcacacac cgcctatcgg atggccaaag gaacctctta
+      241 tggccgttct cgccgcatcc ccgctcgcaa cgccaaatcg ctcggcatcg gatctcgctc
+      301 caagcgcacc gcggcggtct cgaaattcag gcgcgtcaag cgggtcgtcg tcaagccgaa
+      361 gcggaagtcc ttcacccgaa ccaagaggcg aacctcgtac aaggcgggac gcggaggctt
+      421 tagcagcgct ctcgcgaaga ctggaggaag cagtttctct attggaagtg gtgctaaatt
+      481 atatcgaggc ttcaagtggg cacaacagcc cgttacgttc acttctacca ctactcagag
+      541 agttactgga gccgcgggca aacaggccgt cgccgttctc ccgacgtacc gtatcaaccc
+      601 cggggctaac gatcccacca acgacactgc gttgattggc accaacacac ttgacagtgt
+      661 cttgttggac cgcgcggagc gatggcttca ggcctaccag gagagcactc cggcgacggc
+      721 ggcgagcgct cagtcgtcgc ccggcatgta ccagacgaac aagtttgtgg tcaatcacct
+      781 gaaatacgat caggcgatca gaaactgcga ggtgcaggac gttaccttga ctatatacga
+      841 ctgtgttttg cggcctggtg ttgctccgaa catccgcagt ccgggttctg tgaaccagtc
+      901 tatcagcccg atcaacgatt ggcatatagg ccttcagaac gagtacaatc cggcggcgcc
+      961 tgtggcctac ctgagtcaga cgttcgattc gccggctacc accccctttc acagtacgca
+     1021 cttttgcaaa ctgtacaaga tcaagaagac caccaaggtc accctggcac cgggagcggt
+     1081 gcatcaccac catgttaccg tgaagccgcg gaacatgttc gacactcaga cgtcgggcaa
+     1141 tgtgaattct gcgctgtata cggcggaccg gggctacctt atcccgggga tttctgggtt
+     1201 taccctgatt acggtgctgg gcagcattgg tgattcagcg gccaaccact tgcttattgg
+     1261 tactaccaag acggctgtgg acgtggtgac aaccacgatg gcgtctttct cgcagttttc
+     1321 tagggaacgg cgcatgcata tggcttttga tggccttacg caggctacag acttgcaggc
+     1381 cgtgcagccc gatactggaa cgattcagat ggacactact gctaacgagg cctagccctt
+     1441 ttagtatatc ttgcgggggg tccccgtgag ggggccattg gggcggcagc cccaacgacc
+     1501 ctgcgaagcc ggggagcccg cccggagggc ggaaaaaatt ggaactgtcg attttggcta
+     1561 gaaaaatata tttgactatt taaaatgtgg ggggccagag atccgagatc tcgcggtcat
+     1621 tatacaagtt gatgatgtgg atacgccttt ctatctgata atcctgtgtg aacggcaatg
+     1681 ttccggtgca ggtaaacacg cgcggtgtgt ttgccgctat gaatccgttt ccgtgtcggc
+     1741 aacggatggt tcgcgatcga gcggtgtcac agagtgcaat ctgagtttcc aacttgaacc
+     1801 gacccttccc agtttgaaag tcccccccaa aacggacctc atcgaagacg atgcaggagt
+     1861 gttgctcagg tcgaaagagt ttgaggtcat cgatgtcgcc gacagaaaga ccgggtccga
+     1921 accgttcgaa catccggttg aacgcccaca cggtcttgcc cgatccgctc gggccgatga
+     1981 tgacgaccga ctttgtgaag tcgtccggga gttggaggta cagtaaacgt tggtcgaagg
+     2041 tagccgcgat cggctctctg atgtccataa gggtttcgaa agtttgaaag gctggtggag
+     2101 cgtgcagcga acgccatact tcgagtccga gagttggctg aacgttgtgt tcgaacagcc
+     2161 actgaagcca cagctctttg tttccgttgc aggcccgcgc ctgcacgaag aggtccggtt
+     2221 tagggccgcg gatgccagag gcgtccgtct ccaatgcttc ctcgaagcta catctccact
+     2281 ggaacagctg aacgagggtt ttgtttttcc ctcggcagta gttgatgcac ttcggccagc
+     2341 tttgcgctgg ggaaatgttc ggatgatagg actcgcaggt atcatcgtat gcgtagtcga
+     2401 agtacttggt gtcgaccgaa ttgagcttct tggcgaactc aactgcgata tggatgtggg
+     2461 ggttgccatc agcgtgtagc tcgatgcatc ccacggctcg cgcgattgcc cgtttgcgat
+     2521 cgagttggcg aaagatgtca tctgggtctt cgggacactg agcgtaggtt aaaaggtaac
+     2581 gtttggcgct gaggcggaag cctttaagta ccgcatcgaa aacggttgcg gggggcaaca
+     2641 ggagctcggc ttctgtgtca ctgatgtcgg tgtcgtcgac ggcggcttca ctgagtacaa
+     2701 attgagccat gtgtaacgtg gaggagattg tctctggcgt ttggaaacgg ggcaatgggg
+     2761 catagctgcc ttttat
+//
+

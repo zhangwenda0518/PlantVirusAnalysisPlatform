@@ -1,15 +1,44 @@
 {
   "stage": "host_removal",
   "single_end": false,
-  "input_r1": "example_R1.fastq.gz",
-  "input_r2": "example_R2.fastq.gz",
+  "input_r1": "example_sim100x_R1.fastq.gz",
+  "input_r2": "example_sim100x_R2.fastq.gz",
+  "classify_inputs": [
+    {
+      "name": "example_sim100x_R1.fastq.gz",
+      "size": 17881578,
+      "mtime": 1791823214475639600
+    },
+    {
+      "name": "example_sim100x_R2.fastq.gz",
+      "size": 18587374,
+      "mtime": 1791823227811479800
+    }
+  ],
+  "classify_params": {
+    "confidence": 0.0,
+    "threads": 8,
+    "min_hit_groups": 2
+  },
   "kraken_out": "output_1.txt",
   "kreport": "output_1.kreport2",
+  "host_db": {
+    "name": "112863_genomes_host_db",
+    "path": "D:\\桌面\\植物病毒分析平台\\host-db\\112863_genomes_host_db",
+    "taxid": 112863,
+    "species": "Lycium barbarum",
+    "taxids_in_map": [
+      112863
+    ],
+    "conflicted": false,
+    "has_manifest": true
+  },
   "kept_r1": "kept_R1.fastq.gz",
   "kept_r2": "kept_R2.fastq.gz",
-  "total_pairs": 3600,
-  "kept_pairs": 3556,
-  "dropped_pairs": 44,
-  "kept_mate2": 3556,
-  "host_ratio": 0.012222
+  "total_pairs": 166436,
+  "kept_pairs": 165271,
+  "dropped_pairs": 1165,
+  "kept_mate2": 165271,
+  "filter_mode": "seqkit",
+  "host_ratio": 0.007
 }

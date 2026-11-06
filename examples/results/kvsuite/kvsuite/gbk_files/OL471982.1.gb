@@ -1,0 +1,74 @@
+LOCUS       OL471982                 902 bp    cRNA    linear   ENV 19-OCT-2022
+DEFINITION  MAG: Artemisia fimovirus 1 isolate MIR20SW segment RNA5, complete
+            sequence.
+ACCESSION   OL471982
+VERSION     OL471982.1
+DBLINK      BioProject: PRJNA772045
+            BioSample: SAMN22357975
+            Sequence Read Archive: SRR16552259
+KEYWORDS    ENV; Metagenome Assembled Genome; MAG.
+SOURCE      Artemisia fimovirus 1 (plant metagenome)
+  ORGANISM  Artemisia fimovirus 1
+            Viruses; Riboviria; Orthornavirae; Negarnaviricota;
+            Polyploviricotina; Bunyaviricetes; Elliovirales; Fimoviridae;
+            Emaravirus; Emaravirus artemisiae.
+REFERENCE   1  (bases 1 to 902)
+  AUTHORS   Rivarez,M.P.S., Pecman,A., Bacnik,K., Maksimovic Carvalho
+            Ferreira,O., Vucurovic,A., Seljak,G., Mehle,N.,
+            Gutierrez-Aguirre,I., Ravnikar,M. and Kutnjak,D.
+  TITLE     In-depth study of tomato and weed viromes reveals undiscovered
+            plant virus diversity in an agroecosystem
+  JOURNAL   bioRxiv (2022) In press
+  REMARK    DOI: 10.1101/2022.06.30.498278
+REFERENCE   2  (bases 1 to 902)
+  AUTHORS   Rivarez,M.P.S., Bacnik,K., Kogej,Z., Lengar,Z., Maksimovic Carvalho
+            Ferreira,O., Pecman,A., Seljak,G., Vucurovic,A., Mehle,N.,
+            Gutierrez-Aguirre,I., Ravnikar,M. and Kutnjak,D.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (08-NOV-2021) Department of Biotechnology and Systems
+            Biology, National Institute of Biology, Vecna pot 111, Ljubljana
+            1000, Slovenia
+COMMENT     ##Assembly-Data-START##
+            Assembly Method       :: SPAdes v. 3.14; CLC Genomic Workbench v.
+                                     20.0
+            Sequencing Technology :: HiSeq 2500 (151 paired-end reads);
+                                     Illumina
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..902
+                     /organism="Artemisia fimovirus 1"
+                     /mol_type="viral cRNA"
+                     /isolate="MIR20SW"
+                     /isolation_source="pooled weed plants gathered at the
+                     immediate surroundings of tomato farms"
+                     /host="Artemisia verlotiorum"
+                     /db_xref="taxon:2950836"
+                     /segment="RNA5"
+                     /environmental_sample
+                     /geo_loc_name="Slovenia"
+                     /collection_date="Aug-2020"
+                     /collected_by="MPS Rivarez et al."
+                     /metagenome_source="plant metagenome"
+                     /note="metagenomic"
+     misc_feature    1..786
+                     /note="putative 26 kDa protein; 26 kDa unknown protein;
+                     RNA5-p26"
+ORIGIN      
+        1 aagattatta ttttttacgt gtctggtttt tgtttgtcaa aagaatcatt ctttgtgctt
+       61 ttttattgac cctattaaat ttaacgactt acaattaaaa ccatattagc cttttgaaga
+      121 atcaaaatgt cgaaattgtc atatttttat tctgatgtta agttagaaga ttcaaactgt
+      181 gctaagagag acaaattgct atttctgaat ctctttttat ttattgttgt atcatttagc
+      241 atcatatcga cctgtttagc tgagattgac agcagaaaat ttgaatatgt aagaaccaaa
+      301 gatagattct acactgttac taggttcaac aaaaacagca cttggtttac tatcactgct
+      361 gaattgccta aggtcgactt ggaggacata tgctttttac aattctggtt gatagataac
+      421 caaggtgtga cttcagaagc tggaattggg aaacagtgtt atgaaagaaa atacacttct
+      481 tttctattca atacagatga tgatcataag agtggtttct ataatgatga attcttagaa
+      541 tggggaggtg tttcaacgaa gaatagagtt gaggttgttg ataaattatc cttagatgtt
+      601 ggagaaattg ctagattgac aggcctggta gaagatactc aattaaagtt gtggatcaat
+      661 ggagaatatg tcggaagtgt taatgcagat cataagattg acagagtaga agctggattc
+      721 gaagcagaat ttaccaaaat tagcaaagac tatatactcg actttgatta ttactctgag
+      781 ttttaattaa atgattgaaa gatttaaatc ttcttttaat ccaaccttat aaagtttaac
+      841 tttgtgaggt atagtttttt agttggtgtt tgtttttttg acttgagaat tttgattttt
+      901 tt
+//
+

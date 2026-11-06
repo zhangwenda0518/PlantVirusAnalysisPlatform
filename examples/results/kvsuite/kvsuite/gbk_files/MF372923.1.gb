@@ -1,0 +1,51 @@
+LOCUS       MF372923                 444 bp    RNA     linear   VRL 22-JUL-2017
+DEFINITION  Panicum mosaic virus satellite RNA satC, complete sequence.
+ACCESSION   MF372923
+VERSION     MF372923.1
+KEYWORDS    .
+SOURCE      Panicum mosaic virus satellite RNA satC
+  ORGANISM  Panicum mosaic virus satellite RNA satC
+            Viruses; Riboviria; Tombendovirales; Pamosaviridae; Papanivirus;
+            Papanivirus panici.
+REFERENCE   1  (bases 1 to 444)
+  AUTHORS   Pyle,J.D., Monis,J. and Scholthof,K.G.
+  TITLE     Complete nucleotide sequences and virion particle association of
+            two satellite RNAs associated with panicum mosaic virus
+  JOURNAL   Virus Res. (2017) In press
+   PUBMED   28673868
+  REMARK    Publication Status: Available-Online prior to print
+REFERENCE   2  (bases 1 to 444)
+  AUTHORS   Pyle,J.D., Monis,J. and Scholthof,K.-B.G.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (19-JUN-2017) Microbiology & Immunobiology, Harvard
+            Medical School, 77 Avenue Louis Pasteur, room 940, Boston, MA
+            02115, USA
+COMMENT     ##Assembly-Data-START##
+            Sequencing Technology :: Sanger dideoxy sequencing
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..444
+                     /organism="Panicum mosaic virus satellite RNA satC"
+                     /mol_type="genomic RNA"
+                     /db_xref="taxon:2019555"
+     gene            complement(93..308)
+                     /gene="satCgp1"
+     CDS             complement(93..308)
+                     /gene="satCgp1"
+                     /note="putative ORF1"
+                     /codon_start=1
+                     /product="hypothetical protein"
+                     /protein_id="ASL68495.1"
+                     /translation="MFQLQVPSRARSRLIPLFPTGPHRNRNTYSCRNATGGEARVFVV
+                     DATPSSGCRLRGGLRWMPTDRPSSGQY"
+ORIGIN      
+        1 gggtattcgt tggggcttgt tagcttcata aactcaggga gggggtgttg tcgtcgccac
+       61 agtgggaaca cagagaacgg gcccgcaagg tcttagtatt gcccactgct tggacggtcg
+      121 gtcggcatcc accgtagacc cccccttagc cgacaacctg atgatggggt tgcatcaacc
+      181 acgaataccc ttgcctcccc ccccgtggcg tttctgcacg agtaggtgtt gcggttccta
+      241 tgcggtccag ttggaaacaa cgggatcaga cgtgaccttg cccggctagg aacttgtagc
+      301 tgaaacatgc aaacaagcta gagaatgaca gtgctcgaga gaagtccagt gcaggggaaa
+      361 cccgggccgt aagcacgtgg ggctacaaac tcaatctcgc tgagaagatt gggggggatt
+      421 cacgaaatcc cctcacccag ccct
+//
+

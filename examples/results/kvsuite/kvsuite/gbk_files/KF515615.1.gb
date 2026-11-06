@@ -1,0 +1,66 @@
+LOCUS       KF515615                1346 bp    DNA     circular VRL 01-OCT-2014
+DEFINITION  Okra leaf curl betasatellite-[India:Mau:2012] isolate Mau, complete
+            sequence.
+ACCESSION   KF515615
+VERSION     KF515615.1
+KEYWORDS    .
+SOURCE      Okra leaf curl betasatellite-[India:Mau:2012]
+  ORGANISM  Okra leaf curl betasatellite-[India:Mau:2012]
+            Viruses; Tolecusatellitidae; Betasatellite; Betasatellite
+            abelmoschusinvolutionis.
+REFERENCE   1  (bases 1 to 1346)
+  AUTHORS   Yadav,B.K., Bhatt,B.S., Rathore,S. and Singh,A.K.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (07-AUG-2013) School of Life Sciences, Central University
+            of Gujarat, Sector-30, Gandhinagar, Gujarat 382030, India
+COMMENT     ##Assembly-Data-START##
+            Sequencing Technology :: Sanger dideoxy sequencing
+            ##Assembly-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..1346
+                     /organism="Okra leaf curl betasatellite-[India:Mau:2012]"
+                     /mol_type="genomic DNA"
+                     /isolate="Mau"
+                     /isolation_source="leaf"
+                     /host="okra"
+                     /db_xref="taxon:1397669"
+                     /clone="TA-14"
+                     /geo_loc_name="India: Uttar Pradesh, Mau"
+                     /collection_date="18-Jul-2012"
+                     /collected_by="Brijesh K Yadav"
+     gene            complement(180..620)
+                     /gene="C1"
+     CDS             complement(180..620)
+                     /gene="C1"
+                     /codon_start=1
+                     /product="C1 protein"
+                     /protein_id="AGV02026.1"
+                     /translation="MISTHYMKISIHFIYKFISSIYIRRTIKMTRFSKNREGIVFKVD
+                     VKLMQQQRISVQMQISSTRSPAISTKTFIIDYTYQQLHIPFDFNGLEGTITSTFKFHY
+                     WGSKAEEILEEDIIHMVDIIIIENPEIMGMDVNEPVTIDNKIII"
+ORIGIN      
+        1 accgtgggcg agcggagtct gagccgttgt gggacccaca gatgaatgaa gttcatgggt
+       61 gatttcaagt atatggagga aattgtggat gagaaaaatg aatcatgttt gtttttgcaa
+      121 attattttag ataacagtct cctaataata attaatatgc aaacatatta ctaacaaaat
+      181 taaattatta tcttattatc aatagttact ggttcgttta catccattcc cataatctct
+      241 gggttttcaa taataataat atccaccata tgtatgatgt cttcttctaa tatttcttct
+      301 gcttttgaac cccagtaatg aaacttgaag gttgatgtga tcgttccttc taaaccgttg
+      361 aagtcgaatg gaatatgtaa ttgttggtat gtatagtcga tgatgaatgt ttttgttgat
+      421 attgctggag atcttgttga actgatctgc atctggactg atatcctttg ttgttgcatg
+      481 agcttgacat ctactttgaa gacgatcccc tccctgtttt tgctgaacct tgtcattttg
+      541 attgtgcgtc taatgtatat gcttgaaatg aatttataga tgaaatgtat agatattttc
+      601 atataatgtg tggatatcat gaaatgtata gatattttca tataatgtgt ggatatcatt
+      661 tcataattat cctgaatcaa acaaaagtca tgagaagttc ccttattgag ctcagaaata
+      721 cggaaagaca taaagttcag ccaagaaact accatcttca aataaactca gccgataaga
+      781 aaaagtaaag aggaaataga ggaaaaatga aaccagaaag aaaggaaata tgtataaact
+      841 aataaaaaac aaaagggagc gcagcgataa aaaaaataat cggaaaggag aaataacaaa
+      901 atccgaaaaa aaagaaattc acaaagaaaa gaaaaagaaa aaatccgagg tcaaaacgaa
+      961 cccgttttga ggaggaagag gaaagagaac ggtcaattta cattttttac catttactgc
+     1021 gcggtaaatg gtaaatagta aatgagtggg taaattagag agacaccgat aggtaaatga
+     1081 gtaccgatat atcggtactc aattggtacc tctggagtct tatgaagtgc ttgtttacca
+     1141 tattgcccct acttttaagt tatagcgcga ttggtagtgc gcttaaaaag ttatcgtctc
+     1201 tctcttcagt tccgataaaa acctaatttc ccgatgatcg gagtcgaatt ttccgacacg
+     1261 cgcggcggtg ttacccctgg gagggtaact acgctacgca gcagccttag ctacgccgga
+     1321 gcttagctcg cccacgttct aatatt
+//
+

@@ -1,1 +1,1 @@
-1	D:\桌面\植物病毒分析平台\tool_runs\hostremoval_20260909_230239\01_host_removal\_fq2fa_1788966159723\input_1.fa.gz,D:\桌面\植物病毒分析平台\tool_runs\hostremoval_20260909_230239\01_host_removal\_fq2fa_1788966159723\input_2.fa.gz
+1	D:\桌面\植物病毒分析平台\run\tool_runs\hostremoval_20261103_122144_0d12e8\01_host_removal\_fq2fa_1793679704059\input_1.fa.gz,D:\桌面\植物病毒分析平台\run\tool_runs\hostremoval_20261103_122144_0d12e8\01_host_removal\_fq2fa_1793679704059\input_2.fa.gz

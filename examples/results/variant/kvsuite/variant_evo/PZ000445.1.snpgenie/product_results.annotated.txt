@@ -1,0 +1,2 @@
+file	product	N_diffs	S_diffs	N_diffs_vs_ref	S_diffs_vs_ref	N_sites	S_sites	piN	piS	mean_dN_vs_ref	mean_dS_vs_ref	mean_gdiv_polymorphic	mean_N_gdiv	mean_S_gdiv	N_VARIANTS_IN_ORF	ORF_COVERED
+PZ000445.vcf	RNA-dependent RNA polymerase	0	0.146670059665284	8.04575163398693	130.88016427251	4511.32721712537	1446.67278287461	0	0.000101384405237681	0.00178345556568023	0.090469777147839	0.00104124569952709	*	0.0361832880585665	139	True

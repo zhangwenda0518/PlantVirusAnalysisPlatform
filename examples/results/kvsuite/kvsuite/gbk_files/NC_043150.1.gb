@@ -1,0 +1,75 @@
+LOCUS       NC_043150               1140 bp    RNA     linear   VRL 28-JUN-2019
+DEFINITION  Kalanchoe mosaic virus isolate F39 polyprotein gene, partial cds.
+ACCESSION   NC_043150
+VERSION     NC_043150.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Kalanchoe mosaic virus (KMV)
+  ORGANISM  Kalanchoe mosaic virus
+            Viruses; Riboviria; Orthornavirae; Pisuviricota; Stelpaviricetes;
+            Patatavirales; Potyviridae; Potyvirus; Potyvirus kalanchoes.
+REFERENCE   1  (bases 1 to 1140)
+  AUTHORS   Pham,K.T.K., Meekes,E. and de Kock,M.J.D.
+  TITLE     Partial sequencing of Kalanchoe mosaic virus
+  JOURNAL   Unpublished
+REFERENCE   2  (bases 1 to 1140)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (28-JUN-2019) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 1140)
+  AUTHORS   Pham,K.T.K., Meekes,E. and de Kock,M.J.D.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (19-AUG-2009) Applied Plant Research, Section Flower
+            Bulbs and Nursery Stocks, Wageningen UR, Postbus 85, 2160 AB,
+            Lisse, The Netherlands
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence is identical to GQ497731.
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..1140
+                     /organism="Kalanchoe mosaic virus"
+                     /mol_type="genomic RNA"
+                     /isolate="F39"
+                     /host="Kalanchoe sp."
+                     /db_xref="taxon:674908"
+                     /geo_loc_name="Netherlands"
+                     /collection_date="Apr-2008"
+                     /acronym="KMV"
+     gene            1..916
+                     /locus_tag="FK894_gp1"
+                     /db_xref="GeneID:40525291"
+     CDS             <1..916
+                     /locus_tag="FK894_gp1"
+                     /codon_start=2
+                     /product="polyprotein"
+                     /protein_id="YP_009665134.1"
+                     /db_xref="GeneID:40525291"
+                     /translation="WEFVFEEFDDEDDTQYNVYHQSGTAELDAGRDGNQKKQDSKNKE
+                     SMVVSRSADVDKPESSRGGQLNTDRDVNAGTTGTFSVPRLKGLASKMNLPKYKGISAL
+                     NLDHLLGYNPNQVDISNTRATHAQFNTWYEGVKEDYELLDDKMQIILNGLMVWCIENG
+                     TSPNINGMWVMMDGDEQVEFPIKPLIDHAKPTFRQIMAHFSNVAEAYIEKRNQDRPYM
+                     PRYGLQRNLTDMSLARYAFDFYEMTSKTPVRAREAHIQMKAAALRSAKNNLFGLDGNV
+                     GTTEENTERHTTEDVNQKMHSLLGVRGM"
+ORIGIN      
+        1 ctgggaattc gttttcgagg agtttgacga cgaagatgac actcagtata atgtctatca
+       61 ccaatctgga acggcagaac tcgatgctgg acgcgatggt aatcagaaga aacaagactc
+      121 gaagaataaa gagagcatgg tagtatcgcg ctccgcggat gtggataaac ctgagtcatc
+      181 acgaggaggg caattgaaca ccgatagaga cgtcaacgca ggcacaactg gtacgttctc
+      241 agtgccaaga ctcaagggac tcgccagcaa aatgaatcta ccaaaatata aaggtatctc
+      301 agctttaaac ctggatcatt tgctaggtta taaccctaac caagtggaca tctcaaatac
+      361 acgtgcaacg catgcacaat ttaacacttg gtatgagggt gttaaggagg attatgaatt
+      421 gttggatgac aaaatgcaaa ttattctcaa tggattaatg gtctggtgca ttgagaatgg
+      481 aacctctcca aacataaatg gaatgtgggt gatgatggat ggagacgagc aagtcgagtt
+      541 tcctatcaaa ccattaattg atcacgccaa acccacattt aggcagataa tggcccattt
+      601 cagtaacgta gctgaagcgt atattgaaaa gcgtaaccaa gaccgtccat atatgccacg
+      661 atatggactt cagcgcaact tgaccgatat gagcttagcc cgctatgctt tcgacttcta
+      721 tgaaatgact tcaaaaactc ctgtacgagc acgagaagca cacattcaga tgaaagcagc
+      781 ggcattgcga agcgccaaaa ataatttatt tggattagat ggcaacgtcg gcacaacgga
+      841 agagaacacg gaaaggcaca ccactgaaga tgttaatcag aagatgcata gtctccttgg
+      901 cgtaaggggg atgtaatctt gtgtgccagt ataccaacaa taatgttacc gttactcgtt
+      961 agtattcact tccttagagc tattttatta tgatcatagg tagccagatg ggttataccc
+     1021 agcgtgctcc ctcatctaat atatttagtg tccgaaccag ttattgggca tacttggtgg
+     1081 tggtgagtct ttggctcgta taccttatgc tttgataatt gtcaagggaa aaaaaaaaaa
+//
+

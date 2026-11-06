@@ -36,82 +36,404 @@
   },
   "title": "序列比对（MAFFT + trimAl）"
  },
+ "annochain": {
+  "files": [
+   {
+    "path": "_chain.json",
+    "size": null
+   },
+   {
+    "path": "contigs/03_assembly/blastn_local.m8",
+    "size": null
+   },
+   {
+    "path": "contigs/03_assembly/contig_blast.tsv",
+    "size": null
+   },
+   {
+    "path": "contigs/03_assembly/viral_contigs.fasta",
+    "size": null
+   },
+   {
+    "path": "contigs/03_assembly/virus_contigs.tsv",
+    "size": null
+   },
+   {
+    "path": "contigs/08_host_analysis/.host_analysis.done",
+    "size": null
+   },
+   {
+    "path": "contigs/08_host_analysis/Plant.classified.fasta",
+    "size": null
+   },
+   {
+    "path": "contigs/08_host_analysis/host_prediction.tsv",
+    "size": null
+   },
+   {
+    "path": "contigs/08_host_analysis/host_summary.tsv",
+    "size": null
+   },
+   {
+    "path": "contigs/08_host_analysis/sankey_host.html",
+    "size": null
+   },
+   {
+    "path": "contigs/08_host_analysis/summary.json",
+    "size": null
+   },
+   {
+    "path": "contigs/08_host_analysis/sunburst_host.html",
+    "size": null
+   },
+   {
+    "path": "contigs/classify/output_1.kreport2",
+    "size": null
+   },
+   {
+    "path": "contigs/classify/sample_file.txt",
+    "size": null
+   },
+   {
+    "path": "contigs/contigs.filtered.fasta",
+    "size": null
+   },
+   {
+    "path": "contigs/viral_contigs.fasta",
+    "size": null
+   },
+   {
+    "path": "contigs/virus_classification.tsv",
+    "size": null
+   },
+   {
+    "path": "genoplot/09_genome_plots/.gbdraw.done",
+    "size": null
+   },
+   {
+    "path": "genoplot/09_genome_plots/example_contig_1.circular.svg",
+    "size": null
+   },
+   {
+    "path": "genoplot/09_genome_plots/example_contig_1.linear.svg",
+    "size": null
+   },
+   {
+    "path": "genoplot/09_genome_plots/example_contig_2.circular.svg",
+    "size": null
+   },
+   {
+    "path": "genoplot/09_genome_plots/example_contig_2.linear.svg",
+    "size": null
+   },
+   {
+    "path": "genoplot/09_genome_plots/summary.json",
+    "size": null
+   },
+   {
+    "path": "orf/03_assembly/contigs.filtered.fasta",
+    "size": null
+   },
+   {
+    "path": "orf/03_assembly/summary.json",
+    "size": null
+   },
+   {
+    "path": "orf/03_assembly/viral_contigs.fasta",
+    "size": null
+   },
+   {
+    "path": "orf/04_orf/.orf.done",
+    "size": null
+   },
+   {
+    "path": "orf/04_orf/pyrodigal.faa",
+    "size": null
+   },
+   {
+    "path": "orf/04_orf/pyrodigal.ffn",
+    "size": null
+   },
+   {
+    "path": "orf/04_orf/pyrodigal.gff",
+    "size": null
+   },
+   {
+    "path": "orf/04_orf/pyrodigal_rv.faa",
+    "size": null
+   },
+   {
+    "path": "orf/04_orf/pyrodigal_rv.ffn",
+    "size": null
+   },
+   {
+    "path": "orf/04_orf/pyrodigal_rv.gff",
+    "size": null
+   },
+   {
+    "path": "orf/04_orf/summary.json",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/.orfa.done",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/bfvd_hits.raw.tsv",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/cdd_hits.raw.tsv",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/contig_function_profile.tsv",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/genome_diagrams/example_contig_1.svg",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/genome_diagrams/example_contig_2.svg",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/orf_annotation.gff3",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/orf_annotation.tsv",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/orf_family_summary.tsv",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/orf_function_summary.tsv",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/pvdb_hits.raw.tsv",
+    "size": null
+   },
+   {
+    "path": "orf/04b_orf_annot/summary.json",
+    "size": null
+   },
+   {
+    "path": "results.html",
+    "size": null
+   }
+  ],
+  "generated_at": "2026-11-05 02:18:05",
+  "kind": "tool",
+  "module": "annochain",
+  "note": "注释一键链：2 条病毒 contig → ORF 注释 → 基因组图谱 → NCBI 提交准备（kunpeng 分类，库缺时 organism/family 留空）",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\annochain_20261105_021735_530e1f",
+  "run": "annochain_20261105_021735_530e1f",
+  "source": "examples/",
+  "stats": {
+   "annotation_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\orf_20261105_021741_95f0\\04b_orf_annot\\orf_annotation.tsv",
+   "chain": "annochain_20261105_021735_530e1f",
+   "chain_json": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\annochain_20261105_021735_530e1f\\_chain.json",
+   "n_steps": 5,
+   "orf_run": "orf_20261105_021741_95f0",
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\annochain_20261105_021735_530e1f",
+   "plots_n": 4,
+   "run": "annochain_20261105_021735_530e1f",
+   "steps_n": 5,
+   "submission.dir": "D:\\桌面\\植物病毒分析平台\\run\\submissions\\annochain_20261105_021735_530e1f",
+   "submission.featuretable": true,
+   "submission.missing_n": 0,
+   "submission.package": "D:\\桌面\\植物病毒分析平台\\run\\submissions\\annochain_20261105_021735_530e1f\\submission_package.zip",
+   "submission.package_files": 5,
+   "submission.project": "annochain_20261105_021735_530e1f",
+   "submit_hint": "提交项目 annochain_20261105_021735_530e1f 已建档（submissions/annochain_20261105_021735_530e1f/）：去「数据提交」页填写 organism/作者等元数据后即可生成 .sqn 提交 NCBI"
+  },
+  "title": "注释一键链（功能注释 → 图谱 → NCBI 提交准备）"
+ },
  "assemble": {
   "files": [
    {
+    "path": "assembly/megahit/final.contigs.fa",
+    "size": null
+   },
+   {
+    "path": "assembly/megahit/log",
+    "size": null
+   },
+   {
     "path": "contigs.filtered.fasta",
-    "size": "17.7KB"
+    "size": null
    }
   ],
-  "generated_at": "2026-10-06 16:23:54",
+  "generated_at": "2026-11-03 12:22:50",
   "kind": "tool",
   "module": "assemble",
-  "note": "（11 个声明文件已缺失，从清单剔除）",
-  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\assemble_20261006_162350_5d011a",
-  "run": "assemble_20261006_162350_5d011a",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\assemble_20261103_122234_ada82a",
+  "run": "assemble_20261103_122234_ada82a",
   "source": "examples/",
   "stats": {
-   "contigs": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\assemble_20261006_162350_5d011a\\contigs.filtered.fasta",
-   "n_contigs": 3,
-   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\assemble_20261006_162350_5d011a",
-   "run": "assemble_20261006_162350_5d011a",
-   "total_bp": 17738
+   "assembler": "megahit",
+   "contigs": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\assemble_20261103_122234_ada82a\\contigs.filtered.fasta",
+   "n_contigs": 105,
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\assemble_20261103_122234_ada82a",
+   "run": "assemble_20261103_122234_ada82a",
+   "total_bp": 507984
   },
-  "title": "提取序列组装（SPAdes）"
+  "title": "病毒组装（SPAdes）"
+ },
+ "conan": {
+  "files": [
+   {
+    "path": "conan/candidates.tsv",
+    "size": null
+   },
+   {
+    "path": "conan/locus_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "conan/locus_overview.png",
+    "size": null
+   },
+   {
+    "path": "conan/locus_overview.svg",
+    "size": null
+   },
+   {
+    "path": "conan/report.md",
+    "size": null
+   },
+   {
+    "path": "conan/summary.json",
+    "size": null
+   },
+   {
+    "path": "conan/target_checks.tsv",
+    "size": null
+   },
+   {
+    "path": "conan/top_candidates.pdf",
+    "size": null
+   },
+   {
+    "path": "conan/top_candidates.png",
+    "size": null
+   },
+   {
+    "path": "conan/top_candidates.svg",
+    "size": null
+   },
+   {
+    "path": "results.html",
+    "size": null
+   }
+  ],
+  "generated_at": "2026-11-05 02:12:18",
+  "kind": "tool",
+  "module": "conan",
+  "note": "CONAN-SWIFT：ORSV 五条模拟分离物，MAFFT 比对 + 同源位点评分（ViennaRNA 缺席时 MFE 列自动留空）",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\conan_20261105_021159_552d58",
+  "run": "conan_20261105_021159_552d58",
+  "source": "examples/",
+  "stats": {
+   "elapsed_sec": 17.3,
+   "engine": "VirusPlatform conan_design 1.0.0",
+   "files.candidates": "conan/candidates.tsv",
+   "files.locus_plot": "conan/locus_overview.png",
+   "files.report": "conan/report.md",
+   "files.summary": "conan/summary.json",
+   "files.target_checks": "conan/target_checks.tsv",
+   "files.top_plot": "conan/top_candidates.png",
+   "matrices_n": 1,
+   "n_candidates": 20,
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\conan_20261105_021159_552d58",
+   "params.exclude_homopolymer": true,
+   "params.exclude_terminal": true,
+   "params.gc_max": 65.0,
+   "params.gc_min": 35.0,
+   "params.group_by_segment": true,
+   "params.homopolymer": 3,
+   "params.ignored_text": "6",
+   "params.max_nonseed_mm": 4,
+   "params.negative": null,
+   "params.pam": "AAG",
+   "params.seed_len": 8,
+   "params.select_gc": true,
+   "params.spacer_len": 32,
+   "params.terminal_margin": 150,
+   "params.threads": 8,
+   "params.top_n": 20,
+   "params_snapshot.gc_n": 2,
+   "params_snapshot.homopolymer": 3,
+   "params_snapshot.ignored_n": 1,
+   "params_snapshot.max_nonseed_mm": 4,
+   "params_snapshot.pam": "AAG",
+   "params_snapshot.seed_len": 8,
+   "params_snapshot.spacer_len": 32,
+   "params_snapshot.terminal_margin": 150,
+   "run": "conan_20261105_021159_552d58",
+   "segments_n": 1,
+   "top_n": 20,
+   "ts": "2026-11-05 02:12:17"
+  },
+  "title": "CONAN-SWIFT crRNA 设计（Cas3 / I 型 I-E）"
  },
  "consensus": {
   "files": [
    {
-    "path": "consensus/summary.json",
-    "size": "1.3KB"
-   },
-   {
-    "path": "consensus/variants.tsv",
-    "size": "1.9KB"
+    "path": "consensus/consensus.fa",
+    "size": null
    },
    {
     "path": "consensus/coverage.tsv",
-    "size": "286.0B"
-   },
-   {
-    "path": "consensus/example_contig_2.inscounts.json",
-    "size": "2.0B"
-   },
-   {
-    "path": "consensus/example_contig_2.poscounts.tsv",
-    "size": "128.6KB"
+    "size": null
    },
    {
     "path": "consensus/example_contig_1.inscounts.json",
-    "size": "2.0B"
+    "size": null
    },
    {
     "path": "consensus/example_contig_1.poscounts.tsv",
-    "size": "123.5KB"
+    "size": null
    },
    {
-    "path": "consensus/consensus.fa",
-    "size": "13.0KB"
+    "path": "consensus/example_contig_2.inscounts.json",
+    "size": null
+   },
+   {
+    "path": "consensus/example_contig_2.poscounts.tsv",
+    "size": null
+   },
+   {
+    "path": "consensus/summary.json",
+    "size": null
+   },
+   {
+    "path": "consensus/variants.tsv",
+    "size": null
    }
   ],
-  "generated_at": "2026-10-06 16:24:51",
+  "generated_at": "2026-11-03 12:22:52",
   "kind": "tool",
   "module": "consensus",
-  "note": "（1 个声明文件已缺失，从清单剔除）",
-  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\consensus_20261006_162449_10fd85",
-  "run": "consensus_20261006_162449_10fd85",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\consensus_20261103_122250_e927cb",
+  "run": "consensus_20261103_122250_e927cb",
   "source": "examples/",
   "stats": {
-   "low_support_n": 1,
+   "low_support_n": 2,
    "max_read_len_sampled": 150,
    "min_cov_pct": 10.0,
    "min_qual_effective": true,
    "n_isnv": 0,
-   "n_mapped_reads": 1200,
+   "n_mapped_reads": 48,
    "n_refs": 2,
-   "n_snv": 0,
-   "n_variants": 27,
-   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\consensus_20261006_162449_10fd85",
+   "n_snv": 5,
+   "n_variants": 7,
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\consensus_20261103_122250_e927cb",
    "params.ambig": "N",
    "params.min_depth": 4,
    "params.min_freq": 0.5,
@@ -120,9 +442,9 @@
    "params.min_minor_freq": 0.02,
    "params.min_qual": 20,
    "params.preset": "sr",
-   "present_n": 1,
+   "present_n": 0,
    "refs_n": 2,
-   "run": "consensus_20261006_162449_10fd85",
+   "run": "consensus_20261103_122250_e927cb",
    "total_len": 13084,
    "unknown_n": 0,
    "unsupported_short_reads": false
@@ -168,84 +490,365 @@
    "run": "contigs_20261006_162354_9b6c4e",
    "viral_fasta": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\contigs_20261006_162354_9b6c4e\\viral_contigs.fasta"
   },
-  "title": "contig 分类（组装结果再鉴定）"
+  "title": "contig 分类（病毒鉴定）"
  },
  "convert": {
   "files": [
    {
-    "path": "example_R1.fa.gz",
-    "size": "46.4KB"
+    "path": "example_sim100x_R1.fa.gz",
+    "size": null
    }
   ],
-  "generated_at": "2026-10-06 16:22:30",
+  "generated_at": "2026-11-03 12:22:34",
   "kind": "tool",
   "module": "convert",
-  "note": "（1 个声明文件已缺失，从清单剔除）",
-  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\convert_20261006_162228_083253",
-  "run": "convert_20261006_162228_083253",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\convert_20261103_122232_711628",
+  "run": "convert_20261103_122232_711628",
   "source": "examples/",
   "stats": {
    "files_n": 1,
    "n_files": 1,
-   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\convert_20261006_162228_083253",
-   "run": "convert_20261006_162228_083253"
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\convert_20261103_122232_711628",
+   "run": "convert_20261103_122232_711628"
   },
   "title": "格式转换（FASTQ→FASTA）"
+ },
+ "cricon": {
+  "files": [
+   {
+    "path": "conan/candidates.tsv",
+    "size": null
+   },
+   {
+    "path": "conan/locus_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "conan/locus_overview.png",
+    "size": null
+   },
+   {
+    "path": "conan/locus_overview.svg",
+    "size": null
+   },
+   {
+    "path": "conan/report.md",
+    "size": null
+   },
+   {
+    "path": "conan/summary.json",
+    "size": null
+   },
+   {
+    "path": "conan/target_checks.tsv",
+    "size": null
+   },
+   {
+    "path": "conan/top_candidates.pdf",
+    "size": null
+   },
+   {
+    "path": "conan/top_candidates.png",
+    "size": null
+   },
+   {
+    "path": "conan/top_candidates.svg",
+    "size": null
+   },
+   {
+    "path": "cricon/coverage_matrix.tsv",
+    "size": null
+   },
+   {
+    "path": "cricon/order_all.xlsx",
+    "size": null
+   },
+   {
+    "path": "cricon/report.md",
+    "size": null
+   },
+   {
+    "path": "cricon/summary.json",
+    "size": null
+   },
+   {
+    "path": "cricon/validation_checklist.md",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_design.json",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_design_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_design_overview.png",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_design_overview.svg",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_top_sets.pdf",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_top_sets.png",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_top_sets.svg",
+    "size": null
+   },
+   {
+    "path": "crispr/crrna_candidates.tsv",
+    "size": null
+   },
+   {
+    "path": "crispr/order_sheet.xlsx",
+    "size": null
+   },
+   {
+    "path": "crispr/panel.tsv",
+    "size": null
+   },
+   {
+    "path": "crispr/ranked_sets.tsv",
+    "size": null
+   },
+   {
+    "path": "crispr/report.html",
+    "size": null
+   },
+   {
+    "path": "crispr/report.json",
+    "size": null
+   },
+   {
+    "path": "crispr/summary.json",
+    "size": null
+   },
+   {
+    "path": "crispr/validation_checklist.md",
+    "size": null
+   },
+   {
+    "path": "results.html",
+    "size": null
+   }
+  ],
+  "generated_at": "2026-11-05 02:13:06",
+  "kind": "tool",
+  "module": "cricon",
+  "note": "双路线联合：crispr + conan 同时出报告，ACMV 单序列目标（cricon_near 双喂留空——可用近缘参考集尚未内置）",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\cricon_20261105_021218_ec5a26",
+  "run": "cricon_20261105_021218_ec5a26",
+  "source": "examples/",
+  "stats": {
+   "conan.n_candidates": 20,
+   "conan.negative_applied": false,
+   "conv_skipped_n": 1,
+   "convergence_n": 0,
+   "crispr.amp_mode": "RPA",
+   "crispr.best_score": 79.3,
+   "crispr.n_sets_output": 20,
+   "crispr.n_sets_total": 89,
+   "crispr.nuclease": "LbCas12a",
+   "crispr.profile": "strict",
+   "elapsed_sec": 44.8,
+   "engine_version": "1.0.0",
+   "evidence_note": "证据边界（ACS Sensors 2026 综述口径，双路线同一口径）：本结果为序列级候选优先级排序，不构成 crRNA 活性、错配区分度、扩增兼容性或基质性能的证据；实验结论须按 cricon/validation_checklist.md 的 L1-L5 逐级建立。",
+   "failed_routes_n": 0,
+   "files.checklist": "cricon\\validation_checklist.md",
+   "files.conan_out": "conan",
+   "files.crispr_out": "crispr",
+   "files.matrix": "cricon\\coverage_matrix.tsv",
+   "files.order": "cricon\\order_all.xlsx",
+   "files.report": "cricon\\report.md",
+   "n_input_records": 1,
+   "n_segments": 1,
+   "ok": true,
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\cricon_20261105_021218_ec5a26",
+   "routes": "both",
+   "run": "cricon_20261105_021218_ec5a26",
+   "semantic_notes_n": 2,
+   "target": "example_acmv.fasta",
+   "tool": "cricon",
+   "warnings_n": 2
+  },
+  "title": "CRISPR 双路线联合检测设计（Cas12a + Cas3）"
+ },
+ "crispr": {
+  "files": [
+   {
+    "path": "crispr/crispr_design.json",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_design_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_design_overview.png",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_design_overview.svg",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_top_sets.pdf",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_top_sets.png",
+    "size": null
+   },
+   {
+    "path": "crispr/crispr_top_sets.svg",
+    "size": null
+   },
+   {
+    "path": "crispr/crrna_candidates.tsv",
+    "size": null
+   },
+   {
+    "path": "crispr/order_sheet.xlsx",
+    "size": null
+   },
+   {
+    "path": "crispr/panel.tsv",
+    "size": null
+   },
+   {
+    "path": "crispr/ranked_sets.tsv",
+    "size": null
+   },
+   {
+    "path": "crispr/report.html",
+    "size": null
+   },
+   {
+    "path": "crispr/report.json",
+    "size": null
+   },
+   {
+    "path": "crispr/summary.json",
+    "size": null
+   },
+   {
+    "path": "crispr/validation_checklist.md",
+    "size": null
+   },
+   {
+    "path": "results.html",
+    "size": null
+   }
+  ],
+  "generated_at": "2026-11-05 02:11:59",
+  "kind": "tool",
+  "module": "crispr",
+  "note": "CRISPR 检测设计：ACMV 单序列目标，RPA 引物 + crRNA 全链（宿主脱靶检查关闭——示例不依赖宿主库）",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\crispr_20261105_021141_c2944b",
+  "run": "crispr_20261105_021141_c2944b",
+  "source": "examples/",
+  "stats": {
+   "amp_mode": "RPA",
+   "best_score": 76.8,
+   "elapsed_sec": 13.8,
+   "engine_version": "1.0.0",
+   "evidence_note": "证据边界（ACS Sensors 2026 综述口径）：本结果为序列级候选优先级排序，不构成 crRNA 活性、错配区分度、扩增兼容性或基质性能的证据；实验结论须按 validation_checklist.md 的 L1–L5 逐级建立。",
+   "exclusions_n": 1,
+   "files.candidates": "crispr\\crrna_candidates.tsv",
+   "files.checklist": "crispr\\validation_checklist.md",
+   "files.html": "crispr\\report.html",
+   "files.order": "crispr\\order_sheet.xlsx",
+   "files.panel": "crispr\\panel.tsv",
+   "files.ranked": "crispr\\ranked_sets.tsv",
+   "files.report": "crispr\\report.json",
+   "files.snapshot": "crispr\\crispr_design.json",
+   "n_input_records": 1,
+   "n_segments": 1,
+   "n_sets_output": 20,
+   "n_sets_total": 130,
+   "nuclease": "LbCas12a",
+   "nuclease_key": "cas12a",
+   "ok": true,
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\crispr_20261105_021141_c2944b",
+   "pfs_note": "TTTV PAM（严格档）；容错档前 3 位容 1 错配，活性需实验验证",
+   "profile": "strict",
+   "run": "crispr_20261105_021141_c2944b",
+   "segments.main.consensus_len": 2779,
+   "segments.main.n_after_funnel": 59,
+   "segments.main.n_designed": 130,
+   "segments.main.n_isolates": 1,
+   "segments.main.n_pam_sites": 81,
+   "target": "example_acmv.fasta",
+   "tool": "crispr"
+  },
+  "title": "CRISPR 检测设计（Cas12a/RPA 协同）"
  },
  "dsrna": {
   "files": [
    {
-    "path": "dsrnamax/summary.json",
-    "size": "586.0B"
-   },
-   {
     "path": "dsrnamax/amplicons.fa",
-    "size": "714.0B"
-   },
-   {
-    "path": "dsrnamax/report.json",
-    "size": "7.6KB"
-   },
-   {
-    "path": "dsrnamax/primers.tsv",
-    "size": "1.1KB"
+    "size": null
    },
    {
     "path": "dsrnamax/arms.fa",
-    "size": "312.0B"
-   },
-   {
-    "path": "dsrnamax/result.csv",
-    "size": "540.0B"
-   },
-   {
-    "path": "dsrnamax/cand_w0_c2.csv",
-    "size": "540.0B"
-   },
-   {
-    "path": "dsrnamax/cand_w0_c1.csv",
-    "size": "540.0B"
+    "size": null
    },
    {
     "path": "dsrnamax/cand_w0_c0.csv",
-    "size": "540.0B"
+    "size": null
+   },
+   {
+    "path": "dsrnamax/cand_w0_c1.csv",
+    "size": null
+   },
+   {
+    "path": "dsrnamax/cand_w0_c2.csv",
+    "size": null
+   },
+   {
+    "path": "dsrnamax/primers.tsv",
+    "size": null
+   },
+   {
+    "path": "dsrnamax/report.json",
+    "size": null
+   },
+   {
+    "path": "dsrnamax/result.csv",
+    "size": null
+   },
+   {
+    "path": "dsrnamax/summary.json",
+    "size": null
    },
    {
     "path": "dsrnamax/targets_w0.fa",
-    "size": "8.6KB"
+    "size": null
+   },
+   {
+    "path": "results.html",
+    "size": null
    }
   ],
-  "generated_at": "2026-10-06 16:27:05",
+  "generated_at": "2026-11-06 00:27:44",
   "kind": "tool",
   "module": "dsrna",
-  "note": "dsRNA 设计全链（dsrnamax 选窗 + siRNA 效价 + T7 引物）：CMV 三条 RNA，seed=42 可复现（1 个声明文件已缺失，从清单剔除）",
-  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\dsrna_20261006_162703_fab169",
-  "run": "dsrna_20261006_162703_fab169",
+  "note": "dsRNA 设计全链（dsrnamax 选窗 + siRNA 效价 + T7 引物）：CMV 三条 RNA，seed=42 可复现",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\dsrna_20261106_002740_70475f",
+  "run": "dsrna_20261106_002740_70475f",
   "source": "examples/",
   "stats": {
    "arms_fa": "dsrnamax/arms.fa",
    "construct_len": 300,
-   "csv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\dsrna_20261006_162703_fab169\\dsrnamax\\result.csv",
+   "csv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\dsrna_20261106_002740_70475f\\dsrnamax\\result.csv",
    "elapsed_s": 1.4,
    "exe_version": "1.1.15",
    "iterations": 100,
@@ -254,12 +857,12 @@
    "n_primer_pairs": 3,
    "n_targets": 3,
    "off_targets": "(无)",
-   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\dsrna_20261006_162703_fab169",
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\dsrna_20261106_002740_70475f",
    "panel_species": 0,
    "primers_tsv": "dsrnamax/primers.tsv",
    "red_lines_n": 0,
    "report": "dsrnamax/report.json",
-   "run": "dsrna_20261006_162703_fab169",
+   "run": "dsrna_20261106_002740_70475f",
    "seed": 42,
    "tool": "dsrna"
   },
@@ -269,39 +872,38 @@
   "files": [
    {
     "path": "00_prep/.fastp.done",
-    "size": "19.0B"
+    "size": null
    },
    {
     "path": "00_prep/fastp.json",
-    "size": "302.0B"
+    "size": null
    },
    {
     "path": "00_prep/fastp_report.html",
-    "size": "457.6KB"
+    "size": null
    },
    {
     "path": "00_prep/fastp_report.json",
-    "size": "114.6KB"
+    "size": null
    }
   ],
-  "generated_at": "2026-10-06 16:22:28",
+  "generated_at": "2026-11-03 12:22:32",
   "kind": "tool",
   "module": "fastp",
-  "note": "（3 个声明文件已缺失，从清单剔除）",
-  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\fastp_20261006_162226_b8b93c",
-  "run": "fastp_20261006_162226_b8b93c",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\fastp_20261103_122158_b932dd",
+  "run": "fastp_20261103_122158_b932dd",
   "source": "examples/",
   "stats": {
    "fastp_r1": "fastp_R1.fastq.gz",
    "fastp_r2": "fastp_R2.fastq.gz",
    "inputs_n": 2,
    "lowq_removed": 0,
-   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\fastp_20261006_162226_b8b93c",
-   "q30_rate": 55.57,
-   "reads_after": 7200,
-   "reads_before": 7200,
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\fastp_20261103_122158_b932dd",
+   "q30_rate": 86.78,
+   "reads_after": 332872,
+   "reads_before": 332872,
    "report_html": "fastp_report.html",
-   "run": "fastp_20261006_162226_b8b93c"
+   "run": "fastp_20261103_122158_b932dd"
   },
   "title": "序列质控（fastp）"
  },
@@ -362,85 +964,85 @@
   "files": [
    {
     "path": "01_host_removal/.host_removal.done",
-    "size": "19.0B"
-   },
-   {
-    "path": "01_host_removal/stats.json",
-    "size": "374.0B"
+    "size": null
    },
    {
     "path": "01_host_removal/output_1.kreport2",
-    "size": "1.2KB"
-   },
-   {
-    "path": "01_host_removal/output_1.txt",
-    "size": "2.7KB"
+    "size": null
    },
    {
     "path": "01_host_removal/sample_file.txt",
-    "size": "250.0B"
+    "size": null
+   },
+   {
+    "path": "01_host_removal/stats.json",
+    "size": null
    }
   ],
-  "generated_at": "2026-09-09 23:02:45",
+  "generated_at": "2026-11-03 12:21:58",
   "kind": "tool",
   "module": "hostremoval",
-  "note": "（3 个声明文件已缺失，从清单剔除）",
-  "run": "hostremoval_20260909_230239",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\hostremoval_20261103_122144_0d12e8",
+  "run": "hostremoval_20261103_122144_0d12e8",
   "source": "examples/",
   "stats": {
-   "dropped_pairs": 44,
-   "host_ratio": 0.012222,
-   "input_r1": "example_R1.fastq.gz",
-   "input_r2": "example_R2.fastq.gz",
-   "kept_mate2": 3556,
-   "kept_pairs": 3556,
+   "classify_inputs_n": 2,
+   "classify_params.confidence": 0.0,
+   "classify_params.min_hit_groups": 2,
+   "classify_params.threads": 8,
+   "dropped_pairs": 1165,
+   "filter_mode": "seqkit",
+   "host_db.conflicted": false,
+   "host_db.has_manifest": true,
+   "host_db.name": "112863_genomes_host_db",
+   "host_db.path": "D:\\桌面\\植物病毒分析平台\\host-db\\112863_genomes_host_db",
+   "host_db.species": "Lycium barbarum",
+   "host_db.taxid": 112863,
+   "host_db.taxids_in_map_n": 1,
+   "host_ratio": 0.007,
+   "input_r1": "example_sim100x_R1.fastq.gz",
+   "input_r2": "example_sim100x_R2.fastq.gz",
+   "kept_mate2": 165271,
+   "kept_pairs": 165271,
    "kept_r1": "kept_R1.fastq.gz",
    "kept_r2": "kept_R2.fastq.gz",
    "kraken_out": "output_1.txt",
    "kreport": "output_1.kreport2",
-   "run": "hostremoval_20260909_230239",
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\hostremoval_20261103_122144_0d12e8",
+   "run": "hostremoval_20261103_122144_0d12e8",
    "single_end": false,
    "stage": "host_removal",
-   "total_pairs": 3600
+   "total_pairs": 166436
   },
   "title": "宿主去除与序列提取"
  },
  "identify": {
   "files": [
    {
-    "path": "viral_ids.tsv",
-    "size": "112.0KB"
-   },
-   {
-    "path": "viral_sequences_2.fasta",
-    "size": "608.5KB"
-   },
-   {
-    "path": "viral_sequences_1.fasta",
-    "size": "608.5KB"
-   },
-   {
     "path": "classify/output_1.kreport2",
-    "size": "1.1KB"
+    "size": null
    },
    {
     "path": "classify/sample_file.txt",
-    "size": "252.0B"
+    "size": null
+   },
+   {
+    "path": "viral_ids.tsv",
+    "size": null
    }
   ],
-  "generated_at": "2026-10-06 16:22:26",
+  "generated_at": "2026-11-03 12:21:44",
   "kind": "tool",
   "module": "identify",
-  "note": "（2 个声明文件已缺失，从清单剔除）",
-  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\identify_20261006_162218_9e7e68",
-  "run": "identify_20261006_162218_9e7e68",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\identify_20261103_122134_2d0f86",
+  "run": "identify_20261103_122134_2d0f86",
   "source": "examples/",
   "stats": {
-   "kreport": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\identify_20261006_162218_9e7e68\\classify\\output_1.kreport2",
-   "n_classified": 3600,
-   "n_extracted": 7200,
-   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\identify_20261006_162218_9e7e68",
-   "run": "identify_20261006_162218_9e7e68"
+   "kreport": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\identify_20261103_122134_2d0f86\\classify\\output_1.kreport2",
+   "n_classified": 141141,
+   "n_extracted": 282282,
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\identify_20261103_122134_2d0f86",
+   "run": "identify_20261103_122134_2d0f86"
   },
   "title": "病毒识别分类与提取"
  },
@@ -514,23 +1116,24 @@
   "files": [
    {
     "path": "_chain.json",
-    "size": "796.0B"
+    "size": null
    }
   ],
-  "generated_at": "2026-10-06 16:26:35",
+  "generated_at": "2026-11-03 12:45:14",
   "kind": "tool",
   "module": "kvchain",
-  "note": "（1 个声明文件已缺失，从清单剔除）",
-  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvchain_20261006_162559_c17ad4",
-  "run": "kvchain_20261006_162559_c17ad4",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvchain_20261103_123633_b9e023",
+  "run": "kvchain_20261103_123633_b9e023",
   "source": "examples/",
   "stats": {
-   "chain": "kvchain_20261006_162559_c17ad4",
-   "chain_json": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvchain_20261006_162559_c17ad4\\_chain.json",
-   "kvsuite_run": "kvsuite_20261006_162559_6a6f",
+   "chain": "kvchain_20261103_123633_b9e023",
+   "chain_json": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvchain_20261103_123633_b9e023\\_chain.json",
+   "kvsuite_run": "kvsuite_20261103_123633_2744",
+   "mode": "single",
+   "n_samples": 1,
    "n_steps": 1,
-   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvchain_20261006_162559_c17ad4",
-   "run": "kvchain_20261006_162559_c17ad4",
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvchain_20261103_123633_b9e023",
+   "run": "kvchain_20261103_123633_b9e023",
    "steps_n": 1
   },
   "title": "病毒定量与共识·一键（全流程）"
@@ -538,68 +1141,1458 @@
  "kvsuite": {
   "files": [
    {
-    "path": "kvsuite/logs/known_virus_suite_20261006_164442.log",
-    "size": "5.9KB"
+    "path": "kvsuite/align/EXAMPLE_pandepth.pandepth.chr.stat.gz",
+    "size": null
    },
    {
-    "path": "kvsuite/logs/bcftools.log",
-    "size": "2.2KB"
+    "path": "kvsuite/align/EXAMPLE_pandepth_pandepth.log",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.vcf.filtered",
-    "size": "4.5KB"
+    "path": "kvsuite/align/EXAMPLE_pandepth_samtools.log",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.soft.vcf",
-    "size": "4.2KB"
+    "path": "kvsuite/annotated/AF329886.ann.tsv",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.vcf",
-    "size": "3.6KB"
+    "path": "kvsuite/annotated/AF329886.ann.vcf",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.raw.vcf",
-    "size": "3.6KB"
+    "path": "kvsuite/annotated/AJ316029.ann.tsv",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.call.bcf",
-    "size": "1.2KB"
+    "path": "kvsuite/annotated/AJ316029.ann.vcf",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.pileup.bcf",
-    "size": "364.3KB"
+    "path": "kvsuite/annotated/GU111966.ann.tsv",
+    "size": null
    },
    {
-    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Cassava_Colombian_symptomless_virus_NC_076132.1_depth.png",
-    "size": "215.0KB"
+    "path": "kvsuite/annotated/GU111966.ann.vcf",
+    "size": null
    },
    {
-    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Cassava_Colombian_symptomless_virus_NC_076132.1_depth.pdf",
-    "size": "131.5KB"
+    "path": "kvsuite/annotated/GU111968.ann.tsv",
+    "size": null
    },
    {
-    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Pepper_yellows_virus_NC_077216.1_depth.png",
-    "size": "222.3KB"
+    "path": "kvsuite/annotated/GU111968.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/GU111969.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/GU111969.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/GU111979.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/GU111979.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HF585098.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HF585098.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HM590504.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HM590504.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HM590506.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HM590506.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/KF515615.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/KF515615.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/LC333552.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/LC333552.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_001445.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_001445.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_003405.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_003405.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_014846.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_014846.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_043085.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_043085.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_076119.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_076119.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/PZ000445.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/PZ000445.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/batches/batch_0001.json",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Ageratum_virus_2_NC_139271.1/EXAMPLE_NC_139271.1/EXAMPLE_NC_139271.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Alfalfa_dwarf_virus_NC_028237.2/EXAMPLE_NC_028237.2/EXAMPLE_NC_028237.2.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Alphacytorhabdovirus_alphapogostemi_NC_117321.1/EXAMPLE_NC_117321.1/EXAMPLE_NC_117321.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Apple_hammerhead_viroid-like_MG662372.1/EXAMPLE_MG662372.1/EXAMPLE_MG662372.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Apple_hammerhead_viroid-like_circular_NC_028132.1/EXAMPLE_NC_028132.1/EXAMPLE_NC_028132.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Arceuthobium_sichuanense_virus_1_NC_079073.1/EXAMPLE_NC_079073.1/EXAMPLE_NC_079073.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Arceuthobium_sichuanense_virus_1_NC_079074.1/EXAMPLE_NC_079074.1/EXAMPLE_NC_079074.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Arceuthobium_sichuanense_virus_1_NC_079075.1/EXAMPLE_NC_079075.1/EXAMPLE_NC_079075.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Arceuthobium_sichuanense_virus_1_NC_079076.1/EXAMPLE_NC_079076.1/EXAMPLE_NC_079076.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Arceuthobium_sichuanense_virus_1_NC_079077.1/EXAMPLE_NC_079077.1/EXAMPLE_NC_079077.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Artemisia_fimovirus_1_OL471978.1/EXAMPLE_OL471978.1/EXAMPLE_OL471978.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Artemisia_fimovirus_1_OL471979.1/EXAMPLE_OL471979.1/EXAMPLE_OL471979.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Artemisia_fimovirus_1_OL471980.1/EXAMPLE_OL471980.1/EXAMPLE_OL471980.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Artemisia_fimovirus_1_OL471981.1/EXAMPLE_OL471981.1/EXAMPLE_OL471981.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Artemisia_fimovirus_1_OL471982.1/EXAMPLE_OL471982.1/EXAMPLE_OL471982.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Artemisia_fimovirus_1_OP441764.1/EXAMPLE_OP441764.1/EXAMPLE_OP441764.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Bhendi_yellow_vein_India_betasatellite_India_Aurangabad_OY164_2006_NC_014846.1/EXAMPLE_NC_014846.1/EXAMPLE_NC_014846.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Bhendi_yellow_vein_betasatellite_India_Dhanbad_2008_HM590504.1/EXAMPLE_HM590504.1/EXAMPLE_HM590504.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Bhendi_yellow_vein_betasatellite_India_Varanasi_2008_HM590506.1/EXAMPLE_HM590506.1/EXAMPLE_HM590506.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Bhendi_yellow_vein_betasatellite_NC_003405.1/EXAMPLE_NC_003405.1/EXAMPLE_NC_003405.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Bhendi_yellow_vein_mosaic_betasatellite_India_Guntur_OY112_2006_GU111969.1/EXAMPLE_GU111969.1/EXAMPLE_GU111969.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Bhendi_yellow_vein_mosaic_betasatellite_India_Karnal_OY80A_2006_GU111979.1/EXAMPLE_GU111979.1/EXAMPLE_GU111979.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Bhendi_yellow_vein_mosaic_betasatellite_India_Raichur_OY54_2005_GU111966.1/EXAMPLE_GU111966.1/EXAMPLE_GU111966.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Bhendi_yellow_vein_mosaic_betasatellite_India_Raichur_OY56B_2005_GU111968.1/EXAMPLE_GU111968.1/EXAMPLE_GU111968.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Bhendi_yellow_vein_mosaic_betasatellite_India_Thadagan_OY158_2006_GU111971.1/EXAMPLE_GU111971.1/EXAMPLE_GU111971.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Blueberry_virus_A_NC_018519.1/EXAMPLE_NC_018519.1/EXAMPLE_NC_018519.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Bromus-associated_circular_DNA_virus_1_NC_026241.1/EXAMPLE_NC_026241.1/EXAMPLE_NC_026241.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Cassava_common_mosaic_virus_NC_001658.1/EXAMPLE_NC_001658.1/EXAMPLE_NC_001658.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Chenopodium_quinoa_mitovirus_1_NC_040543.1/EXAMPLE_NC_040543.1/EXAMPLE_NC_040543.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Citrus_viroid_VI_NC_004359.1/EXAMPLE_NC_004359.1/EXAMPLE_NC_004359.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Clitoria_virus_Y_NC_043145.1/EXAMPLE_NC_043145.1/EXAMPLE_NC_043145.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Cytorhabdovirus_sp._lycii_OR489165.1/EXAMPLE_OR489165.1/EXAMPLE_OR489165.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Cytorhabdovirus_sp._tiliae_NC_139378.1/EXAMPLE_NC_139378.1/EXAMPLE_NC_139378.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Digitaria_streak_virus_NC_001478.1/EXAMPLE_NC_001478.1/EXAMPLE_NC_001478.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Dioscorea_nummularia-associated_virus_NC_040712.1/EXAMPLE_NC_040712.1/EXAMPLE_NC_040712.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Edgeworthia_chrysantha_mosaic-associated_virus_ON602044.1/EXAMPLE_ON602044.1/EXAMPLE_ON602044.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Edgeworthia_chrysantha_mosaic-associated_virus_ON602045.1/EXAMPLE_ON602045.1/EXAMPLE_ON602045.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Freesia_konkovirus_1_PQ490803.1/EXAMPLE_PQ490803.1/EXAMPLE_PQ490803.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Freesia_konkovirus_1_PQ490804.1/EXAMPLE_PQ490804.1/EXAMPLE_PQ490804.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Freesia_konkovirus_1_PQ490805.1/EXAMPLE_PQ490805.1/EXAMPLE_PQ490805.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Freesia_konkovirus_1_PQ490806.1/EXAMPLE_PQ490806.1/EXAMPLE_PQ490806.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Glehnia_littoralis_virus_1_NC_076977.1/EXAMPLE_NC_076977.1/EXAMPLE_NC_076977.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Hibiscus_chlorotic_ringspot_virus_NC_003608.1/EXAMPLE_NC_003608.1/EXAMPLE_NC_003608.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Honeysuckle-associated_cytorhabdovirus_1_PQ587056.1/EXAMPLE_PQ587056.1/EXAMPLE_PQ587056.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Hordeum_vulgare_alphaendornavirus_NC_028949.1/EXAMPLE_NC_028949.1/EXAMPLE_NC_028949.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Kalanchoe_mosaic_virus_NC_043150.1/EXAMPLE_NC_043150.1/EXAMPLE_NC_043150.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Lagenaria_siceraria_endornavirus-California_NC_023641.1/EXAMPLE_NC_023641.1/EXAMPLE_NC_023641.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Macroptilium_common_mosaic_virus_NC_031448.1/EXAMPLE_NC_031448.1/EXAMPLE_NC_031448.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Maize-associated_totivirus_1_NC_028044.1/EXAMPLE_NC_028044.1/EXAMPLE_NC_028044.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Maize_streak_virus_-_B_Mom_AF329886.1/EXAMPLE_AF329886.1/EXAMPLE_AF329886.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Mal_de_Rio_Cuarto_virus_NC_008728.1/EXAMPLE_NC_008728.1/EXAMPLE_NC_008728.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Maracuja_mosaic_virus_NC_008716.1/EXAMPLE_NC_008716.1/EXAMPLE_NC_008716.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Nerine_virus_X_NC_007679.1/EXAMPLE_NC_007679.1/EXAMPLE_NC_007679.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Okra_leaf_curl_betasatellite-_India_Mau_2012_KF515615.1/EXAMPLE_KF515615.1/EXAMPLE_KF515615.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Okra_leaf_curl_betasatellite_India_Munthal_EL38_2006_NC_076119.1/EXAMPLE_NC_076119.1/EXAMPLE_NC_076119.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Okra_leaf_curl_disease_associated_AJ316029.1/EXAMPLE_AJ316029.1/EXAMPLE_AJ316029.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Orychophragmus_violaceus_varicosavirus_PP770489.1/EXAMPLE_PP770489.1/EXAMPLE_PP770489.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Orychophragmus_violaceus_varicosavirus_PP777177.1/EXAMPLE_PP777177.1/EXAMPLE_PP777177.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Panicum_mosaic_virus_satellite_MF372923.1/EXAMPLE_MF372923.1/EXAMPLE_MF372923.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Pelamoviroid_malleusmali_MH049330.1/EXAMPLE_MH049330.1/EXAMPLE_MH049330.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Phaseolus_vulgaris_alphaendornavirus_2_NC_038422.1/EXAMPLE_NC_038422.1/EXAMPLE_NC_038422.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Plantago_asiatica_virus_A_NC_116799.1/EXAMPLE_NC_116799.1/EXAMPLE_NC_116799.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Plum_pox_virus_D_LC333552.1/EXAMPLE_LC333552.1/EXAMPLE_LC333552.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Plum_pox_virus_HF585098.1/EXAMPLE_HF585098.1/EXAMPLE_HF585098.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Plum_pox_virus_NC_001445.1/EXAMPLE_NC_001445.1/EXAMPLE_NC_001445.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Polyscias_mosaic_virus_NC_055562.1/EXAMPLE_NC_055562.1/EXAMPLE_NC_055562.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Potato_spindle_tuber_viroid_NC_002030.1/EXAMPLE_NC_002030.1/EXAMPLE_NC_002030.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Pueraria_lobata-associated_emaravirus_ON181430.1/EXAMPLE_ON181430.1/EXAMPLE_ON181430.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Pueraria_lobata-associated_emaravirus_ON181431.1/EXAMPLE_ON181431.1/EXAMPLE_ON181431.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Pueraria_lobata-associated_emaravirus_ON181432.1/EXAMPLE_ON181432.1/EXAMPLE_ON181432.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Pueraria_lobata-associated_emaravirus_ON181433.1/EXAMPLE_ON181433.1/EXAMPLE_ON181433.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Pueraria_lobata-associated_emaravirus_ON181434.1/EXAMPLE_ON181434.1/EXAMPLE_ON181434.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Ramu_stunt_virus_KR094115.1/EXAMPLE_KR094115.1/EXAMPLE_KR094115.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Ramu_stunt_virus_KR094116.1/EXAMPLE_KR094116.1/EXAMPLE_KR094116.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Ramu_stunt_virus_KR094117.1/EXAMPLE_KR094117.1/EXAMPLE_KR094117.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Ramu_stunt_virus_KR094118.1/EXAMPLE_KR094118.1/EXAMPLE_KR094118.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Ramu_stunt_virus_KR094119.1/EXAMPLE_KR094119.1/EXAMPLE_KR094119.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Ramu_stunt_virus_KR698381.1/EXAMPLE_KR698381.1/EXAMPLE_KR698381.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Rose_virus_B_NC_077068.1/EXAMPLE_NC_077068.1/EXAMPLE_NC_077068.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Soybean_leaf-associated_negative-stranded_PZ000445.1/EXAMPLE_PZ000445.1/EXAMPLE_PZ000445.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Spinach_amalgavirus_1_NC_035070.1/EXAMPLE_NC_035070.1/EXAMPLE_NC_035070.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Tea-oil_camellia-associated_totivirus_1_NC_116680.1/EXAMPLE_NC_116680.1/EXAMPLE_NC_116680.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Tomato_leaf_curl_Malaysia_betasatellite_NC_038686.1/EXAMPLE_NC_038686.1/EXAMPLE_NC_038686.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Tomato_severe_leaf_curl_virus_-_SLP_3_JN676151.1/EXAMPLE_JN676151.1/EXAMPLE_JN676151.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Tomato_yellow_leaf_curl_China_virus-Tb_Y36_AJ420316.1/EXAMPLE_AJ420316.1/EXAMPLE_AJ420316.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Trifolium_virus_1_MW698813.1/EXAMPLE_MW698813.1/EXAMPLE_MW698813.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Verbena_latent_virus_NC_043085.1/EXAMPLE_NC_043085.1/EXAMPLE_NC_043085.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Wheat_white_spike_virus_MZ703097.1/EXAMPLE_MZ703097.1/EXAMPLE_MZ703097.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Wheat_white_spike_virus_MZ703098.1/EXAMPLE_MZ703098.1/EXAMPLE_MZ703098.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Wheat_white_spike_virus_MZ703099.1/EXAMPLE_MZ703099.1/EXAMPLE_MZ703099.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Wheat_white_spike_virus_MZ703100.1/EXAMPLE_MZ703100.1/EXAMPLE_MZ703100.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Wheat_white_spike_virus_MZ703101.1/EXAMPLE_MZ703101.1/EXAMPLE_MZ703101.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/Wisteria_badnavirus_1_NC_034252.1/EXAMPLE_NC_034252.1/EXAMPLE_NC_034252.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/consensus_qc.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/maize_streak_virus_B1_PQ434746.1/EXAMPLE_PQ434746.1/EXAMPLE_PQ434746.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/maize_streak_virus_B1_PQ434765.1/EXAMPLE_PQ434765.1/EXAMPLE_PQ434765.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/maize_streak_virus_B3_PQ434757.1/EXAMPLE_PQ434757.1/EXAMPLE_PQ434757.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/maize_streak_virus_F_PQ434707.1/EXAMPLE_PQ434707.1/EXAMPLE_PQ434707.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/consensus/strawberry-associated_virus_1_MK159261.1/EXAMPLE_MK159261.1/EXAMPLE_MK159261.1.consensus.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/filter/discarded.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/filter/filtered.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/AF329886.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/AJ316029.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/AJ420316.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/GU111966.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/GU111968.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/GU111969.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/GU111971.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/GU111979.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/HF585098.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/HM590504.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/HM590506.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/JN676151.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/KF515615.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/KR094115.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/KR094116.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/KR094117.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/KR094118.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/KR094119.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/KR698381.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/LC333552.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/MF372923.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/MG662372.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/MH049330.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/MK159261.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/MW698813.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/MZ703097.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/MZ703098.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/MZ703099.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/MZ703100.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/MZ703101.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_001445.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_001478.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_001658.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_002030.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_003405.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_003608.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_004359.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_007679.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_008716.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_008728.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_014846.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_018519.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_023641.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_026241.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_028044.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_028132.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_028237.2.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_028949.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_031448.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_034252.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_035070.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_038422.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_038686.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_040543.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_040712.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_043085.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_043145.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_043150.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_055562.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_076119.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_076977.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_077068.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_079073.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_079074.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_079075.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_079076.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_079077.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_116680.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_116799.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_117321.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_139271.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_139378.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/OL471978.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/OL471979.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/OL471980.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/OL471981.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/OL471982.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/ON181430.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/ON181431.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/ON181432.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/ON181433.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/ON181434.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/ON602044.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/ON602045.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/OP441764.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/OR489165.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PP770489.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PP777177.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ434707.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ434746.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ434757.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ434765.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ490803.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ490804.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ490805.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ490806.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ587056.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PZ000445.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/identify/all_viruses.best.summary.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/identify/all_viruses.review.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/identify/all_viruses.summary.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/index/harmonized.fasta",
+    "size": null
+   },
+   {
+    "path": "kvsuite/index/harmonized_minibwa.l2b",
+    "size": null
+   },
+   {
+    "path": "kvsuite/index/harmonized_minibwa.mbw",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Ageratum_virus_2_NC_139271.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Ageratum_virus_2_NC_139271.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Ageratum_virus_2_NC_139271.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Alfalfa_dwarf_virus_NC_028237.2_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Alfalfa_dwarf_virus_NC_028237.2_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Alfalfa_dwarf_virus_NC_028237.2_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Alphacytorhabdovirus_alphapogostemi_NC_117321.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Alphacytorhabdovirus_alphapogostemi_NC_117321.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Alphacytorhabdovirus_alphapogostemi_NC_117321.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Apple_hammerhead_viroid-like_MG662372.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Apple_hammerhead_viroid-like_MG662372.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Apple_hammerhead_viroid-like_MG662372.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Apple_hammerhead_viroid-like_circular_NC_028132.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Apple_hammerhead_viroid-like_circular_NC_028132.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Apple_hammerhead_viroid-like_circular_NC_028132.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079073.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079073.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079073.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079074.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079074.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079074.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079075.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079075.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079075.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079076.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079076.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079076.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079077.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079077.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Arceuthobium_sichuanense_virus_1_NC_079077.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471978.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471978.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471978.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471979.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471979.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471979.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471980.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471980.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471980.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471981.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471981.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471981.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471982.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471982.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OL471982.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OP441764.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OP441764.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Artemisia_fimovirus_1_OP441764.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_India_betasatellite__India_Aurangabad_OY164_2006__NC_014846.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_India_betasatellite__India_Aurangabad_OY164_2006__NC_014846.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_India_betasatellite__India_Aurangabad_OY164_2006__NC_014846.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_betasatellite_NC_003405.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_betasatellite_NC_003405.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_betasatellite_NC_003405.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_betasatellite__India_Dhanbad_2008__HM590504.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_betasatellite__India_Dhanbad_2008__HM590504.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_betasatellite__India_Dhanbad_2008__HM590504.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_betasatellite__India_Varanasi_2008__HM590506.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_betasatellite__India_Varanasi_2008__HM590506.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_betasatellite__India_Varanasi_2008__HM590506.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Guntur_OY112_2006__GU111969.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Guntur_OY112_2006__GU111969.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Guntur_OY112_2006__GU111969.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Karnal_OY80A_2006__GU111979.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Karnal_OY80A_2006__GU111979.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Karnal_OY80A_2006__GU111979.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Raichur_OY54_2005__GU111966.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Raichur_OY54_2005__GU111966.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Raichur_OY54_2005__GU111966.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Raichur_OY56B_2005__GU111968.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Raichur_OY56B_2005__GU111968.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Raichur_OY56B_2005__GU111968.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Thadagan_OY158_2006__GU111971.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Thadagan_OY158_2006__GU111971.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bhendi_yellow_vein_mosaic_betasatellite__India_Thadagan_OY158_2006__GU111971.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Blueberry_virus_A_NC_018519.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Blueberry_virus_A_NC_018519.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Blueberry_virus_A_NC_018519.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bromus-associated_circular_DNA_virus_1_NC_026241.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bromus-associated_circular_DNA_virus_1_NC_026241.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Bromus-associated_circular_DNA_virus_1_NC_026241.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Cassava_common_mosaic_virus_NC_001658.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Cassava_common_mosaic_virus_NC_001658.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Cassava_common_mosaic_virus_NC_001658.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Chenopodium_quinoa_mitovirus_1_NC_040543.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Chenopodium_quinoa_mitovirus_1_NC_040543.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Chenopodium_quinoa_mitovirus_1_NC_040543.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Citrus_viroid_VI_NC_004359.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Citrus_viroid_VI_NC_004359.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Citrus_viroid_VI_NC_004359.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Clitoria_virus_Y_NC_043145.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Clitoria_virus_Y_NC_043145.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Clitoria_virus_Y_NC_043145.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Cytorhabdovirus_sp.__lycii__OR489165.1_depth.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Cytorhabdovirus_sp.__lycii__OR489165.1_depth.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/plots/EXAMPLE/EXAMPLE_Cytorhabdovirus_sp.__lycii__OR489165.1_depth.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_summary.json",
+    "size": null
    }
   ],
-  "generated_at": "2026-10-06 16:45:21",
+  "generated_at": "2026-11-03 12:58:19",
   "kind": "tool",
   "module": "kvsuite",
-  "note": "（1 个声明文件已缺失，从清单剔除）",
-  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261006_164441_6ad429",
-  "run": "kvsuite_20261006_164441_6ad429",
+  "note": "（产物超 20MB 模块上限，示例只截取前 340 个文件）",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125005_bf8af6",
+  "run": "kvsuite_20261103_125005_bf8af6",
   "source": "examples/",
   "stats": {
    "engine": "salmon",
-   "filtered_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261006_164441_6ad429\\kvsuite\\filter\\filtered.tsv",
-   "n_confirmed": 3,
-   "out": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261006_164441_6ad429\\kvsuite",
-   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261006_164441_6ad429",
+   "filtered_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125005_bf8af6\\kvsuite\\filter\\filtered.tsv",
+   "n_confirmed": 98,
+   "n_variant_genomes": 17,
+   "n_variant_skipped": 7,
+   "n_variants": 581,
+   "out": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125005_bf8af6\\kvsuite",
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125005_bf8af6",
    "reference": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\reference.fasta",
-   "run": "kvsuite_20261006_164441_6ad429",
-   "stage": "all"
+   "run": "kvsuite_20261103_125005_bf8af6",
+   "stage": "all",
+   "variant_summary": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125005_bf8af6\\kvsuite\\variant_summary.json"
   },
   "title": "已知病毒识别与定量"
+ },
+ "lamp": {
+  "files": [
+   {
+    "path": "lamp/lamp_order.tsv",
+    "size": null
+   },
+   {
+    "path": "lamp/lamp_sets.tsv",
+    "size": null
+   },
+   {
+    "path": "lamp/primer_layout.png",
+    "size": null
+   },
+   {
+    "path": "lamp/primer_layout.svg",
+    "size": null
+   },
+   {
+    "path": "lamp/report.md",
+    "size": null
+   },
+   {
+    "path": "lamp/sequence_view.html",
+    "size": null
+   },
+   {
+    "path": "lamp/summary.json",
+    "size": null
+   },
+   {
+    "path": "results.html",
+    "size": null
+   }
+  ],
+  "generated_at": "2026-11-06 00:21:57",
+  "kind": "tool",
+  "module": "lamp",
+  "note": "LAMP 六引物组设计：ACMV 单序列（~2.8kb），F3/F2/F1/B1/B2/B3 + LF/LB，分段 Tm/GC/间距约束 + 二聚体快筛",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\lamp_20261106_002151_a07ec1",
+  "run": "lamp_20261106_002151_a07ec1",
+  "source": "examples/",
+  "stats": {
+   "best_score": 88.3,
+   "elapsed_sec": 3.5,
+   "engine_version": "1.0.0",
+   "evidence_note": "证据边界：计算设计仅支持候选优先级排序，不构成扩增效率、引物间干扰或基质性能的证据；实验结论须按 L1-L5 逐级建立（LAMP 段：65°C Bst 酶体系、内外引物浓度比、环引物增益）",
+   "files.layout_png": "lamp\\primer_layout.png",
+   "files.layout_svg": "lamp\\primer_layout.svg",
+   "files.order": "lamp\\lamp_order.tsv",
+   "files.report": "lamp\\report.md",
+   "files.seqview": "lamp\\sequence_view.html",
+   "files.sets": "lamp\\lamp_sets.tsv",
+   "n_input_records": 1,
+   "n_segments": 1,
+   "n_sets_output": 10,
+   "n_sets_total": 39,
+   "ok": true,
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\lamp_20261106_002151_a07ec1",
+   "run": "lamp_20261106_002151_a07ec1",
+   "segments.main.consensus_len": 2779,
+   "segments.main.msa": false,
+   "segments.main.n_isolates": 1,
+   "segments.main.n_sets": 39,
+   "target": "example_acmv.fasta",
+   "tool": "lamp",
+   "top_sets_n": 10
+  },
+  "title": "LAMP 引物组设计（六引物 + 环引物）"
  },
  "logan": {
   "files": [
@@ -1150,7 +3143,7 @@
    "tool": "phylodyn",
    "warnings_n": 2
   },
-  "title": "⚡ 一键分析（定年 → 地理迁移 → 汇总溯源）"
+  "title": "⚡ 一键分析"
  },
  "phylogeo": {
   "files": [
@@ -1618,52 +3611,1576 @@
  "variant": {
   "files": [
    {
-    "path": "kvsuite/logs/known_virus_suite_20261006_162539.log",
-    "size": "1.2KB"
+    "path": "kvsuite/annotated/AF329886.ann.tsv",
+    "size": null
    },
    {
-    "path": "kvsuite/logs/bcftools.log",
-    "size": "2.2KB"
+    "path": "kvsuite/annotated/AF329886.ann.vcf",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.vcf.filtered",
-    "size": "4.5KB"
+    "path": "kvsuite/annotated/AJ316029.ann.tsv",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.soft.vcf",
-    "size": "4.2KB"
+    "path": "kvsuite/annotated/AJ316029.ann.vcf",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.vcf",
-    "size": "3.6KB"
+    "path": "kvsuite/annotated/GU111966.ann.tsv",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.raw.vcf",
-    "size": "3.6KB"
+    "path": "kvsuite/annotated/GU111966.ann.vcf",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.call.bcf",
-    "size": "1.2KB"
+    "path": "kvsuite/annotated/GU111968.ann.tsv",
+    "size": null
    },
    {
-    "path": "kvsuite/vcf/all.variants.pileup.bcf",
-    "size": "364.3KB"
+    "path": "kvsuite/annotated/GU111968.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/GU111969.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/GU111969.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/GU111979.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/GU111979.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HF585098.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HF585098.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HM590504.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HM590504.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HM590506.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/HM590506.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/KF515615.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/KF515615.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/LC333552.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/LC333552.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_001445.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_001445.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_003405.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_003405.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_014846.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_014846.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_043085.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/NC_043085.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/PZ000445.ann.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/annotated/PZ000445.ann.vcf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/AF329886.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/AJ316029.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/GU111966.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/GU111968.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/GU111969.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/GU111971.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/GU111979.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/HF585098.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/HM590504.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/HM590506.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/KF515615.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/LC333552.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/MH049330.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_001445.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_003405.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_014846.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_028132.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/NC_043085.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ434707.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ434746.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ434757.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PQ434765.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/gbk_files/PZ000445.1.gb",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/AF329886.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/AF329886.1.snpgenie/SNPGenie_LOG.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/AF329886.1.snpgenie/SNPGenie_parameters.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/AF329886.1.snpgenie/codon_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/AF329886.1.snpgenie/population_summary.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/AF329886.1.snpgenie/product_results.annotated.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/AF329886.1.snpgenie/product_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/AF329886.1.snpgenie/site_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/AF329886.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/AJ316029.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/AJ316029.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/GU111966.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/GU111966.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/GU111968.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/GU111968.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/GU111969.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/GU111969.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/GU111979.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/GU111979.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HF585098.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HF585098.1.snpgenie/SNPGenie_LOG.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HF585098.1.snpgenie/SNPGenie_parameters.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HF585098.1.snpgenie/codon_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HF585098.1.snpgenie/population_summary.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HF585098.1.snpgenie/product_results.annotated.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HF585098.1.snpgenie/product_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HF585098.1.snpgenie/site_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HF585098.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HM590504.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HM590504.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HM590506.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/HM590506.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/KF515615.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/KF515615.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/LC333552.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/LC333552.1.snpgenie/SNPGenie_LOG.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/LC333552.1.snpgenie/SNPGenie_parameters.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/LC333552.1.snpgenie/codon_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/LC333552.1.snpgenie/population_summary.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/LC333552.1.snpgenie/product_results.annotated.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/LC333552.1.snpgenie/product_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/LC333552.1.snpgenie/site_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/LC333552.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_001445.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_001445.1.snpgenie/SNPGenie_LOG.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_001445.1.snpgenie/SNPGenie_parameters.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_001445.1.snpgenie/codon_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_001445.1.snpgenie/population_summary.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_001445.1.snpgenie/product_results.annotated.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_001445.1.snpgenie/product_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_001445.1.snpgenie/site_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_001445.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_003405.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_003405.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_014846.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_014846.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/NC_043085.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/PZ000445.1.gtf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/PZ000445.1.snpgenie/SNPGenie_LOG.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/PZ000445.1.snpgenie/SNPGenie_parameters.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/PZ000445.1.snpgenie/codon_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/PZ000445.1.snpgenie/population_summary.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/PZ000445.1.snpgenie/product_results.annotated.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/PZ000445.1.snpgenie/product_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/PZ000445.1.snpgenie/site_results.txt",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/PZ000445.1_popgen_window.tsv",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_evo/evo_manifest.json",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_density.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_density.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_density.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_landscape.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_landscape.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_landscape.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_popgen.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_popgen.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_popgen.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_snpgenie.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_snpgenie.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_snpgenie.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_spectrum.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_spectrum.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886.1_evo_spectrum.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_af_dp.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_af_dp.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_af_dp.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_effect.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_effect.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_effect.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_map.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_map.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_map.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_overview.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AF329886_variant_overview.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_density.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_density.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_density.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_landscape.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_landscape.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_landscape.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_popgen.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_popgen.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_popgen.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_spectrum.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_spectrum.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029.1_evo_spectrum.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_af_dp.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_af_dp.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_af_dp.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_effect.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_effect.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_effect.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_map.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_map.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_map.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_overview.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/AJ316029_variant_overview.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_density.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_density.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_density.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_landscape.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_landscape.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_landscape.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_popgen.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_popgen.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_popgen.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_spectrum.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_spectrum.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966.1_evo_spectrum.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_af_dp.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_af_dp.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_af_dp.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_effect.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_effect.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_effect.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_map.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_map.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_map.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_overview.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111966_variant_overview.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_density.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_density.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_density.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_landscape.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_landscape.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_landscape.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_popgen.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_popgen.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_popgen.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_spectrum.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_spectrum.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968.1_evo_spectrum.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_af_dp.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_af_dp.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_af_dp.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_effect.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_effect.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_effect.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_map.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_map.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_map.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_overview.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111968_variant_overview.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_density.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_density.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_density.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_landscape.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_landscape.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_landscape.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_popgen.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_popgen.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_popgen.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_spectrum.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_spectrum.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969.1_evo_spectrum.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_af_dp.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_af_dp.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_af_dp.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_effect.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_effect.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_effect.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_map.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_map.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_map.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_overview.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111969_variant_overview.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_density.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_density.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_density.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_landscape.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_landscape.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_landscape.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_popgen.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_popgen.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_popgen.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_spectrum.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_spectrum.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979.1_evo_spectrum.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979_variant_af_dp.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979_variant_af_dp.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979_variant_af_dp.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979_variant_map.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979_variant_map.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979_variant_map.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979_variant_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979_variant_overview.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/GU111979_variant_overview.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_density.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_density.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_density.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_landscape.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_landscape.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_landscape.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_popgen.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_popgen.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_popgen.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_snpgenie.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_snpgenie.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_snpgenie.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_spectrum.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_spectrum.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098.1_evo_spectrum.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_af_dp.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_af_dp.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_af_dp.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_effect.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_effect.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_effect.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_map.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_map.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_map.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_overview.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HF585098_variant_overview.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_density.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_density.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_density.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_landscape.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_landscape.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_landscape.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_popgen.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_popgen.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_popgen.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_spectrum.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_spectrum.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504.1_evo_spectrum.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_af_dp.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_af_dp.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_af_dp.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_effect.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_effect.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_effect.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_map.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_map.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_map.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_overview.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590504_variant_overview.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_density.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_density.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_density.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_landscape.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_landscape.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_landscape.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_popgen.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_popgen.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_popgen.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_spectrum.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_spectrum.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506.1_evo_spectrum.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_af_dp.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_af_dp.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_af_dp.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_effect.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_effect.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_effect.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_map.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_map.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_map.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_overview.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/HM590506_variant_overview.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_density.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_density.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_density.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_landscape.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_landscape.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_landscape.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_popgen.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_popgen.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_popgen.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_spectrum.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_spectrum.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615.1_evo_spectrum.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_af_dp.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_af_dp.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_af_dp.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_effect.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_effect.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_effect.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_map.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_map.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_map.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_overview.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_overview.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/KF515615_variant_overview.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_density.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_density.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_density.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_landscape.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_landscape.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_landscape.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_popgen.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_popgen.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_popgen.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_snpgenie.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_snpgenie.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_snpgenie.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_spectrum.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_spectrum.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552.1_evo_spectrum.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552_variant_af_dp.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552_variant_af_dp.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552_variant_af_dp.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552_variant_effect.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552_variant_effect.png",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552_variant_effect.svg",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_plots/LC333552_variant_map.pdf",
+    "size": null
+   },
+   {
+    "path": "kvsuite/variant_summary.json",
+    "size": null
    }
   ],
-  "generated_at": "2026-10-06 16:25:41",
+  "generated_at": "2026-11-03 13:01:37",
   "kind": "tool",
   "module": "variant",
-  "note": "（1 个声明文件已缺失，从清单剔除）",
-  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261006_162539_dbf859",
-  "run": "kvsuite_20261006_162539_dbf859",
+  "note": "（产物超 20MB 模块上限，示例只截取前 388 个文件）",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12",
+  "run": "kvsuite_20261103_125819_8bef12",
   "source": "examples/",
   "stats": {
    "engine": "salmon",
-   "out": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261006_162539_dbf859\\kvsuite",
-   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261006_162539_dbf859",
+   "n_variant_genomes": 16,
+   "n_variant_skipped": 7,
+   "n_variants": 517,
+   "out": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite",
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12",
    "reference": "D:\\桌面\\植物病毒分析平台\\databases\\virusref_db\\plant_ref\\reference.fasta",
-   "run": "kvsuite_20261006_162539_dbf859",
-   "stage": "variant"
+   "run": "kvsuite_20261103_125819_8bef12",
+   "stage": "variant",
+   "variant_summary": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\kvsuite_20261103_125819_8bef12\\kvsuite\\variant_summary.json"
   },
   "title": "病毒变异分析"
  },
@@ -1715,24 +5232,33 @@
   "files": [
    {
     "path": "_chain.json",
-    "size": "2.0KB"
+    "size": null
+   },
+   {
+    "path": "samples.tsv",
+    "size": null
    }
   ],
-  "generated_at": "2026-10-06 16:25:59",
+  "generated_at": "2026-11-03 12:36:33",
   "kind": "tool",
   "module": "virchain",
-  "note": "（7 个声明文件已缺失，从清单剔除）",
-  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\virchain_20261006_162541_1b8f59",
-  "run": "virchain_20261006_162541_1b8f59",
+  "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\virchain_20261103_123611_34b51c",
+  "run": "virchain_20261103_123611_34b51c",
   "source": "examples/",
   "stats": {
-   "chain": "virchain_20261006_162541_1b8f59",
-   "chain_json": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\virchain_20261006_162541_1b8f59\\_chain.json",
-   "n_steps": 4,
-   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\virchain_20261006_162541_1b8f59",
-   "run": "virchain_20261006_162541_1b8f59",
-   "steps_n": 4
+   "chain": "virchain_20261103_123611_34b51c",
+   "chain_json": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\virchain_20261103_123611_34b51c\\_chain.json",
+   "failed_samples": 0,
+   "mode": "single",
+   "n_samples": 1,
+   "n_steps": 3,
+   "ok_samples": 1,
+   "out_dir": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\virchain_20261103_123611_34b51c",
+   "run": "virchain_20261103_123611_34b51c",
+   "samples_n": 1,
+   "samples_tsv": "D:\\桌面\\植物病毒分析平台\\run\\tool_runs\\virchain_20261103_123611_34b51c\\samples.tsv",
+   "steps_n": 3
   },
-  "title": "病毒识别分类·一键（②→③→④）"
+  "title": "病毒识别分类·一键（①组装→②鉴定→③验证）"
  }
 }

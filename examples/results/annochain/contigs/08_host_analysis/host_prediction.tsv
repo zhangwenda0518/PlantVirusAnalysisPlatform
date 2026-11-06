@@ -1,0 +1,3 @@
+contig	length	kunpeng_taxid	class_source	accession	species	genus	family	topology	molecule_type	nuc_completeness	host_ictv	confidence_level	integrated_confidence	p_max	confidence_flag	determination	host_meta	host_meta_cat	known_hosts	final_host	host_check	decision_method
+example_contig_1	6096	698400	kunpeng	NC_077216.1	Polerovirus PEVYV6	Polerovirus	Solemoviridae	linear	ssRNA(+)	complete	Plant	High	0.9945	1.0		Species(via Species)	Capsicum annuum	Plant	Capsicum annuum	Plant	OK	ICTV_Meta_Agree
+example_contig_2	6988	1471299	kunpeng	NC_027131.1	Badnavirus decoloratiovitis	Badnavirus	Caulimoviridae	circular	dsDNA-RT	complete	Plant	High	1.0	1.0		Species(via Species)	Vitis vinifera	Plant	Vitis vinifera	Plant	OK	ICTV_Meta_Agree

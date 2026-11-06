@@ -1,0 +1,72 @@
+LOCUS       GU111968                1370 bp    DNA     circular VRL 18-MAY-2012
+DEFINITION  Bhendi yellow vein mosaic betasatellite [India:Raichur:OY56B:2005],
+            complete sequence.
+ACCESSION   GU111968
+VERSION     GU111968.1
+KEYWORDS    .
+SOURCE      Bhendi yellow vein mosaic betasatellite [India:Raichur:OY56B:2005]
+  ORGANISM  Bhendi yellow vein mosaic betasatellite [India:Raichur:OY56B:2005]
+            Viruses; Tolecusatellitidae; Betasatellite; Betasatellite
+            abelmoschusmusiviflavi.
+REFERENCE   1  (bases 1 to 1370)
+  AUTHORS   Venkataravanappa,V., Reddy,C.N., Swaranalatha,P., Jalali,S.,
+            Briddon,R.W. and Reddy,M.K.
+  TITLE     Diversity and phylogeography of Begomovirus-associated beta
+            satellites of Okra in India
+  JOURNAL   Virol. J. 8, 555 (2011)
+   PUBMED   22188644
+REFERENCE   2  (bases 1 to 1370)
+  AUTHORS   Venkataravanappa,V., Lakshiminarayanareddy,C.N., Jalali,S.,
+            Swaranalatha,P. and Krishnareddy,M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (25-SEP-2009) Division of Plant Pathology, Indian
+            Institute of Horticultural Research, Hessaraghatta Lake PO,
+            Bangalore, Karnataka 560089, India
+FEATURES             Location/Qualifiers
+     source          1..1370
+                     /organism="Bhendi yellow vein mosaic betasatellite
+                     [India:Raichur:OY56B:2005]"
+                     /mol_type="genomic DNA"
+                     /isolate="OY56B"
+                     /isolation_source="leaf"
+                     /host="Abelmoschus esculentus (okra)"
+                     /db_xref="taxon:908082"
+                     /geo_loc_name="India: Raichur, Karnataka"
+                     /collection_date="2005"
+                     /collected_by="M.Krishnareddy"
+     gene            complement(179..535)
+                     /gene="C1"
+     CDS             complement(179..535)
+                     /gene="C1"
+                     /codon_start=1
+                     /product="C1 protein"
+                     /protein_id="ADQ55865.1"
+                     /translation="MTRFSKTREGIVFKVDVRLMQQQRISVHMQISSTKSPAISTKTF
+                     IIDYTYQQLHIPFDFNGLEGTITSTFKFHYWGSKAEEILEEDIIHMVDIIIIENPDIM
+                     GMDVNEPVTIDNKIII"
+ORIGIN      
+        1 accgtgggcg agcggagtct gagtcgttgt gggacccact tatgaatgaa gttcatgggt
+       61 gatttcaagt atatggagga aattgtggat gagaaaaatg aatcatgttt gtttttcaaa
+      121 ttattttaga taacagtctc ctaataataa ttaatatgca aacatattac taacaaaatt
+      181 aaattattat cttattatca atagttactg gttcgtttac atccattccc atgatatctg
+      241 ggttttcaat aataataata tccaccatat gtatgatgtc ttcttctaat atttcttctg
+      301 cttttgaacc ccagtaatga aatttgaagg ttgatgtgat cgttccttct agaccgttga
+      361 agtcgaatgg aatgtgtaat tgttggtatg tgtagtcgat gatgaatgtc tttgttgata
+      421 tggctggaga ttttgttgaa ctgatctgca tatggaccga tatcctttgt tgttgcatga
+      481 gcctgacatc tactttgaag acgatcccct ccctggtttt gctgaacctt gtcatcttga
+      541 ttgtgcgtct aatgtatatg ttcgaagtga atatatagat gaaatgtatg gatattttta
+      601 tagaatgtgt ggatgaaatg tatagatatt ttcatataat gtgtggatat catttcataa
+      661 aactccatcc tgatccaaag aaaagtcatg agaaattccc ttattgagct cagaaatacg
+      721 ggaacgacat aaatttcagc gaacaaacta gcatcttcaa gtaaactcag ccgataagaa
+      781 aaacaaaaga ggaaatagag gaaaaatgaa accagaaaga aagaatatat atataaacta
+      841 agaaaaaaga aaagggagcg cagcgataaa aaaaagcgga gagaaagaaa taacaaaatc
+      901 caaaaaaaaa taaattcaga aagaaaagaa aaagaaaaaa tccgaagtca aaacgaagcc
+      961 gttttgagga ggaagaggaa agagaacgtt caatttacat tttttaccat ttactgcgtg
+     1021 gtaaatggta aatagtaaat gagtgggtaa attagacaga caccgatagg taaatgagac
+     1081 accgataggt aaatgagaca ccgatatatc ggtactcaat tggtacctct ggagtcttat
+     1141 aaagtgcttg tttaccattt tgcccctact tttaagttat atcgcgcgtc gtagtgcgct
+     1201 taaaaagtta tcttctctct cttcagttcc gataaaaacc taatttcccg atgatcggag
+     1261 tcgaattttc cgacacgcgc ggcggtgtgt acccctggga gggtagaaac ctctacgcta
+     1321 cgcagcagcc ttagctacgc cggagcttag ctcgcccacg ttctaatatt
+//
+

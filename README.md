@@ -59,6 +59,7 @@ mindmap
       公共数据检索
       病毒样本预筛
       Open-Virome 公共病毒组
+      LOGAN 溯源
       公共数据下载
       基因组查询下载
       数据库构建
@@ -76,15 +77,14 @@ mindmap
     🦠 病毒识别和分类分析
       一键分析 ②→③→④
       病毒识别分类与提取
-      提取序列组装
-      组装结果再鉴定
+      病毒组装
+      病毒鉴定
       候选序列验证
     🔬 病毒注释分析
-      注释三连 ORF→功能→图谱
-      ORF 预测
-      功能注释
-      同源比对 BLASTN·BLASTX
+      功能注释 含 ORF 预测
       基因组图谱
+    📤 数据提交
+      NCBI 提交准备
     💊 检测与防治
       引物设计
       CRISPR 检测试剂设计
@@ -105,9 +105,6 @@ mindmap
     📊 结果中心
       样品结果与专项结果
       进化树·SDT·MSA 查看器
-    🔍 溯源与提交
-      LOGAN 溯源与批量提交
-      NCBI 数据提交
     ✨ 平台级能力
       AI 助手 解读·播报·闸门·检索执行
       任务中心 并发闸门·进度自学习
@@ -129,7 +126,7 @@ mindmap
 | ① 宿主去除 | 同上 | kunpeng（宿主库） | kept_R1/R2、宿主占比 |
 | ②b 已知病毒识别与定量 | [Kvsuite](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Kvsuite.md) | salmon（EM 定量）/ minibwa | 鉴定表、定量表、BAM+深度、病毒 reads |
 | ③ 组装与分类 | [Assembly](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Assembly.md) | SPAdes metaviral/rna + BLAST | contigs、病毒 contig 注释表 |
-| ③b 候选序列验证 | 同上 | 宿主筛选→长度分流→blastx/BFVD/类病毒 | 验证通过的候选集 |
+| ③b 候选序列验证 | 同上 | 宿主筛选→长度分流→blastx/BFVD/CDD/类病毒 | 验证通过的候选集 |
 | ③c 共识序列与变异 | 同上 | reads 回贴参考 → 逐位置计数 | 共识序列、变异表 |
 | ④ 宿主预测 | [Host-Prediction](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Host-Prediction.md) | kunpeng + ICTV 宿主概率级联 | host_prediction.tsv、桑基/旭日图 |
 | ⑥ ORF 预测 | [ORF](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/ORF.md) | pyrodigal + pyrodigal-rv | faa/ffn/gff |
@@ -147,9 +144,9 @@ mindmap
 | BEAST 接口 | [BEAST](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/BEAST.md) | 服务器 BEAST 作业包生成/回读核验、Markov-jump XML 注入与日志解析、MCC 状态解析 |
 | 系统地理 | [Phylogeography](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Phylogeography.md) | 时间/地理元数据驱动的迁移重构 + 迁移弧线动画 GIF；RDP5 重组分析；重组前序列预筛 |
 | 公共数据检索与下载 | [Public-Data](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Public-Data.md) | SRA+GSA 双引擎检索、统一元数据 Core14/Full、SCI 级元数据图组、aria2c 批量下载 + 内置 sracha 转 FASTQ、宿主基因组三源下载（NCBI taxon / accession·染色体过滤 / gget·Ensembl Plants）、NCBI datasets CLI 全模式封装（genome/gene/taxonomy/virus+宿主过滤，virus 直通建库）|
-| 专项工具箱 | [Toolbox](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Toolbox.md) | dsRNA 全链路设计（选窗→效价→脱靶→引物）、miRNA 靶标预测（5 引擎）、NCBI 参考下载、GenBank 集合与 CDS/PEP 提取、MSA 查看、contig 深度注释、单步工具 |
+| 专项工具箱 | [Toolbox](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Toolbox.md) | dsRNA 全链路设计（选窗→效价→脱靶→引物）、miRNA 靶标预测（5 引擎）、NCBI 参考下载、GenBank 集合与 CDS/PEP 提取、MSA 查看、contig 深度注释、LOGAN 数据下载（按 accession 拉公共样本预组装 contigs，直喂宿主去除/病毒序列提取/ORF/溯源）、单步工具 |
 | NCBI 提交准备 | [Submission](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/NCBI-Submission.md) | unified_metadata.csv 一表驱动：在线编辑→校验→生成 source.src / miuvig / assembly / BioSample / template.sbt / 提交报告 |
-| LOGAN 溯源 | [Logan](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Logan.md) | 病毒 contig 提交 Logan-Search（覆盖 ~2340 万公开 SRA 样本），批量提交 + SSE 实时进度 + 溯源报告 |
+| LOGAN 溯源 | [Logan](https://github.com/zhangwenda0518/PlantVirusPlatform/blob/main/wiki/Logan.md) | 序列粘贴 / 样品 contig 选择 → 自动切割 ≤2500bp 片段（可设相邻重叠）→ 逐段复制 / 导出 FASTA / 全部打包 → 页内内嵌 Logan-Search 仪表盘直接提交查询；任务式批量接口保留在 CLI/MCP |
 
 ### 平台设施
 
@@ -189,6 +186,20 @@ python -m pip install -r requirements.txt   :: 装依赖（2026-10-11 起不再�
 | 默认（auto） | `python app.py` | 优先桌面窗口，失败自动回退浏览器 |
 
 端口从 8765 起自动顺延探测，**以控制台打印的地址为准**；只监听 `127.0.0.1`，不对外网开放。
+
+### 2.5 自动更新（2026-11-05 起，分发包）
+
+- 打包版（`VirusPlatform.exe`）启动后自动检查新版本：发现新版**自动下载校验
+  （强制 sha256 + 断点续传；清单默认走 GitHub raw 的 https 源，自建/内网源
+  需在 `platform.json` 的 `update_manifest_url` 显式配置），等运行中/排队任务
+  结束后自动换装重启**；`platform.json` / `run/`（结果与 API Key）/ `3rd/` 工具 /
+  数据库全部原样保留，失败自动回滚。换装由后台脚本在主进程退出后完成
+  （约 400MB，走 zip 包）。
+- 不想自动更新：设置页「软件更新」卡片关掉「自动检查/自动安装」；或 CLI
+  `VirusPlatform.exe --cli update --check` 手动查。内网部署可把
+  `platform.json` 的 `update_manifest_url` 指到内网服务器（显式配置的源
+  域名豁免私网检查）。
+- 源码形态使用者不受影响：git 仓库内运行不走自更新（git pull 即可）。
 
 ### 3. 首次配置（仅一次）
 
